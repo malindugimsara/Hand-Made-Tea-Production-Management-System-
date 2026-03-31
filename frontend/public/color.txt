@@ -1,0 +1,30 @@
+Dark Green = #1B6A31
+Sidebars, 
+main navigation text,
+primary buttons,
+main logo text. 
+This grounds the application and provides high contrast.
+
+
+Brand Mid Green = #4A9E46
+Active states (like the selected tab on your sidebar)
+success messages, 
+and secondary buttons.
+
+
+Accent Light Green = #8CC63F
+Highlights
+hover effects
+subtle borders 
+small accents
+Use sparingly so it doesn't overwhelm the user.
+
+
+Surface Off-White = #F8FAF8
+The main background of your dashboard.
+
+
+Card White = #FFFFFF
+Data tables, 
+input forms,
+main content boxes 
