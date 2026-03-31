@@ -4,6 +4,8 @@ import mongoose from 'mongoose';
 import authjwt from './middleware/auth.js';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import greenLeafRouter from './router/greenLeafRouter.js';
+import productionRouter from './router/productionRouter.js';
 
 
 dotenv.config();
@@ -22,6 +24,10 @@ mongoose.connect(process.env.MONGO_URL).then
 app.use(bodyParser.json());
 
 app.use(authjwt)
+
+// Routes
+app.use('/api/green-leaf', greenLeafRouter);
+app.use('/api/production', productionRouter);
 
 
 app.listen(3000, () => {

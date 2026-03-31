@@ -6,7 +6,7 @@ function App() {
 
   return (
     <>
-      <DashboardLayout/>
+      <h1 className='bg-red-900'>Hello World</h1>
     </>
   )
 }
