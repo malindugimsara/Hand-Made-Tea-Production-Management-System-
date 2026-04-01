@@ -5,7 +5,6 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import DashboardLayout from './pages/DashboardLayout';
 import DashboardHome from './pages/sideBar/home';
-import ProductionForm from './pages/sideBar/productionForm'
 import CostingForm from './pages/sideBar/CostingForm';
 import SalesForm from './pages/sideBar/SalesForm';
 import GreenLeafForm from './pages/sideBar/GreenLeafForm';
@@ -22,7 +21,6 @@ export default function App() {
           {/* These pages render inside the <Outlet /> based on the URL */}
           <Route index element={<DashboardHome />} />
           <Route path="green-leaf-form" element={<GreenLeafForm />} />
-          <Route path="production" element={<ProductionForm />} />
           <Route path="costing" element={<CostingForm />} />
           <Route path="sales" element={<SalesForm />} />
           <Route path="view-green-leaf" element={<ViewGreenLeafForm />} />

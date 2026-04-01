@@ -75,18 +75,18 @@ const DATA = {
     plan: 'Main Factory',
     logo: Leaf,
   },
-  // Single links (Like the 'Projects' section in the demo)
+  // Single links
   quickLinks: [
     { name: 'Dashboard Home', url: '/', icon: LayoutDashboard },
   ],
-  // Nested/Collapsible links (Like the 'NavMain' section in the demo)
+  // Nested/Collapsible links
   navMain: [
     {
-      title: 'Operations',
+      title: 'Green Leaf',
       icon: Factory,
       items: [
-        { title: 'Green Leaf Entry', url: '/green-leaf-form' },
-        { title: 'Production Record', url: '/production' },
+        { title: 'Record Entry', url: '/green-leaf-form' },
+        { title: 'View Records', url: '/view-green-leaf' }, // Replaced Production with View Records
       ],
     },
     {
@@ -110,7 +110,7 @@ export default function DashboardLayout() {
     switch (location.pathname) {
       case '/': return 'Dashboard Overview';
       case '/green-leaf-form': return 'Green Leaf Entry';
-      case '/production': return 'Production Record';
+      case '/view-green-leaf': return 'View Green Leaf Records'; // Added the new route title
       case '/costing': return 'Cost Calculations';
       case '/sales': return 'Sales Revenue';
       default: return 'System';
@@ -163,7 +163,7 @@ export default function DashboardLayout() {
                     >
                       <div>
                         <item.icon className={isActive ? "text-[#4A9E46]" : ""} />
-                        <span>{item.name}</span>
+                        <span >{item.name}</span>
                       </div>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
