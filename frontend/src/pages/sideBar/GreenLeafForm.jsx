@@ -39,7 +39,7 @@ export default function DailyRecordForm() {
 
             if (prodRes.ok) {
                 const prodData = await prodRes.json();
-                prodData.sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by newest
+                prodData.sort((a, b) => new Date(b.date) - new Date(a.date)); 
 
                 let d1Last = '';
                 let d2Last = '';
@@ -93,12 +93,41 @@ export default function DailyRecordForm() {
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
+        e.preventDefault(); 
+        setShowSpinner(true);
 
         if (existingDates.includes(formData.date)) {
             playErrorSound(); 
             toast.error(`A record for ${formData.date} has already been submitted!`);
+            setShowSpinner(false); 
             return; 
+        }
+
+        const total = Number(formData.totalWeight);
+        const selected = Number(formData.selectedWeight);
+        const made = Number(formData.madeTeaWeight);
+        const mStart = Number(formData.meterStart);
+        const mEnd = Number(formData.meterEnd);
+
+        if (selected > total) {
+            playErrorSound();
+            toast.error("Selected weight must be less than Total weight!");
+            setShowSpinner(false);
+            return;
+        }
+
+        if (made > selected) {
+            playErrorSound();
+            toast.error("Made tea weight must be less than Selected weight!");
+            setShowSpinner(false);
+            return;
+        }
+
+        if (mEnd < mStart) {
+            playErrorSound();
+            toast.error("End Reading must be greater than Start Reading!");
+            setShowSpinner(false);
+            return;
         }
 
         const toastId = toast.loading('Saving complete daily record...');
@@ -106,18 +135,18 @@ export default function DailyRecordForm() {
         try {
             const greenLeafPayload = {
                 date: formData.date,
-                totalWeight: Number(formData.totalWeight),
-                selectedWeight: Number(formData.selectedWeight)
+                totalWeight: total,
+                selectedWeight: selected
             };
 
             const productionPayload = {
                 date: formData.date,
                 teaType: formData.teaType,
-                madeTeaWeight: Number(formData.madeTeaWeight),
+                madeTeaWeight: made,
                 dryerDetails: {
-                    dryerName: formData.dryerName, // Backend ge kaluhisuva hosa field
-                    meterStart: Number(formData.meterStart),
-                    meterEnd: Number(formData.meterEnd)
+                    dryerName: formData.dryerName,
+                    meterStart: mStart,
+                    meterEnd: mEnd
                 }
             };
 
@@ -135,7 +164,6 @@ export default function DailyRecordForm() {
             if (glRes.ok && prodRes.ok && labRes.ok) {
                 toast.success("Daily record saved successfully!", { id: toastId });
                 
-                // Update local last readings cache
                 setLastReadings(prev => ({
                     ...prev,
                     [formData.dryerName]: formData.meterEnd
@@ -153,6 +181,8 @@ export default function DailyRecordForm() {
         } catch (error) {
             playErrorSound();
             toast.error("Network error.", { id: toastId });
+        } finally {
+            setShowSpinner(false); 
         }
     };
 
@@ -177,8 +207,15 @@ export default function DailyRecordForm() {
                 <div className="mb-8 bg-[#F8FAF8] border border-[#A3D9A5] rounded-lg p-6">
                     <h3 className="text-lg font-bold text-[#1B6A31] mb-4 flex items-center gap-2"><span>🌱</span> 1. Received Green Leaf</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div><label className="block text-sm font-semibold text-gray-700 mb-1">Total (kg)</label><input type="number" step="0.01" name="totalWeight" value={formData.totalWeight} onChange={handleInputChange} required className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#8CC63F]" /></div>
-                        <div><label className="block text-sm font-semibold text-gray-700 mb-1">Selected (kg)</label><input type="number" step="0.01" name="selectedWeight" value={formData.selectedWeight} onChange={handleInputChange} required className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#8CC63F]" /></div>
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Total (kg)</label>
+                            {/* onWheel={(e) => e.target.blur()} එකතු කර ඇත */}
+                            <input type="number" step="0.01" name="totalWeight" value={formData.totalWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#8CC63F]" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Selected (kg)</label>
+                            <input type="number" step="0.01" name="selectedWeight" value={formData.selectedWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#8CC63F]" />
+                        </div>
                     </div>
                     <div className="mt-4 pt-4 border-t border-[#A3D9A5] flex justify-between items-center"><span className="text-sm font-medium text-gray-600">Calculated Returned Weight:</span><span className="text-xl font-bold text-[#1B6A31]">{returnedWeight > 0 ? returnedWeight.toFixed(2) : 0} kg</span></div>
                 </div>
@@ -196,11 +233,14 @@ export default function DailyRecordForm() {
                                 <option value="White Tea">White Tea</option>
                             </select>
                         </div>
-                        <div><label className="block text-sm font-semibold text-gray-700 mb-1">Made Tea (kg)</label><input type="number" step="0.001" name="madeTeaWeight" value={formData.madeTeaWeight} onChange={handleInputChange} required className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-400" /></div>
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Made Tea (kg)</label>
+                            <input type="number" step="0.001" name="madeTeaWeight" value={formData.madeTeaWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-400" />
+                        </div>
                     </div>
                 </div>
 
-                {/* 3. DRYER METER - HOSA UPDATES ILLIVE */}
+                {/* 3. DRYER METER */}
                 <div className="mb-8 bg-orange-50 border border-orange-200 rounded-lg p-6">
                     <h3 className="text-lg font-bold text-orange-600 mb-4 flex items-center gap-2"><span>⚡</span> 3. Dryer Meter Reading</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -212,9 +252,18 @@ export default function DailyRecordForm() {
                                 <option value="Dryer 2">Dryer 2</option>
                             </select>
                         </div>
-                        <div className="col-span-1 md:col-span-1"><label className="block text-sm font-semibold text-gray-700 mb-1">Start Reading</label><input type="number" name="meterStart" value={formData.meterStart} onChange={handleInputChange} required className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-400" /></div>
-                        <div className="col-span-1 md:col-span-1"><label className="block text-sm font-semibold text-gray-700 mb-1">End Reading</label><input type="number" name="meterEnd" value={formData.meterEnd} onChange={handleInputChange} required className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-400" /></div>
-                        <div className="col-span-1 md:col-span-1"><label className="block text-sm font-semibold text-gray-700 mb-1">Units Consumed</label><div className="w-full p-3 border border-orange-300 bg-orange-100 text-orange-800 font-bold rounded-md">{dryerUnits > 0 ? dryerUnits : 0}</div></div>
+                        <div className="col-span-1 md:col-span-1">
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Start Reading</label>
+                            <input type="number" name="meterStart" value={formData.meterStart} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-400" />
+                        </div>
+                        <div className="col-span-1 md:col-span-1">
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">End Reading</label>
+                            <input type="number" name="meterEnd" value={formData.meterEnd} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-400" />
+                        </div>
+                        <div className="col-span-1 md:col-span-1">
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Units Consumed</label>
+                            <div className="w-full p-3 border border-orange-300 bg-orange-100 text-orange-800 font-bold rounded-md">{dryerUnits > 0 ? dryerUnits : 0}</div>
+                        </div>
                     </div>
                 </div>
 
@@ -222,13 +271,24 @@ export default function DailyRecordForm() {
                 <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
                     <h3 className="text-lg font-bold text-blue-700 mb-4 flex items-center gap-2"><span>👥</span> 4. Labour Details</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div><label className="block text-sm font-semibold text-gray-700 mb-1">Total Worker Count</label><input type="number" name="workerCount" value={formData.workerCount} onChange={handleInputChange} required className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400" /></div>
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">Total Worker Count</label>
+                            <input type="number" name="workerCount" value={formData.workerCount} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400" />
+                        </div>
                     </div>
                 </div>
 
-                <button type="submit" className={`w-full py-4 text-white rounded-lg shadow-md font-bold text-lg ${existingDates.includes(formData.date) ? 'bg-red-400 cursor-not-allowed hover:bg-red-500' : 'bg-[#1B6A31] hover:bg-[#4A9E46]'}`}>
-                    {existingDates.includes(formData.date) ? 'Record Already Exists' : 'Save Complete Daily Record'}
-                </button>
+                <button
+                    type="submit"
+                    className={`w-full h-14 text-white font-bold rounded-lg mb-4 text-lg transition-colors ${
+                        existingDates.includes(formData.date) || showSpinner
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-700 shadow-md'
+                    }`}
+                    disabled={showSpinner || existingDates.includes(formData.date)}
+                >
+                    {showSpinner ? "Saving..." : existingDates.includes(formData.date) ? "Record Already Exists for this Date" : "Save Complete Daily Record"}
+                </button> 
             </form>
         </div>
     );
