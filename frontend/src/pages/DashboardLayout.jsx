@@ -1,16 +1,16 @@
 import React from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
 export default function DashboardLayout() {
-    // 1. Initialize navigation hooks
     const navigate = useNavigate();
-    const location = useLocation(); // Gets the current URL path
+    const location = useLocation();
 
-    // 2. Helper function to change the Header title based on the URL
+    // Dynamically change the top header text based on the current URL
     const getHeaderTitle = () => {
         switch (location.pathname) {
             case '/': return 'Dashboard';
-            case '/green-leaf': return 'Green Leaf';
+            case '/green-leaf-form': return 'Green Leaf';
             case '/production': return 'Production';
             case '/costing': return 'Costing';
             case '/sales': return 'Sales';
@@ -18,52 +18,65 @@ export default function DashboardLayout() {
         }
     };
 
+    // Array of your sidebar navigation links
+    const navItems = [
+        { path: '/', label: 'Dashboard' },
+        { path: '/green-leaf-form', label: 'Green Leaf' },
+        { path: '/production', label: 'Production' },
+        { path: '/costing', label: 'Costing' },
+        { path: '/sales', label: 'Sales' },
+    ];
+
+    // Find which index is currently active to calculate the sliding animation
+    const activeIndex = navItems.findIndex(item => item.path === location.pathname);
+    const safeIndex = activeIndex === -1 ? 0 : activeIndex;
+
     return (
         <div className="flex h-screen bg-[#F8FAF8] font-sans text-gray-800 overflow-hidden">
             
-            {/* LEFT SIDEBAR - Card White */}
+            {/* LEFT SIDEBAR */}
             <aside className="w-64 bg-[#EBFFF4] border-r border-gray-200 flex flex-col p-6 shadow-sm z-10 text-gray-700 shrink-0">
-                {/* Dark Green for main logo text */}
-                <div className="text-xl font-bold tracking-wider text-[#1B6A31] mb-6">
+                {/* Brand Logo Area */}
+                <div className="text-xl font-bold tracking-wider text-[#1B6A31] mb-6 pl-2">
                     TEA FACTORY
                 </div>
                 
-                {/* Navigation Buttons */}
-                <nav className="flex flex-col space-y-3 rounded-lg mt-4">
-                    {/* 3. Use navigate('/path') on click, and check location.pathname for active state */}
-                    <NavItem 
-                        label="Dashboard" 
-                        active={location.pathname === '/'} 
-                        onClick={() => navigate('/')} 
+                {/* CUSTOM ANIMATED SIDEBAR NAVIGATION */}
+                <nav className="relative flex flex-col mt-2">
+                    {/* The sliding green background indicator */}
+                    <div 
+                        className="absolute left-0 w-full h-12 bg-[#8CC63F]/10 border-l-4 border-[#4A9E46] rounded-md transition-transform duration-300 ease-out"
+                        style={{ transform: `translateY(${safeIndex * 100}%)` }}
                     />
-                    <NavItem 
-                        label="Green Leaf" 
-                        active={location.pathname === '/green-leaf-form'} 
-                        onClick={() => navigate('/green-leaf-form')} 
-                    />
-                    <NavItem 
-                        label="Production" 
-                        active={location.pathname === '/production'} 
-                        onClick={() => navigate('/production')} 
-                    />
-                    <NavItem 
-                        label="Costing" 
-                        active={location.pathname === '/costing'} 
-                        onClick={() => navigate('/costing')} 
-                    />
-                    <NavItem 
-                        label="Sales" 
-                        active={location.pathname === '/sales'} 
-                        onClick={() => navigate('/sales')} 
-                    />
+
+                    {/* The Navigation Buttons */}
+                    {navItems.map((item, index) => {
+                        const isActive = safeIndex === index;
+                        return (
+                            <button
+                                key={item.path}
+                                onClick={() => navigate(item.path)}
+                                className={`relative z-10 h-12 px-4 flex items-center text-base font-medium transition-colors duration-300 rounded-md ${
+                                    isActive 
+                                    ? 'text-[#4A9E46]' 
+                                    : 'text-gray-600 hover:text-[#1B6A31] hover:bg-[#8CC63F]/5'
+                                }`}
+                            >
+                                {item.label}
+                            </button>
+                        );
+                    })}
                 </nav>
             </aside>
 
-            {/* MAIN CONTENT AREA */}
-            <main className="flex-1 flex flex-col overflow-hidden">
+
+        
+        {/* MAIN CONTENT AREA */}
+            <main className="flex-1 flex flex-col overflow-hidden relative">
                 
-                {/* TOP NAVBAR - Card White */}
-                <header className="h-16 bg-[#FFFFFF] border-b border-gray-200 flex items-center justify-between px-8 shadow-sm shrink-0">
+                {/* 1. TOP NAVBAR (WITH FROSTED GLASS BLUR) */}
+                {/* Changed background to white/80 and added backdrop-blur-md */}
+                <header className="h-16 bg-white/80 backdrop-blur-md border-b border-gray-200 flex items-center justify-between px-8 shadow-sm shrink-0 absolute top-0 w-full z-20">
                     <h1 className="text-lg font-semibold text-[#1B6A31]">{getHeaderTitle()} Overview</h1>
                     <div className="flex items-center space-x-4">
                         <span className="text-sm text-gray-500">Welcome, Admin</span>
@@ -73,29 +86,25 @@ export default function DashboardLayout() {
                     </div>
                 </header>
 
-                {/* CENTRAL CONTENT - Handled by React Router */}
-                <div className="flex-1 overflow-y-auto bg-[#F8FAF8]">
-                    {/* 4. The Outlet renders whatever page component matches the current URL */}
-                    <Outlet />
+                {/* CENTRAL CONTENT */}
+                <div className="flex-1 overflow-y-auto bg-[#F8FAF8] pt-16">
+                    {/* 2. FRAMER MOTION (WITH PAGE LOAD BLUR) */}
+                    {/* Added filter: 'blur(8px)' to initial, and 'blur(0px)' to animate */}
+                    <motion.div
+                        key={location.pathname}
+                        initial={{ opacity: 0, y: 15, filter: 'blur(8px)' }}
+                        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                        transition={{ 
+                            duration: 0.8, 
+                            ease: [0.16, 1, 0.3, 1] 
+                        }}
+                        className="h-full"
+                    >
+                        <Outlet />
+                    </motion.div>
                 </div>
                 
             </main>
         </div>
-    );
-}
-
-// Reusable component for the sidebar buttons
-function NavItem({ label, active, onClick }) {
-    return (
-        <button 
-            onClick={onClick}
-            className={`px-4 py-3 rounded-md text-left transition-colors font-medium w-full ${
-                active 
-                ? 'bg-[#8CC63F]/10 text-[#4A9E46] border-l-4 border-[#4A9E46]' 
-                : 'text-gray-600 hover:bg-[#8CC63F]/20 hover:text-[#1B6A31] border-l-4 border-transparent'
-            }`}
-        >
-            {label}
-        </button>
     );
 }
