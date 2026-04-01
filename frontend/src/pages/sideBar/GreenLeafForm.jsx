@@ -4,13 +4,14 @@ import toast, { Toaster } from 'react-hot-toast';
 export default function DailyRecordForm() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
+    const [showSpinner, setShowSpinner] = useState(false);
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
         totalWeight: '',
         selectedWeight: '',
         teaType: '',
         madeTeaWeight: '',
-        dryerName: '', // <-- HOSA FIELD
+        dryerName: '',
         meterStart: '',
         meterEnd: '',
         workerCount: ''
@@ -19,7 +20,6 @@ export default function DailyRecordForm() {
     const [existingDates, setExistingDates] = useState([]);
     const [lastReadings, setLastReadings] = useState({ 'Dryer 1': '', 'Dryer 2': '' });
 
-    // Page load adaga data fetch maduvudu
     useEffect(() => {
         fetchInitialData();
     }, []);
@@ -37,7 +37,6 @@ export default function DailyRecordForm() {
                 setExistingDates(dates);
             }
 
-            // Hinde add madida dryer readings annu hudukuvudu
             if (prodRes.ok) {
                 const prodData = await prodRes.json();
                 prodData.sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by newest
@@ -66,7 +65,6 @@ export default function DailyRecordForm() {
         setFormData({ ...formData, [name]: value });
     };
 
-    // Dryer select madidaga Auto-fill maduva function
     const handleDryerSelect = (e) => {
         const selectedDryer = e.target.value;
         setFormData({ 
