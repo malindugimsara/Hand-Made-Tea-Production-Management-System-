@@ -110,7 +110,10 @@ export default function DailyRecordsView() {
             console.error("Delete Error:", error);
             toast.error("Failed to delete record.", { id: toastId });
         } finally {
-            setRecordToDelete(null); 
+            setRecordToDelete(null);
+        }
+    } 
+            
     const handleDelete = async (greenLeafId, productionId, labourId, recordDate) => {
         if (window.confirm(`Are you sure you want to delete the record for ${recordDate}?`)) {
             const toastId = toast.loading('Deleting record...');
