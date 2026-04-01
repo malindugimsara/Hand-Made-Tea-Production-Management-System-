@@ -39,3 +39,21 @@ export const deleteProduction = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+// Update production record with new data, including auto-calculating units if meter readings are updated
+export const updateProduction = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updatedData = req.body;
+        
+        // Auto-calculate dryer units if meter readings are provided in the update
+        if (updatedData.dryerDetails && updatedData.dryerDetails.meterEnd && updatedData.dryerDetails.meterStart) {
+            updatedData.dryerDetails.units = updatedData.dryerDetails.meterEnd - updatedData.dryerDetails.meterStart;
+        }
+
+        const record = await Production.findByIdAndUpdate(id, updatedData, { new: true });
+        res.status(200).json(record);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
