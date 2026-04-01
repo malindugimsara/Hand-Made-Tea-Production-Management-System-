@@ -5,14 +5,16 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import DashboardLayout from './pages/DashboardLayout';
 import DashboardHome from './pages/sideBar/home';
-import GreenLeafForm from './pages/sideBar/greenLeafForm';
 import ProductionForm from './pages/sideBar/productionForm'
 import CostingForm from './pages/sideBar/CostingForm';
 import SalesForm from './pages/sideBar/SalesForm';
+import GreenLeafForm from './pages/sideBar/GreenLeafForm';
+import { Toaster } from 'react-hot-toast';
 
 export default function App() {
   return (
     <BrowserRouter>
+      <Toaster position="top-center" /> 
       <Routes>
         {/* The DashboardLayout wraps everything */}
         <Route path="/" element={<DashboardLayout />}>
