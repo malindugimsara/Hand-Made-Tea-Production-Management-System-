@@ -14,17 +14,20 @@ export default function DashboardLayout() {
             case '/production': return 'Production';
             case '/costing': return 'Costing';
             case '/sales': return 'Sales';
+            case '/view-green-leaf': return 'Green Leaf Reports';
             default: return 'System';
         }
     };
 
     // Array of your sidebar navigation links
     const navItems = [
-        { path: '/', label: 'Dashboard' },
-        { path: '/green-leaf-form', label: 'Green Leaf' },
+        { path: '/', label: 'Home' },
+        { path: '/green-leaf-form', label: 'Daily G/L' },
+        { path: '/view-green-leaf', label: 'View G/L Reports' },
         { path: '/production', label: 'Production' },
         { path: '/costing', label: 'Costing' },
         { path: '/sales', label: 'Sales' },
+        
     ];
 
     // Find which index is currently active to calculate the sliding animation
