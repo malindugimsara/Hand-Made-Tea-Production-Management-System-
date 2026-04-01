@@ -10,6 +10,7 @@ import SalesForm from './pages/sideBar/SalesForm';
 import GreenLeafForm from './pages/sideBar/GreenLeafForm';
 import { Toaster } from 'react-hot-toast';
 import ViewGreenLeafForm from './pages/sideBar/ViewGreenLeafForm';
+import EditRecordPage from './pages/sideBar/EditRecordPage';
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="costing" element={<CostingForm />} />
           <Route path="sales" element={<SalesForm />} />
           <Route path="view-green-leaf" element={<ViewGreenLeafForm />} />
+          <Route path="/edit-record" element={<EditRecordPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

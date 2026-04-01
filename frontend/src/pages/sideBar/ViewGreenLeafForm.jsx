@@ -15,12 +15,16 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+import { useNavigate } from 'react-router-dom';
+ 
 export default function DailyRecordsView() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
     const [recordToDelete, setRecordToDelete] = useState(null);
 
+    
+    const navigate = useNavigate(); 
     useEffect(() => {
         fetchMergedRecords();
     }, []);
@@ -35,9 +39,7 @@ export default function DailyRecordsView() {
                 fetch(`${BACKEND_URL}/api/labour`)
             ]);
 
-            if (!greenLeafRes.ok || !productionRes.ok || !labourRes.ok) {
-                throw new Error("Failed to fetch data");
-            }
+            if (!greenLeafRes.ok || !productionRes.ok || !labourRes.ok) throw new Error("Failed to fetch data");
 
             const greenLeafData = await greenLeafRes.json();
             const productionData = await productionRes.json();
@@ -109,12 +111,33 @@ export default function DailyRecordsView() {
             toast.error("Failed to delete record.", { id: toastId });
         } finally {
             setRecordToDelete(null); 
+    const handleDelete = async (greenLeafId, productionId, labourId, recordDate) => {
+        if (window.confirm(`Are you sure you want to delete the record for ${recordDate}?`)) {
+            const toastId = toast.loading('Deleting record...');
+            try {
+                const promises = [];
+                if (greenLeafId) promises.push(fetch(`${BACKEND_URL}/api/green-leaf/${greenLeafId}`, { method: 'DELETE' }));
+                if (productionId) promises.push(fetch(`${BACKEND_URL}/api/production/${productionId}`, { method: 'DELETE' }));
+                if (labourId) promises.push(fetch(`${BACKEND_URL}/api/labour/${labourId}`, { method: 'DELETE' }));
+
+                await Promise.all(promises);
+                toast.success("Record deleted successfully!", { id: toastId });
+                fetchMergedRecords(); 
+            } catch (error) {
+                console.error("Delete Error:", error);
+                toast.error("Failed to delete record.", { id: toastId });
+            }
         }
     };
 
+
+    const goToEditPage = (record) => {
+        navigate('/edit-record', { state: { recordData: record } });
+    };
+
     return (
-        <div className="p-6 md:p-8 max-w-[1600px] mx-auto font-sans flex flex-col min-h-0">
-            <Toaster position="top-right" />
+        <div className="p-8 max-w-[1500px] mx-auto font-sans relative">
+            <Toaster position="top-center" />
             
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
