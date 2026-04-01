@@ -57,7 +57,7 @@ function TabsTrigger(props) {
 function TabsContent({
   value,
   forceMount,
-  transition = { duration: 0.5, ease: 'easeInOut' },
+  transition = { duration: 1.5, ease: 'easeInOut' },
   ...props
 }) {
   return (

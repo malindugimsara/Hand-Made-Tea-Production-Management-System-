@@ -129,7 +129,6 @@
     }
 }
 
-
 /* Smooth Fade & Slide Up Animation for Page Transitions */
 @keyframes fadeSlideUp {
   0% {
@@ -141,7 +140,7 @@
     transform: translateY(0);
   }
 }
-  
+
 .animate-page-enter {
   animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
