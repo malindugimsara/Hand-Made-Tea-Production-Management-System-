@@ -158,7 +158,7 @@ export default function EditRecordPage() {
             toast.success("Record updated successfully!", { id: toastId });
             
             // Wait 1 second and navigate back to the log view
-            setTimeout(() => { navigate('/view-green-leaf'); }, 1000);
+            setTimeout(() => { navigate('/view-green-leaf'); }, 500);
 
         } catch (error) {
             console.error("Update Error:", error);
@@ -171,6 +171,7 @@ export default function EditRecordPage() {
 
     return (
         <div className="p-8 max-w-4xl mx-auto font-sans">
+            <Toaster position="top-center" />    
             {/* Header UI */}
             <div className="mb-8 flex items-center gap-4">
                 <button onClick={() => navigate(-1)} className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded font-bold transition-colors">
