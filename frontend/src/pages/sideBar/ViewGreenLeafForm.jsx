@@ -85,7 +85,7 @@ export default function DailyRecordsView() {
 
     return (
         <div className="p-8 max-w-[1500px] mx-auto font-sans relative">
-            <Toaster position="top-right" />
+            <Toaster position="top-center" />
             
             <div className="mb-8 flex justify-between items-center">
                 <div>
