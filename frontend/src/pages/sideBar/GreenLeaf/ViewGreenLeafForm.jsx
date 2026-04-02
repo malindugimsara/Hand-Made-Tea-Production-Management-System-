@@ -16,22 +16,27 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { useNavigate } from 'react-router-dom';
- 
-export default function DailyRecordsView() {
+
+export default function ViewGreenLeafForm() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
     const [recordToDelete, setRecordToDelete] = useState(null);
 
-    
+    // Filter States
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [teaType, setTeaType] = useState('All');
+    const [dryerType, setDryerType] = useState('All');
+
     const navigate = useNavigate(); 
+    
     useEffect(() => {
         fetchMergedRecords();
     }, []);
 
     const fetchMergedRecords = async () => {
         setLoading(true); 
-        
         try {
             const [greenLeafRes, productionRes, labourRes] = await Promise.all([
                 fetch(`${BACKEND_URL}/api/green-leaf`),
@@ -78,24 +83,22 @@ export default function DailyRecordsView() {
         }
     };
 
+    // Filter Logic
+    const filteredRecords = records.filter(record => {
+        const dateMatch = (!startDate || record.date >= startDate) && (!endDate || record.date <= endDate);
+        const typeMatch = teaType === 'All' || record.teaType === teaType;
+        const dryerMatch = dryerType === 'All' || record.dryerName === dryerType;
+        return dateMatch && typeMatch && dryerMatch;
+    });
+
     const handleEditClick = (record) => {
-        console.log("Editing record:", record);
-        toast('Edit feature coming soon!', {
-            icon: '✍️',
-            style: {
-                borderRadius: '10px',
-                background: '#333',
-                color: '#fff',
-            },
-        });
+        navigate('/edit-record', { state: { recordData: record } });
     };
 
     const handleConfirmDelete = async () => {
         if (!recordToDelete) return;
-        
         const { greenLeafId, productionId, labourId } = recordToDelete;
         const toastId = toast.loading('Deleting record...');
-        
         try {
             const promises = [];
             if (greenLeafId) promises.push(fetch(`${BACKEND_URL}/api/green-leaf/${greenLeafId}`, { method: 'DELETE' }));
@@ -104,35 +107,12 @@ export default function DailyRecordsView() {
 
             await Promise.all(promises);
             toast.success("Record deleted successfully!", { id: toastId });
-            
             fetchMergedRecords(); 
         } catch (error) {
-            console.error("Delete Error:", error);
             toast.error("Failed to delete record.", { id: toastId });
         } finally {
-            setRecordToDelete(null); 
-    const handleDelete = async (greenLeafId, productionId, labourId, recordDate) => {
-        if (window.confirm(`Are you sure you want to delete the record for ${recordDate}?`)) {
-            const toastId = toast.loading('Deleting record...');
-            try {
-                const promises = [];
-                if (greenLeafId) promises.push(fetch(`${BACKEND_URL}/api/green-leaf/${greenLeafId}`, { method: 'DELETE' }));
-                if (productionId) promises.push(fetch(`${BACKEND_URL}/api/production/${productionId}`, { method: 'DELETE' }));
-                if (labourId) promises.push(fetch(`${BACKEND_URL}/api/labour/${labourId}`, { method: 'DELETE' }));
-
-                await Promise.all(promises);
-                toast.success("Record deleted successfully!", { id: toastId });
-                fetchMergedRecords(); 
-            } catch (error) {
-                console.error("Delete Error:", error);
-                toast.error("Failed to delete record.", { id: toastId });
-            }
+            setRecordToDelete(null);
         }
-    };
-
-
-    const goToEditPage = (record) => {
-        navigate('/edit-record', { state: { recordData: record } });
     };
 
     return (
@@ -141,24 +121,53 @@ export default function DailyRecordsView() {
             
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-[#1B6A31] flex items-center gap-2">
-                        Daily Production Log
-                    </h2>
+                    <h2 className="text-2xl font-bold text-[#1B6A31] flex items-center gap-2">Daily Production Log</h2>
                     <p className="text-sm text-gray-500 mt-1">Master overview of Green Leaf, Production, & Labour</p>
                 </div>
                 
                 <button 
                     onClick={fetchMergedRecords}
                     disabled={loading}
-                    className={`px-4 py-2 bg-white text-[#1B6A31] border border-[#8CC63F] rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all duration-300
-                        ${loading ? 'opacity-70 cursor-not-allowed bg-gray-50' : 'hover:bg-[#F8FAF8] hover:shadow-md'}
-                    `}
+                    className={`px-4 py-2 bg-white text-[#1B6A31] border border-[#8CC63F] rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F8FAF8]'}`}
                 >
-                    <svg className={`w-4 h-4 ${loading ? 'animate-spin text-[#4A9E46]' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                    </svg>
-                    {loading ? 'Syncing...' : 'Sync Data'}
+                    Sync Data
                 </button>
+            </div>
+
+            {/* Filter Section */}
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-gray-500">FROM DATE</label>
+                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border rounded p-2 text-sm outline-none focus:border-[#8CC63F]" />
+                </div>
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-gray-500">TO DATE</label>
+                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border rounded p-2 text-sm outline-none focus:border-[#8CC63F]" />
+                </div>
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-gray-500">TEA TYPE</label>
+                    <select value={teaType} onChange={(e) => setTeaType(e.target.value)} className="border rounded p-2 text-sm outline-none">
+                        <option value="All">All Types</option>
+                        <option value="Purple Tea">Purple Tea</option>
+                        <option value="Pink Tea">Pink Tea</option>
+                        <option value="White Tea">White Tea</option>
+                        <option value="Silver Tips">Silver Tips</option>
+                        <option value="Silver Green">Silver Green</option>
+                        <option value="VitaGlow Tea">VitaGlow Tea</option>
+                        <option value="Slim Beauty">Slim Beauty</option>
+                        <option value="Golden Tips">Golden Tips</option>
+                        <option value="Flower">Flower</option>
+                        <option value="Chakra">Chakra</option>
+                    </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-gray-500">DRYER</label>
+                    <select value={dryerType} onChange={(e) => setDryerType(e.target.value)} className="border rounded p-2 text-sm outline-none">
+                        <option value="All">All Dryers</option>
+                        <option value="Dryer 1">Dryer 1</option>
+                        <option value="Dryer 2">Dryer 2</option>
+                    </select>
+                </div>
             </div>
             
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden self-start w-full max-w-full">
@@ -170,7 +179,6 @@ export default function DailyRecordsView() {
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
-                            
                             <thead>
                                 <tr className="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider border-b border-gray-200">
                                     <th rowSpan="2" className="px-4 py-3 font-semibold border-r border-gray-200 align-bottom w-24">Date</th>
@@ -202,13 +210,12 @@ export default function DailyRecordsView() {
                             </thead>
 
                             <tbody className="divide-y divide-gray-100">
-                                {records.length > 0 ? (
-                                    records.map((record) => (
+                                {filteredRecords.length > 0 ? (
+                                    filteredRecords.map((record) => (
                                         <tr key={record.date} className="hover:bg-gray-50/80 transition-colors group">
                                             <td className="px-4 py-3 border-r border-gray-100">
                                                 <span className="font-semibold text-gray-800">{record.date}</span>
                                             </td>
-                                            
                                             <td className="px-3 py-3 text-center text-gray-600 border-r border-gray-100">{record.totalWeight}</td>
                                             <td className="px-3 py-3 text-center border-r border-gray-100">
                                                 <span className="px-2 py-1 rounded-full bg-[#8CC63F]/20 text-[#1B6A31] font-bold text-xs">{record.selectedWeight}</span>
@@ -216,39 +223,32 @@ export default function DailyRecordsView() {
                                             <td className="px-3 py-3 text-center border-r border-gray-100 text-gray-500">
                                                 {record.returnedWeight > 0 ? record.returnedWeight : '-'}
                                             </td>
-                                            
                                             <td className="px-3 py-3 text-center border-r border-gray-100">
                                                 {record.teaType !== '-' ? <span className="text-purple-700 font-medium text-xs bg-purple-50 px-2 py-1 rounded border border-purple-100">{record.teaType}</span> : '-'}
                                             </td>
                                             <td className="px-3 py-3 text-center border-r border-gray-100">
                                                 <span className="font-bold text-gray-800">{record.madeTeaWeight}</span>
                                             </td>
-                                            
                                             <td className="px-3 py-3 text-center border-r border-gray-100 text-gray-600">{record.dryerName}</td>
                                             <td className="px-3 py-3 text-center border-r border-gray-100 text-gray-500 text-xs">{record.meterStart}</td>
                                             <td className="px-3 py-3 text-center border-r border-gray-100 text-gray-500 text-xs">{record.meterEnd}</td>
                                             <td className="px-3 py-3 text-center border-r border-gray-100">
                                                 {record.units !== '-' ? <span className="font-bold text-orange-600">{record.units}</span> : '-'}
                                             </td>
-                                            
                                             <td className="px-3 py-3 text-center border-r border-gray-100">
                                                 {record.workerCount !== '-' ? <span className="font-bold text-blue-700">{record.workerCount}</span> : '-'}
                                             </td>
-                                            
                                             <td className="px-3 py-3 text-center">
                                                 <div className="flex items-center justify-center gap-1">
-                                                    {/* REMOVED opacity classes so buttons are always visible */}
-                                                    <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-[#1B6A31] hover:bg-[#8CC63F]/20 rounded transition-all" title="Edit Record">
+                                                    <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-[#1B6A31] hover:bg-[#8CC63F]/20 rounded transition-all">
                                                         <MdOutlineEdit size={20} />
                                                     </button>
-
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
-                                                            <button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-all" title="Delete Record">
+                                                            <button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-all">
                                                                 <MdOutlineDeleteOutline size={20} />
                                                             </button>
                                                         </AlertDialogTrigger>
-                                                        
                                                         <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
                                                             <AlertDialogHeader>
                                                                 <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
@@ -256,8 +256,7 @@ export default function DailyRecordsView() {
                                                                 </div>
                                                                 <AlertDialogTitle className="text-xl font-bold text-gray-900">Delete Production Record</AlertDialogTitle>
                                                                 <AlertDialogDescription className="text-gray-500 text-base">
-                                                                    Are you sure you want to permanently delete the production data for <span className="font-bold text-gray-800 ml-1">{record.date}</span>?<br/><br/>
-                                                                    This will remove the associated Green Leaf, Labour, and Production metrics. This action cannot be undone.
+                                                                    Are you sure you want to permanently delete data for <span className="font-bold text-gray-800 ml-1">{record.date}</span>?
                                                                 </AlertDialogDescription>
                                                             </AlertDialogHeader>
                                                             <AlertDialogFooter className="mt-6">
@@ -272,12 +271,9 @@ export default function DailyRecordsView() {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="12" className="p-16 text-center">
-                                            <div className="flex flex-col items-center justify-center text-gray-400">
-                                                <AlertCircle size={40} className="mb-3 opacity-20" />
-                                                <p className="text-lg font-medium text-gray-500">No records found</p>
-                                                <p className="text-sm mt-1">Start by adding data from the entry forms.</p>
-                                            </div>
+                                        <td colSpan="12" className="p-16 text-center text-gray-400">
+                                            <AlertCircle size={40} className="mx-auto mb-3 opacity-20" />
+                                            <p className="text-lg font-medium text-gray-500">No records found matching filters</p>
                                         </td>
                                     </tr>
                                 )}

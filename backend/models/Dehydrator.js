@@ -1,31 +1,33 @@
 import mongoose from 'mongoose';
 
 const dehydratorSchema = new mongoose.Schema({
-    date: { 
-        type: Date, 
-        required: true 
+    date: {
+        type: String, // 'YYYY-MM-DD' format
+        required: true
     },
-    itemName: { 
-        type: String, 
-        required: true 
-    }, // e.g., Mango, Kiwi, Cinnamon
-    rawWeight: { 
-        type: Number, 
-        required: true 
-    }, // Weight before drying
-    dryWeight: { 
-        type: Number, 
-        required: true 
-    }, // Weight after drying
-    electricityMeter: {
-        start: { type: Number, required: true },
-        end: { type: Number, required: true },
-        unitsConsumed: { type: Number } // (end - start)
+    trial: {
+        type: String, // e.g., Mango, Kiwi
+        required: true
     },
-    durationHours: { 
-        type: Number 
-    }, // Time taken for the process
-    remarks: String
-}, { timestamps: true });
+    meterStart: {
+        type: Number,
+        required: true
+    },
+    meterEnd: {
+        type: Number,
+        required: true
+    },
+    totalUnits: {
+        type: Number,
+        required: true
+    },
+    timePeriodHours: {
+        type: Number,
+        required: true
+    }
+}, { 
+    timestamps: true // createdAt and updatedAt fields automatically add wenawa
+});
+
 
 export const Dehydrator = mongoose.model('Dehydrator', dehydratorSchema);
