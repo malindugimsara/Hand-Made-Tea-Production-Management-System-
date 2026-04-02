@@ -13,6 +13,7 @@ import EditRecordPage from './pages/sideBar/GreenLeaf/EditRecordPage';
 import DehydratorRecordForm from './pages/sideBar/Dehydrator/DehydratorRecordForm';
 import ViewDehydratorRecords from './pages/sideBar/Dehydrator/ViewDehydratorRecords';
 import EditDehydratorRecord from './pages/sideBar/Dehydrator/EditDehydratorRecord';
+import ProductionSummary from './pages/sideBar/Summary/ProductionSummary';
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/dehydrator-record-form" element={<DehydratorRecordForm />} />
           <Route path="/view-dehydrator-records" element={<ViewDehydratorRecords />} />
           <Route path="/edit-dehydrator" element={<EditDehydratorRecord />} />
+          <Route path="/production-summary" element={<ProductionSummary />} />
         </Route>
       </Routes>
     </BrowserRouter>

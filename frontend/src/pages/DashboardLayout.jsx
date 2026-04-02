@@ -96,6 +96,14 @@ const DATA = {
       ],
     },
     {
+      title: 'Summary Reports',
+      icon: LineChart,
+      items: [
+        { title: 'Production Summary', url: '/production-summary' },
+        
+      ],
+    },
+    {
       title: 'Finance & Sales',
       icon: Calculator,
       items: [
