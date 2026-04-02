@@ -7,6 +7,7 @@ import cors from 'cors';
 import greenLeafRouter from './router/greenLeafRouter.js';
 import productionRouter from './router/productionRouter.js';
 import labourRouter from './router/labourRoutes.js';
+import dehydratorRouter from './router/dehydratorRouter.js';
 
 
 dotenv.config();
@@ -30,6 +31,7 @@ app.use(authjwt)
 app.use('/api/green-leaf', greenLeafRouter);
 app.use('/api/production', productionRouter);
 app.use('/api/labour', labourRouter);
+app.use('/api/dehydrator', dehydratorRouter);
 
 
 app.listen(3000, () => {

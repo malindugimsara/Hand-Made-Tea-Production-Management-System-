@@ -256,14 +256,24 @@ export default function EditRecordPage() {
                 </div>
 
                 {/* 9. Action Button */}
-                <button 
+                <div className="flex gap-4">
+                    <button
+                        type="button"
+                        onClick={() => navigate(-1)}
+                        className="w-1/3 h-14 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button 
                     type="submit" 
                     disabled={showSpinner} 
                     className={`w-full h-14 text-white font-bold rounded-lg text-lg transition-all shadow-md ${showSpinner ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'}`}
-                >
-                    {showSpinner ? "Applying Changes..." : "Update Daily Record"}
-                </button> 
+                    >
+                        {showSpinner ? "Applying Changes..." : "Update Daily Record"}
+                    </button> 
+                </div>
             </form>
         </div>
     );
 }
+

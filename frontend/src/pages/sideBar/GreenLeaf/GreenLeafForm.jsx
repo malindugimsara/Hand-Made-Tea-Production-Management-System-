@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 
-export default function DailyRecordForm() {
+export default function GreenLeafForm() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
     const [showSpinner, setShowSpinner] = useState(false);
@@ -231,6 +231,13 @@ export default function DailyRecordForm() {
                                 <option value="Purple Tea">Purple Tea</option>
                                 <option value="Pink Tea">Pink Tea</option>
                                 <option value="White Tea">White Tea</option>
+                                <option value="Silver Tips">Silver Tips</option>
+                                <option value="Silver Green">Silver Green</option>
+                                <option value="VitaGlow Tea">VitaGlow Tea</option>
+                                <option value="Slim Beauty">Slim Beauty</option>
+                                <option value="Golden Tips">Golden Tips</option>
+                                <option value="Flower">Flower</option>
+                                <option value="Chakra">Chakra</option>
                             </select>
                         </div>
                         <div>

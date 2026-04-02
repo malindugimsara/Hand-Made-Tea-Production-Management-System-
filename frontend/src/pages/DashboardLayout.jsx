@@ -88,6 +88,14 @@ const DATA = {
       ],
     },
     {
+      title: 'Dehydrator Machine',
+      icon: Factory,
+      items: [
+        { title: 'Record Entry', url: '/dehydrator-record-form' },
+        { title: 'View Records', url: '/view-dehydrator-records' },
+      ],
+    },
+    {
       title: 'Finance & Sales',
       icon: Calculator,
       items: [
@@ -108,6 +116,7 @@ export default function DashboardLayout() {
       case '/': return 'Dashboard Overview';
       case '/green-leaf-form': return 'Green Leaf Entry';
       case '/view-green-leaf': return 'View Green Leaf Records';
+      case '/dehydrator-record-form': return 'Dehydrator Record Entry';
       case '/costing': return 'Cost Calculations';
       case '/sales': return 'Sales Revenue';
       default: return 'System';
