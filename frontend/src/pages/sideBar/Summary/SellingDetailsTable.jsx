@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import toast, { Toaster } from 'react-hot-toast'; // IMPORT TOAST
+import toast, { Toaster } from 'react-hot-toast';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -50,7 +52,7 @@ export default function SellingDetailsTable() {
     }
 
     setIsFetching(true);
-    const loadToast = toast.loading('Fetching data...'); // Show loading toast
+    const loadToast = toast.loading('Fetching data...');
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/selling-details?month=${selectedMonth}`);
@@ -129,13 +131,93 @@ export default function SellingDetailsTable() {
     }
   };
 
-  const handleDownloadPDF = () => {
-    toast('PDF Download feature triggered!', { icon: '📄' });
-  };
-
   // Calculate Grand Totals
   const totalUsd = tableData.reduce((sum, row) => sum + (Number(row.packs) || 0) * (Number(row.price) || 0), 0);
   const totalLkr = totalUsd * exchangeRate;
+
+  // 3. GENERATE PDF FUNCTION
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF('portrait'); 
+    
+    // Title
+    doc.setFontSize(20);
+    doc.setTextColor(46, 107, 59); // Green
+    doc.text("Monthly Selling Details Summary", 14, 22);
+    
+    // Sub-info
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Active Month: ${selectedMonth}`, 14, 32);
+    doc.text(`Exchange Rate: 1 USD = Rs. ${exchangeRate}`, 14, 38);
+
+    // Table Headers with customized background colors
+    const tableHead = [[
+      { content: "Type of Tea", styles: { halign: 'center', fillColor: [50, 50, 50] } },
+      { content: "Amount (kg)", styles: { halign: 'center', fillColor: [46, 107, 59] } },
+      { content: "Nu. of Packs", styles: { halign: 'center', fillColor: [40, 88, 180] } },
+      { content: "Price/One ($)", styles: { halign: 'center', fillColor: [214, 107, 45] } },
+      { content: "Total (USD)", styles: { halign: 'center', fillColor: [50, 50, 50] } },
+      { content: "Total (LKR)", styles: { halign: 'center', fillColor: [184, 29, 29] } }
+    ]];
+    
+    // Table Rows
+    const tableRows = tableData.map(row => {
+      const calculatedUsd = (Number(row.packs) || 0) * (Number(row.price) || 0);
+      const calculatedLkr = calculatedUsd * exchangeRate;
+      
+      return [
+        row.type,
+        Number(row.amount).toFixed(3),
+        row.packs ? row.packs.toString() : "0",
+        Number(row.price).toFixed(2),
+        calculatedUsd.toFixed(2),
+        calculatedLkr.toLocaleString()
+      ];
+    });
+
+    // Grand Total Row
+    tableRows.push([
+      "GRAND TOTAL",
+      "-",
+      "-",
+      "-",
+      totalUsd.toFixed(2),
+      totalLkr.toLocaleString()
+    ]);
+
+    // Render Table
+    autoTable(doc, {
+      startY: 45,
+      head: tableHead,
+      body: tableRows,
+      theme: 'grid',
+      headStyles: { textColor: 255, fontSize: 10 },
+      bodyStyles: { fontSize: 10, halign: 'center', valign: 'middle' },
+      columnStyles: { 0: { cellWidth: 45, fontStyle: 'bold', halign: 'left' } },
+      didParseCell: function(data) {
+        if (data.section === 'body') {
+          const colIdx = data.column.index;
+          
+          // Match text colors to column themes
+          if (colIdx === 1) data.cell.styles.textColor = [46, 107, 59]; // Green for amount
+          else if (colIdx === 2) data.cell.styles.textColor = [40, 88, 180]; // Blue for packs
+          else if (colIdx === 3) data.cell.styles.textColor = [214, 107, 45]; // Orange for price
+          else if (colIdx === 5) data.cell.styles.textColor = [184, 29, 29]; // Red for LKR
+
+          // Highlight Grand Total Row
+          if (data.row.index === tableRows.length - 1) {
+            data.cell.styles.fillColor = [240, 240, 240];
+            data.cell.styles.fontStyle = 'bold';
+            if (colIdx === 0) data.cell.styles.halign = 'right';
+          }
+        }
+      }
+    });
+
+    // Save PDF
+    doc.save(`Selling_Details_${selectedMonth}.pdf`);
+    toast.success("PDF Downloaded Successfully!");
+  };
 
   // --- STYLES ---
   const colors = {
@@ -175,8 +257,12 @@ export default function SellingDetailsTable() {
       <div style={styles.topBar}>
         <h1 style={styles.mainTitle}>Monthly Selling Details</h1>
         <div style={styles.actionButtons}>
-          <button onClick={handleDownloadPDF} style={styles.btnPdf}>Download PDF</button>
+          <button onClick={handleDownloadPDF} style={styles.btnPdf}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Download PDF
+          </button>
           <button onClick={handleSaveToDB} disabled={isSaving} style={{...styles.btnSave, opacity: isSaving ? 0.7 : 1}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
             {isSaving ? 'Saving...' : 'Save to Database'}
           </button>
         </div>
