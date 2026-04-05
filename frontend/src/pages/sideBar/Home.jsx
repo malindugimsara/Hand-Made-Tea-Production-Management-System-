@@ -1,24 +1,102 @@
-  import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Home() {
     const navigate = useNavigate();
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+    // States for Real Data
+    const [glToday, setGlToday] = useState(0);
+    const [mtThisWeek, setMtThisWeek] = useState(0);
+    const [salesRevenue, setSalesRevenue] = useState(0);
+    const [isLoading, setIsLoading] = useState(true);
 
     // Get today's date formatted nicely
     const today = new Date().toLocaleDateString('en-US', { 
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
     });
 
+    // Dynamic Greeting Logic
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return "Good Morning";
+        if (hour < 18) return "Good Afternoon";
+        return "Good Evening";
+    };
+
+    useEffect(() => {
+        fetchDashboardStats();
+    }, []);
+
+    const fetchDashboardStats = async () => {
+        setIsLoading(true);
+        try {
+            // Fetch all necessary data simultaneously
+            const [glRes, prodRes, salesRes] = await Promise.all([
+                fetch(`${BACKEND_URL}/api/green-leaf`),
+                fetch(`${BACKEND_URL}/api/production`),
+                fetch(`${BACKEND_URL}/api/selling-details`) // Assuming this returns all sales or month sales
+            ]);
+
+            const glData = glRes.ok ? await glRes.json() : [];
+            const prodData = prodRes.ok ? await prodRes.json() : [];
+            const salesData = salesRes.ok ? await salesRes.json() : [];
+
+            // --- 1. Calculate Today's Green Leaf ---
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todaysGL = glData.filter(item => {
+                if (!item.date) return false;
+                return new Date(item.date).toISOString().split('T')[0] === todayStr;
+            });
+            const totalGlToday = todaysGL.reduce((sum, item) => sum + (Number(item.selectedWeight) || 0), 0);
+            setGlToday(totalGlToday);
+
+            // --- 2. Calculate Made Tea (This Week) ---
+            // Get the timestamp for the start of the current week (Monday)
+            const d = new Date();
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+            const startOfWeek = new Date(d.setDate(diff)).setHours(0,0,0,0);
+
+            const thisWeekProd = prodData.filter(item => {
+                if (!item.date) return false;
+                return new Date(item.date).getTime() >= startOfWeek;
+            });
+            const totalMtThisWeek = thisWeekProd.reduce((sum, item) => sum + (Number(item.madeTeaWeight) || 0), 0);
+            setMtThisWeek(totalMtThisWeek);
+
+            // --- 3. Calculate Total Sales Revenue (LKR) ---
+            let totalRevenueLkr = 0;
+            // Handle if salesData is an array of monthly/daily records
+            const salesArray = Array.isArray(salesData) ? salesData : (salesData.records || []);
+            
+            salesArray.forEach(sale => {
+                const records = sale.records || [];
+                const exchangeRate = sale.exchangeRate || 300;
+                
+                const saleUsd = records.reduce((sum, r) => sum + (Number(r.packs || 0) * Number(r.price || 0)), 0);
+                totalRevenueLkr += (saleUsd * exchangeRate);
+            });
+            setSalesRevenue(totalRevenueLkr);
+
+        } catch (error) {
+            console.error("Error fetching dashboard data:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="p-6 md:p-10 max-w-7xl mx-auto h-full flex flex-col space-y-8">
             
             {/* 1. HERO WELCOME BANNER */}
             <div className="bg-gradient-to-r from-[#1B6A31] to-[#4A9E46] rounded-2xl p-8 text-white shadow-lg relative overflow-hidden">
-                {/* Decorative background circle */}
                 <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-white opacity-10 rounded-full blur-2xl"></div>
                 <div className="relative z-10">
                     <p className="text-sm font-medium text-[#EBFFF4] mb-1">{today}</p>
-                    <h2 className="text-3xl md:text-4xl font-bold mb-2 tracking-tight">Good Morning, Admin! 🍃</h2>
+                    <h2 className="text-3xl md:text-4xl font-bold mb-2 tracking-tight">
+                        {getGreeting()}, Admin! 🍃
+                    </h2>
                     <p className="text-[#EBFFF4] text-lg opacity-90 max-w-xl">
                         Here is the latest overview of the handmade tea production and sales.
                     </p>
@@ -34,7 +112,9 @@ export default function Home() {
                     </div>
                     <div>
                         <p className="text-sm text-gray-500 font-medium">Today's Green Leaf</p>
-                        <p className="text-3xl font-bold text-[#1B6A31]">120 <span className="text-lg text-gray-400 font-medium">kg</span></p>
+                        <p className="text-3xl font-bold text-[#1B6A31]">
+                            {isLoading ? '...' : glToday.toFixed(2)} <span className="text-lg text-gray-400 font-medium">kg</span>
+                        </p>
                     </div>
                 </div>
 
@@ -45,7 +125,9 @@ export default function Home() {
                     </div>
                     <div>
                         <p className="text-sm text-gray-500 font-medium">Made Tea (This Week)</p>
-                        <p className="text-3xl font-bold text-[#1B6A31]">45 <span className="text-lg text-gray-400 font-medium">kg</span></p>
+                        <p className="text-3xl font-bold text-[#1B6A31]">
+                            {isLoading ? '...' : mtThisWeek.toFixed(3)} <span className="text-lg text-gray-400 font-medium">kg</span>
+                        </p>
                     </div>
                 </div>
 
@@ -55,8 +137,10 @@ export default function Home() {
                         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     </div>
                     <div>
-                        <p className="text-sm text-gray-500 font-medium">Sales Revenue</p>
-                        <p className="text-3xl font-bold text-[#1B6A31]"><span className="text-xl">Rs.</span> 24,500</p>
+                        <p className="text-sm text-gray-500 font-medium">Sales Revenue (Total)</p>
+                        <p className="text-3xl font-bold text-[#1B6A31]">
+                            <span className="text-xl">Rs.</span> {isLoading ? '...' : salesRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -102,7 +186,7 @@ export default function Home() {
                         <p className="text-gray-500 text-sm mt-1">Add USD/LKR transactions</p>
                     </button>
 
-                    {/* Action 4: Reports (Placeholder) */}
+                    {/* Action 4: Reports */}
                     <button 
                         className="group bg-white border border-gray-200 p-6 rounded-2xl text-left hover:border-[#4A9E46] hover:-translate-y-1 hover:shadow-md transition-all duration-300"
                     >
