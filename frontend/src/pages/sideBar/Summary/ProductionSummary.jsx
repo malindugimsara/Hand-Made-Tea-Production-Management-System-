@@ -12,6 +12,7 @@ export default function ProductionSummary() {
     // Filters
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [filterMonth, setFilterMonth] = useState(''); 
     const [selectedTeaTypes, setSelectedTeaTypes] = useState([]); 
 
     // Rates (Editable with Defaults)
@@ -49,10 +50,23 @@ export default function ProductionSummary() {
             const productionData = await productionRes.json();
             const labourData = await labourRes.json();
 
+            const glUsage = {};
+            const labUsage = {};
+
             const merged = productionData.map(prod => {
                 const dateStr = new Date(prod.date).toISOString().split('T')[0];
-                const gl = greenLeafData.find(g => new Date(g.date).toISOString().split('T')[0] === dateStr);
-                const lab = labourData.find(l => new Date(l.date).toISOString().split('T')[0] === dateStr);
+                
+                const glsForDate = greenLeafData.filter(g => new Date(g.date).toISOString().split('T')[0] === dateStr);
+                const labsForDate = labourData.filter(l => new Date(l.date).toISOString().split('T')[0] === dateStr);
+
+                if (glUsage[dateStr] === undefined) glUsage[dateStr] = 0;
+                if (labUsage[dateStr] === undefined) labUsage[dateStr] = 0;
+
+                const gl = glsForDate[glUsage[dateStr]] || null;
+                const lab = labsForDate[labUsage[dateStr]] || null;
+
+                glUsage[dateStr]++;
+                labUsage[dateStr]++;
                 
                 const mStart = Number(prod?.dryerDetails?.meterStart) || 0;
                 const mEnd = Number(prod?.dryerDetails?.meterEnd) || 0;
@@ -64,6 +78,8 @@ export default function ProductionSummary() {
                     madeTeaWeight: prod.madeTeaWeight || 0,
                     selectedWeight: gl ? gl.selectedWeight : 0,
                     workerCount: lab ? lab.workerCount : 0,
+                    meterStart: mStart, 
+                    meterEnd: mEnd,     
                     dryerUnits: calculatedUnits
                 };
             });
@@ -77,7 +93,6 @@ export default function ProductionSummary() {
         }
     };
 
-    // Updated Toggle Tea Type
     const toggleTeaType = (type) => {
         if (selectedTeaTypes.includes(type)) {
             setSelectedTeaTypes(selectedTeaTypes.filter(t => t !== type));
@@ -86,13 +101,12 @@ export default function ProductionSummary() {
         }
     };
 
-    // SELECT ALL / DESELECT ALL Function
     const handleSelectAll = () => {
         if (selectedTeaTypes.length === teaOptions.length) {
-            setSelectedTeaTypes([]); // Clear all
+            setSelectedTeaTypes([]); 
             setManualInputs({});
         } else {
-            setSelectedTeaTypes([...teaOptions]); // Select all 10
+            setSelectedTeaTypes([...teaOptions]); 
         }
     };
 
@@ -108,6 +122,11 @@ export default function ProductionSummary() {
 
     const generateTableData = () => {
         let dateFiltered = records;
+
+        if (filterMonth) {
+            dateFiltered = dateFiltered.filter(r => r.date.startsWith(filterMonth));
+        }
+        
         if (startDate) dateFiltered = dateFiltered.filter(r => r.date >= startDate);
         if (endDate) dateFiltered = dateFiltered.filter(r => r.date <= endDate);
 
@@ -119,9 +138,15 @@ export default function ProductionSummary() {
                 : dateFiltered.filter(r => r.teaType === type);
 
             const totalGL = relevantRecords.reduce((sum, r) => sum + Number(r.selectedWeight || 0), 0);
-            const totalMT = relevantRecords.reduce((sum, r) => sum + Number(r.madeTeaWeight || 0), 0);
             const totalSelectionWorkers = relevantRecords.reduce((sum, r) => sum + Number(r.workerCount || 0), 0);
-            const totalDryerUnits = relevantRecords.reduce((sum, r) => sum + Number(r.dryerUnits || 0), 0);
+            const totalMT = relevantRecords.reduce((sum, r) => sum + Number(r.madeTeaWeight || 0), 0);
+
+            const uniqueDryerRecords = [];
+            relevantRecords.forEach(r => {
+                const isDuplicate = uniqueDryerRecords.some(ud => ud.date === r.date && ud.meterStart === r.meterStart && ud.meterEnd === r.meterEnd);
+                if (!isDuplicate) uniqueDryerRecords.push(r);
+            });
+            const totalDryerUnits = uniqueDryerRecords.reduce((sum, r) => sum + Number(r.dryerUnits || 0), 0);
 
             const hrWorkers = manualInputs[type]?.handRolling || 0;
             const rPoints = manualInputs[type]?.roller || 0;
@@ -194,7 +219,15 @@ export default function ProductionSummary() {
         
         doc.setFontSize(11);
         doc.setTextColor(100);
-        doc.text(`Date Range: ${startDate || 'All'} to ${endDate || 'All'}`, 50, 25);
+
+        let dateFilterText = 'All Time';
+        if(filterMonth) {
+            const dateObj = new Date(`${filterMonth}-01`);
+            dateFilterText = `Month: ${dateObj.toLocaleString('default', { month: 'long', year: 'numeric' })}`;
+        } else if (startDate || endDate) {
+            dateFilterText = `Date Range: ${startDate || 'Any'} to ${endDate || 'Any'}`;
+        }
+        doc.text(dateFilterText, 50, 25);
         doc.text(`Selected Tea Types: ${selectedTeaTypes.length > 0 ? selectedTeaTypes.join(', ') : 'All Types'}`, 50, 31);
         doc.text(`Rates -> Labour: Rs. ${labourRate} | Electricity: Rs. ${electricityRate}`, 50, 37);
 
@@ -293,7 +326,8 @@ export default function ProductionSummary() {
             }
         });
 
-        doc.save(`Production_Summary_${new Date().toISOString().split('T')[0]}.pdf`);
+        const safeDateString = new Date().toISOString().split('T')[0];
+        doc.save(`Production_Summary_${safeDateString}.pdf`);
         toast.success("PDF Downloaded Successfully!");
     };
 
@@ -328,81 +362,136 @@ export default function ProductionSummary() {
                 </div>
             </div>
 
+            {/* --- TEA TYPE SELECTION (MOVED ABOVE) --- */}
+            <div className="bg-gradient-to-br from-green-50/50 to-white p-6 rounded-xl border border-green-200 shadow-lg shadow-green-900/5 mb-6 relative overflow-hidden">
+    {/* වම් පස ඇති කොළ පාට Accent Line එක */}
+    <div className="absolute top-0 left-0 w-1.5 h-full bg-[#1B6A31]"></div>
+    
+    <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 border-b border-green-100 pb-3'>
+        <h3 className="text-sm md:text-base font-extrabold text-[#1B6A31] flex items-center gap-2 uppercase tracking-wider">
+            <div className="p-1.5 bg-green-100 rounded-lg">
+                <Leaf size={18} className="text-[#1B6A31]"/> 
+            </div>
+            SELECT TEA TYPES
+        </h3>
+        <button 
+            onClick={handleSelectAll}
+            className="text-xs font-bold flex items-center gap-1.5 px-4 py-2 bg-white border border-green-200 text-[#1B6A31] rounded-lg hover:bg-green-50 hover:border-green-300 transition-all shadow-sm"
+        >
+            {selectedTeaTypes.length === teaOptions.length ? <CheckSquare size={16}/> : <Square size={16}/>}
+            {selectedTeaTypes.length === teaOptions.length ? "Deselect All" : "Select All Tea Types"}
+        </button>
+    </div>
+    
+    <div className="flex flex-wrap gap-2.5">
+        {teaOptions.map(type => (
+            <button
+                key={type}
+                onClick={() => toggleTeaType(type)}
+                className={`px-4 py-2 text-xs font-bold rounded-xl border-2 transition-all duration-200 ${
+                    selectedTeaTypes.includes(type) 
+                    ? 'bg-[#1B6A31] border-[#1B6A31] text-white shadow-md shadow-green-900/20 transform scale-105' 
+                    : 'bg-white border-gray-200 text-gray-500 hover:border-[#8CC63F] hover:text-[#1B6A31]'
+                }`}
+            >
+                {type} {selectedTeaTypes.includes(type) && '✓'}
+            </button>
+        ))}
+    </div>
+</div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                
-                {/* 1. Filters */}
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-4">
-                    <div className="flex justify-between items-center border-b pb-2">
-                        <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2 uppercase tracking-wider">
-                            <Calendar size={16} className="text-blue-600"/> 1. Select Filters
-                        </h3>
-                        
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold text-gray-500">FROM DATE</label>
-                            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50" />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold text-gray-500">TO DATE</label>
-                            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50" />
-                        </div>
-                    </div>
-                    
-                    <div className="flex flex-col gap-2 mt-2">
-                        <div className='flex items-center justify-between gap-2'>
-                            <label className="text-xs font-bold text-gray-500">SELECT TEA TYPES (MULTIPLE)</label>
-                            {/* SELECT ALL BUTTON */}
-                            <button 
-                                onClick={handleSelectAll}
-                                className="text-xs font-bold flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-all"
-                            >
-                                {selectedTeaTypes.length === teaOptions.length ? <CheckSquare size={14}/> : <Square size={14}/>}
-                                {selectedTeaTypes.length === teaOptions.length ? "Deselect All" : "Select All Tea Types"}
-                            </button>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            {teaOptions.map(type => (
-                                <button
-                                    key={type}
-                                    onClick={() => toggleTeaType(type)}
-                                    className={`px-3 py-1.5 text-xs font-bold rounded-full border transition-all ${
-                                        selectedTeaTypes.includes(type) 
-                                        ? 'bg-blue-100 border-blue-400 text-blue-700 shadow-sm' 
-                                        : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
-                                    }`}
-                                >
-                                    {type} {selectedTeaTypes.includes(type) && '✓'}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+    
+    {/* 1. Date Filters */}
+    <div className="bg-gradient-to-br from-blue-50/50 to-white p-6 rounded-xl border border-blue-200 shadow-lg shadow-blue-900/5 flex flex-col gap-5 relative overflow-hidden">
+        {/* වම් පස ඇති නිල් පාට Accent Line එක */}
+        <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
+        
+        <div className="flex justify-between items-center border-b border-blue-100 pb-3">
+            <h3 className="text-sm md:text-base font-extrabold text-blue-700 flex items-center gap-2 uppercase tracking-wider">
+                <div className="p-1.5 bg-blue-100 rounded-lg">
+                    <Calendar size={18} className="text-blue-700"/>
                 </div>
+                1. Select Dates
+            </h3>
+        </div>
 
-                {/* 2. Rate Settings */}
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm h-fit">
-                    <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2 uppercase tracking-wider border-b pb-2">
-                        <Settings2 size={16} className="text-orange-500"/> 2. Adjust Rates (LKR)
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="flex flex-col gap-1.5 relative">
-                            <label className="text-xs font-bold text-gray-500 flex items-center gap-1"><Users size={12}/> LABOUR RATE (PER HEAD)</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-gray-400 text-sm font-bold">Rs.</span>
-                                <input type="number" value={labourRate} onChange={(e) => setLabourRate(Number(e.target.value))} className="w-full border rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-orange-50/30" />
-                            </div>
-                        </div>
-                        <div className="flex flex-col gap-1.5 relative">
-                            <label className="text-xs font-bold text-gray-500 flex items-center gap-1"><Zap size={12}/> ELECTRICITY RATE (PER UNIT)</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-gray-400 text-sm font-bold">Rs.</span>
-                                <input type="number" value={electricityRate} onChange={(e) => setElectricityRate(Number(e.target.value))} className="w-full border rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-orange-50/30" />
-                            </div>
-                        </div>
-                    </div>
+        <div className="flex flex-col gap-1.5 relative z-10">
+            <label className="text-xs font-bold text-gray-500">MONTHLY FILTER (Overrides Date Range)</label>
+            <input 
+                type="month" 
+                value={filterMonth} 
+                onChange={(e) => {setFilterMonth(e.target.value); setStartDate(''); setEndDate('');}} 
+                className="border border-gray-300 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-white shadow-sm" 
+            />
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-blue-100 relative z-10">
+            <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-500">OR FROM DATE</label>
+                <input 
+                    type="date" 
+                    value={startDate} 
+                    onChange={(e) => {setStartDate(e.target.value); setFilterMonth('');}} 
+                    className="border border-gray-300 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-white shadow-sm" 
+                />
+            </div>
+            <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-500">TO DATE</label>
+                <input 
+                    type="date" 
+                    value={endDate} 
+                    onChange={(e) => {setEndDate(e.target.value); setFilterMonth('');}} 
+                    className="border border-gray-300 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-white shadow-sm" 
+                />
+            </div>
+        </div>
+    </div>
+
+    {/* 2. Rate Settings */}
+    <div className="bg-gradient-to-br from-orange-50/50 to-white p-6 rounded-xl border border-orange-200 shadow-lg shadow-orange-900/5 h-fit relative overflow-hidden">
+        {/* වම් පස ඇති තැඹිලි පාට Accent Line එක */}
+        <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
+        
+        <div className="flex items-center gap-2 mb-5 border-b border-orange-100 pb-3">
+            <h3 className="text-sm md:text-base font-extrabold text-orange-700 flex items-center gap-2 uppercase tracking-wider">
+                <div className="p-1.5 bg-orange-100 rounded-lg">
+                    <Settings2 size={18} className="text-orange-600"/>
+                </div>
+                2. Adjust Rates (LKR)
+            </h3>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+            <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-500 flex items-center gap-1"><Users size={12}/> LABOUR RATE (PER HEAD)</label>
+                <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-gray-400 text-sm font-bold">Rs.</span>
+                    <input 
+                        type="number" 
+                        onWheel={(e) => e.target.blur()} 
+                        value={labourRate} 
+                        onChange={(e) => setLabourRate(e.target.value.replace(/^0+(?=\d)/, ''))} 
+                        className="w-full border border-gray-300 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm" 
+                    />
                 </div>
             </div>
+            <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-500 flex items-center gap-1"><Zap size={12}/> ELECTRICITY RATE (PER UNIT)</label>
+                <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-gray-400 text-sm font-bold">Rs.</span>
+                    <input 
+                        type="number" 
+                        onWheel={(e) => e.target.blur()} 
+                        value={electricityRate} 
+                        onChange={(e) => setElectricityRate(e.target.value.replace(/^0+(?=\d)/, ''))} 
+                        className="w-full border border-gray-300 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm" 
+                    />
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
             {/* Summary Table */}
             <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mb-12">
@@ -445,13 +534,13 @@ export default function ProductionSummary() {
                                     <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.totalMT.toFixed(3)}</td>
                                     <td className="px-3 py-4 border-r border-gray-200 font-bold text-blue-700 bg-blue-50/10">{row.totalSelectionWorkers}</td>
                                     <td className="px-2 py-2 border-r border-gray-200 bg-blue-50/30">
-                                        <input type="number" value={row.hrWorkers || ''} onChange={(e) => handleManualChange(row.type, 'handRolling', e.target.value)} className="w-full p-2 border border-blue-300 rounded text-center font-bold text-blue-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner bg-white" placeholder="0" />
+                                        <input type="number" onWheel={(e) => e.target.blur()} value={row.hrWorkers || ''} onChange={(e) => handleManualChange(row.type, 'handRolling', e.target.value.replace(/^0+(?=\d)/, ''))} className="w-full p-2 border border-blue-300 rounded text-center font-bold text-blue-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner bg-white" placeholder="0" />
                                     </td>
                                     <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.selectionCost.toLocaleString()}</td>
                                     <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.handRollingCost.toLocaleString()}</td>
                                     <td className="px-3 py-4 border-r border-gray-200 font-bold text-orange-600 bg-orange-50/10">{row.totalDryerUnits}</td>
                                     <td className="px-2 py-2 border-r border-gray-200 bg-orange-50/30">
-                                        <input type="number" value={row.rPoints || ''} onChange={(e) => handleManualChange(row.type, 'roller', e.target.value)} className="w-full p-2 border border-orange-300 rounded text-center font-bold text-orange-800 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner bg-white" placeholder="0" />
+                                        <input type="number" onWheel={(e) => e.target.blur()} value={row.rPoints || ''} onChange={(e) => handleManualChange(row.type, 'roller', e.target.value.replace(/^0+(?=\d)/, ''))} className="w-full p-2 border border-orange-300 rounded text-center font-bold text-orange-800 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner bg-white" placeholder="0" />
                                     </td>
                                     <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.dryerCost.toLocaleString()}</td>
                                     <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.rollerCost.toLocaleString()}</td>
