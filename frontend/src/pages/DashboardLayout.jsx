@@ -100,6 +100,7 @@ const DATA = {
       icon: LineChart,
       items: [
         { title: 'Production Summary', url: '/production-summary' },
+        { title: 'Selling Details', url: '/selling-details-table' },
         
       ],
     },
@@ -125,6 +126,7 @@ export default function DashboardLayout() {
       case '/green-leaf-form': return 'Green Leaf Entry';
       case '/view-green-leaf': return 'View Green Leaf Records';
       case '/dehydrator-record-form': return 'Dehydrator Record Entry';
+      case '/Selling-details-table': return 'Selling Details';
       case '/costing': return 'Cost Calculations';
       case '/sales': return 'Sales Revenue';
       default: return 'System';
