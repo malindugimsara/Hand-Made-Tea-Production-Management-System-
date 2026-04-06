@@ -15,6 +15,7 @@ import ViewDehydratorRecords from './pages/sideBar/Dehydrator/ViewDehydratorReco
 import EditDehydratorRecord from './pages/sideBar/Dehydrator/EditDehydratorRecord';
 import ProductionSummary from './pages/sideBar/Summary/ProductionSummary';
 import SellingDetailsTable from './pages/sideBar/Summary/SellingDetailsTable';
+import Login from './pages/Login'; 
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
         {/* The DashboardLayout wraps everything */}
         <Route path="/" element={<DashboardLayout />}>
           {/* These pages render inside the <Outlet /> based on the URL */}
+          <Route path="/login" element={<Login />} />
           <Route index element={<DashboardHome />} />
           <Route path="green-leaf-form" element={<GreenLeafForm />} />
           <Route path="costing" element={<CostingForm />} />
