@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 export default function GreenLeafForm() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -19,6 +20,8 @@ export default function GreenLeafForm() {
 
     const [existingDates, setExistingDates] = useState([]);
     const [lastReadings, setLastReadings] = useState({ 'Dryer 1': '', 'Dryer 2': '' });
+
+    const navigation = useNavigate();
 
     useEffect(() => {
         fetchInitialData();
@@ -102,12 +105,12 @@ export default function GreenLeafForm() {
         e.preventDefault(); 
         setShowSpinner(true);
 
-        if (existingDates.includes(formData.date)) {
-            playErrorSound(); 
-            toast.error(`A record for ${formData.date} has already been submitted!`);
-            setShowSpinner(false); 
-            return; 
-        }
+        // if (existingDates.includes(formData.date)) {
+        //     playErrorSound(); 
+        //     toast.error(`A record for ${formData.date} has already been submitted!`);
+        //     setShowSpinner(false); 
+        //     return; 
+        // }
 
         const total = Number(formData.totalWeight);
         const selected = Number(formData.selectedWeight);
@@ -180,6 +183,7 @@ export default function GreenLeafForm() {
                     ...formData,
                     totalWeight: '', selectedWeight: '', teaType: '', madeTeaWeight: '', dryerName: '', meterStart: '', meterEnd: '', workerCount: ''
                 });
+                navigation('/view-green-leaf');
             } else {
                 playErrorSound();
                 toast.error("Error saving records.", { id: toastId });
@@ -206,7 +210,7 @@ export default function GreenLeafForm() {
                 <div className="mb-8 pb-6 border-b border-gray-100">
                     <label className="block text-sm font-bold text-gray-700 mb-2">Select Date</label>
                     <input type="date" name="date" value={formData.date} onChange={handleInputChange} required className="w-full md:w-1/3 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#8CC63F]" />
-                    {existingDates.includes(formData.date) && <p className="text-red-500 text-sm mt-2 font-semibold">⚠️ A record for this date already exists!</p>}
+                    {/* {existingDates.includes(formData.date) && <p className="text-red-500 text-sm mt-2 font-semibold">⚠️ A record for this date already exists!</p>} */}
                 </div>
 
                 {/* 1. GREEN LEAF */}
@@ -290,6 +294,19 @@ export default function GreenLeafForm() {
                     </div>
                 </div>
 
+<<<<<<< HEAD
+                <button
+                    type="submit"
+                    className={`w-full h-14 text-white font-bold rounded-lg mb-4 text-lg transition-colors ${
+                        showSpinner
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-700 shadow-md'
+                    }`}
+                    disabled={showSpinner}
+                >
+                    {showSpinner ? "Saving..." : "Save Complete Daily Record"}
+                </button> 
+=======
                 {/* DYNAMIC SUBMIT SECTION */}
                 {existingDates.includes(formData.date) ? (
                     // COLLISION STATE: Show Disabled Save + Active Edit Button
@@ -334,6 +351,7 @@ export default function GreenLeafForm() {
                         )}
                     </button>
                 )}
+>>>>>>> origin/main
             </form>
         </div>
     );
