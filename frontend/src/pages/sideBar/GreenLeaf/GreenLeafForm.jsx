@@ -99,13 +99,6 @@ export default function GreenLeafForm() {
         e.preventDefault(); 
         setShowSpinner(true);
 
-        // if (existingDates.includes(formData.date)) {
-        //     playErrorSound(); 
-        //     toast.error(`A record for ${formData.date} has already been submitted!`);
-        //     setShowSpinner(false); 
-        //     return; 
-        // }
-
         const total = Number(formData.totalWeight);
         const selected = Number(formData.selectedWeight);
         const made = Number(formData.madeTeaWeight);
@@ -190,6 +183,11 @@ export default function GreenLeafForm() {
         }
     };
 
+    // Cancel Button Function
+    const handleCancel = () => {
+        navigation(-1); // කලින් හිටපු පිටුවට ආපසු යයි
+    };
+
     return (
         <div className="p-8 max-w-4xl mx-auto font-sans">
             <Toaster position="top-right" />
@@ -204,7 +202,6 @@ export default function GreenLeafForm() {
                 <div className="mb-8 pb-6 border-b border-gray-100">
                     <label className="block text-sm font-bold text-gray-700 mb-2">Select Date</label>
                     <input type="date" name="date" value={formData.date} onChange={handleInputChange} required className="w-full md:w-1/3 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#8CC63F]" />
-                    {/* {existingDates.includes(formData.date) && <p className="text-red-500 text-sm mt-2 font-semibold">⚠️ A record for this date already exists!</p>} */}
                 </div>
 
                 {/* 1. GREEN LEAF */}
@@ -213,7 +210,6 @@ export default function GreenLeafForm() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-1">Total (kg)</label>
-                            {/* onWheel={(e) => e.target.blur()} එකතු කර ඇත */}
                             <input type="number" step="0.01" name="totalWeight" value={formData.totalWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#8CC63F]" />
                         </div>
                         <div>
@@ -289,17 +285,25 @@ export default function GreenLeafForm() {
                     </div>
                 </div>
 
-                <button
-                    type="submit"
-                    className={`w-full h-14 text-white font-bold rounded-lg mb-4 text-lg transition-colors ${
-                        showSpinner
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-700 shadow-md'
-                    }`}
-                    disabled={showSpinner}
-                >
-                    {showSpinner ? "Saving..." : "Save Complete Daily Record"}
-                </button> 
+                {/* UPDATED BUTTONS SECTION */}
+                <div className="flex gap-4">
+                    <button
+                        type="button"
+                        onClick={handleCancel}
+                        disabled={showSpinner}
+                         className="w-1/3 h-14 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        disabled={showSpinner}
+                        className={`w-full h-14 text-white font-bold rounded-lg text-lg transition-all shadow-md ${showSpinner ? 'bg-gray-400' : 'bg-green-700 hover:bg-green-800 active:scale-95'}`}
+                    >
+                        {showSpinner ? "Saving..." : "Save Daily Record"}
+                    </button>
+                </div>
             </form>
         </div>
     );

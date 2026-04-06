@@ -50,26 +50,43 @@ export default function ViewGreenLeafForm() {
             const productionData = await productionRes.json();
             const labourData = await labourRes.json();
 
-            const mergedData = greenLeafData.map(gl => {
-                const dateStr = new Date(gl.date).toISOString().split('T')[0];
-                const prod = productionData.find(p => new Date(p.date).toISOString().split('T')[0] === dateStr);
-                const lab = labourData.find(l => new Date(l.date).toISOString().split('T')[0] === dateStr);
+            // දින අනුව භාවිත කළ ප්‍රමාණ ගණනය කිරීමට (Usage trackers)
+            const glUsage = {};
+            const labUsage = {};
+
+            const mergedData = productionData.map(prod => {
+                const dateStr = new Date(prod.date).toISOString().split('T')[0];
+                
+                // අදාළ දවසට ඇති සියලුම GL සහ Labour දත්ත වෙන් කරගැනීම
+                const glsForDate = greenLeafData.filter(g => new Date(g.date).toISOString().split('T')[0] === dateStr);
+                const labsForDate = labourData.filter(l => new Date(l.date).toISOString().split('T')[0] === dateStr);
+
+                if (glUsage[dateStr] === undefined) glUsage[dateStr] = 0;
+                if (labUsage[dateStr] === undefined) labUsage[dateStr] = 0;
+
+                // අනුපිළිවෙලින් දත්ත ලබා ගැනීම
+                const gl = glsForDate[glUsage[dateStr]] || null;
+                const lab = labsForDate[labUsage[dateStr]] || null;
+
+                // ඊළඟ රෙකෝඩ් එක සඳහා index එක වැඩි කිරීම
+                glUsage[dateStr]++;
+                labUsage[dateStr]++;
                 
                 return {
                     date: dateStr,
-                    greenLeafId: gl._id,
-                    productionId: prod ? prod._id : null,
+                    greenLeafId: gl ? gl._id : null,
+                    productionId: prod._id, 
                     labourId: lab ? lab._id : null,
-                    totalWeight: gl.totalWeight,
-                    selectedWeight: gl.selectedWeight,
-                    returnedWeight: gl.returnedWeight,
-                    teaType: prod ? prod.teaType : '-',
-                    madeTeaWeight: prod ? prod.madeTeaWeight : '-',
+                    totalWeight: gl ? gl.totalWeight : 0,
+                    selectedWeight: gl ? gl.selectedWeight : 0,
+                    returnedWeight: gl ? gl.returnedWeight : 0,
+                    teaType: prod.teaType || '-',
+                    madeTeaWeight: prod.madeTeaWeight || 0,
                     dryerName: prod?.dryerDetails?.dryerName || '-',
                     meterStart: prod?.dryerDetails?.meterStart || '-',
                     meterEnd: prod?.dryerDetails?.meterEnd || '-',
-                    units: prod?.dryerDetails?.units || '-',
-                    workerCount: lab ? lab.workerCount : '-'
+                    units: prod?.dryerDetails?.units || 0,
+                    workerCount: lab ? lab.workerCount : 0
                 };
             });
 
@@ -90,6 +107,22 @@ export default function ViewGreenLeafForm() {
         const dryerMatch = dryerType === 'All' || record.dryerName === dryerType;
         return dateMatch && typeMatch && dryerMatch;
     });
+
+    // --- ACCURATE TOTAL CALCULATION ---
+    // දැන් හැම පේළියකම වෙනස් GL අගයන් ඇති බැවින් සියලුම පේළි එකතු කළ යුතුය
+    const totalGL = filteredRecords.reduce((sum, r) => sum + (Number(r.totalWeight) || 0), 0);
+    const totalSelectedGL = filteredRecords.reduce((sum, r) => sum + (Number(r.selectedWeight) || 0), 0);
+    const totalReturnedGL = filteredRecords.reduce((sum, r) => sum + (Number(r.returnedWeight) || 0), 0);
+    const totalMadeTea = filteredRecords.reduce((sum, r) => sum + (Number(r.madeTeaWeight) || 0), 0);
+    const totalLabour = filteredRecords.reduce((sum, r) => sum + (Number(r.workerCount) || 0), 0);
+
+    // Dryer Units එකම මීටර් කියවීම් ඇතිවිට ඩබල් වීම වළක්වා ගැනීමට පමණක් deduplicate කිරීම
+    const uniqueDryerRecords = [];
+    filteredRecords.forEach(r => {
+        const isDuplicate = uniqueDryerRecords.some(ud => ud.date === r.date && ud.meterStart === r.meterStart && ud.meterEnd === r.meterEnd);
+        if (!isDuplicate) uniqueDryerRecords.push(r);
+    });
+    const totalUnits = uniqueDryerRecords.reduce((sum, r) => sum + (Number(r.units) || 0), 0);
 
     const handleEditClick = (record) => {
         navigate('/edit-record', { state: { recordData: record } });
@@ -146,7 +179,7 @@ export default function ViewGreenLeafForm() {
                 </div>
                 <div className="flex flex-col gap-1">
                     <label className="text-xs font-bold text-gray-500">TEA TYPE</label>
-                    <select value={teaType} onChange={(e) => setTeaType(e.target.value)} className="border rounded p-2 text-sm outline-none">
+                    <select value={teaType} onChange={(e) => setTeaType(e.target.value)} className="border rounded p-2 text-sm outline-none focus:border-[#8CC63F]">
                         <option value="All">All Types</option>
                         <option value="Purple Tea">Purple Tea</option>
                         <option value="Pink Tea">Pink Tea</option>
@@ -162,7 +195,7 @@ export default function ViewGreenLeafForm() {
                 </div>
                 <div className="flex flex-col gap-1">
                     <label className="text-xs font-bold text-gray-500">DRYER</label>
-                    <select value={dryerType} onChange={(e) => setDryerType(e.target.value)} className="border rounded p-2 text-sm outline-none">
+                    <select value={dryerType} onChange={(e) => setDryerType(e.target.value)} className="border rounded p-2 text-sm outline-none focus:border-[#8CC63F]">
                         <option value="All">All Dryers</option>
                         <option value="Dryer 1">Dryer 1</option>
                         <option value="Dryer 2">Dryer 2</option>
@@ -212,7 +245,7 @@ export default function ViewGreenLeafForm() {
                             <tbody className="divide-y divide-gray-100">
                                 {filteredRecords.length > 0 ? (
                                     filteredRecords.map((record) => (
-                                        <tr key={record.date} className="hover:bg-gray-50/80 transition-colors group">
+                                        <tr key={record.productionId} className="hover:bg-gray-50/80 transition-colors group">
                                             <td className="px-4 py-3 border-r border-gray-100">
                                                 <span className="font-semibold text-gray-800">{record.date}</span>
                                             </td>
@@ -278,6 +311,26 @@ export default function ViewGreenLeafForm() {
                                     </tr>
                                 )}
                             </tbody>
+
+                            {/* --- TOTAL ROW --- */}
+                            {filteredRecords.length > 0 && (
+                                <tfoot className="bg-gray-100/90 border-t-[3px] border-gray-300 font-black text-gray-900 text-center shadow-[inset_0_4px_6px_-4px_rgba(0,0,0,0.1)]">
+                                    <tr>
+                                        <td className="px-4 py-4 border-r border-gray-200 text-right uppercase tracking-wider text-sm">Total</td>
+                                        <td className="px-3 py-4 border-r border-gray-200 text-[#1B6A31] text-base">{totalGL.toFixed(2)}</td>
+                                        <td className="px-3 py-4 border-r border-gray-200 text-[#1B6A31] text-base">{totalSelectedGL.toFixed(2)}</td>
+                                        <td className="px-3 py-4 border-r border-gray-200 text-gray-600 text-base">{totalReturnedGL.toFixed(2)}</td>
+                                        <td className="px-3 py-4 border-r border-gray-200">-</td>
+                                        <td className="px-3 py-4 border-r border-gray-200 text-purple-700 text-base">{totalMadeTea.toFixed(3)}</td>
+                                        <td className="px-3 py-4 border-r border-gray-200">-</td>
+                                        <td className="px-3 py-4 border-r border-gray-200">-</td>
+                                        <td className="px-3 py-4 border-r border-gray-200">-</td>
+                                        <td className="px-3 py-4 border-r border-gray-200 text-orange-600 text-base">{totalUnits}</td>
+                                        <td className="px-3 py-4 border-r border-gray-200 text-blue-700 text-base">{totalLabour}</td>
+                                        <td className="px-3 py-4"></td>
+                                    </tr>
+                                </tfoot>
+                            )}
                         </table>
                     </div>
                 )}

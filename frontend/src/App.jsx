@@ -5,8 +5,6 @@ import { Toaster } from 'react-hot-toast';
 
 import DashboardLayout from './pages/DashboardLayout';
 import DashboardHome from './pages/sideBar/home';
-import CostingForm from './pages/sideBar/CostingForm';
-import SalesForm from './pages/sideBar/SalesForm';
 import GreenLeafForm from './pages/sideBar/GreenLeaf/GreenLeafForm';
 import ViewGreenLeafForm from './pages/sideBar/GreenLeaf/ViewGreenLeafForm';
 import EditRecordPage from './pages/sideBar/GreenLeaf/EditRecordPage';
@@ -15,6 +13,7 @@ import ViewDehydratorRecords from './pages/sideBar/Dehydrator/ViewDehydratorReco
 import EditDehydratorRecord from './pages/sideBar/Dehydrator/EditDehydratorRecord';
 import ProductionSummary from './pages/sideBar/Summary/ProductionSummary';
 import SellingDetailsTable from './pages/sideBar/Summary/SellingDetailsTable';
+import CostOfProduction from './pages/sideBar/Summary/CostOfProduction';
 
 export default function App() {
   return (
@@ -26,8 +25,6 @@ export default function App() {
           {/* These pages render inside the <Outlet /> based on the URL */}
           <Route index element={<DashboardHome />} />
           <Route path="green-leaf-form" element={<GreenLeafForm />} />
-          <Route path="costing" element={<CostingForm />} />
-          <Route path="sales" element={<SalesForm />} />
           <Route path="view-green-leaf" element={<ViewGreenLeafForm />} />
           <Route path="/edit-record" element={<EditRecordPage />} />
           <Route path="/dehydrator-record-form" element={<DehydratorRecordForm />} />
@@ -35,6 +32,7 @@ export default function App() {
           <Route path="/selling-details-table" element={<SellingDetailsTable />} />
           <Route path="/edit-dehydrator" element={<EditDehydratorRecord />} />
           <Route path="/production-summary" element={<ProductionSummary />} />
+          <Route path="/cost-of-production" element={<CostOfProduction />} />
         </Route>
       </Routes>
     </BrowserRouter>

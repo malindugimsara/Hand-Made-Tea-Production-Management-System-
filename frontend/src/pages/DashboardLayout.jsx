@@ -101,15 +101,7 @@ const DATA = {
       items: [
         { title: 'Production Summary', url: '/production-summary' },
         { title: 'Selling Details', url: '/selling-details-table' },
-        
-      ],
-    },
-    {
-      title: 'Finance & Sales',
-      icon: Calculator,
-      items: [
-        { title: 'Cost Calculations', url: '/costing' },
-        { title: 'Sales Revenue', url: '/sales' },
+        { title: 'Cost of Production', url: '/cost-of-production' },
       ],
     },
   ],

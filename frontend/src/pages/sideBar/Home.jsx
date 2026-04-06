@@ -152,7 +152,7 @@ export default function Home() {
                     
                     {/* Action 1: Combined Record (Primary) */}
                     <button 
-                        onClick={() => navigate('/production')}
+                        onClick={() => navigate('/green-leaf-form')}
                         className="group bg-[#1B6A31] p-6 rounded-2xl text-left hover:-translate-y-1 hover:shadow-lg transition-all duration-300 relative overflow-hidden"
                     >
                         <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mb-4 text-white">

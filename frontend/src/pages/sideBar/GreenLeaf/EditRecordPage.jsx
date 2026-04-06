@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { IoMdArrowRoundBack } from "react-icons/io";
 
 export default function EditRecordPage() {
     // 1. Configuration & Hooks
@@ -175,7 +176,7 @@ export default function EditRecordPage() {
             {/* Header UI */}
             <div className="mb-8 flex items-center gap-4">
                 <button onClick={() => navigate(-1)} className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded font-bold transition-colors">
-                    ← Back
+                    <IoMdArrowRoundBack />
                 </button>
                 <div>
                     <h2 className="text-3xl font-bold text-blue-700">Edit Production Record</h2>
@@ -267,7 +268,7 @@ export default function EditRecordPage() {
                     <button 
                     type="submit" 
                     disabled={showSpinner} 
-                    className={`w-full h-14 text-white font-bold rounded-lg text-lg transition-all shadow-md ${showSpinner ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'}`}
+                    className={`w-full h-14 text-white font-bold rounded-lg text-lg transition-all shadow-md ${showSpinner ? 'bg-gray-400' : 'bg-green-700 hover:bg-green-800 active:scale-95'}`}
                     >
                         {showSpinner ? "Applying Changes..." : "Update Daily Record"}
                     </button> 
