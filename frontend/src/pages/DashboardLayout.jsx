@@ -65,11 +65,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 
 // --- DATA CONFIGURATION ---
 const DATA = {
-  user: {
-    name: 'Admin User',
-    email: 'admin@teafactory.com',
-    avatar: 'https://ui.shadcn.com/avatars/01.png',
-  },
   factory: {
     name: 'Athukorala Tea',
     plan: 'Main Factory',
@@ -101,7 +96,6 @@ const DATA = {
       items: [
         { title: 'Production Summary', url: '/production-summary' },
         { title: 'Selling Details', url: '/selling-details-table' },
-        
       ],
     },
     {
@@ -120,13 +114,29 @@ export default function DashboardLayout() {
   const location = useLocation();
   const isMobile = useIsMobile();
 
+  // --- AUTHENTICATION LOGIC ---
+  // Pull the logged-in user's details from local storage
+  const currentUsername = localStorage.getItem('username') || 'Unknown User';
+  const currentUserRole = localStorage.getItem('userRole') || 'Viewer';
+
+  // Logout function
+  const handleLogout = () => {
+    // 1. Clear the security tokens
+    localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('username');
+    
+    // 2. Redirect to independent login page
+    navigate('/login', { replace: true });
+  };
+
   const getBreadcrumbTitle = () => {
     switch (location.pathname) {
       case '/': return 'Dashboard Overview';
       case '/green-leaf-form': return 'Green Leaf Entry';
       case '/view-green-leaf': return 'View Green Leaf Records';
       case '/dehydrator-record-form': return 'Dehydrator Record Entry';
-      case '/Selling-details-table': return 'Selling Details';
+      case '/selling-details-table': return 'Selling Details'; // Note: Fixed casing here
       case '/costing': return 'Cost Calculations';
       case '/sales': return 'Sales Revenue';
       default: return 'System';
@@ -136,9 +146,6 @@ export default function DashboardLayout() {
   return (
     <TooltipProvider delayDuration={0}>
     <SidebarProvider>
-      {/* MODERNIZATION: Removed the harsh border-r and gave the sidebar a completely transparent/blended look
-        against the main app background. 
-      */}
       <Sidebar collapsible="icon" className="border-none bg-[#F4F7F5]">
         
         {/* SIDEBAR HEADER */}
@@ -177,7 +184,6 @@ export default function DashboardLayout() {
                       isActive={isActive}
                       tooltip={item.name}
                       onClick={() => navigate(item.url)}
-                      // MODERNIZATION: Fully rounded pills instead of squares, soft backgrounds
                       className={`cursor-pointer transition-all duration-300 py-6 rounded-full mb-1 ${
                         isActive 
                         ? 'bg-white shadow-sm text-[#1B6A31] font-bold ring-1 ring-gray-200/50' 
@@ -259,17 +265,19 @@ export default function DashboardLayout() {
                     className="data-[state=open]:bg-white data-[state=open]:shadow-sm hover:bg-white/60 rounded-2xl transition-all duration-300 p-2"
                   >
                     <Avatar className="h-10 w-10 rounded-xl border border-gray-200 shadow-sm">
-                      <AvatarImage src={DATA.user.avatar} alt={DATA.user.name} />
-                      <AvatarFallback className="rounded-xl bg-[#8CC63F]/20 text-[#1B6A31] font-bold">A</AvatarFallback>
+                      {/* Using the first letter of the username for the avatar fallback */}
+                      <AvatarFallback className="rounded-xl bg-[#8CC63F]/20 text-[#1B6A31] font-bold">
+                        {currentUsername.charAt(0).toUpperCase()}
+                      </AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight ml-1">
-                      <span className="truncate font-bold text-gray-800">{DATA.user.name}</span>
-                      <span className="truncate text-xs font-medium text-gray-500">{DATA.user.email}</span>
+                      <span className="truncate font-bold text-gray-800">{currentUsername}</span>
+                      <span className="truncate text-xs font-medium text-gray-500">{currentUserRole}</span>
                     </div>
                     <ChevronsUpDown className="ml-auto size-4 text-gray-400" />
                   </SidebarMenuButton>
                 </DropdownMenuTrigger>
-                {/* Dropdown Content remains exactly the same */}
+                
                 <DropdownMenuContent
                   className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-2xl bg-white/90 backdrop-blur-xl border-gray-100 shadow-xl p-2"
                   side={isMobile ? 'bottom' : 'right'}
@@ -279,12 +287,13 @@ export default function DashboardLayout() {
                   <DropdownMenuLabel className="p-0 font-normal">
                     <div className="flex items-center gap-3 px-2 py-2 text-left text-sm">
                       <Avatar className="h-10 w-10 rounded-xl">
-                        <AvatarImage src={DATA.user.avatar} alt={DATA.user.name} />
-                        <AvatarFallback className="rounded-xl bg-[#8CC63F]/20 text-[#1B6A31]">A</AvatarFallback>
+                        <AvatarFallback className="rounded-xl bg-[#8CC63F]/20 text-[#1B6A31] font-bold">
+                          {currentUsername.charAt(0).toUpperCase()}
+                        </AvatarFallback>
                       </Avatar>
                       <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-bold">{DATA.user.name}</span>
-                        <span className="truncate text-xs font-medium text-gray-500">{DATA.user.email}</span>
+                        <span className="truncate font-bold">{currentUsername}</span>
+                        <span className="truncate text-xs font-medium text-gray-500">{currentUserRole}</span>
                       </div>
                     </div>
                   </DropdownMenuLabel>
@@ -301,7 +310,12 @@ export default function DashboardLayout() {
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator className="bg-gray-100 my-2" />
-                  <DropdownMenuItem className="cursor-pointer text-red-600 hover:bg-red-50 hover:text-red-700 rounded-xl py-2.5 font-medium">
+                  
+                  {/* ADDED ONCLICK EVENT TO LOGOUT BUTTON */}
+                  <DropdownMenuItem 
+                    onClick={handleLogout}
+                    className="cursor-pointer text-red-600 hover:bg-red-50 hover:text-red-700 rounded-xl py-2.5 font-medium"
+                  >
                     <LogOut className="mr-2 h-4 w-4" /> Log out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -344,7 +358,6 @@ export default function DashboardLayout() {
         {/* FLOATING ISLAND CONTENT BOX */}
         <div className="flex-1 mt-16 bg-white rounded-[2rem] shadow-[0_0_40px_rgb(0,0,0,0.02)] border border-gray-100 overflow-hidden relative flex flex-col">
           <div className="flex-1 overflow-y-auto">
-            {/* MODERNIZED FRAMER MOTION: Added scale effect for a "breathing" transition */}
             <motion.div
               key={location.pathname}
               initial={{ opacity: 0, y: 15, scale: 0.98, filter: 'blur(8px)' }}
