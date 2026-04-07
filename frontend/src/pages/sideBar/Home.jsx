@@ -29,60 +29,43 @@ export default function Home() {
     }, []);
 
     const fetchDashboardStats = async () => {
-        setIsLoading(true);
         try {
-            // Fetch all necessary data simultaneously
-            const [glRes, prodRes, salesRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/green-leaf`),
-                fetch(`${BACKEND_URL}/api/production`),
-                fetch(`${BACKEND_URL}/api/selling-details`) // Assuming this returns all sales or month sales
+            // 1. Grab the token from localStorage
+            const token = localStorage.getItem('token');
+            
+            // 2. Create the Authorization headers
+            const authHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` // <-- THE MAGIC KEY
+            };
+
+            // 3. Pass the headers into your fetch requests
+            const [glRes, prodRes, sellRes] = await Promise.all([
+                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
+                // Check your backend to ensure '/api/selling-details' has a GET route!
+                fetch(`${BACKEND_URL}/api/selling-details`, { headers: authHeaders }) 
             ]);
 
-            const glData = glRes.ok ? await glRes.json() : [];
-            const prodData = prodRes.ok ? await prodRes.json() : [];
-            const salesData = salesRes.ok ? await salesRes.json() : [];
+            // Check if the responses are OK before trying to parse them
+            if (glRes.ok && prodRes.ok) {
+                const glData = await glRes.json();
+                const prodData = await prodRes.json();
+                // ... set your dashboard state with this data ...
+            } else if (glRes.status === 401 || prodRes.status === 401) {
+                console.error("Dashboard Unauthorized: Missing or expired token.");
+            }
 
-            // --- 1. Calculate Today's Green Leaf ---
-            const todayStr = new Date().toISOString().split('T')[0];
-            const todaysGL = glData.filter(item => {
-                if (!item.date) return false;
-                return new Date(item.date).toISOString().split('T')[0] === todayStr;
-            });
-            const totalGlToday = todaysGL.reduce((sum, item) => sum + (Number(item.selectedWeight) || 0), 0);
-            setGlToday(totalGlToday);
-
-            // --- 2. Calculate Made Tea (This Week) ---
-            // Get the timestamp for the start of the current week (Monday)
-            const d = new Date();
-            const day = d.getDay();
-            const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
-            const startOfWeek = new Date(d.setDate(diff)).setHours(0,0,0,0);
-
-            const thisWeekProd = prodData.filter(item => {
-                if (!item.date) return false;
-                return new Date(item.date).getTime() >= startOfWeek;
-            });
-            const totalMtThisWeek = thisWeekProd.reduce((sum, item) => sum + (Number(item.madeTeaWeight) || 0), 0);
-            setMtThisWeek(totalMtThisWeek);
-
-            // --- 3. Calculate Total Sales Revenue (LKR) ---
-            let totalRevenueLkr = 0;
-            // Handle if salesData is an array of monthly/daily records
-            const salesArray = Array.isArray(salesData) ? salesData : (salesData.records || []);
-            
-            salesArray.forEach(sale => {
-                const records = sale.records || [];
-                const exchangeRate = sale.exchangeRate || 300;
-                
-                const saleUsd = records.reduce((sum, r) => sum + (Number(r.packs || 0) * Number(r.price || 0)), 0);
-                totalRevenueLkr += (saleUsd * exchangeRate);
-            });
-            setSalesRevenue(totalRevenueLkr);
+            // Handle Selling Details separately just in case the 404 persists while you fix it
+            if (sellRes.ok) {
+                const sellData = await sellRes.json();
+                // ... set selling data state ...
+            } else {
+                console.warn(`Selling details fetch failed with status: ${sellRes.status}`);
+            }
 
         } catch (error) {
-            console.error("Error fetching dashboard data:", error);
-        } finally {
-            setIsLoading(false);
+            console.error("Dashboard Fetch Error:", error);
         }
     };
 

@@ -18,6 +18,8 @@ import Login from './pages/Login';
 import RawMaterialCost from './pages/sideBar/RawMaterial/RawMaterialCost';
 import ViewRawMaterialCost from './pages/sideBar/RawMaterial/ViewRawMaterialCost';
 import EditRawMaterialCost from './pages/sideBar/RawMaterial/EditRawMaterialCost';
+import ManageUsers from './pages/ManageUsers';
+import CreateUserForm from './pages/CreateUserForm';
 
 // --- SECURITY GUARD: Protected Route ---
 // This checks if the user has a token in localStorage.
@@ -57,6 +59,8 @@ export default function App() {
             
             {/* Third, load the specific page inside the Layout's Outlet */}
             <Route index element={<DashboardHome />} />
+            <Route path="manage-users" element={<ManageUsers />} />
+            <Route path="create-user" element={<CreateUserForm />} />
             <Route path="green-leaf-form" element={<GreenLeafForm />} />
             <Route path="view-green-leaf" element={<ViewGreenLeafForm />} />
             <Route path="edit-record" element={<EditRecordPage />} />

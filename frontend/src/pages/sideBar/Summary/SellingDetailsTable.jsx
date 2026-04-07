@@ -44,7 +44,7 @@ export default function SellingDetailsTable() {
     setTableData(updatedData);
   };
 
-  // 1. FETCH DATA FOR THE SELECTED MONTH
+  // 1. FETCH DATA FOR THE SELECTED MONTH (Added Token)
   const handleFetchData = async () => {
     if (!selectedMonth) {
       toast.error("Please select a month first.");
@@ -55,7 +55,13 @@ export default function SellingDetailsTable() {
     const loadToast = toast.loading('Fetching data...');
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/selling-details?month=${selectedMonth}`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${BACKEND_URL}/api/selling-details?month=${selectedMonth}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -83,7 +89,11 @@ export default function SellingDetailsTable() {
           toast('No data found. Ready for new entries.', { icon: 'ℹ️', id: loadToast });
         }
       } else {
-        toast.error('Failed to fetch data.', { id: loadToast });
+        if (response.status === 401 || response.status === 403) {
+            toast.error('Session expired. Please log in again.', { id: loadToast });
+        } else {
+            toast.error('Failed to fetch data.', { id: loadToast });
+        }
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -93,7 +103,7 @@ export default function SellingDetailsTable() {
     }
   };
 
-  // 2. SAVE DATA UNDER THE SELECTED MONTH
+  // 2. SAVE DATA UNDER THE SELECTED MONTH (Added Token)
   const handleSaveToDB = async () => {
     const recordsToSave = tableData.filter((row) => row.packs !== '' && row.packs > 0);
     
@@ -107,10 +117,14 @@ export default function SellingDetailsTable() {
 
     try {
       const saveDate = new Date(`${selectedMonth}-01`).toISOString();
+      const token = localStorage.getItem('token');
 
       const response = await fetch(`${BACKEND_URL}/api/selling-details`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+        },
         body: JSON.stringify({
           date: saveDate, 
           exchangeRate: exchangeRate,
@@ -121,7 +135,11 @@ export default function SellingDetailsTable() {
       if (response.ok) {
         toast.success(`Data successfully saved for ${selectedMonth}!`, { id: saveToast });
       } else {
-        toast.error('Failed to save data.', { id: saveToast });
+        if (response.status === 403) {
+            toast.error("Access Denied. You do not have permission to save.", { id: saveToast });
+        } else {
+            toast.error('Failed to save data.', { id: saveToast });
+        }
       }
     } catch (error) {
       console.error('Error saving data:', error);

@@ -49,7 +49,6 @@ export default function GreenLeafForm() {
                 setExistingDates(dates);
             } else if (glRes.status === 401 || glRes.status === 403) {
                  toast.error("Session expired. Please log in again.");
-                 // Optional: navigation('/login');
                  return;
             }
 
@@ -161,30 +160,6 @@ export default function GreenLeafForm() {
         });
     };
 
-        try {
-            // 2. Get the token for submitting the data
-            const token = localStorage.getItem('token');
-            const authHeaders = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            };
-
-            const greenLeafPayload = {
-                date: formData.date,
-                totalWeight: total,
-                selectedWeight: selected
-            };
-
-            const productionPayload = {
-                date: formData.date,
-                teaType: formData.teaType,
-                madeTeaWeight: made,
-                dryerDetails: {
-                    dryerName: formData.dryerName,
-                    meterStart: mStart,
-                    meterEnd: mEnd
-                }
-            };
     // 2. ලැයිස්තුවෙන් ඉවත් කිරීම
     const handleRemoveFromList = (indexToRemove) => {
         const updatedList = pendingRecords.filter((_, index) => index !== indexToRemove);
@@ -198,16 +173,17 @@ export default function GreenLeafForm() {
             return;
         }
 
-            // 3. Attach the headers to your POST requests
-            const [glRes, prodRes, labRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/green-leaf`, { method: 'POST', headers: authHeaders, body: JSON.stringify(greenLeafPayload) }),
-                fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(productionPayload) }),
-                fetch(`${BACKEND_URL}/api/labour`, { method: 'POST', headers: authHeaders, body: JSON.stringify(labourPayload) })
-            ]);
         setIsSavingAll(true);
         const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
 
         try {
+            // Get the token once before processing the loop
+            const token = localStorage.getItem('token');
+            const authHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
             const promises = pendingRecords.map(async (record) => {
                 const total = Number(record.totalWeight);
                 const selected = Number(record.selectedWeight);
@@ -237,14 +213,17 @@ export default function GreenLeafForm() {
                     workerCount: Number(record.workerCount)
                 };
 
-                // සෑම රෙකෝඩ් එකකටම අදාළව API 3 කට data යැවීම
+                // සෑම රෙකෝඩ් එකකටම අදාළව API 3 කට data යැවීම (With authHeaders attached!)
                 const [glRes, prodRes, labRes] = await Promise.all([
-                    fetch(`${BACKEND_URL}/api/green-leaf`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(greenLeafPayload) }),
-                    fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(productionPayload) }),
-                    fetch(`${BACKEND_URL}/api/labour`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(labourPayload) })
+                    fetch(`${BACKEND_URL}/api/green-leaf`, { method: 'POST', headers: authHeaders, body: JSON.stringify(greenLeafPayload) }),
+                    fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(productionPayload) }),
+                    fetch(`${BACKEND_URL}/api/labour`, { method: 'POST', headers: authHeaders, body: JSON.stringify(labourPayload) })
                 ]);
 
                 if (!glRes.ok || !prodRes.ok || !labRes.ok) {
+                    if (glRes.status === 403 || prodRes.status === 403 || labRes.status === 403) {
+                        throw new Error('403');
+                    }
                     throw new Error('Failed to save a record');
                 }
             });
@@ -257,20 +236,16 @@ export default function GreenLeafForm() {
             
             setTimeout(() => {
                 navigation('/view-green-leaf');
-            } else {
-                playErrorSound();
-                
-                // Extra check to see if the server blocked them (403 Forbidden)
-                if (glRes.status === 403 || prodRes.status === 403 || labRes.status === 403) {
-                    toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
-                } else {
-                    toast.error("Error saving records.", { id: toastId });
-                }
-            }
+            }, 1000); 
+
         } catch (error) {
             playErrorSound();
             console.error(error);
-            toast.error("Error saving some records. Please check.", { id: toastId });
+            if (error.message === '403') {
+                toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
+            } else {
+                toast.error("Error saving some records. Please check.", { id: toastId });
+            }
         } finally {
             setIsSavingAll(false);
         }
