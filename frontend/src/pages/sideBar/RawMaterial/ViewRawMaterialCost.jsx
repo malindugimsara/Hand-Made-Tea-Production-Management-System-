@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Trash2, Search, Leaf, Edit, AlertCircle, FilterX } from "lucide-react";
+import { Calendar, Trash2, Search, Leaf, Edit, AlertCircle, FilterX, Zap, DollarSign } from "lucide-react";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -93,6 +93,15 @@ export default function ViewRawMaterialCost() {
         return matchDate && matchMaterial;
     });
 
+    // -------------------------------------------------------------
+    // Total Calculations (Grand Totals for the footer)
+    // -------------------------------------------------------------
+    const totalDryWeight = filteredRecords.reduce((sum, rec) => sum + (Number(rec.dryWeight) || 0), 0);
+    const totalPoints = filteredRecords.reduce((sum, rec) => sum + (Number(rec.totalPoints) || 0), 0);
+    const totalRawCost = filteredRecords.reduce((sum, rec) => sum + (Number(rec.rawMaterialCost) || 0), 0);
+    const totalElecCost = filteredRecords.reduce((sum, rec) => sum + (Number(rec.electricityCost) || 0), 0);
+    const grandTotalCost = filteredRecords.reduce((sum, rec) => sum + (Number(rec.totalCost) || 0), 0);
+
     return (
         <div className="p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 min-h-screen">
             
@@ -164,90 +173,134 @@ export default function ViewRawMaterialCost() {
                     {loading ? (
                         <div className="p-16 text-center text-gray-400 font-medium">Loading records...</div>
                     ) : filteredRecords.length > 0 ? (
-                        <table className="w-full text-sm text-left whitespace-nowrap">
-                            <thead className="bg-gray-100 text-gray-600 text-xs uppercase tracking-wider">
-                                <tr>
-                                    <th className="p-4 font-bold">Date</th>
-                                    <th className="p-4 font-bold">Material</th>
-                                    <th className="p-4 font-bold text-right">Dry (g)</th>
-                                    <th className="p-4 font-bold text-center text-orange-700 bg-orange-50/50">Start</th>
-                                    <th className="p-4 font-bold text-center text-orange-700 bg-orange-50/50">End</th>
-                                    <th className="p-4 font-bold text-center text-orange-700 bg-orange-100/50">Pts</th>
-                                    <th className="p-4 font-bold text-right">Raw Cost</th>
-                                    <th className="p-4 font-bold text-right">Elec. Cost</th>
-                                    <th className="p-4 font-black text-right text-green-700">Total (Rs)</th>
-                                    <th className="p-4 text-center">Action</th>
+                        <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
+                            <thead>
+                                <tr className="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider border-b border-gray-200">
+                                    <th rowSpan="2" className="px-4 py-3 font-semibold border-r border-gray-200 align-bottom w-28">Date</th>
+                                    <th rowSpan="2" className="px-4 py-3 font-bold text-[#1B6A31] border-r border-gray-200 bg-[#8CC63F]/10 align-bottom w-32">Material</th>
+                                    <th rowSpan="2" className="px-4 py-3 font-bold text-gray-700 border-r border-gray-200 align-bottom text-right">Dry (g)</th>
+                                    
+                                    <th colSpan="2" className="px-4 py-2 font-bold text-orange-700 border-r border-gray-200 bg-orange-50 text-center">
+                                        <div className="flex items-center justify-center gap-1"><Zap size={14}/> Meter Reading</div>
+                                    </th>
+                                    
+                                    <th rowSpan="2" className="px-4 py-3 font-bold text-orange-700 border-r border-gray-200 bg-orange-100/50 align-bottom text-center">Total Points</th>
+                                    
+                                    <th colSpan="2" className="px-4 py-2 font-bold text-blue-700 border-r border-gray-200 bg-blue-50 text-center">
+                                        <div className="flex items-center justify-center gap-1"><DollarSign size={14}/> Costs (Rs)</div>
+                                    </th>
+                                    
+                                    <th rowSpan="2" className="px-4 py-3 font-black text-green-700 border-r border-gray-200 bg-green-50/50 align-bottom text-right">Total Cost</th>
+                                    <th rowSpan="2" className="px-4 py-3 font-semibold align-bottom text-center w-24 bg-gray-50">Action</th>
+                                </tr>
+                                <tr className="bg-gray-50 text-gray-500 text-xs border-b border-gray-200">
+                                    <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-200/60 w-24">Start</th>
+                                    <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-200 w-24">End</th>
+                                    
+                                    <th className="px-3 py-2 font-medium bg-blue-50/50 text-right border-r border-gray-200/60">Raw Material</th>
+                                    <th className="px-3 py-2 font-medium bg-blue-50/50 text-right border-r border-gray-200">Electricity</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 {filteredRecords.map((rec) => (
-                                    <tr key={rec._id} className="hover:bg-green-50/30 transition-colors">
-                                        <td className="p-4 font-medium text-gray-600">
+                                    <tr key={rec._id} className="hover:bg-gray-50/80 transition-colors group">
+                                        <td className="px-4 py-3 border-r border-gray-100 font-medium text-gray-600">
                                             {new Date(rec.date).toISOString().split('T')[0]}
                                         </td>
-                                        <td className="p-4 font-bold text-gray-800">
-                                            <span className="px-3 py-1 bg-gray-100 rounded-md text-xs">{rec.materialType}</span>
+                                        <td className="px-4 py-3 border-r border-gray-100 font-bold text-gray-800">
+                                            <span className="px-3 py-1 bg-white border border-gray-200 rounded-md text-xs">{rec.materialType}</span>
                                         </td>
-                                        <td className="p-4 text-right font-medium">{rec.dryWeight}</td>
-                                        <td className="p-4 text-center bg-orange-50/20 text-gray-500">{rec.meterStart}</td>
-                                        <td className="p-4 text-center bg-orange-50/20 text-gray-500">{rec.meterEnd}</td>
-                                        <td className="p-4 text-center font-bold text-orange-600 bg-orange-50/50">{rec.totalPoints}</td>
-                                        <td className="p-4 text-right text-gray-600">{rec.rawMaterialCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                                        <td className="p-4 text-right text-gray-600">{rec.electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                                        <td className="p-4 text-right font-black text-green-700 bg-green-50/20">
+                                        <td className="px-4 py-3 text-right border-r border-gray-100 font-medium">
+                                            {rec.dryWeight}
+                                        </td>
+                                        <td className="px-3 py-3 text-center bg-orange-50/20 border-r border-gray-100 text-gray-500">
+                                            {rec.meterStart}
+                                        </td>
+                                        <td className="px-3 py-3 text-center bg-orange-50/20 border-r border-gray-100 text-gray-500">
+                                            {rec.meterEnd}
+                                        </td>
+                                        <td className="px-3 py-3 text-center font-bold text-orange-600 bg-orange-50/50 border-r border-gray-100">
+                                            {rec.totalPoints}
+                                        </td>
+                                        <td className="px-4 py-3 text-right border-r border-gray-100 text-gray-600">
+                                            {rec.rawMaterialCost.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                        </td>
+                                        <td className="px-4 py-3 text-right border-r border-gray-100 text-gray-600">
+                                            {rec.electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-black text-green-700 bg-green-50/20 border-r border-gray-100">
                                             {rec.totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}
                                         </td>
                                         
-                                        <td className="p-4 text-center flex items-center justify-center gap-2">
-                                            <button 
-                                                onClick={() => handleEdit(rec)}
-                                                className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                                                title="Edit Record"
-                                            >
-                                                <MdOutlineEdit size={20} />
-                                            </button>
-                                            
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <button 
-                                                        onClick={() => setRecordToDelete(rec)} 
-                                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                        title="Delete Record"
-                                                    >
-                                                        <MdOutlineDeleteOutline size={20} />
-                                                    </button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
-                                                    <AlertDialogHeader>
-                                                        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
-                                                            <AlertCircle className="w-6 h-6 text-red-600" />
-                                                        </div>
-                                                        <AlertDialogTitle className="text-xl font-bold text-gray-900">Delete Record</AlertDialogTitle>
-                                                        <AlertDialogDescription className="text-gray-500 text-base">
-                                                            Are you sure you want to permanently delete the <span className="font-bold text-gray-800 ml-1">{rec.materialType}</span> record for <span className="font-bold text-gray-800">{new Date(rec.date).toISOString().split('T')[0]}</span>?
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter className="mt-6">
-                                                        <AlertDialogCancel 
-                                                            onClick={() => setRecordToDelete(null)} 
-                                                            className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg px-6 font-semibold"
+                                        <td className="px-3 py-3 text-center">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <button 
+                                                    onClick={() => handleEdit(rec)}
+                                                    className="p-1.5 text-gray-500 hover:text-[#1B6A31] hover:bg-[#8CC63F]/20 rounded transition-all"
+                                                    title="Edit Record"
+                                                >
+                                                    <MdOutlineEdit size={20} />
+                                                </button>
+                                                
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <button 
+                                                            onClick={() => setRecordToDelete(rec)} 
+                                                            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                                                            title="Delete Record"
                                                         >
-                                                            Cancel
-                                                        </AlertDialogCancel>
-                                                        <AlertDialogAction 
-                                                            onClick={handleConfirmDelete} 
-                                                            className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
-                                                        >
-                                                            Delete Record
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
+                                                            <MdOutlineDeleteOutline size={20} />
+                                                        </button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
+                                                        <AlertDialogHeader>
+                                                            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
+                                                                <AlertCircle className="w-6 h-6 text-red-600" />
+                                                            </div>
+                                                            <AlertDialogTitle className="text-xl font-bold text-gray-900">Delete Record</AlertDialogTitle>
+                                                            <AlertDialogDescription className="text-gray-500 text-base">
+                                                                Are you sure you want to permanently delete the <span className="font-bold text-gray-800 ml-1">{rec.materialType}</span> record for <span className="font-bold text-gray-800">{new Date(rec.date).toISOString().split('T')[0]}</span>?
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter className="mt-6">
+                                                            <AlertDialogCancel 
+                                                                onClick={() => setRecordToDelete(null)} 
+                                                                className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg px-6 font-semibold"
+                                                            >
+                                                                Cancel
+                                                            </AlertDialogCancel>
+                                                            <AlertDialogAction 
+                                                                onClick={handleConfirmDelete} 
+                                                                className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
+                                                            >
+                                                                Delete Record
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
                                         </td>
                                         
                                     </tr>
                                 ))}
                             </tbody>
+
+                            {/* --- TOTAL ROW --- */}
+                            {filteredRecords.length > 0 && (
+                                <tfoot className="bg-gray-100/90 border-t-[3px] border-gray-300 font-black text-gray-900 text-center shadow-[inset_0_4px_6px_-4px_rgba(0,0,0,0.1)]">
+                                    <tr>
+                                        <td colSpan="2" className="px-4 py-4 border-r border-gray-200 text-right uppercase tracking-wider text-sm">Total</td>
+                                        <td className="px-4 py-4 border-r border-gray-200 text-[#1B6A31] text-base text-right">{totalDryWeight.toFixed(2)}</td>
+                                        <td className="px-4 py-4 border-r border-gray-200 bg-orange-50/20">-</td>
+                                        <td className="px-4 py-4 border-r border-gray-200 bg-orange-50/20">-</td>
+                                        <td className="px-4 py-4 border-r border-gray-200 text-orange-600 text-base bg-orange-50/50">{totalPoints}</td>
+                                        <td className="px-4 py-4 border-r border-gray-200 text-right">{totalRawCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                        <td className="px-4 py-4 border-r border-gray-200 text-right">{totalElecCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                        <td className="px-4 py-4 border-r border-gray-200 text-green-700 text-lg text-right bg-green-50/20">{grandTotalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                        <td className="px-4 py-4"></td>
+                                    </tr>
+                                </tfoot>
+                            )}
                         </table>
                     ) : (
                         <div className="p-20 text-center">

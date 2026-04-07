@@ -67,9 +67,9 @@ import { useIsMobile } from '@/hooks/use-mobile';
 // --- DATA CONFIGURATION ---
 const DATA = {
   factory: {
-    name: 'Athukorala Tea',
-    plan: 'Main Factory',
-    logo: Leaf,
+    name: 'Athukorala Factory',
+    plan: 'Hand-Made Tea',
+    logo: () => <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain" />,
   },
   quickLinks: [
     { name: 'Dashboard Home', url: '/', icon: LayoutDashboard },
@@ -79,24 +79,24 @@ const DATA = {
       title: 'Green Leaf',
       icon: Factory,
       items: [
-        { title: 'Record Entry', url: '/green-leaf-form' },
-        { title: 'View Records', url: '/view-green-leaf' },
+        { title: 'Daily Record Entry', url: '/green-leaf-form' },
+        { title: 'View Daily Records', url: '/view-green-leaf' },
       ],
     },
     {
       title: 'Dehydrator Machine',
       icon: Factory,
       items: [
-        { title: 'Record Entry', url: '/dehydrator-record-form' },
-        { title: 'View Records', url: '/view-dehydrator-records' },
+        { title: 'DM Record Entry', url: '/dehydrator-record-form' },
+        { title: 'View DM Records', url: '/view-dehydrator-records' },
       ],
     },
     {
       title: 'Raw Material',
       icon: Calculator,
       items: [
-        { title: 'Raw Material Cost', url: '/raw-material-cost' },
-        { title: 'View RM Costs', url: '/view-raw-material-cost' },
+        { title: 'RM Cost Entry', url: '/raw-material-cost' },
+        { title: 'View RMC Records', url: '/view-raw-material-cost' },
       ],
     },
     {
@@ -147,11 +147,14 @@ export default function DashboardLayout() {
       case '/green-leaf-form': return 'Green Leaf Entry';
       case '/view-green-leaf': return 'View Green Leaf Records';
       case '/dehydrator-record-form': return 'Dehydrator Record Entry';
-      case '/selling-details-table': return 'Selling Details'; 
-      case '/costing': return 'Cost Calculations';
-      case '/sales': return 'Sales Revenue';
-      case '/manage-users': return 'User Management'; // Already handled here perfectly!
-      case '/create-user': return 'Create User'; 
+      case '/selling-details-table': return 'Selling Details'; // Note: Fixed casing here
+      case '/view-dehydrator-records': return 'View Dehydrator Records';
+      case '/raw-material-cost': return 'Raw Material Cost Entry';
+      case '/view-raw-material-cost': return 'View Raw Material Costs';
+      case '/production-summary': return 'Production Summary';
+      case '/view-green-leaf': return 'View Green Leaf Records';
+      case '/selling-details-table': return 'Selling Details';
+      case '/cost-of-production': return 'Cost of Production';
       default: return 'System';
     }
   };
@@ -166,11 +169,11 @@ export default function DashboardLayout() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" className="hover:bg-white/50 cursor-default rounded-2xl transition-all duration-300">
-                <div className="flex aspect-square size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#1B6A31] to-[#4A9E46] text-white shadow-md">
+                {/* <div className="flex aspect-square size-11 items-center justify-center rounded-xl  text-white shadow-md"> */}
                   <DATA.factory.logo className="size-6" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight ml-2">
-                  <span className="truncate font-bold tracking-tight text-[#1B6A31] text-lg">
+                {/* </div> */}
+                <div className="grid flex-1 text-left text-smleading-tight ml-2">
+                  <span className="truncate font-bold tracking-tight text-[#1B6A31] text-[17px]">
                     {DATA.factory.name}
                   </span>
                   <span className="truncate text-xs font-medium text-[#4A9E46]">
