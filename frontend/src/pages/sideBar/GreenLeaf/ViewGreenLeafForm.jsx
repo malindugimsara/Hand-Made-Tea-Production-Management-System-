@@ -38,13 +38,26 @@ export default function ViewGreenLeafForm() {
     const fetchMergedRecords = async () => {
         setLoading(true); 
         try {
+            // 1. Get the token!
+            const token = localStorage.getItem('token');
+            
+            // 2. Create the authorization header
+            const authHeaders = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+
+            // 3. Pass the headers into your fetch requests
             const [greenLeafRes, productionRes, labourRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/green-leaf`),
-                fetch(`${BACKEND_URL}/api/production`),
-                fetch(`${BACKEND_URL}/api/labour`)
+                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders })
             ]);
 
-            if (!greenLeafRes.ok || !productionRes.ok || !labourRes.ok) throw new Error("Failed to fetch data");
+            if (!greenLeafRes.ok || !productionRes.ok || !labourRes.ok) {
+                console.error("Fetch statuses:", greenLeafRes.status, productionRes.status, labourRes.status);
+                throw new Error("Failed to fetch data. Check your login token.");
+            }
 
             const greenLeafData = await greenLeafRes.json();
             const productionData = await productionRes.json();
@@ -90,7 +103,7 @@ export default function ViewGreenLeafForm() {
             setRecords(mergedData);
         } catch (error) {
             console.error("Fetch Error:", error);
-            toast.error("Could not load data from server.");
+            toast.error(error.message || "Could not load data from server.");
         } finally {
             setLoading(false);
         }
@@ -164,15 +177,22 @@ export default function ViewGreenLeafForm() {
         const { greenLeafId, productionId, labourId } = recordToDelete;
         const toastId = toast.loading('Deleting record...');
         try {
+            // Get the token and create headers for the DELETE requests
+            const token = localStorage.getItem('token');
+            const authHeaders = {
+                'Authorization': `Bearer ${token}`
+            };
+
             const promises = [];
-            if (greenLeafId) promises.push(fetch(`${BACKEND_URL}/api/green-leaf/${greenLeafId}`, { method: 'DELETE' }));
-            if (productionId) promises.push(fetch(`${BACKEND_URL}/api/production/${productionId}`, { method: 'DELETE' }));
-            if (labourId) promises.push(fetch(`${BACKEND_URL}/api/labour/${labourId}`, { method: 'DELETE' }));
+            if (greenLeafId) promises.push(fetch(`${BACKEND_URL}/api/green-leaf/${greenLeafId}`, { method: 'DELETE', headers: authHeaders }));
+            if (productionId) promises.push(fetch(`${BACKEND_URL}/api/production/${productionId}`, { method: 'DELETE', headers: authHeaders }));
+            if (labourId) promises.push(fetch(`${BACKEND_URL}/api/labour/${labourId}`, { method: 'DELETE', headers: authHeaders }));
 
             await Promise.all(promises);
             toast.success("Record deleted successfully!", { id: toastId });
             fetchMergedRecords(); 
         } catch (error) {
+            console.error("Delete Error:", error);
             toast.error("Failed to delete record.", { id: toastId });
         } finally {
             setRecordToDelete(null);

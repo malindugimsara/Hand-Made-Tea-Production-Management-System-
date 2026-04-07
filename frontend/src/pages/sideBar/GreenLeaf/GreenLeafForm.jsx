@@ -31,15 +31,26 @@ export default function GreenLeafForm() {
 
     const fetchInitialData = async () => {
         try {
+            // 1. Get the token for initial data fetching
+            const token = localStorage.getItem('token');
+            const authHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
             const [glRes, prodRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/green-leaf`),
-                fetch(`${BACKEND_URL}/api/production`)
+                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders })
             ]);
 
             if (glRes.ok) {
                 const glData = await glRes.json();
                 const dates = glData.map(record => new Date(record.date).toISOString().split('T')[0]);
                 setExistingDates(dates);
+            } else if (glRes.status === 401 || glRes.status === 403) {
+                 toast.error("Session expired. Please log in again.");
+                 // Optional: navigation('/login');
+                 return;
             }
 
             if (prodRes.ok) {
@@ -150,6 +161,30 @@ export default function GreenLeafForm() {
         });
     };
 
+        try {
+            // 2. Get the token for submitting the data
+            const token = localStorage.getItem('token');
+            const authHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
+            const greenLeafPayload = {
+                date: formData.date,
+                totalWeight: total,
+                selectedWeight: selected
+            };
+
+            const productionPayload = {
+                date: formData.date,
+                teaType: formData.teaType,
+                madeTeaWeight: made,
+                dryerDetails: {
+                    dryerName: formData.dryerName,
+                    meterStart: mStart,
+                    meterEnd: mEnd
+                }
+            };
     // 2. ලැයිස්තුවෙන් ඉවත් කිරීම
     const handleRemoveFromList = (indexToRemove) => {
         const updatedList = pendingRecords.filter((_, index) => index !== indexToRemove);
@@ -163,6 +198,12 @@ export default function GreenLeafForm() {
             return;
         }
 
+            // 3. Attach the headers to your POST requests
+            const [glRes, prodRes, labRes] = await Promise.all([
+                fetch(`${BACKEND_URL}/api/green-leaf`, { method: 'POST', headers: authHeaders, body: JSON.stringify(greenLeafPayload) }),
+                fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(productionPayload) }),
+                fetch(`${BACKEND_URL}/api/labour`, { method: 'POST', headers: authHeaders, body: JSON.stringify(labourPayload) })
+            ]);
         setIsSavingAll(true);
         const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
 
@@ -216,8 +257,16 @@ export default function GreenLeafForm() {
             
             setTimeout(() => {
                 navigation('/view-green-leaf');
-            }, 1000);
-
+            } else {
+                playErrorSound();
+                
+                // Extra check to see if the server blocked them (403 Forbidden)
+                if (glRes.status === 403 || prodRes.status === 403 || labRes.status === 403) {
+                    toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
+                } else {
+                    toast.error("Error saving records.", { id: toastId });
+                }
+            }
         } catch (error) {
             playErrorSound();
             console.error(error);

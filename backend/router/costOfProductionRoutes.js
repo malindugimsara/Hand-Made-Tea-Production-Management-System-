@@ -2,6 +2,9 @@ import express from 'express';
 import { getCostOfProductionByMonth, saveCostOfProduction } from '../controller/costOfProductionController.js';
 
 
+import { verifyToken, authorizeRoles } from '../middleware/auth.js'; 
+
+
 const costOfProductionRouter = express.Router();
 
 // Route: POST /api/cost-of-production

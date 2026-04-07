@@ -91,7 +91,7 @@ export default function EditRecordPage() {
         } catch (e) { console.error("Audio error", e); }
     };
 
-    // 6. Main Submit Logic (Update)
+  // 6. Main Submit Logic (Update)
     const handleUpdate = async (e) => {
         e.preventDefault(); // Stop page refresh
         setShowSpinner(true); // Start loading state
@@ -120,13 +120,20 @@ export default function EditRecordPage() {
         const toastId = toast.loading('Updating record...');
 
         try {
+            // 1. GET THE TOKEN AND CREATE HEADERS
+            const token = localStorage.getItem('token');
+            const authHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` // The magic key!
+            };
+
             const promises = [];
 
             // Add GreenLeaf Update Request to promise array if ID exists
             if (formData.greenLeafId) {
                 promises.push(fetch(`${BACKEND_URL}/api/green-leaf/${formData.greenLeafId}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: authHeaders, // Use the authHeaders here
                     body: JSON.stringify({ totalWeight: total, selectedWeight: selected })
                 }));
             }
@@ -135,7 +142,7 @@ export default function EditRecordPage() {
             if (formData.productionId) {
                 promises.push(fetch(`${BACKEND_URL}/api/production/${formData.productionId}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: authHeaders, // Use the authHeaders here
                     body: JSON.stringify({
                         teaType: formData.teaType,
                         madeTeaWeight: made,
@@ -148,13 +155,22 @@ export default function EditRecordPage() {
             if (formData.labourId) {
                 promises.push(fetch(`${BACKEND_URL}/api/labour/${formData.labourId}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: authHeaders, // Use the authHeaders here
                     body: JSON.stringify({ workerCount: Number(formData.workerCount) })
                 }));
             }
 
             // Execute all API requests in parallel for better performance
-            await Promise.all(promises);
+            const responses = await Promise.all(promises);
+            
+            // Optional: Check if any of the updates were rejected by the backend (e.g., if a Viewer tried to hack an update)
+            const failedResponse = responses.find(res => !res.ok);
+            if (failedResponse) {
+                if (failedResponse.status === 401 || failedResponse.status === 403) {
+                     throw new Error("Access Denied. You do not have permission to edit.");
+                }
+                throw new Error("Failed to update one or more records.");
+            }
             
             toast.success("Record updated successfully!", { id: toastId });
             
@@ -164,12 +180,11 @@ export default function EditRecordPage() {
         } catch (error) {
             console.error("Update Error:", error);
             playErrorSound();
-            toast.error("Network error. Could not update.", { id: toastId });
+            toast.error(error.message || "Network error. Could not update.", { id: toastId });
         } finally {
             setShowSpinner(false); // Stop loading state
         }
     };
-
     return (
         <div className="p-8 max-w-4xl mx-auto font-sans">
             <Toaster position="top-center" />    

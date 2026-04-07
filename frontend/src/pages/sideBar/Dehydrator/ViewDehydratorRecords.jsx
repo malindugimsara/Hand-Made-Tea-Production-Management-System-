@@ -37,8 +37,19 @@ export default function ViewDehydratorRecords() {
     const fetchRecords = async () => {
         setLoading(true); 
         try {
-            const response = await fetch(`${BACKEND_URL}/api/dehydrator`);
-            if (!response.ok) throw new Error("Failed to fetch data");
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BACKEND_URL}/api/dehydrator`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                if(response.status === 401) {
+                    throw new Error("Unauthorized. Please log in.");
+                }
+                throw new Error("Failed to fetch data");
+            }
 
             const data = await response.json();
             
@@ -52,7 +63,7 @@ export default function ViewDehydratorRecords() {
             setRecords(sortedData);
         } catch (error) {
             console.error("Fetch Error:", error);
-            toast.error("Could not load data from server.");
+            toast.error(error.message || "Could not load data from server.");
         } finally {
             setLoading(false);
         }
@@ -76,15 +87,23 @@ export default function ViewDehydratorRecords() {
         if (!recordToDelete) return;
         const toastId = toast.loading('Deleting record...');
         try {
+            const token = localStorage.getItem('token');
             const response = await fetch(`${BACKEND_URL}/api/dehydrator/${recordToDelete._id}`, { 
-                method: 'DELETE' 
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
             });
             
             if (response.ok) {
                 toast.success("Record deleted successfully!", { id: toastId });
                 fetchRecords(); 
             } else {
-                toast.error("Failed to delete record.", { id: toastId });
+                if(response.status === 403) {
+                     toast.error("Access Denied. Only Admins can delete.", { id: toastId });
+                } else {
+                     toast.error("Failed to delete record.", { id: toastId });
+                }
             }
         } catch (error) {
             toast.error("Network error while deleting.", { id: toastId });

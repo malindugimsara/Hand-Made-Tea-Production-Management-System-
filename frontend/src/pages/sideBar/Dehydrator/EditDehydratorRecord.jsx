@@ -68,6 +68,7 @@ export default function EditDehydratorRecord() {
         const toastId = toast.loading('Updating dehydrator record...');
 
         try {
+            const token = localStorage.getItem('token');
             const payload = {
                 date: formData.date,
                 trial: formData.trial,
@@ -80,7 +81,10 @@ export default function EditDehydratorRecord() {
             // UPDATE request to Backend (PUT method)
             const response = await fetch(`${BACKEND_URL}/api/dehydrator/${recordId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
                 body: JSON.stringify(payload)
             });
 
@@ -90,7 +94,11 @@ export default function EditDehydratorRecord() {
                     navigate(-1);
                 }, 500);
             } else {
-                toast.error("Error updating record.", { id: toastId });
+                if (response.status === 403) {
+                    toast.error("Access Denied. You do not have permission.", { id: toastId });
+                } else {
+                    toast.error("Error updating record.", { id: toastId });
+                }
             }
         } catch (error) {
             toast.error("Network error.", { id: toastId });
