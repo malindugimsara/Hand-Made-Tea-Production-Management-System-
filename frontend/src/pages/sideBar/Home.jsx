@@ -34,7 +34,6 @@ export default function Home() {
     }, []);
 
     const fetchDashboardStats = async () => {
-        setIsLoading(true);
         try {
             const token = localStorage.getItem('token');
             const authHeaders = {
@@ -190,9 +189,7 @@ export default function Home() {
             setAlerts(newAlerts);
 
         } catch (error) {
-            console.error("Error fetching dashboard data:", error);
-        } finally {
-            setIsLoading(false);
+            console.error("Dashboard Fetch Error:", error);
         }
     };
 

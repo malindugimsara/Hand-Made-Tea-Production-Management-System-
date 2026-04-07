@@ -16,6 +16,7 @@ import {
   Bell,
   BadgeCheck,
   ChevronRight,
+  Shield, // <-- Added Shield icon
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -107,6 +108,14 @@ const DATA = {
         { title: 'Cost of Production', url: '/cost-of-production' },
       ],
     },
+    // --- ADDED SYSTEM ADMINISTRATION GROUP ---
+    {
+      title: 'System Administration',
+      icon: Shield,
+      items: [
+        { title: 'Manage Users', url: '/manage-users' },
+      ],
+    },
   ],
 };
 
@@ -118,14 +127,15 @@ export default function DashboardLayout() {
   // --- AUTHENTICATION LOGIC ---
   // Pull the logged-in user's details from local storage
   const currentUsername = localStorage.getItem('username') || 'Unknown User';
-  const currentUserRole = localStorage.getItem('userRole') || 'Viewer';
+  const currentUserRole = localStorage.getItem('userRole') || 'Viewer'; // Using 'userRole' as defined in your code
 
   // Logout function
   const handleLogout = () => {
     // 1. Clear the security tokens
     localStorage.removeItem('token');
-    localStorage.removeItem('userRole');
+    localStorage.removeItem('userRole'); // Make sure this matches your login saving logic!
     localStorage.removeItem('username');
+    localStorage.removeItem('role'); // Also clear 'role' just in case you used that key elsewhere
     
     // 2. Redirect to independent login page
     navigate('/login', { replace: true });
@@ -212,6 +222,13 @@ export default function DashboardLayout() {
             <SidebarGroupLabel className="text-xs font-bold text-gray-400 tracking-widest uppercase mb-2 ml-2">Management</SidebarGroupLabel>
             <SidebarMenu>
               {DATA.navMain.map((item) => {
+                
+                // --- SECURITY CHECK ---
+                // If the item is System Administration, ONLY show it if the user is an Admin
+                if (item.title === 'System Administration' && currentUserRole !== 'Admin') {
+                    return null; 
+                }
+
                 const isGroupActive = item.items.some((sub) => sub.url === location.pathname);
 
                 return (
@@ -271,7 +288,6 @@ export default function DashboardLayout() {
                     className="data-[state=open]:bg-white data-[state=open]:shadow-sm hover:bg-white/60 rounded-2xl transition-all duration-300 p-2"
                   >
                     <Avatar className="h-10 w-10 rounded-xl border border-gray-200 shadow-sm">
-                      {/* Using the first letter of the username for the avatar fallback */}
                       <AvatarFallback className="rounded-xl bg-[#8CC63F]/20 text-[#1B6A31] font-bold">
                         {currentUsername.charAt(0).toUpperCase()}
                       </AvatarFallback>

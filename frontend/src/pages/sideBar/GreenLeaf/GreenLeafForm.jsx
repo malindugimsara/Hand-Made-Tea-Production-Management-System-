@@ -176,6 +176,7 @@ export default function GreenLeafForm() {
         const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
 
         try {
+            // Get the token once before processing the loop
             const token = localStorage.getItem('token');
             const authHeaders = {
                 'Content-Type': 'application/json',
