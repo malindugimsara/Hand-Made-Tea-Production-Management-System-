@@ -8,7 +8,6 @@ import greenLeafRouter from './router/greenLeafRouter.js';
 import productionRouter from './router/productionRouter.js';
 import labourRouter from './router/labourRoutes.js';
 import dehydratorRouter from './router/dehydratorRouter.js';
-import sellingDetailsRouter from './router/sellingDetailsRoute.js';
 import costOfProductionRouter from './router/costOfProductionRoutes.js';
 
 import authRouter from './router/authRoute.js';
@@ -38,7 +37,6 @@ app.use('/api/green-leaf', greenLeafRouter);
 app.use('/api/production', productionRouter);
 app.use('/api/labour', labourRouter);
 app.use('/api/dehydrator', dehydratorRouter);
-app.use('/api/selling-details', sellingDetailsRouter);
 app.use('/api/cost-of-production', costOfProductionRouter);
 
 app.listen(3000, () => {

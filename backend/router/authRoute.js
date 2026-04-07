@@ -14,6 +14,7 @@ authRouter.post('/login', loginUser);
 //   authorizeRoles('Admin'), 
 //   registerUser
 // );
+
 authRouter.post('/register', registerUser);
 
 

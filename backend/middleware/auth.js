@@ -15,7 +15,7 @@ export const verifyToken = (req, res, next) => {
     const token = header.replace("Bearer ", "");
     
     // Note: Make sure process.env.JWT_KEY matches your .env file exactly
-    const decoded = jwt.verify(token, process.env.JWT_KEY); 
+    const decoded = jwt.verify(token, process.env.JWT_KEY);
 
     req.user = decoded; // Attaches { id, role } to the request
     next(); // Move to the next step

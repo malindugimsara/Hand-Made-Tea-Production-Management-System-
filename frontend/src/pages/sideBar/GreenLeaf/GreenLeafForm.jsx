@@ -1,4 +1,4 @@
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -29,15 +29,26 @@ export default function GreenLeafForm() {
 
     const fetchInitialData = async () => {
         try {
+            // 1. Get the token for initial data fetching
+            const token = localStorage.getItem('token');
+            const authHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
             const [glRes, prodRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/green-leaf`),
-                fetch(`${BACKEND_URL}/api/production`)
+                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders })
             ]);
 
             if (glRes.ok) {
                 const glData = await glRes.json();
                 const dates = glData.map(record => new Date(record.date).toISOString().split('T')[0]);
                 setExistingDates(dates);
+            } else if (glRes.status === 401 || glRes.status === 403) {
+                 toast.error("Session expired. Please log in again.");
+                 // Optional: navigation('/login');
+                 return;
             }
 
             if (prodRes.ok) {
@@ -129,6 +140,13 @@ export default function GreenLeafForm() {
         const toastId = toast.loading('Saving complete daily record...');
 
         try {
+            // 2. Get the token for submitting the data
+            const token = localStorage.getItem('token');
+            const authHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
             const greenLeafPayload = {
                 date: formData.date,
                 totalWeight: total,
@@ -151,10 +169,11 @@ export default function GreenLeafForm() {
                 workerCount: Number(formData.workerCount)
             };
 
+            // 3. Attach the headers to your POST requests
             const [glRes, prodRes, labRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/green-leaf`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(greenLeafPayload) }),
-                fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(productionPayload) }),
-                fetch(`${BACKEND_URL}/api/labour`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(labourPayload) })
+                fetch(`${BACKEND_URL}/api/green-leaf`, { method: 'POST', headers: authHeaders, body: JSON.stringify(greenLeafPayload) }),
+                fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(productionPayload) }),
+                fetch(`${BACKEND_URL}/api/labour`, { method: 'POST', headers: authHeaders, body: JSON.stringify(labourPayload) })
             ]);
 
             if (glRes.ok && prodRes.ok && labRes.ok) {
@@ -173,7 +192,13 @@ export default function GreenLeafForm() {
                 navigation('/view-green-leaf');
             } else {
                 playErrorSound();
-                toast.error("Error saving records.", { id: toastId });
+                
+                // Extra check to see if the server blocked them (403 Forbidden)
+                if (glRes.status === 403 || prodRes.status === 403 || labRes.status === 403) {
+                    toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
+                } else {
+                    toast.error("Error saving records.", { id: toastId });
+                }
             }
         } catch (error) {
             playErrorSound();
@@ -183,9 +208,8 @@ export default function GreenLeafForm() {
         }
     };
 
-    // Cancel Button Function
     const handleCancel = () => {
-        navigation(-1); // කලින් හිටපු පිටුවට ආපසු යයි
+        navigation(-1); 
     };
 
     return (
@@ -285,7 +309,6 @@ export default function GreenLeafForm() {
                     </div>
                 </div>
 
-                {/* UPDATED BUTTONS SECTION */}
                 <div className="flex gap-4">
                     <button
                         type="button"

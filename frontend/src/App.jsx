@@ -23,6 +23,7 @@ const ProtectedRoute = () => {
   const token = localStorage.getItem('token');
   
   if (!token) {
+    <Toaster position="top-center" /> 
     return <Navigate to="/login" replace />;
   }
   

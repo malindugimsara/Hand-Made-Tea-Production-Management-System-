@@ -22,7 +22,14 @@ export default function DehydratorRecordForm() {
 
     const fetchLastReading = async () => {
         try {
-            const response = await fetch(`${BACKEND_URL}/api/dehydrator`);
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BACKEND_URL}/api/dehydrator`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
             if (response.ok) {
                 const data = await response.json();
                 if (data && data.length > 0) {
@@ -34,6 +41,8 @@ export default function DehydratorRecordForm() {
                         meterStart: lastRecord.meterEnd ? lastRecord.meterEnd.toString() : '' 
                     }));
                 }
+            } else if (response.status === 401 || response.status === 403) {
+                toast.error("Session expired. Please log in again.");
             }
         } catch (error) {
             console.error("Error fetching last reading:", error);
@@ -72,6 +81,7 @@ export default function DehydratorRecordForm() {
         const toastId = toast.loading('Saving dehydrator record...');
 
         try {
+            const token = localStorage.getItem('token');
             const payload = {
                 date: formData.date,
                 trial: formData.trial,
@@ -83,7 +93,10 @@ export default function DehydratorRecordForm() {
 
             const response = await fetch(`${BACKEND_URL}/api/dehydrator`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify(payload)
             });
 
@@ -99,7 +112,11 @@ export default function DehydratorRecordForm() {
                 }));
                 navigate('/view-dehydrator-records');
             } else {
-                toast.error("Error saving record.", { id: toastId });
+                if (response.status === 403) {
+                    toast.error("Access Denied. You do not have permission.", { id: toastId });
+                } else {
+                    toast.error("Error saving record.", { id: toastId });
+                }
             }
         } catch (error) {
             toast.error("Network error.", { id: toastId });
@@ -233,4 +250,3 @@ export default function DehydratorRecordForm() {
         </div>
     );
 }
-
