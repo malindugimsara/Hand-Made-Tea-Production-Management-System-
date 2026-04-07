@@ -15,6 +15,9 @@ import ProductionSummary from './pages/sideBar/Summary/ProductionSummary';
 import SellingDetailsTable from './pages/sideBar/Summary/SellingDetailsTable';
 import CostOfProduction from './pages/sideBar/Summary/CostOfProduction';
 import Login from './pages/Login'; 
+import RawMaterialCost from './pages/sideBar/RawMaterial/RawMaterialCost';
+import ViewRawMaterialCost from './pages/sideBar/RawMaterial/ViewRawMaterialCost';
+import EditRawMaterialCost from './pages/sideBar/RawMaterial/EditRawMaterialCost';
 
 // --- SECURITY GUARD: Protected Route ---
 // This checks if the user has a token in localStorage.
@@ -63,7 +66,9 @@ export default function App() {
             <Route path="edit-dehydrator" element={<EditDehydratorRecord />} />
             <Route path="production-summary" element={<ProductionSummary />} />
             <Route path="/cost-of-production" element={<CostOfProduction />} />
-            
+            <Route path="/raw-material-cost" element={<RawMaterialCost />} />
+            <Route path="/view-raw-material-cost" element={<ViewRawMaterialCost />} />
+            <Route path="/edit-raw-material-cost" element={<EditRawMaterialCost />} />
           </Route>
         </Route>
         
