@@ -91,6 +91,14 @@ const DATA = {
       ],
     },
     {
+      title: 'Raw Material',
+      icon: Calculator,
+      items: [
+        { title: 'Raw Material Cost', url: '/raw-material-cost' },
+        { title: 'View RM Costs', url: '/view-raw-material-cost' },
+      ],
+    },
+    {
       title: 'Summary Reports',
       icon: LineChart,
       items: [

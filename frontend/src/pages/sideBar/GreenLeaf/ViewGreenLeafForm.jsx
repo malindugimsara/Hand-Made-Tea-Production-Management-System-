@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
-import { Leaf, Factory, Users, Zap, AlertCircle } from "lucide-react";
+import { Leaf, Factory, Users, Zap, AlertCircle, RefreshCw } from "lucide-react";
 
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 import { useNavigate } from 'react-router-dom';
@@ -50,25 +50,21 @@ export default function ViewGreenLeafForm() {
             const productionData = await productionRes.json();
             const labourData = await labourRes.json();
 
-            // දින අනුව භාවිත කළ ප්‍රමාණ ගණනය කිරීමට (Usage trackers)
             const glUsage = {};
             const labUsage = {};
 
             const mergedData = productionData.map(prod => {
                 const dateStr = new Date(prod.date).toISOString().split('T')[0];
                 
-                // අදාළ දවසට ඇති සියලුම GL සහ Labour දත්ත වෙන් කරගැනීම
                 const glsForDate = greenLeafData.filter(g => new Date(g.date).toISOString().split('T')[0] === dateStr);
                 const labsForDate = labourData.filter(l => new Date(l.date).toISOString().split('T')[0] === dateStr);
 
                 if (glUsage[dateStr] === undefined) glUsage[dateStr] = 0;
                 if (labUsage[dateStr] === undefined) labUsage[dateStr] = 0;
 
-                // අනුපිළිවෙලින් දත්ත ලබා ගැනීම
                 const gl = glsForDate[glUsage[dateStr]] || null;
                 const lab = labsForDate[labUsage[dateStr]] || null;
 
-                // ඊළඟ රෙකෝඩ් එක සඳහා index එක වැඩි කිරීම
                 glUsage[dateStr]++;
                 labUsage[dateStr]++;
                 
@@ -108,21 +104,56 @@ export default function ViewGreenLeafForm() {
         return dateMatch && typeMatch && dryerMatch;
     });
 
-    // --- ACCURATE TOTAL CALCULATION ---
-    // දැන් හැම පේළියකම වෙනස් GL අගයන් ඇති බැවින් සියලුම පේළි එකතු කළ යුතුය
+    // ---------------------------------------------------------------------------------
+    // 1. Grouping Overlapped Dryer Records (Highlight කිරීම සඳහා)
+    // ---------------------------------------------------------------------------------
+    const groupMap = {};
+    filteredRecords.forEach(r => {
+        // හිස් අගයන් ගණනයෙන් ඉවත් කරන්න
+        if (r.meterStart !== '-' && r.meterEnd !== '-' && r.meterStart !== '' && r.meterEnd !== '') {
+            const key = `${r.date}_${r.dryerName}_${r.meterStart}_${r.meterEnd}`;
+            if (!groupMap[key]) {
+                groupMap[key] = { count: 0, color: '' };
+            }
+            groupMap[key].count += 1;
+        }
+    });
+
+    const highlightColors = [
+        'bg-green-200/80', 
+        'bg-yellow-200/80', 
+        'bg-purple-200/80', 
+        'bg-blue-200/80', 
+        'bg-pink-200/80',
+        'bg-orange-200/80'
+    ];
+    let colorIndex = 0;
+
+    Object.keys(groupMap).forEach(key => {
+        if (groupMap[key].count > 1) {
+            groupMap[key].color = highlightColors[colorIndex % highlightColors.length];
+            colorIndex++;
+        }
+    });
+
+    // ---------------------------------------------------------------------------------
+    // 2. ACCURATE TOTAL CALCULATION (Average Units included)
+    // ---------------------------------------------------------------------------------
     const totalGL = filteredRecords.reduce((sum, r) => sum + (Number(r.totalWeight) || 0), 0);
     const totalSelectedGL = filteredRecords.reduce((sum, r) => sum + (Number(r.selectedWeight) || 0), 0);
     const totalReturnedGL = filteredRecords.reduce((sum, r) => sum + (Number(r.returnedWeight) || 0), 0);
     const totalMadeTea = filteredRecords.reduce((sum, r) => sum + (Number(r.madeTeaWeight) || 0), 0);
     const totalLabour = filteredRecords.reduce((sum, r) => sum + (Number(r.workerCount) || 0), 0);
 
-    // Dryer Units එකම මීටර් කියවීම් ඇතිවිට ඩබල් වීම වළක්වා ගැනීමට පමණක් deduplicate කිරීම
-    const uniqueDryerRecords = [];
-    filteredRecords.forEach(r => {
-        const isDuplicate = uniqueDryerRecords.some(ud => ud.date === r.date && ud.meterStart === r.meterStart && ud.meterEnd === r.meterEnd);
-        if (!isDuplicate) uniqueDryerRecords.push(r);
-    });
-    const totalUnits = uniqueDryerRecords.reduce((sum, r) => sum + (Number(r.units) || 0), 0);
+    // Dryer Units සඳහා බෙදී ගිය (Average) අගයන් වල එකතුව
+    const totalUnits = filteredRecords.reduce((sum, r) => {
+        if (r.meterStart !== '-' && r.meterEnd !== '-' && r.meterStart !== '' && r.meterEnd !== '') {
+            const key = `${r.date}_${r.dryerName}_${r.meterStart}_${r.meterEnd}`;
+            const count = groupMap[key]?.count || 1;
+            return sum + ((Number(r.units) || 0) / count);
+        }
+        return sum + (Number(r.units) || 0);
+    }, 0);
 
     const handleEditClick = (record) => {
         navigate('/edit-record', { state: { recordData: record } });
@@ -163,6 +194,7 @@ export default function ViewGreenLeafForm() {
                     disabled={loading}
                     className={`px-4 py-2 bg-white text-[#1B6A31] border border-[#8CC63F] rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F8FAF8]'}`}
                 >
+                    <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                     Sync Data
                 </button>
             </div>
@@ -244,64 +276,93 @@ export default function ViewGreenLeafForm() {
 
                             <tbody className="divide-y divide-gray-100">
                                 {filteredRecords.length > 0 ? (
-                                    filteredRecords.map((record) => (
-                                        <tr key={record.productionId} className="hover:bg-gray-50/80 transition-colors group">
-                                            <td className="px-4 py-3 border-r border-gray-100">
-                                                <span className="font-semibold text-gray-800">{record.date}</span>
-                                            </td>
-                                            <td className="px-3 py-3 text-center text-gray-600 border-r border-gray-100">{record.totalWeight}</td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100">
-                                                <span className="px-2 py-1 rounded-full bg-[#8CC63F]/20 text-[#1B6A31] font-bold text-xs">{record.selectedWeight}</span>
-                                            </td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 text-gray-500">
-                                                {record.returnedWeight > 0 ? record.returnedWeight : '-'}
-                                            </td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100">
-                                                {record.teaType !== '-' ? <span className="text-purple-700 font-medium text-xs bg-purple-50 px-2 py-1 rounded border border-purple-100">{record.teaType}</span> : '-'}
-                                            </td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100">
-                                                <span className="font-bold text-gray-800">{record.madeTeaWeight}</span>
-                                            </td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 text-gray-600">{record.dryerName}</td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 text-gray-500 text-xs">{record.meterStart}</td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 text-gray-500 text-xs">{record.meterEnd}</td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100">
-                                                {record.units !== '-' ? <span className="font-bold text-orange-600">{record.units}</span> : '-'}
-                                            </td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100">
-                                                {record.workerCount !== '-' ? <span className="font-bold text-blue-700">{record.workerCount}</span> : '-'}
-                                            </td>
-                                            <td className="px-3 py-3 text-center">
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-[#1B6A31] hover:bg-[#8CC63F]/20 rounded transition-all">
-                                                        <MdOutlineEdit size={20} />
-                                                    </button>
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-all">
-                                                                <MdOutlineDeleteOutline size={20} />
-                                                            </button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
-                                                            <AlertDialogHeader>
-                                                                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
-                                                                    <AlertCircle className="w-6 h-6 text-red-600" />
-                                                                </div>
-                                                                <AlertDialogTitle className="text-xl font-bold text-gray-900">Delete Production Record</AlertDialogTitle>
-                                                                <AlertDialogDescription className="text-gray-500 text-base">
-                                                                    Are you sure you want to permanently delete data for <span className="font-bold text-gray-800 ml-1">{record.date}</span>?
-                                                                </AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter className="mt-6">
-                                                                <AlertDialogCancel onClick={() => setRecordToDelete(null)} className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg px-6 font-semibold">Cancel</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors">Delete Record</AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
+                                    filteredRecords.map((record) => {
+                                        // Highlight සහ Average Units ලබා ගැනීම
+                                        let isShared = false;
+                                        let highlightClass = '';
+                                        let displayUnits = record.units;
+
+                                        if (record.meterStart !== '-' && record.meterEnd !== '-' && record.meterStart !== '' && record.meterEnd !== '') {
+                                            const key = `${record.date}_${record.dryerName}_${record.meterStart}_${record.meterEnd}`;
+                                            const groupInfo = groupMap[key];
+                                            
+                                            if (groupInfo && groupInfo.count > 1) {
+                                                isShared = true;
+                                                highlightClass = groupInfo.color;
+                                                const adjustedUnits = Number(record.units) / groupInfo.count;
+                                                // දශම ස්ථාන අවශ්‍ය නම් පෙන්වීමට
+                                                displayUnits = Number.isInteger(adjustedUnits) ? adjustedUnits : adjustedUnits.toFixed(2);
+                                            }
+                                        }
+
+                                        return (
+                                            <tr key={record.productionId} className="hover:bg-gray-50/80 transition-colors group">
+                                                <td className="px-4 py-3 border-r border-gray-100">
+                                                    <span className="font-semibold text-gray-800">{record.date}</span>
+                                                </td>
+                                                <td className="px-3 py-3 text-center text-gray-600 border-r border-gray-100">{record.totalWeight}</td>
+                                                <td className="px-3 py-3 text-center border-r border-gray-100">
+                                                    <span className="px-2 py-1 rounded-full bg-[#8CC63F]/20 text-[#1B6A31] font-bold text-xs">{record.selectedWeight}</span>
+                                                </td>
+                                                <td className="px-3 py-3 text-center border-r border-gray-100 text-gray-500">
+                                                    {record.returnedWeight > 0 ? record.returnedWeight : '-'}
+                                                </td>
+                                                
+                                                {/* Tea Type & Made Tea */}
+                                                <td className="px-3 py-3 text-center border-r border-gray-100">
+                                                    {record.teaType !== '-' ? <span className="text-purple-700 font-medium text-xs bg-purple-50 px-2 py-1 rounded border border-purple-100">{record.teaType}</span> : '-'}
+                                                </td>
+                                                <td className="px-3 py-3 text-center border-r border-gray-100">
+                                                    <span className="font-bold text-gray-800">{record.madeTeaWeight}</span>
+                                                </td>
+                                                <td className="px-3 py-3 text-center border-r border-gray-100 text-gray-600">{record.dryerName}</td>
+
+                                                {/* Highlighted Dryer Reading Sections */}
+                                                <td className={`px-3 py-3 text-center border-r border-gray-100 text-xs ${isShared ? `${highlightClass} font-bold text-gray-900` : 'text-gray-500'}`}>
+                                                    {record.meterStart}
+                                                </td>
+                                                <td className={`px-3 py-3 text-center border-r border-gray-100 text-xs ${isShared ? `${highlightClass} font-bold text-gray-900` : 'text-gray-500'}`}>
+                                                    {record.meterEnd}
+                                                </td>
+                                                <td className={`px-3 py-3 text-center border-r border-gray-100 ${isShared ? highlightClass : ''}`}>
+                                                    {record.units !== '-' ? <span className={`font-bold ${isShared ? 'text-gray-900' : 'text-orange-600'}`}>{displayUnits}</span> : '-'}
+                                                </td>
+
+                                                <td className="px-3 py-3 text-center border-r border-gray-100">
+                                                    {record.workerCount !== '-' ? <span className="font-bold text-blue-700">{record.workerCount}</span> : '-'}
+                                                </td>
+                                                <td className="px-3 py-3 text-center">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-[#1B6A31] hover:bg-[#8CC63F]/20 rounded transition-all">
+                                                            <MdOutlineEdit size={20} />
+                                                        </button>
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-all">
+                                                                    <MdOutlineDeleteOutline size={20} />
+                                                                </button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
+                                                                <AlertDialogHeader>
+                                                                    <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
+                                                                        <AlertCircle className="w-6 h-6 text-red-600" />
+                                                                    </div>
+                                                                    <AlertDialogTitle className="text-xl font-bold text-gray-900">Delete Production Record</AlertDialogTitle>
+                                                                    <AlertDialogDescription className="text-gray-500 text-base">
+                                                                        Are you sure you want to permanently delete data for <span className="font-bold text-gray-800 ml-1">{record.date}</span>?
+                                                                    </AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter className="mt-6">
+                                                                    <AlertDialogCancel onClick={() => setRecordToDelete(null)} className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg px-6 font-semibold">Cancel</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors">Delete Record</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 ) : (
                                     <tr>
                                         <td colSpan="12" className="p-16 text-center text-gray-400">
@@ -325,7 +386,12 @@ export default function ViewGreenLeafForm() {
                                         <td className="px-3 py-4 border-r border-gray-200">-</td>
                                         <td className="px-3 py-4 border-r border-gray-200">-</td>
                                         <td className="px-3 py-4 border-r border-gray-200">-</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 text-orange-600 text-base">{totalUnits}</td>
+                                        
+                                        {/* Total Units will now show the perfectly summed average points */}
+                                        <td className="px-3 py-4 border-r border-gray-200 text-orange-600 text-base">
+                                            {Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2)}
+                                        </td>
+                                        
                                         <td className="px-3 py-4 border-r border-gray-200 text-blue-700 text-base">{totalLabour}</td>
                                         <td className="px-3 py-4"></td>
                                     </tr>

@@ -12,6 +12,7 @@ import sellingDetailsRouter from './router/sellingDetailsRoute.js';
 import costOfProductionRouter from './router/costOfProductionRoutes.js';
 
 import authRouter from './router/authRoute.js';
+import rawMaterialCostRoutes from './router/rawMaterialCostRoutes.js';
 
 dotenv.config();
 const app = express();
@@ -40,6 +41,7 @@ app.use('/api/labour', labourRouter);
 app.use('/api/dehydrator', dehydratorRouter);
 app.use('/api/selling-details', sellingDetailsRouter);
 app.use('/api/cost-of-production', costOfProductionRouter);
+app.use('/api/raw-material-cost', rawMaterialCostRoutes);
 
 app.listen(3000, () => {
   console.log('Server is running on port 3000');
