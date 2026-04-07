@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import toast from 'react-hot-toast'; // App.jsx හි ඇති බැවින් <Toaster /> UI එක ඉවත් කර ඇත
+import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { PlusCircle, Trash2, ListChecks, Save, X } from "lucide-react";
 
@@ -31,7 +31,6 @@ export default function GreenLeafForm() {
 
     const fetchInitialData = async () => {
         try {
-            // 1. Get the token for initial data fetching
             const token = localStorage.getItem('token');
             const authHeaders = {
                 'Content-Type': 'application/json',
@@ -48,9 +47,8 @@ export default function GreenLeafForm() {
                 const dates = glData.map(record => new Date(record.date).toISOString().split('T')[0]);
                 setExistingDates(dates);
             } else if (glRes.status === 401 || glRes.status === 403) {
-                 toast.error("Session expired. Please log in again.");
-                 // Optional: navigation('/login');
-                 return;
+                toast.error("Session expired. Please log in again.");
+                return;
             }
 
             if (prodRes.ok) {
@@ -161,30 +159,6 @@ export default function GreenLeafForm() {
         });
     };
 
-        try {
-            // 2. Get the token for submitting the data
-            const token = localStorage.getItem('token');
-            const authHeaders = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            };
-
-            const greenLeafPayload = {
-                date: formData.date,
-                totalWeight: total,
-                selectedWeight: selected
-            };
-
-            const productionPayload = {
-                date: formData.date,
-                teaType: formData.teaType,
-                madeTeaWeight: made,
-                dryerDetails: {
-                    dryerName: formData.dryerName,
-                    meterStart: mStart,
-                    meterEnd: mEnd
-                }
-            };
     // 2. ලැයිස්තුවෙන් ඉවත් කිරීම
     const handleRemoveFromList = (indexToRemove) => {
         const updatedList = pendingRecords.filter((_, index) => index !== indexToRemove);
@@ -198,16 +172,16 @@ export default function GreenLeafForm() {
             return;
         }
 
-            // 3. Attach the headers to your POST requests
-            const [glRes, prodRes, labRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/green-leaf`, { method: 'POST', headers: authHeaders, body: JSON.stringify(greenLeafPayload) }),
-                fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(productionPayload) }),
-                fetch(`${BACKEND_URL}/api/labour`, { method: 'POST', headers: authHeaders, body: JSON.stringify(labourPayload) })
-            ]);
         setIsSavingAll(true);
         const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
 
         try {
+            const token = localStorage.getItem('token');
+            const authHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
             const promises = pendingRecords.map(async (record) => {
                 const total = Number(record.totalWeight);
                 const selected = Number(record.selectedWeight);
@@ -215,36 +189,21 @@ export default function GreenLeafForm() {
                 const mStart = Number(record.meterStart);
                 const mEnd = Number(record.meterEnd);
 
-                const greenLeafPayload = {
-                    date: record.date,
-                    totalWeight: total,
-                    selectedWeight: selected
-                };
+                const greenLeafPayload = { date: record.date, totalWeight: total, selectedWeight: selected };
+                const productionPayload = { date: record.date, teaType: record.teaType, madeTeaWeight: made, dryerDetails: { dryerName: record.dryerName, meterStart: mStart, meterEnd: mEnd } };
+                const labourPayload = { date: record.date, workerCount: Number(record.workerCount) };
 
-                const productionPayload = {
-                    date: record.date,
-                    teaType: record.teaType,
-                    madeTeaWeight: made,
-                    dryerDetails: {
-                        dryerName: record.dryerName,
-                        meterStart: mStart,
-                        meterEnd: mEnd
-                    }
-                };
-
-                const labourPayload = {
-                    date: record.date,
-                    workerCount: Number(record.workerCount)
-                };
-
-                // සෑම රෙකෝඩ් එකකටම අදාළව API 3 කට data යැවීම
+                // සෑම රෙකෝඩ් එකකටම අදාළව API 3 කට data යැවීම (With Auth Headers)
                 const [glRes, prodRes, labRes] = await Promise.all([
-                    fetch(`${BACKEND_URL}/api/green-leaf`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(greenLeafPayload) }),
-                    fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(productionPayload) }),
-                    fetch(`${BACKEND_URL}/api/labour`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(labourPayload) })
+                    fetch(`${BACKEND_URL}/api/green-leaf`, { method: 'POST', headers: authHeaders, body: JSON.stringify(greenLeafPayload) }),
+                    fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(productionPayload) }),
+                    fetch(`${BACKEND_URL}/api/labour`, { method: 'POST', headers: authHeaders, body: JSON.stringify(labourPayload) })
                 ]);
 
                 if (!glRes.ok || !prodRes.ok || !labRes.ok) {
+                    if (glRes.status === 403 || prodRes.status === 403 || labRes.status === 403) {
+                        throw new Error('Access Denied');
+                    }
                     throw new Error('Failed to save a record');
                 }
             });
@@ -257,20 +216,16 @@ export default function GreenLeafForm() {
             
             setTimeout(() => {
                 navigation('/view-green-leaf');
-            } else {
-                playErrorSound();
-                
-                // Extra check to see if the server blocked them (403 Forbidden)
-                if (glRes.status === 403 || prodRes.status === 403 || labRes.status === 403) {
-                    toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
-                } else {
-                    toast.error("Error saving records.", { id: toastId });
-                }
-            }
+            }, 1000);
+
         } catch (error) {
             playErrorSound();
             console.error(error);
-            toast.error("Error saving some records. Please check.", { id: toastId });
+            if (error.message === 'Access Denied') {
+                toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
+            } else {
+                toast.error("Error saving some records. Please check.", { id: toastId });
+            }
         } finally {
             setIsSavingAll(false);
         }
@@ -290,8 +245,8 @@ export default function GreenLeafForm() {
         <div className="p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 min-h-screen">
             
             <div className="mb-8 text-center sm:text-left">
-                <h2 className="text-3xl font-bold text-[#1B6A31]">Hand Made Tea Factory</h2>
-                <p className="text-gray-500 mt-2">Daily Production Multiple Data Entry</p>
+                <h2 className="text-3xl font-bold text-[#1B6A31]">Add Daily Production Records</h2>
+                <p className="text-gray-500 mt-2">Add multiple processing records and save them at once</p>
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
