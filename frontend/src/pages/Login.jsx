@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { Loader2, User, LockKeyhole, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -73,8 +73,6 @@ export default function Login() {
                 />
             </div>
 
-            <Toaster position="top-center" />
-
             {/* ── LEFT SIDE - Branding ── */}
             <motion.div 
                 initial={{ opacity: 0, x: -20 }}
@@ -83,14 +81,13 @@ export default function Login() {
             >
                 <img src="/logo.png" alt="Logo" className="w-36 md:w-56 drop-shadow-xl" />
                 <div className="text-center">
-                    <h1 className="text-4xl lg:text-6xl font-extrabold tracking-tight text-[#1B6A31]">HAND MADE TEA</h1>
+                    <h1 className="text-4xl lg:text-6xl font-extrabold tracking-tight text-[#1B6A31]">HAND-MADE TEA</h1>
                     <p className="text-sm md:text-base font-bold tracking-[0.25em] uppercase text-[#4A9E46] mt-2">Production System</p>
                 </div>
             </motion.div>
 
             {/* ── RIGHT SIDE - iOS Glass Form ── */}
-            <div className="w-full lg:w-1/2 flex justify-center items-center px-4 py-10 lg:py-0 z-10 relative">
-                
+            <div className="w-full lg:w-1/2 flex justify-center items-center px-4 py-8 lg:py-0 z-10 relative">
                 <AnimatePresence mode="wait">
                     {!isSuccess ? (
                         <motion.div
@@ -99,7 +96,8 @@ export default function Login() {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.8, filter: "blur(10px)" }}
                             transition={{ type: "spring", damping: 20 }}
-                            className="w-full max-w-[420px] bg-white/60 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(27,106,49,0.15)] rounded-[2.5rem] p-8 sm:p-10 border border-white/80 relative"
+                            // Updated height classes: h-auto min-h-[380px] for mobile, sm:h-[480px] for larger screens
+                            className="w-full max-w-[450px] h-auto min-h-[380px] sm:h-[480px] flex flex-col justify-center bg-white/60 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(27,106,49,0.15)] rounded-[2.5rem] p-8 sm:p-10 border border-white/80 relative"
                         >
                             {/* Loading Overlay */}
                             {isLoading && (
@@ -114,7 +112,7 @@ export default function Login() {
 
                             <div className="text-center mb-8">
                                 <h2 className="text-2xl font-extrabold text-gray-900">Welcome Back</h2>
-                                <p className="text-gray-500 text-sm">Sign in to manage your production</p>
+                                <p className="text-gray-500 text-sm mt-1">Sign in to manage your production</p>
                             </div>
 
                             <form className="space-y-5" onSubmit={handleLogin}>
@@ -141,7 +139,7 @@ export default function Login() {
                                     whileTap={{ scale: 0.98 }}
                                     type="submit"
                                     disabled={isLoading}
-                                    className="w-full h-12 bg-gradient-to-r from-[#1B6A31] to-[#208b3a] text-white font-bold rounded-2xl shadow-lg shadow-[#1B6A31]/20 hover:shadow-[#1B6A31]/40 transition-all"
+                                    className="w-full h-12 mt-4 bg-gradient-to-r from-[#1B6A31] to-[#208b3a] text-white font-bold rounded-2xl shadow-lg shadow-[#1B6A31]/20 hover:shadow-[#1B6A31]/40 transition-all"
                                 >
                                     Sign In
                                 </motion.button>
@@ -153,7 +151,8 @@ export default function Login() {
                             key="success-card"
                             initial={{ opacity: 0, scale: 0.5 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="w-full max-w-[420px] flex flex-col items-center justify-center p-12 text-center"
+                            // Updated height classes for success container as well
+                            className="w-full max-w-[450px] h-auto min-h-[380px] sm:h-[480px] flex flex-col items-center justify-center p-8 sm:p-12 text-center bg-white/60 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(27,106,49,0.15)] rounded-[2.5rem] border border-white/80"
                         >
                             <motion.div
                                 initial={{ scale: 0 }}
@@ -171,7 +170,7 @@ export default function Login() {
                             </motion.h2>
                             <motion.p 
                                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-                                className="text-[#4A9E46] font-medium"
+                                className="text-[#4A9E46] font-medium mt-2"
                             >
                                 Entering Dashboard...
                             </motion.p>
