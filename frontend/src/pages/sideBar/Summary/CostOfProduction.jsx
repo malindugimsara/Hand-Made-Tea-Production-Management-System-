@@ -31,14 +31,28 @@ export default function CostOfProduction() {
         fetchAndProcessData();
     }, [selectedMonth]); 
 
+    // 1. ADDED TOKEN TO INITIAL FETCH
     const fetchAndProcessData = async () => {
         setLoading(true);
         try {
+            const token = localStorage.getItem('token');
+            const authHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
             const [glRes, prodRes, labRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/green-leaf`),
-                fetch(`${BACKEND_URL}/api/production`),
-                fetch(`${BACKEND_URL}/api/labour`)
+                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders })
             ]);
+
+            if (!glRes.ok || !prodRes.ok || !labRes.ok) {
+                if (glRes.status === 401 || prodRes.status === 401 || labRes.status === 401) {
+                    throw new Error("Unauthorized. Please log in.");
+                }
+                throw new Error("Failed to fetch data");
+            }
 
             const glData = await glRes.json();
             const prodData = await prodRes.json();
@@ -96,7 +110,7 @@ export default function CostOfProduction() {
 
             setRecords(recordsArray);
         } catch (error) {
-            toast.error("Error loading data");
+            toast.error(error.message || "Error loading data");
         } finally {
             setLoading(false);
         }
@@ -121,6 +135,7 @@ export default function CostOfProduction() {
         return total + glCost + selectionCost + handRollingCost + electricityCost + supCost;
     }, 0);
 
+    // 2. ADDED TOKEN TO SAVE REQUEST
     const handleSaveToDatabase = async () => {
         if (records.length === 0) {
             toast.error("No records to save!");
@@ -162,16 +177,24 @@ export default function CostOfProduction() {
                 grandTotal: grandTotalAllTeas
             };
 
+            const token = localStorage.getItem('token');
             const response = await fetch(`${BACKEND_URL}/api/cost-of-production`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify(payload)
             });
 
             if (response.ok) {
                 toast.success(`Cost data for ${selectedMonth} saved successfully!`, { id: toastId });
             } else {
-                throw new Error("Failed to save data");
+                if (response.status === 403) {
+                    toast.error("Access Denied. You don't have permission.", { id: toastId });
+                } else {
+                    throw new Error("Failed to save data");
+                }
             }
         } catch (error) {
             console.error(error);
@@ -273,6 +296,8 @@ export default function CostOfProduction() {
     // -------------------------------------------------------------
     // Range Months PDF Generation (From DB)
     // -------------------------------------------------------------
+    
+    // 3. ADDED TOKEN TO RANGE PDF FETCH
     const generateRangePDF = async () => {
         if (!rangeStartMonth || !rangeEndMonth) {
             toast.error("Please select both Start and End months.");
@@ -288,7 +313,6 @@ export default function CostOfProduction() {
         const toastId = toast.loading('Fetching data and generating PDF...');
 
         try {
-            // මාස ලැයිස්තුවක් හදාගන්නවා (උදා: ["2026-02", "2026-03"])
             let start = new Date(rangeStartMonth);
             let end = new Date(rangeEndMonth);
             let monthsArray = [];
@@ -298,21 +322,26 @@ export default function CostOfProduction() {
                 current.setMonth(current.getMonth() + 1);
             }
 
-            // DB එකෙන් අදාළ මාසවල දත්ත ලබා ගැනීම
-            // මෙතැනදී අපිට අලුත් endpoint එකක් අවශ්‍ය වෙනවා වගේම දැනට තියෙන endpoints වලින් ගන්නත් පුළුවන්
-            // (මෙම කෝඩ් එක වැඩ කිරීමට Backend එකෙන් `/api/cost-of-production` GET request එකක් support කළ යුතුයි)
-            
+            const token = localStorage.getItem('token');
+            const authHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
             const [glRes, prodRes, labRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/green-leaf`),
-                fetch(`${BACKEND_URL}/api/production`),
-                fetch(`${BACKEND_URL}/api/labour`)
+                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders })
             ]);
+
+            if (!glRes.ok || !prodRes.ok || !labRes.ok) {
+                throw new Error("Failed to fetch data for range PDF");
+            }
 
             const glData = await glRes.json();
             const prodData = await prodRes.json();
             const labData = await labRes.json();
 
-            // PDF එක හදන්න පටන්ගන්නවා
             const doc = new jsPDF('landscape');
 
             try {
@@ -339,14 +368,12 @@ export default function CostOfProduction() {
             const endName = new Date(rangeEndMonth).toLocaleString('default', { month: 'short', year: 'numeric' });
             doc.text(`Period: ${startName} to ${endName}`, 45, 27);
 
-            // Columns හදන්න (මසෙන් මසට)
             const headRow = ["Type of Cost", ...monthsArray.map(m => new Date(m).toLocaleString('default', { month: 'short', year: '2-digit' }).toUpperCase())];
             
             let allRows = [];
             let overallGrandTotal = new Array(monthsArray.length).fill(0);
 
             preferredOrder.forEach((teaType) => {
-                // එක තේ වර්ගයක් සඳහා rows
                 let typeRow = [{ content: teaType, colSpan: monthsArray.length + 1, styles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' } }];
                 allRows.push(typeRow);
 
@@ -393,12 +420,9 @@ export default function CostOfProduction() {
                         m_dryerUnits += (mEnd > mStart ? mEnd - mStart : 0);
                     });
 
-                    // මෙතැනදී DB එකෙන් Save කරපු Rates ගන්න විදිහක් නැති නිසා, Current UI එකේ තියෙන Rates පාවිච්චි වෙනවා.
-                    // (හොඳම දේ තමයි CostOfProduction එක DB එකෙන් කෙලින්ම Fetch කරන එක. නමුත් දැනට මේක වැඩ කරයි)
                     const m_glCost = m_selectedWeight * monthlyGlRate;
                     const m_selectionCost = m_selectionWorkers * labourRate;
                     const m_electricityCost = m_dryerUnits * electricityRate;
-                    // Note: Supervision/HR costs are not saved in historical raw data, so they will be 0 or current state here unless fetched from your new Cost API.
                     const m_supCost = supervisionCosts[teaType] || 0; 
                     const m_hrWorkers = handRollingWorkers[teaType] || 0;
                     const m_handRollingCost = m_hrWorkers * labourRate;

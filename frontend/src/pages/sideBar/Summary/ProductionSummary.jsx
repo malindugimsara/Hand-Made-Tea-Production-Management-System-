@@ -36,13 +36,24 @@ export default function ProductionSummary() {
     const fetchAllData = async () => {
         setLoading(true);
         try {
+            // 1. Get the token from localStorage
+            const token = localStorage.getItem('token');
+            const authHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` // The magic key!
+            };
+
+            // 2. Attach the headers to all fetch requests
             const [greenLeafRes, productionRes, labourRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/green-leaf`),
-                fetch(`${BACKEND_URL}/api/production`),
-                fetch(`${BACKEND_URL}/api/labour`)
+                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders })
             ]);
 
             if (!greenLeafRes.ok || !productionRes.ok || !labourRes.ok) {
+                if (greenLeafRes.status === 401 || productionRes.status === 401 || labourRes.status === 401) {
+                    throw new Error("Unauthorized. Please log in.");
+                }
                 throw new Error("Failed to fetch data");
             }
 
@@ -87,7 +98,7 @@ export default function ProductionSummary() {
             setRecords(merged);
         } catch (error) {
             console.error("Fetch Error:", error);
-            toast.error("Could not load data from server.");
+            toast.error(error.message || "Could not load data from server.");
         } finally {
             setLoading(false);
         }
@@ -364,7 +375,6 @@ export default function ProductionSummary() {
 
             {/* --- TEA TYPE SELECTION (MOVED ABOVE) --- */}
             <div className="bg-gradient-to-br from-green-50/50 to-white p-6 rounded-xl border border-green-200 shadow-lg shadow-green-900/5 mb-6 relative overflow-hidden">
-    {/* වම් පස ඇති කොළ පාට Accent Line එක */}
     <div className="absolute top-0 left-0 w-1.5 h-full bg-[#1B6A31]"></div>
     
     <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 border-b border-green-100 pb-3'>
@@ -404,7 +414,6 @@ export default function ProductionSummary() {
     
     {/* 1. Date Filters */}
     <div className="bg-gradient-to-br from-blue-50/50 to-white p-6 rounded-xl border border-blue-200 shadow-lg shadow-blue-900/5 flex flex-col gap-5 relative overflow-hidden">
-        {/* වම් පස ඇති නිල් පාට Accent Line එක */}
         <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
         
         <div className="flex justify-between items-center border-b border-blue-100 pb-3">
@@ -450,7 +459,6 @@ export default function ProductionSummary() {
 
     {/* 2. Rate Settings */}
     <div className="bg-gradient-to-br from-orange-50/50 to-white p-6 rounded-xl border border-orange-200 shadow-lg shadow-orange-900/5 h-fit relative overflow-hidden">
-        {/* වම් පස ඇති තැඹිලි පාට Accent Line එක */}
         <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
         
         <div className="flex items-center gap-2 mb-5 border-b border-orange-100 pb-3">
