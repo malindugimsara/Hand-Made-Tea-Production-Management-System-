@@ -235,7 +235,7 @@ export default function ViewGreenLeafForm() {
             
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-[#1B6A31] flex items-center gap-2">Daily Production Log</h2>
+                    <h2 className="text-2xl font-bold text-[#1B6A31] flex items-center gap-2"> <Leaf size={28} /> Daily Production Log</h2>
                     <p className="text-sm text-gray-500 mt-1">Master overview of Green Leaf, Production, & Labour</p>
                 </div>
                 

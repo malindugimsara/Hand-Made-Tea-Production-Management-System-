@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
-import { Fan, Zap, Clock, AlertCircle, Calendar, RefreshCw } from "lucide-react";
+import { Fan, Zap, Clock, AlertCircle, Calendar, RefreshCw, Leaf } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
 
 import {
@@ -144,7 +144,7 @@ export default function ViewDehydratorRecords() {
             
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-[#1B6A31] flex items-center gap-2">Dehydrator Machine Records</h2>
+                    <h2 className="text-2xl font-bold text-[#1B6A31] flex items-center gap-2"> <Leaf size={28} /> Dehydrator Machine Records</h2>
                     <p className="text-sm text-gray-500 mt-1">Overview of Dehydrator Electricity and Time Usage</p>
                 </div>
                 

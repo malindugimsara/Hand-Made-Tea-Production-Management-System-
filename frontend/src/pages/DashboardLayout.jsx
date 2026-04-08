@@ -16,7 +16,8 @@ import {
   Bell,
   BadgeCheck,
   ChevronRight,
-  Shield, 
+  Shield,
+  Sprout, 
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -77,7 +78,7 @@ const DATA = {
   navMain: [
     {
       title: 'Green Leaf',
-      icon: Factory,
+      icon: Leaf,
       items: [
         { title: 'Record Entry', url: '/green-leaf-form', roles: ['Admin', 'Officer'] }, 
         { title: 'View Records', url: '/view-green-leaf', roles: ['Admin', 'Officer', 'Viewer'] },
@@ -93,7 +94,7 @@ const DATA = {
     },
     {
       title: 'Raw Material',
-      icon: Calculator,
+      icon: Sprout ,
       items: [
         { title: 'Raw Material Cost', url: '/raw-material-cost', roles: ['Admin', 'Officer'] },
         { title: 'View RM Costs', url: '/view-raw-material-cost', roles: ['Admin', 'Officer', 'Viewer'] },
