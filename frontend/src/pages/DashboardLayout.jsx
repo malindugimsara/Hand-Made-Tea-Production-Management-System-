@@ -16,7 +16,7 @@ import {
   Bell,
   BadgeCheck,
   ChevronRight,
-  Shield, // <-- Added Shield icon
+  Shield, 
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -64,7 +64,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-// --- DATA CONFIGURATION ---
+// --- ROLE-BASED DATA CONFIGURATION ---
 const DATA = {
   factory: {
     name: 'Athukorala Tea',
@@ -79,41 +79,40 @@ const DATA = {
       title: 'Green Leaf',
       icon: Factory,
       items: [
-        { title: 'Record Entry', url: '/green-leaf-form' },
-        { title: 'View Records', url: '/view-green-leaf' },
+        { title: 'Record Entry', url: '/green-leaf-form', roles: ['Admin', 'Officer'] }, 
+        { title: 'View Records', url: '/view-green-leaf', roles: ['Admin', 'Officer', 'Viewer'] },
       ],
     },
     {
       title: 'Dehydrator Machine',
       icon: Factory,
       items: [
-        { title: 'Record Entry', url: '/dehydrator-record-form' },
-        { title: 'View Records', url: '/view-dehydrator-records' },
+        { title: 'Record Entry', url: '/dehydrator-record-form', roles: ['Admin', 'Officer'] },
+        { title: 'View Records', url: '/view-dehydrator-records', roles: ['Admin', 'Officer', 'Viewer'] },
       ],
     },
     {
       title: 'Raw Material',
       icon: Calculator,
       items: [
-        { title: 'Raw Material Cost', url: '/raw-material-cost' },
-        { title: 'View RM Costs', url: '/view-raw-material-cost' },
+        { title: 'Raw Material Cost', url: '/raw-material-cost', roles: ['Admin', 'Officer'] },
+        { title: 'View RM Costs', url: '/view-raw-material-cost', roles: ['Admin', 'Officer', 'Viewer'] },
       ],
     },
     {
       title: 'Summary Reports',
       icon: LineChart,
       items: [
-        { title: 'Production Summary', url: '/production-summary' },
-        { title: 'Selling Details', url: '/selling-details-table' },
-        { title: 'Cost of Production', url: '/cost-of-production' },
+        { title: 'Production Summary', url: '/production-summary', roles: ['Admin', 'Officer', 'Viewer'] },
+        { title: 'Selling Details', url: '/selling-details-table', roles: ['Admin', 'Officer', 'Viewer'] },
+        { title: 'Cost of Production', url: '/cost-of-production', roles: ['Admin', 'Officer', 'Viewer'] },
       ],
     },
-    // --- ADDED SYSTEM ADMINISTRATION GROUP ---
     {
       title: 'System Administration',
       icon: Shield,
       items: [
-        { title: 'Manage Users', url: '/manage-users' },
+        { title: 'Manage Users', url: '/manage-users', roles: ['Admin'] },
       ],
     },
   ],
@@ -125,19 +124,14 @@ export default function DashboardLayout() {
   const isMobile = useIsMobile();
 
   // --- AUTHENTICATION LOGIC ---
-  // Pull the logged-in user's details from local storage
   const currentUsername = localStorage.getItem('username') || 'Unknown User';
-  const currentUserRole = localStorage.getItem('userRole') || 'Viewer'; // Using 'userRole' as defined in your code
+  const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'Viewer'; 
 
-  // Logout function
   const handleLogout = () => {
-    // 1. Clear the security tokens
     localStorage.removeItem('token');
-    localStorage.removeItem('userRole'); // Make sure this matches your login saving logic!
+    localStorage.removeItem('userRole'); 
     localStorage.removeItem('username');
-    localStorage.removeItem('role'); // Also clear 'role' just in case you used that key elsewhere
-    
-    // 2. Redirect to independent login page
+    localStorage.removeItem('role'); 
     navigate('/login', { replace: true });
   };
 
@@ -147,10 +141,13 @@ export default function DashboardLayout() {
       case '/green-leaf-form': return 'Green Leaf Entry';
       case '/view-green-leaf': return 'View Green Leaf Records';
       case '/dehydrator-record-form': return 'Dehydrator Record Entry';
+      case '/view-dehydrator-records': return 'Dehydrator Records';
       case '/selling-details-table': return 'Selling Details'; 
-      case '/costing': return 'Cost Calculations';
-      case '/sales': return 'Sales Revenue';
-      case '/manage-users': return 'User Management'; // Already handled here perfectly!
+      case '/raw-material-cost': return 'Raw Material Cost Entry';
+      case '/view-raw-material-cost': return 'View Raw Material Costs';
+      case '/cost-of-production': return 'Cost Calculations';
+      case '/production-summary': return 'Production Summary';
+      case '/manage-users': return 'User Management'; 
       case '/create-user': return 'Create User'; 
       default: return 'System';
     }
@@ -161,7 +158,6 @@ export default function DashboardLayout() {
     <SidebarProvider>
       <Sidebar collapsible="icon" className="border-none bg-[#F4F7F5]">
         
-        {/* SIDEBAR HEADER */}
         <SidebarHeader className="pt-6 pb-2 px-4">
           <SidebarMenu>
             <SidebarMenuItem>
@@ -184,7 +180,6 @@ export default function DashboardLayout() {
 
         <SidebarContent className="px-2 mt-4">
           
-          {/* QUICK LINKS */}
           <SidebarGroup>
             <SidebarGroupLabel className="text-xs font-bold text-gray-400 tracking-widest uppercase mb-2 ml-2">Overview</SidebarGroupLabel>
             <SidebarMenu>
@@ -214,19 +209,23 @@ export default function DashboardLayout() {
             </SidebarMenu>
           </SidebarGroup>
 
-          {/* NESTED MENU */}
+          {/* NESTED MENU (Dynamically Filtered by Role) */}
           <SidebarGroup className="mt-4">
             <SidebarGroupLabel className="text-xs font-bold text-gray-400 tracking-widest uppercase mb-2 ml-2">Management</SidebarGroupLabel>
             <SidebarMenu>
               {DATA.navMain.map((item) => {
                 
-                // --- SECURITY CHECK ---
-                // If the item is System Administration, ONLY show it if the user is an Admin
-                if (item.title === 'System Administration' && currentUserRole !== 'Admin') {
-                    return null; 
+                // Filter the sub-items based on the current user's role
+                const visibleItems = item.items.filter(subItem => 
+                  subItem.roles.includes(currentUserRole)
+                );
+
+                // If this group has NO visible items for this user, hide the entire group
+                if (visibleItems.length === 0) {
+                    return null;
                 }
 
-                const isGroupActive = item.items.some((sub) => sub.url === location.pathname);
+                const isGroupActive = visibleItems.some((sub) => sub.url === location.pathname);
 
                 return (
                   <Collapsible key={item.title} asChild defaultOpen={isGroupActive} className="group/collapsible mb-1">
@@ -242,7 +241,9 @@ export default function DashboardLayout() {
                       </CollapsibleTrigger>
                       <CollapsibleContent>
                         <SidebarMenuSub className="border-l-2 border-gray-200 ml-6 pl-4 mt-2 space-y-1">
-                          {item.items.map((subItem) => {
+                          
+                          {/* Map over the FILTERED visible items */}
+                          {visibleItems.map((subItem) => {
                             const isSubActive = location.pathname === subItem.url;
                             return (
                               <SidebarMenuSubItem key={subItem.title}>
@@ -274,7 +275,6 @@ export default function DashboardLayout() {
 
         </SidebarContent>
 
-        {/* USER PROFILE FOOTER */}
         <SidebarFooter className="p-4">
           <SidebarMenu>
             <SidebarMenuItem>
@@ -317,20 +317,7 @@ export default function DashboardLayout() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-gray-100 my-2" />
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem className="cursor-pointer hover:bg-gray-50 rounded-xl py-2.5">
-                      <BadgeCheck className="mr-2 h-4 w-4 text-gray-500" /> Account
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="cursor-pointer hover:bg-gray-50 rounded-xl py-2.5">
-                      <Settings2 className="mr-2 h-4 w-4 text-gray-500" /> Settings
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="cursor-pointer hover:bg-gray-50 rounded-xl py-2.5">
-                      <Bell className="mr-2 h-4 w-4 text-gray-500" /> Notifications
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator className="bg-gray-100 my-2" />
                   
-                  {/* ADDED ONCLICK EVENT TO LOGOUT BUTTON */}
                   <DropdownMenuItem 
                     onClick={handleLogout}
                     className="cursor-pointer text-red-600 hover:bg-red-50 hover:text-red-700 rounded-xl py-2.5 font-medium"
@@ -345,12 +332,8 @@ export default function DashboardLayout() {
         <SidebarRail />
       </Sidebar>
 
-      {/* =========================================================
-          MAIN CONTENT AREA (The "Floating Island" Concept)
-          ========================================================= */}
       <SidebarInset className="bg-[#F4F7F5] relative flex flex-col h-screen overflow-hidden p-2 md:p-4">
         
-        {/* FLOATING GLASS PILL HEADER */}
         <header className="flex h-14 bg-white/70 backdrop-blur-2xl border border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl shrink-0 items-center justify-between gap-2 absolute top-4 left-4 right-4 z-50 px-4 transition-all">
           <div className="flex items-center gap-2 w-full">
             <SidebarTrigger className="text-gray-400 hover:text-[#1B6A31] transition-colors" />
@@ -374,7 +357,6 @@ export default function DashboardLayout() {
           </div>
         </header>
 
-        {/* FLOATING ISLAND CONTENT BOX */}
         <div className="flex-1 mt-16 bg-white rounded-[2rem] shadow-[0_0_40px_rgb(0,0,0,0.02)] border border-gray-100 overflow-hidden relative flex flex-col">
           <div className="flex-1 overflow-y-auto">
             <motion.div
