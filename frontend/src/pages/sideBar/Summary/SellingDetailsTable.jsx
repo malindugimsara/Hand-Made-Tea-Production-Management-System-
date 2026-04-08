@@ -470,7 +470,7 @@ export default function SellingDetailsTable() {
                       }} 
                       className="bg-[#1B6A31] hover:bg-green-800 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
                   >
-                      Save Now
+                      Save 
                   </AlertDialogAction>
               </AlertDialogFooter>
           </AlertDialogContent>
