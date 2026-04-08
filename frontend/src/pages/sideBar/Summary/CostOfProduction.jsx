@@ -1,14 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast'; 
-import { Calculator, DollarSign, Info, Calendar, FileDown, Save, X } from "lucide-react"; 
+import { Calculator, DollarSign, Info, Calendar, FileDown, Save, X, AlertCircle, Eye } from "lucide-react"; 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable'; 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function CostOfProduction() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const [loading, setLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false); 
     
+    // --- ROLE BASED ACCESS CONTROL ---
+    const userRole = localStorage.getItem('userRole') || ''; // 'role' වෙනුවට 'userRole'
+    const isViewer = userRole.toLowerCase() === 'viewer'; // 'Viewer' හෝ 'viewer' ආවත් වැඩ කරයි
+
+    // DB tracking
+    const [isSaved, setIsSaved] = useState(false);
+    
+    // PDF Unsaved Alert States
+    const [showUnsavedAlert, setShowUnsavedAlert] = useState(false);
+    const [pendingPdfAction, setPendingPdfAction] = useState(null); // 'single' or 'range'
+
     // Filters & Rates
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); 
     const [monthlyGlRate, setMonthlyGlRate] = useState(0); 
@@ -31,7 +52,6 @@ export default function CostOfProduction() {
         fetchAndProcessData();
     }, [selectedMonth]); 
 
-    // 1. ADDED TOKEN TO INITIAL FETCH
     const fetchAndProcessData = async () => {
         setLoading(true);
         try {
@@ -41,10 +61,11 @@ export default function CostOfProduction() {
                 'Authorization': `Bearer ${token}`
             };
 
-            const [glRes, prodRes, labRes] = await Promise.all([
+            const [glRes, prodRes, labRes, costRes] = await Promise.all([
                 fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
                 fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
-                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders })
+                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/cost-of-production/${selectedMonth}`, { headers: authHeaders }).catch(() => null)
             ]);
 
             if (!glRes.ok || !prodRes.ok || !labRes.ok) {
@@ -58,6 +79,39 @@ export default function CostOfProduction() {
             const prodData = await prodRes.json();
             const labData = await labRes.json();
 
+            // 1. Check if current month is already saved & AUTO FILL DATA
+            if (costRes && costRes.ok) {
+                const savedMonthData = await costRes.json();
+                
+                if (savedMonthData && savedMonthData.month === selectedMonth) {
+                    setIsSaved(true);
+                    setMonthlyGlRate(savedMonthData.monthlyGlRate || 0);
+                    setLabourRate(savedMonthData.labourRate || 1350);
+                    setElectricityRate(savedMonthData.electricityRate || 10);
+
+                    const loadedSup = {};
+                    const loadedHr = {};
+                    const dbLabRate = savedMonthData.labourRate || 1350;
+
+                    (savedMonthData.teaCosts || []).forEach(tc => {
+                        loadedSup[tc.teaType] = tc.supervisionCost || 0;
+                        loadedHr[tc.teaType] = tc.handRollingCost ? (tc.handRollingCost / dbLabRate) : 0;
+                    });
+
+                    setSupervisionCosts(loadedSup);
+                    setHandRollingWorkers(loadedHr);
+                } else {
+                    setIsSaved(false);
+                    setSupervisionCosts({});
+                    setHandRollingWorkers({});
+                }
+            } else {
+                setIsSaved(false);
+                setSupervisionCosts({});
+                setHandRollingWorkers({});
+            }
+
+            // 2. Process Production & GL Data
             const filteredProd = prodData.filter(p => p.date.startsWith(selectedMonth));
             const summary = {};
             const glUsage = {};
@@ -116,12 +170,24 @@ export default function CostOfProduction() {
         }
     };
 
+    // Manual input Change Handlers
     const handleSupervisionChange = (type, value) => {
+        if (Number(value) < 0) return;
         setSupervisionCosts(prev => ({ ...prev, [type]: Number(value) || 0 }));
+        setIsSaved(false);
     };
 
     const handleHandRollingChange = (type, value) => {
+        if (Number(value) < 0) return;
         setHandRollingWorkers(prev => ({ ...prev, [type]: Number(value) || 0 }));
+        setIsSaved(false);
+    };
+
+    const handleRateChange = (setter) => (e) => {
+        const val = e.target.value.replace(/^0+(?=\d)/, '');
+        if (Number(val) < 0) return;
+        setter(val);
+        setIsSaved(false);
     };
 
     const grandTotalAllTeas = records.reduce((total, item) => {
@@ -135,11 +201,17 @@ export default function CostOfProduction() {
         return total + glCost + selectionCost + handRollingCost + electricityCost + supCost;
     }, 0);
 
-    // 2. ADDED TOKEN TO SAVE REQUEST
+    // Save to Database Logic
     const handleSaveToDatabase = async () => {
+        // Double check validation for Viewer just in case
+        if (isViewer) {
+            toast.error("Viewers are not allowed to save data.");
+            return false;
+        }
+
         if (records.length === 0) {
             toast.error("No records to save!");
-            return;
+            return false;
         }
 
         setIsSaving(true);
@@ -189,25 +261,48 @@ export default function CostOfProduction() {
 
             if (response.ok) {
                 toast.success(`Cost data for ${selectedMonth} saved successfully!`, { id: toastId });
+                setIsSaved(true);
+                return true;
             } else {
                 if (response.status === 403) {
                     toast.error("Access Denied. You don't have permission.", { id: toastId });
                 } else {
                     throw new Error("Failed to save data");
                 }
+                return false;
             }
         } catch (error) {
             console.error(error);
             toast.error("Database saving failed.", { id: toastId });
+            return false;
         } finally {
             setIsSaving(false);
         }
     };
 
-    // -------------------------------------------------------------
+    const handleSaveAndDownload = async () => {
+        setShowUnsavedAlert(false);
+        const success = await handleSaveToDatabase();
+        
+        if (success) {
+            if (pendingPdfAction === 'single') {
+                handleDownloadSinglePDF(true); 
+            } else if (pendingPdfAction === 'range') {
+                generateRangePDF(true); 
+            }
+        }
+        setPendingPdfAction(null);
+    };
+
     // Single Month PDF Generation
-    // -------------------------------------------------------------
-    const handleDownloadSinglePDF = async () => {
+    const handleDownloadSinglePDF = async (bypassCheck = false) => {
+        // Viewer can bypass the save check, Admin/Officer must save first
+        if (!isSaved && !bypassCheck && !isViewer) {
+            setPendingPdfAction('single');
+            setShowUnsavedAlert(true);
+            return;
+        }
+
         const doc = new jsPDF('portrait');
 
         try {
@@ -222,9 +317,7 @@ export default function CostOfProduction() {
                 });
                 doc.addImage(dataUrl, "PNG", 14, 10, 25, 25); 
             }
-        } catch (err) {
-            console.error("Failed to load logo for PDF", err);
-        }
+        } catch (err) {}
 
         doc.setFontSize(22);
         doc.setTextColor(27, 106, 49); 
@@ -293,19 +386,21 @@ export default function CostOfProduction() {
         toast.success("Single Month PDF Downloaded!");
     };
 
-    // -------------------------------------------------------------
-    // Range Months PDF Generation (From DB)
-    // -------------------------------------------------------------
-    
-    // 3. ADDED TOKEN TO RANGE PDF FETCH
-    const generateRangePDF = async () => {
+    // Range Months PDF Generation 
+    const generateRangePDF = async (bypassCheck = false) => {
         if (!rangeStartMonth || !rangeEndMonth) {
             toast.error("Please select both Start and End months.");
             return;
         }
-
         if (rangeStartMonth > rangeEndMonth) {
             toast.error("Start month must be before End month.");
+            return;
+        }
+
+        // Viewer can bypass the save check, Admin/Officer must save first
+        if (!isSaved && !bypassCheck && !isViewer) {
+            setPendingPdfAction('range');
+            setShowUnsavedAlert(true);
             return;
         }
 
@@ -506,7 +601,7 @@ export default function CostOfProduction() {
                         </div>
 
                         <button 
-                            onClick={generateRangePDF}
+                            onClick={() => generateRangePDF(false)}
                             disabled={isGeneratingRangePDF}
                             className={`w-full py-3 rounded-lg text-white font-bold flex justify-center items-center gap-2 ${isGeneratingRangePDF ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
                         >
@@ -515,6 +610,38 @@ export default function CostOfProduction() {
                     </div>
                 </div>
             )}
+
+            {/* Unsaved PDF Alert */}
+            <AlertDialog open={showUnsavedAlert} onOpenChange={setShowUnsavedAlert}>
+                <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
+                    <AlertDialogHeader>
+                        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
+                            <AlertCircle className="w-6 h-6 text-red-600" />
+                        </div>
+                        <AlertDialogTitle className="text-xl font-bold text-gray-900">Data Not Saved!</AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-500 text-base">
+                            You have unsaved changes. You must save the records to the database before generating a PDF. 
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="mt-6">
+                        <AlertDialogCancel 
+                            onClick={() => {
+                                setShowUnsavedAlert(false);
+                                setPendingPdfAction(null);
+                            }} 
+                            className="bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200 rounded-lg px-6 font-semibold"
+                        >
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction 
+                            onClick={handleSaveAndDownload} 
+                            className="bg-[#1B6A31] hover:bg-green-800 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
+                        >
+                            Save and Download
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <div className="mb-8 border-b pb-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
                 <div>
@@ -538,7 +665,6 @@ export default function CostOfProduction() {
                     </div>
 
                     <div className="flex flex-wrap gap-3 mt-4 sm:mt-0">
-                        {/* New Button for Range PDF */}
                         <button 
                             onClick={() => setShowRangeModal(true)}
                             className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all"
@@ -547,7 +673,7 @@ export default function CostOfProduction() {
                         </button>
 
                         <button 
-                            onClick={handleDownloadSinglePDF}
+                            onClick={() => handleDownloadSinglePDF(false)}
                             className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all"
                         >
                             <FileDown size={18} /> Single PDF
@@ -555,22 +681,31 @@ export default function CostOfProduction() {
 
                         <button 
                             onClick={handleSaveToDatabase}
-                            disabled={isSaving || records.length === 0}
+                            disabled={isSaving || records.length === 0 || isSaved || isViewer}
                             className={`px-4 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all ${
-                                isSaving || records.length === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#1B6A31] hover:bg-green-800'
+                                (isSaving || records.length === 0 || isSaved || isViewer) ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#1B6A31] hover:bg-green-800'
                             }`}
                         >
-                            <Save size={18} /> {isSaving ? "Saving..." : "Save to DB"}
+                            {isViewer ? <Eye size={18}/> : <Save size={18} />} 
+                            {isViewer ? "View Only" : isSaving ? "Saving..." : isSaved ? "Saved to DB" : "Save to DB"}
                         </button>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm mb-10">
+            {/* Viewer Notification Banner */}
+            {isViewer && (
+                <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg flex items-center gap-3">
+                    <Info size={20} />
+                    <p className="text-sm font-medium">You are logged in as a <strong>Viewer</strong>. You can only view the data and download reports. Editing and saving are disabled.</p>
+                </div>
+            )}
+
+            <div className={`bg-white p-6 rounded-xl border shadow-sm mb-10 ${isViewer ? 'border-gray-200 opacity-90' : 'border-gray-200'}`}>
                 <div className="flex items-center gap-2 mb-4 border-b pb-2">
                     <span className="text-orange-500 font-bold text-lg">⚯</span>
                     <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
-                        ADJUST RATES (LKR)
+                        ADJUST RATES (LKR) {isViewer && "(Read Only)"}
                     </h3>
                 </div>
                 
@@ -581,10 +716,12 @@ export default function CostOfProduction() {
                             <span className="absolute left-3 top-2.5 text-gray-400 text-sm font-bold">Rs.</span>
                             <input 
                                 type="number" 
-                                value={monthlyGlRate || ''} 
-                                onChange={(e) => setMonthlyGlRate(e.target.value.replace(/^0+(?=\d)/, ''))}
+                                min="0"
+                                value={monthlyGlRate === 0 ? '' : monthlyGlRate} 
+                                onChange={handleRateChange(setMonthlyGlRate)}
                                 onWheel={(e) => e.target.blur()}
-                                className="w-full border border-gray-300 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400" 
+                                disabled={isViewer}
+                                className="w-full border border-gray-300 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 disabled:cursor-not-allowed" 
                                 placeholder="0.00" 
                             />
                         </div>
@@ -595,10 +732,12 @@ export default function CostOfProduction() {
                             <span className="absolute left-3 top-2.5 text-gray-400 text-sm font-bold">Rs.</span>
                             <input 
                                 type="number" 
+                                min="0"
                                 value={labourRate} 
-                                onChange={(e) => setLabourRate(e.target.value.replace(/^0+(?=\d)/, ''))}
+                                onChange={handleRateChange(setLabourRate)}
                                 onWheel={(e) => e.target.blur()}
-                                className="w-full border border-gray-300 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400" 
+                                disabled={isViewer}
+                                className="w-full border border-gray-300 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 disabled:cursor-not-allowed" 
                             />
                         </div>
                     </div>
@@ -607,11 +746,13 @@ export default function CostOfProduction() {
                         <div className="relative">
                             <span className="absolute left-3 top-2.5 text-gray-400 text-sm font-bold">Rs.</span>
                             <input 
-                                type="number" 
+                                type="number"
+                                min="0" 
                                 value={electricityRate} 
-                                onChange={(e) => setElectricityRate(e.target.value.replace(/^0+(?=\d)/, ''))}
+                                onChange={handleRateChange(setElectricityRate)}
                                 onWheel={(e) => e.target.blur()}
-                                className="w-full border border-gray-300 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400" 
+                                disabled={isViewer}
+                                className="w-full border border-gray-300 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 disabled:cursor-not-allowed" 
                             />
                         </div>
                     </div>
@@ -633,7 +774,7 @@ export default function CostOfProduction() {
                             const totalCost = glCost + selectionCost + handRollingCost + electricityCost + supCost;
 
                             return (
-                                <div key={item.teaType} className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
+                                <div key={item.teaType} className={`bg-white rounded-2xl shadow-lg overflow-hidden border ${isViewer ? 'border-gray-200 opacity-95' : 'border-gray-200'}`}>
                                     <div className="bg-[#1B6A31] p-4 text-white flex justify-between items-center px-8">
                                         <h3 className="text-xl font-bold">{item.teaType}</h3>
                                         <span className="bg-white/20 px-4 py-1 rounded-full text-sm font-semibold">
@@ -667,10 +808,13 @@ export default function CostOfProduction() {
                                                         <div className="flex items-center justify-end gap-2">
                                                             <input 
                                                                 type="number" 
-                                                                value={handRollingWorkers[item.teaType] || ''}
+                                                                min="0"
+                                                                value={handRollingWorkers[item.teaType] === 0 ? '' : (handRollingWorkers[item.teaType] || '')}
                                                                 placeholder="Workers"
-                                                                className="w-24 p-1 border border-gray-300 rounded text-right focus:ring-1 focus:ring-green-400 outline-none"
+                                                                disabled={isViewer}
+                                                                className="w-24 p-1 border border-gray-300 rounded text-right focus:ring-1 focus:ring-green-400 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
                                                                 onChange={(e) => handleHandRollingChange(item.teaType, e.target.value)}
+                                                                onWheel={(e) => e.target.blur()}
                                                             />
                                                             <span className="text-gray-500 text-sm">x Rs.{labourRate}</span>
                                                         </div>
@@ -687,10 +831,13 @@ export default function CostOfProduction() {
                                                     <td className="py-4 text-right">
                                                         <input 
                                                             type="number" 
-                                                            value={supervisionCosts[item.teaType] || ''}
+                                                            min="0"
+                                                            value={supervisionCosts[item.teaType] === 0 ? '' : (supervisionCosts[item.teaType] || '')}
                                                             placeholder="Manual Input"
-                                                            className="w-32 p-1 border border-gray-300 rounded text-right focus:ring-1 focus:ring-green-400 outline-none"
+                                                            disabled={isViewer}
+                                                            className="w-32 p-1 border border-gray-300 rounded text-right focus:ring-1 focus:ring-green-400 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
                                                             onChange={(e) => handleSupervisionChange(item.teaType, e.target.value)}
+                                                            onWheel={(e) => e.target.blur()}
                                                         />
                                                     </td>
                                                     <td className="py-4 text-right font-bold text-gray-900">{supCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
