@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { Bell, AlertTriangle, TrendingDown, Zap, CheckCircle, Info, Leaf } from 'lucide-react';
+import { Bell, AlertTriangle, TrendingDown, TrendingUp, BarChart2, Zap, CheckCircle, Info, Leaf, Package, DollarSign } from 'lucide-react';
 
 export default function Home() {
     const navigate = useNavigate();
@@ -41,17 +41,33 @@ export default function Home() {
                 'Authorization': `Bearer ${token}`
             };
 
-            // Fetch Green Leaf, Production, Sales, AND Labour
-            const [glRes, prodRes, salesRes, labRes] = await Promise.all([
+            // 1. Sales Chart එකට අවශ්‍ය මාස 6 හදාගැනීම (YYYY-MM format)
+            const last6MonthsInfo = [...Array(6)].map((_, i) => {
+                const d = new Date();
+                d.setMonth(d.getMonth() - i);
+                return {
+                    monthStr: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+                    name: d.toLocaleString('default', { month: 'short' })
+                };
+            });
+
+            // Sales API 6කට කතා කරන්න Promises හදාගැනීම
+            const salesPromises = last6MonthsInfo.map(info => 
+                fetch(`${BACKEND_URL}/api/selling-details?month=${info.monthStr}`, { headers: authHeaders })
+                    .then(res => res.ok ? res.json() : { records: [] })
+                    .then(data => ({ ...data, ...info })) 
+            );
+
+            // 2. අනිත් API ටිකයි Sales මාස 6 යි එකවර Fetch කිරීම
+            const [glRes, prodRes, labRes, ...salesResults] = await Promise.all([
                 fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
                 fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
-                fetch(`${BACKEND_URL}/api/selling-details`, { headers: authHeaders }), 
-                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders }) 
+                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders }), 
+                ...salesPromises 
             ]);
 
             const glData = glRes.ok ? await glRes.json() : [];
             const prodData = prodRes.ok ? await prodRes.json() : [];
-            const salesData = salesRes.ok ? await salesRes.json() : [];
             const labourData = labRes.ok ? await labRes.json() : [];
 
             // --- Get Yesterday's Date String (YYYY-MM-DD) ---
@@ -59,33 +75,22 @@ export default function Home() {
             yesterdayDate.setDate(yesterdayDate.getDate() - 1);
             const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
 
-            // 1. Calculate Yesterday's Stats
+            // 3. Calculate Yesterday's Green Leaf & Made Tea
             const yesterdayGL = glData.filter(item => item.date && item.date.startsWith(yesterdayStr));
             setGlYesterday(yesterdayGL.reduce((sum, item) => sum + (Number(item.selectedWeight) || 0), 0));
 
             const yesterdayProd = prodData.filter(item => item.date && item.date.startsWith(yesterdayStr));
             setMtYesterday(yesterdayProd.reduce((sum, item) => sum + (Number(item.madeTeaWeight) || 0), 0));
 
-            // 2. Calculate Last Month's Sales
-            const now = new Date();
-            const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            const targetMonth = lastMonthDate.getMonth();
-            const targetYear = lastMonthDate.getFullYear();
-
-            let totalRevenueLkrLastMonth = 0;
-            const salesArray = Array.isArray(salesData) ? salesData : (salesData.records || []);
-            
-            salesArray.forEach(sale => {
-                if (!sale.date) return;
-                const saleDateObj = new Date(sale.date);
-                if (saleDateObj.getMonth() === targetMonth && saleDateObj.getFullYear() === targetYear) {
-                    const records = sale.records || [];
-                    const exchangeRate = sale.exchangeRate || 300;
-                    const saleUsd = records.reduce((sum, r) => sum + (Number(r.packs || 0) * Number(r.price || 0)), 0);
-                    totalRevenueLkrLastMonth += (saleUsd * exchangeRate);
-                }
-            });
-            setSalesLastMonth(totalRevenueLkrLastMonth);
+            // 4. Calculate Last Month's Sales (Card එකට)
+            const lastMonthData = salesResults[1]; 
+            if (lastMonthData && lastMonthData.records) {
+                const rate = lastMonthData.exchangeRate || 300;
+                const usd = lastMonthData.records.reduce((sum, r) => sum + (Number(r.packs || 0) * Number(r.price || 0)), 0);
+                setSalesLastMonth(usd * rate);
+            } else {
+                setSalesLastMonth(0);
+            }
 
             // ==========================================
             // CHART DATA PREPARATION
@@ -102,7 +107,7 @@ export default function Home() {
                 const glSum = glData.filter(g => g.date && g.date.startsWith(date)).reduce((sum, g) => sum + (Number(g.selectedWeight) || 0), 0);
                 const mtSum = prodData.filter(p => p.date && p.date.startsWith(date)).reduce((sum, p) => sum + (Number(p.madeTeaWeight) || 0), 0);
                 return { 
-                    name: date.slice(5), // Show only MM-DD
+                    name: date.slice(5), 
                     GreenLeaf: glSum, 
                     MadeTea: mtSum 
                 };
@@ -110,26 +115,14 @@ export default function Home() {
             setProdChartData(pChartData);
 
             // B. Sales Chart (Last 6 Months)
-            const last6Months = [...Array(6)].map((_, i) => {
-                const d = new Date();
-                d.setMonth(d.getMonth() - i);
-                return { month: d.getMonth(), year: d.getFullYear(), name: d.toLocaleString('default', { month: 'short' }) };
+            const sChartData = salesResults.map(saleMonth => {
+                const rate = saleMonth.exchangeRate || 300;
+                const usd = (saleMonth.records || []).reduce((sum, r) => sum + (Number(r.packs || 0) * Number(r.price || 0)), 0);
+                return {
+                    name: saleMonth.name,
+                    Revenue: (usd * rate)
+                };
             }).reverse();
-
-            const sChartData = last6Months.map(m => {
-                let rev = 0;
-                salesArray.forEach(sale => {
-                    if(!sale.date) return;
-                    const d = new Date(sale.date);
-                    if(d.getMonth() === m.month && d.getFullYear() === m.year) {
-                        const records = sale.records || [];
-                        const rate = sale.exchangeRate || 300;
-                        const usd = records.reduce((s, r) => s + (Number(r.packs||0) * Number(r.price||0)), 0);
-                        rev += (usd * rate);
-                    }
-                });
-                return { name: m.name, Revenue: rev };
-            });
             setSalesChartData(sChartData);
 
             // ==========================================
@@ -137,7 +130,6 @@ export default function Home() {
             // ==========================================
             const newAlerts = [];
 
-            // Alert 1: Missing Labour Record Yesterday
             const hasLabourYesterday = labourData.some(l => l.date && l.date.startsWith(yesterdayStr));
             if (!hasLabourYesterday) {
                 newAlerts.push({
@@ -147,7 +139,6 @@ export default function Home() {
                 });
             }
 
-            // Alert 2: Low Made Tea Percentage (< 15%)
             const weekGL = pChartData.reduce((s, c) => s + c.GreenLeaf, 0);
             const weekMT = pChartData.reduce((s, c) => s + c.MadeTea, 0);
             if (weekGL > 0 && (weekMT / weekGL) < 0.15) {
@@ -158,7 +149,6 @@ export default function Home() {
                 });
             }
 
-            // Alert 3: High Electricity Consumption
             const unitsPerDay = last7Days.map(date => {
                 return prodData.filter(p => p.date && p.date.startsWith(date))
                     .reduce((sum, p) => {
@@ -167,7 +157,7 @@ export default function Home() {
                     }, 0);
             });
             const avgUnits = (unitsPerDay.reduce((a,b)=>a+b,0) / 7) || 0;
-            const yesterdayUnits = unitsPerDay[5]; // Index 5 is yesterday
+            const yesterdayUnits = unitsPerDay[5]; 
             
             if (yesterdayUnits > 0 && avgUnits > 0 && yesterdayUnits > (avgUnits * 1.4)) {
                 newAlerts.push({
@@ -177,7 +167,6 @@ export default function Home() {
                 });
             }
 
-            // If everything is good
             if (newAlerts.length === 0) {
                 newAlerts.push({
                     id: 4, type: 'success', icon: <CheckCircle size={20}/>,
@@ -190,18 +179,17 @@ export default function Home() {
 
         } catch (error) {
             console.error("Dashboard Fetch Error:", error);
+        } finally {
+            setIsLoading(false);
         }
     };
 
     return (
-        <div className="p-6 md:p-8 max-w-[1500px] mx-auto h-full flex flex-col space-y-6 bg-gray-50 min-h-screen">
+        <div className="p-6 md:p-8 max-w-[1500px] mx-auto h-full flex flex-col space-y-8 bg-gray-50 min-h-screen">
             
             {/* 1. HERO WELCOME BANNER */}
-            <div className="bg-gradient-to-r from-[#1B6A31] to-[#4A9E46] rounded-2xl p-8 md:p-10 text-white shadow-lg relative overflow-hidden flex flex-col justify-center min-h-[160px]">
-                {/* Background Decoration */}
+            <div className="bg-gradient-to-r from-[#1B6A31] to-[#4A9E46] rounded-2xl p-8 md:p-10 text-white shadow-xl relative overflow-hidden flex flex-col justify-center min-h-[160px]">
                 <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-white opacity-10 rounded-full blur-2xl pointer-events-none"></div>
-                
-                {/* Content */}
                 <div className="relative">
                     <p className="text-sm font-medium text-[#EBFFF4] mb-2">{today}</p>
                     <h2 className="text-3xl md:text-4xl font-bold mb-3 tracking-tight">
@@ -213,72 +201,89 @@ export default function Home() {
                 </div>
             </div>
 
-            {/* 2. STATS OVERVIEW CARDS */}
+            {/* 2. HIGHLIGHTED STATS OVERVIEW CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
-                    <div className="w-14 h-14 bg-[#8CC63F]/20 rounded-full flex items-center justify-center text-[#4A9E46]">
-                        <Leaf size={28} />
+                
+                {/* Stat Card 1 - Green Leaf */}
+                <div className="bg-white p-6 md:p-8 rounded-2xl shadow-md hover:shadow-xl border border-gray-100 relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group flex items-center gap-5">
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-[#8CC63F]"></div>
+                    <div className="w-16 h-16 bg-[#8CC63F]/10 rounded-2xl flex items-center justify-center text-[#4A9E46] group-hover:scale-110 transition-transform duration-300">
+                        <Leaf size={32} />
                     </div>
                     <div>
-                        <p className="text-sm text-gray-500 font-bold uppercase">Yesterday's Green Leaf</p>
-                        <p className="text-3xl font-black text-[#1B6A31]">
-                            {isLoading ? '...' : glYesterday.toFixed(2)} <span className="text-sm text-gray-400 font-medium">kg</span>
+                        <p className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-1">Yesterday's Green Leaf</p>
+                        <p className="text-4xl font-black text-[#1B6A31]">
+                            {isLoading ? '...' : glYesterday.toFixed(2)} <span className="text-lg text-gray-400 font-semibold lowercase">kg</span>
                         </p>
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
-                    <div className="w-14 h-14 bg-[#4A9E46]/10 rounded-full flex items-center justify-center text-[#1B6A31]">
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                {/* Stat Card 2 - Made Tea */}
+                <div className="bg-white p-6 md:p-8 rounded-2xl shadow-md hover:shadow-xl border border-gray-100 relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group flex items-center gap-5">
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-[#4A9E46]"></div>
+                    <div className="w-16 h-16 bg-[#4A9E46]/10 rounded-2xl flex items-center justify-center text-[#1B6A31] group-hover:scale-110 transition-transform duration-300">
+                        <Package size={32} />
                     </div>
                     <div>
-                        <p className="text-sm text-gray-500 font-bold uppercase">Yesterday's Made Tea</p>
-                        <p className="text-3xl font-black text-[#1B6A31]">
-                            {isLoading ? '...' : mtYesterday.toFixed(3)} <span className="text-sm text-gray-400 font-medium">kg</span>
+                        <p className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-1">Yesterday's Made Tea</p>
+                        <p className="text-4xl font-black text-[#1B6A31]">
+                            {isLoading ? '...' : mtYesterday.toFixed(3)} <span className="text-lg text-gray-400 font-semibold lowercase">kg</span>
                         </p>
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
-                    <div className="w-14 h-14 bg-[#1B6A31]/10 rounded-full flex items-center justify-center text-[#1B6A31]">
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                {/* Stat Card 3 - Sales */}
+                <div className="bg-white p-6 md:p-8 rounded-2xl shadow-md hover:shadow-xl border border-gray-100 relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group flex items-center gap-5">
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-[#1B6A31]"></div>
+                    <div className="w-16 h-16 bg-[#1B6A31]/10 rounded-2xl flex items-center justify-center text-[#1B6A31] group-hover:scale-110 transition-transform duration-300">
+                        <DollarSign size={32} />
                     </div>
                     <div>
-                        <p className="text-sm text-gray-500 font-bold uppercase">Sales (Last Month)</p>
-                        <p className="text-3xl font-black text-[#1B6A31]">
-                            <span className="text-lg">Rs.</span> {isLoading ? '...' : salesLastMonth.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        <p className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-1">Sales (Last Month)</p>
+                        <p className="text-4xl font-black text-[#1B6A31] flex items-baseline gap-1">
+                            <span className="text-xl font-bold text-gray-400 mb-1">Rs.</span> 
+                            {isLoading ? '...' : salesLastMonth.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </p>
                     </div>
                 </div>
+
             </div>
 
-            {/* 3. CHARTS & ALERTS SECTION */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* 3. HIGHLIGHTED CHARTS & ALERTS SECTION */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
                 {/* --- Left Column: Charts --- */}
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2 space-y-8">
                     
                     {/* Chart 1: Production Trend */}
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <div className="mb-4">
-                            <h3 className="text-lg font-bold text-gray-800">Production Trend (Last 7 Days)</h3>
-                            <p className="text-xs text-gray-500">Comparison of Selected Green Leaf vs Made Tea</p>
+                    <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg hover:shadow-2xl border border-gray-100 hover:border-green-200 transition-all duration-300 transform hover:-translate-y-1">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                            <div>
+                                <h3 className="text-xl font-extrabold text-gray-800 flex items-center gap-2">
+                                    <BarChart2 className="text-[#8CC63F]" size={26}/> Production Trend
+                                </h3>
+                                <p className="text-sm text-gray-500 mt-1 font-medium">Comparison of Green Leaf vs Made Tea</p>
+                            </div>
+                            <div className="bg-green-50 text-green-700 px-4 py-1.5 rounded-full text-xs font-bold border border-green-100">
+                                Last 7 Days
+                            </div>
                         </div>
-                        <div className="h-72 w-full">
+                        
+                        <div className="h-[300px] w-full">
                             {isLoading ? (
                                 <div className="h-full flex items-center justify-center text-gray-400">Loading chart...</div>
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={prodChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <BarChart data={prodChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barSize={35}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                                        <XAxis dataKey="name" tick={{fontSize: 12}} axisLine={false} tickLine={false} />
-                                        <YAxis tick={{fontSize: 12}} axisLine={false} tickLine={false} />
+                                        <XAxis dataKey="name" tick={{fontSize: 12, fontWeight: 500, fill: '#6b7280'}} axisLine={false} tickLine={false} dy={10} />
+                                        <YAxis tick={{fontSize: 12, fontWeight: 500, fill: '#6b7280'}} axisLine={false} tickLine={false} />
                                         <Tooltip 
-                                            contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                            cursor={{fill: '#f9fafb'}}
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                                            cursor={{fill: '#f8fafc'}}
                                         />
-                                        <Bar dataKey="GreenLeaf" name="Green Leaf (kg)" fill="#A3D9A5" radius={[4, 4, 0, 0]} />
-                                        <Bar dataKey="MadeTea" name="Made Tea (kg)" fill="#1B6A31" radius={[4, 4, 0, 0]} />
+                                        <Bar dataKey="GreenLeaf" name="Green Leaf (kg)" fill="#A3D9A5" radius={[6, 6, 0, 0]} />
+                                        <Bar dataKey="MadeTea" name="Made Tea (kg)" fill="#1B6A31" radius={[6, 6, 0, 0]} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             )}
@@ -286,12 +291,20 @@ export default function Home() {
                     </div>
 
                     {/* Chart 2: Sales Revenue */}
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <div className="mb-4">
-                            <h3 className="text-lg font-bold text-gray-800">Sales Revenue (Last 6 Months)</h3>
-                            <p className="text-xs text-gray-500">Estimated LKR Revenue trend</p>
+                    <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg hover:shadow-2xl border border-gray-100 hover:border-green-200 transition-all duration-300 transform hover:-translate-y-1">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                            <div>
+                                <h3 className="text-xl font-extrabold text-gray-800 flex items-center gap-2">
+                                    <TrendingUp className="text-[#1B6A31]" size={26}/> Sales Revenue
+                                </h3>
+                                <p className="text-sm text-gray-500 mt-1 font-medium">Estimated LKR Revenue trend</p>
+                            </div>
+                            <div className="bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-xs font-bold border border-blue-100">
+                                Last 6 Months
+                            </div>
                         </div>
-                        <div className="h-60 w-full">
+
+                        <div className="h-[280px] w-full">
                             {isLoading ? (
                                 <div className="h-full flex items-center justify-center text-gray-400">Loading chart...</div>
                             ) : (
@@ -299,18 +312,18 @@ export default function Home() {
                                     <AreaChart data={salesChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                         <defs>
                                             <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#4A9E46" stopOpacity={0.3}/>
+                                                <stop offset="5%" stopColor="#4A9E46" stopOpacity={0.4}/>
                                                 <stop offset="95%" stopColor="#4A9E46" stopOpacity={0}/>
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                                        <XAxis dataKey="name" tick={{fontSize: 12}} axisLine={false} tickLine={false} />
-                                        <YAxis tick={{fontSize: 12}} axisLine={false} tickLine={false} tickFormatter={(val) => `Rs ${val/1000}k`} />
+                                        <XAxis dataKey="name" tick={{fontSize: 12, fontWeight: 500, fill: '#6b7280'}} axisLine={false} tickLine={false} dy={10} />
+                                        <YAxis tick={{fontSize: 12, fontWeight: 500, fill: '#6b7280'}} axisLine={false} tickLine={false} tickFormatter={(val) => `Rs ${val/1000}k`} />
                                         <Tooltip 
                                             formatter={(value) => [`Rs. ${value.toLocaleString()}`, 'Revenue']}
-                                            contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                                         />
-                                        <Area type="monotone" dataKey="Revenue" stroke="#1B6A31" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                                        <Area type="monotone" dataKey="Revenue" stroke="#1B6A31" strokeWidth={4} fillOpacity={1} fill="url(#colorRev)" />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             )}
@@ -321,14 +334,14 @@ export default function Home() {
 
                 {/* --- Right Column: System Alerts --- */}
                 <div className="lg:col-span-1">
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-full">
-                        <div className="flex items-center gap-2 mb-6 border-b pb-4">
-                            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                                <Bell size={20} />
+                    <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg border border-gray-100 h-full">
+                        <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-5">
+                            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                                <Bell size={24} />
                             </div>
                             <div>
-                                <h3 className="text-lg font-bold text-gray-800">Smart Alerts</h3>
-                                <p className="text-xs text-gray-500">System generated notifications</p>
+                                <h3 className="text-xl font-extrabold text-gray-800">Smart Alerts</h3>
+                                <p className="text-xs text-gray-500 font-medium">System generated notifications</p>
                             </div>
                         </div>
 
@@ -337,18 +350,18 @@ export default function Home() {
                                 <div className="text-center text-sm text-gray-400 py-10">Checking system status...</div>
                             ) : (
                                 alerts.map((alert) => (
-                                    <div key={alert.id} className={`p-4 rounded-xl border flex gap-4 ${
-                                        alert.type === 'warning' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' :
-                                        alert.type === 'danger' ? 'bg-red-50 border-red-200 text-red-800' :
-                                        alert.type === 'electric' ? 'bg-orange-50 border-orange-200 text-orange-800' :
-                                        'bg-green-50 border-green-200 text-green-800'
+                                    <div key={alert.id} className={`p-4 rounded-2xl border flex gap-4 transition-all hover:-translate-y-0.5 ${
+                                        alert.type === 'warning' ? 'bg-yellow-50/80 border-yellow-200 text-yellow-800' :
+                                        alert.type === 'danger' ? 'bg-red-50/80 border-red-200 text-red-800' :
+                                        alert.type === 'electric' ? 'bg-orange-50/80 border-orange-200 text-orange-800' :
+                                        'bg-green-50/80 border-green-200 text-green-800'
                                     }`}>
                                         <div className="mt-0.5 opacity-80">
                                             {alert.icon}
                                         </div>
                                         <div>
                                             <h4 className="font-bold text-sm mb-1">{alert.title}</h4>
-                                            <p className="text-xs opacity-90 leading-relaxed">{alert.message}</p>
+                                            <p className="text-xs opacity-90 leading-relaxed font-medium">{alert.message}</p>
                                         </div>
                                     </div>
                                 ))
@@ -356,9 +369,9 @@ export default function Home() {
                         </div>
                         
                         {!isLoading && alerts.length > 0 && (
-                             <div className="mt-8 bg-gray-50 p-4 rounded-xl flex gap-3 items-start border border-gray-100">
-                                 <Info size={16} className="text-gray-400 shrink-0 mt-0.5"/>
-                                 <p className="text-[11px] text-gray-500 leading-relaxed">
+                             <div className="mt-8 bg-gray-50 p-4 rounded-2xl flex gap-3 items-start border border-gray-200">
+                                 <Info size={18} className="text-gray-400 shrink-0 mt-0.5"/>
+                                 <p className="text-xs text-gray-500 font-medium leading-relaxed">
                                      Alerts are automatically generated based on the data entered over the last 7 days.
                                  </p>
                              </div>
