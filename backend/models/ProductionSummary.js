@@ -31,7 +31,7 @@ const ProductionSummarySchema = new mongoose.Schema({
         handRollingCost: { type: Number, default: 0 },
         totalDryerUnits: { type: Number, default: 0 },
         rPoints: { type: Number, default: 0 },
-        dryerCost: { type: Number, default: 0 },
+        dryerCost: { type: Number, default: 0 },    
         rollerCost: { type: Number, default: 0 },
         totalElectricityCost: { type: Number, default: 0 }
     }

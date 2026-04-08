@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import toast from 'react-hot-toast'; // Toaster removed from component body
+import toast, { Toaster } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { AlertCircle } from "lucide-react";
+import { AlertTriangle, Calendar, Settings2, FileDown, Save, DollarSign } from "lucide-react";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -12,11 +12,10 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-} from "@/components/ui/alert-dialog"; // Make sure this path is correct for your Shadcn UI installation
+} from "@/components/ui/alert-dialog"; 
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-// Extracted default values
 const defaultTeaData = [
   { id: 1, type: 'Pink tea', amount: 0.025, packs: '', price: 8 },
   { id: 2, type: 'Pink tea(paper can)', amount: 0.025, packs: '', price: 10 },
@@ -37,21 +36,16 @@ const defaultTeaData = [
 export default function SellingDetailsTable() {
   const [tableData, setTableData] = useState(defaultTeaData);
   const [exchangeRate, setExchangeRate] = useState(300);
-  
-  // Single State for the active month (Defaults to current year-month, e.g., "2026-04")
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
 
   const [isSaving, setIsSaving] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   
-  // States for PDF Validation
-  const [isSaved, setIsSaved] = useState(false); 
+  const [isSaved, setIsSaved] = useState(true); 
   const [hasChanges, setHasChanges] = useState(false); 
   const [showUnsavedAlert, setShowUnsavedAlert] = useState(false);
 
-  // Handle changes for Amount, Packs, and Price
   const handleInputChange = (id, field, value) => {
-    // Prevent negative values
     if (value !== '' && Number(value) < 0) return;
 
     const updatedData = tableData.map((row) => {
@@ -61,11 +55,10 @@ export default function SellingDetailsTable() {
       return row;
     });
     setTableData(updatedData);
-    setHasChanges(true); // User made a change
-    setIsSaved(false); // Data is no longer matching DB
+    setHasChanges(true); 
+    setIsSaved(false); 
   };
 
-  // Handle Exchange Rate Change
   const handleExchangeRateChange = (e) => {
       const val = Number(e.target.value);
       if (val < 0) return;
@@ -74,7 +67,6 @@ export default function SellingDetailsTable() {
       setIsSaved(false);
   };
 
-  // 1. FETCH DATA FOR THE SELECTED MONTH 
   const handleFetchData = async () => {
     if (!selectedMonth) {
       toast.error("Please select a month first.");
@@ -98,8 +90,9 @@ export default function SellingDetailsTable() {
         
         if (data && data.records && data.records.length > 0) {
           const fetchedRecords = data.records;
+          
           const mergedData = defaultTeaData.map((defaultRow) => {
-            const foundRecord = fetchedRecords.find((r) => r.type === defaultRow.type);
+            const foundRecord = fetchedRecords.find((r) => r.type === defaultRow.type && Number(r.amount) === Number(defaultRow.amount));
             if (foundRecord) {
               return { 
                 ...defaultRow, 
@@ -114,12 +107,12 @@ export default function SellingDetailsTable() {
           setTableData(mergedData);
           if (data.exchangeRate) setExchangeRate(data.exchangeRate);
           
-          setIsSaved(true); // Data fetched from DB is considered saved
+          setIsSaved(true); 
           setHasChanges(false);
           toast.success(`Data for ${selectedMonth} loaded!`, { id: loadToast });
         } else {
           setTableData(defaultTeaData);
-          setIsSaved(false); // No data in DB
+          setIsSaved(false); 
           setHasChanges(false);
           toast('No data found. Ready for new entries.', { icon: 'ℹ️', id: loadToast });
         }
@@ -131,20 +124,18 @@ export default function SellingDetailsTable() {
         }
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
       toast.error('Network error while fetching.', { id: loadToast });
     } finally {
       setIsFetching(false);
     }
   };
 
-  // 2. SAVE DATA UNDER THE SELECTED MONTH 
   const handleSaveToDB = async () => {
     const recordsToSave = tableData.filter((row) => row.packs !== '' && Number(row.packs) > 0);
     
     if (recordsToSave.length === 0) {
       toast.error("No packs entered. Nothing to save!");
-      return;
+      return false;
     }
 
     setIsSaving(true);
@@ -169,61 +160,62 @@ export default function SellingDetailsTable() {
 
       if (response.ok) {
         toast.success(`Data successfully saved for ${selectedMonth}!`, { id: saveToast });
-        setIsSaved(true); // Successfully saved
-        setHasChanges(false); // Reset changes tracker
+        setIsSaved(true); 
+        setHasChanges(false); 
+        return true;
       } else {
         if (response.status === 403) {
             toast.error("Access Denied. You do not have permission to save.", { id: saveToast });
         } else {
             toast.error('Failed to save data.', { id: saveToast });
         }
+        return false;
       }
     } catch (error) {
-      console.error('Error saving data:', error);
       toast.error('Network error while saving.', { id: saveToast });
+      return false;
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Calculate Grand Totals
   const totalUsd = tableData.reduce((sum, row) => sum + (Number(row.packs) || 0) * (Number(row.price) || 0), 0);
   const totalLkr = totalUsd * exchangeRate;
 
-  // 3. GENERATE PDF FUNCTION (With Validation)
   const handleDownloadPDFClick = () => {
-      // If no packs are entered, nothing to download
       const hasData = tableData.some(row => row.packs !== '' && Number(row.packs) > 0);
       if (!hasData) {
           toast.error("Table is empty. Please enter data first.");
           return;
       }
 
-      // If data is changed or never saved, show Alert
       if (hasChanges || !isSaved) {
           setShowUnsavedAlert(true);
-          return;
+      } else {
+          generatePDF();
       }
+  };
 
-      // If everything is saved, generate PDF
-      generatePDF();
+  const handleSaveAndDownload = async () => {
+      const saved = await handleSaveToDB();
+      if (saved) {
+          setShowUnsavedAlert(false);
+          generatePDF();
+      }
   };
 
   const generatePDF = () => {
     const doc = new jsPDF('portrait'); 
     
-    // Title
     doc.setFontSize(20);
-    doc.setTextColor(46, 107, 59); // Green
+    doc.setTextColor(46, 107, 59); 
     doc.text("Monthly Selling Details Summary", 14, 22);
     
-    // Sub-info
     doc.setFontSize(11);
     doc.setTextColor(100);
     doc.text(`Active Month: ${selectedMonth}`, 14, 32);
     doc.text(`Exchange Rate: 1 USD = Rs. ${exchangeRate}`, 14, 38);
 
-    // Table Headers
     const tableHead = [[
       { content: "Type of Tea", styles: { halign: 'center', fillColor: [50, 50, 50] } },
       { content: "Amount (kg)", styles: { halign: 'center', fillColor: [46, 107, 59] } },
@@ -233,7 +225,6 @@ export default function SellingDetailsTable() {
       { content: "Total (LKR)", styles: { halign: 'center', fillColor: [184, 29, 29] } }
     ]];
     
-    // Table Rows (Only include rows with packs)
     const recordsToPrint = tableData.filter((row) => row.packs !== '' && Number(row.packs) > 0);
 
     const tableRows = recordsToPrint.map(row => {
@@ -250,17 +241,12 @@ export default function SellingDetailsTable() {
       ];
     });
 
-    // Grand Total Row
     tableRows.push([
-      "GRAND TOTAL",
-      "-",
-      "-",
-      "-",
+      "GRAND TOTAL", "-", "-", "-",
       totalUsd.toFixed(2),
       totalLkr.toLocaleString()
     ]);
 
-    // Render Table
     autoTable(doc, {
       startY: 45,
       head: tableHead,
@@ -287,195 +273,207 @@ export default function SellingDetailsTable() {
       }
     });
 
-    // Save PDF
     doc.save(`Selling_Details_${selectedMonth}.pdf`);
     toast.success("PDF Downloaded Successfully!");
   };
 
-  // --- STYLES ---
-  const colors = {
-    green: '#2e6b3b', lightGreenBg: '#f4f9f4',
-    blue: '#2858b4', lightBlueBg: '#f0f5fd',
-    orange: '#d66b2d', lightOrangeBg: '#fdf7f2',
-    red: '#b81d1d', lightRedBg: '#fcedec',
-    textDark: '#1a1a1a', border: '#e0e0e0', primaryBlue: '#2563eb',
-  };
-
-  const styles = {
-    container: { maxWidth: '1100px', margin: '20px auto', fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif' },
-    topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
-    mainTitle: { color: colors.green, fontSize: '28px', fontWeight: 'bold', margin: '0', display: 'flex', alignItems: 'center', gap: '10px' },
-    actionButtons: { display: 'flex', gap: '12px' },
-    btnSave: { padding: '10px 20px', backgroundColor: colors.green, color: '#fff', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' },
-    btnPdf: { padding: '10px 20px', backgroundColor: colors.primaryBlue, color: '#fff', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' },
-    btnFilter: { padding: '8px 16px', backgroundColor: '#374151', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' },
-    controlsRow: { display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' },
-    settingsCard: { border: `1px solid ${colors.border}`, borderRadius: '8px', padding: '15px 20px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', flex: '1', minWidth: '250px' },
-    cardHeader: { fontSize: '12px', fontWeight: 'bold', color: '#111', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px', borderBottom: `1px solid ${colors.border}`, paddingBottom: '8px' },
-    inputGroupRow: { display: 'flex', alignItems: 'center', gap: '10px' },
-    dateInput: { padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '4px', outline: 'none', fontFamily: 'inherit', fontWeight: 'bold' },
-    tableWrapper: { boxShadow: '0 4px 12px rgba(0,0,0,0.05)', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#fff' },
-    table: { width: '100%', borderCollapse: 'collapse' },
-    thBase: { padding: '15px 10px', textAlign: 'center', fontSize: '12px', fontWeight: '800', borderBottom: `2px solid ${colors.border}`, borderRight: `1px solid ${colors.border}`, textTransform: 'uppercase' },
-    tdBase: { padding: '12px 10px', textAlign: 'center', fontSize: '14px', fontWeight: '700', borderBottom: `1px solid ${colors.border}`, borderRight: `1px solid ${colors.border}` },
-    inputBase: { width: '80%', padding: '8px', borderRadius: '4px', textAlign: 'center', fontSize: '14px', fontWeight: '700', outline: 'none', boxSizing: 'border-box' },
-  };
-
   return (
-    <div style={styles.container}>
-      
-      {/* Top Header & Global Actions */}
-      <div style={styles.topBar}>
-        <h1 style={styles.mainTitle}>Monthly Selling Details</h1>
-        <div style={styles.actionButtons}>
-          <button onClick={handleDownloadPDFClick} style={styles.btnPdf}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            Download PDF
-          </button>
-          <button onClick={handleSaveToDB} disabled={isSaving} style={{...styles.btnSave, opacity: isSaving ? 0.7 : 1}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-            {isSaving ? 'Saving...' : 'Save to Database'}
-          </button>
-        </div>
-      </div>
+    <div className="p-8 max-w-[1200px] mx-auto font-sans relative">
+      <Toaster position="top-center" reverseOrder={false} />
 
-      {/* Control Cards */}
-      <div style={styles.controlsRow}>
-        
-        {/* MONTH WORKSPACE CARD */}
-        <div style={styles.settingsCard}>
-          <div style={styles.cardHeader}>🗓️ ACTIVE WORKSPACE MONTH</div>
-          <div style={styles.inputGroupRow}>
-            <input 
-              type="month" 
-              value={selectedMonth} 
-              onChange={(e) => setSelectedMonth(e.target.value)} 
-              style={styles.dateInput} 
-            />
-            <button onClick={handleFetchData} disabled={isFetching} style={styles.btnFilter}>
-              {isFetching ? 'Loading...' : 'Load Month Data'}
-            </button>
-          </div>
-        </div>
-
-        {/* Exchange Rate Card */}
-        <div style={styles.settingsCard}>
-          <div style={styles.cardHeader}>💵 ADJUST RATES</div>
-          <div style={styles.inputGroupRow}>
-            <span style={{ fontSize: '12px', fontWeight: 'bold' }}>1 USD = Rs.</span>
-            <input
-              type="number"
-              min="0"
-              onWheel={(e) => e.target.blur()}
-              value={exchangeRate}
-              onChange={handleExchangeRateChange}
-              style={{ ...styles.dateInput, width: '100px' }}
-            />
-          </div>
-        </div>
-
-      </div>
-
-      {/* Main Table */}
-      <div style={styles.tableWrapper}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={{ ...styles.thBase, color: colors.textDark, backgroundColor: '#f9f9f9' }}>Type of tea</th>
-              <th style={{ ...styles.thBase, color: colors.green, backgroundColor: colors.lightGreenBg }}>Amount (kg)</th>
-              <th style={{ ...styles.thBase, color: colors.blue, backgroundColor: colors.lightBlueBg }}>Number of Packs</th>
-              <th style={{ ...styles.thBase, color: colors.orange, backgroundColor: colors.lightOrangeBg }}>Price per one (USD)</th>
-              <th style={{ ...styles.thBase, color: colors.textDark, backgroundColor: '#f9f9f9' }}>Total (USD)</th>
-              <th style={{ ...styles.thBase, color: colors.red, backgroundColor: colors.lightRedBg }}>Total (LKR)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tableData.map((row) => {
-              const calculatedUsd = (Number(row.packs) || 0) * (Number(row.price) || 0);
-              const calculatedLkr = calculatedUsd * exchangeRate;
-
-              return (
-                <tr key={row.id}>
-                  <td style={{ ...styles.tdBase, color: colors.green, textAlign: 'left', paddingLeft: '20px' }}>{row.type}</td>
-                  <td style={styles.tdBase}>
-                    <input 
-                      type="number" 
-                      step="0.001" 
-                      min="0"
-                      onWheel={(e) => e.target.blur()}
-                      value={row.amount} 
-                      onChange={(e) => handleInputChange(row.id, 'amount', e.target.value)} 
-                      style={{ ...styles.inputBase, border: `1px solid transparent`, color: colors.green }} 
-                    />
-                  </td>
-                  <td style={styles.tdBase}>
-                    <input 
-                      type="number" 
-                      placeholder="0" 
-                      min="0"
-                      onWheel={(e) => e.target.blur()}
-                      value={row.packs} 
-                      onChange={(e) => handleInputChange(row.id, 'packs', e.target.value)} 
-                      style={{ ...styles.inputBase, border: `1px solid ${colors.blue}`, color: colors.blue }} 
-                    />
-                  </td>
-                  <td style={styles.tdBase}>
-                    <input 
-                      type="number" 
-                      step="0.1" 
-                      min="0"
-                      onWheel={(e) => e.target.blur()}
-                      value={row.price} 
-                      onChange={(e) => handleInputChange(row.id, 'price', e.target.value)} 
-                      style={{ ...styles.inputBase, border: `1px solid transparent`, color: colors.orange }} 
-                    />
-                  </td>
-                  <td style={{ ...styles.tdBase, color: colors.textDark }}>{calculatedUsd > 0 ? calculatedUsd.toFixed(2) : '0'}</td>
-                  <td style={{ ...styles.tdBase, color: colors.red }}>{calculatedLkr > 0 ? calculatedLkr.toLocaleString() : '0'}</td>
-                </tr>
-              );
-            })}
-            <tr style={{ backgroundColor: colors.lightRedBg }}>
-              <td colSpan="4" style={{ ...styles.tdBase, textAlign: 'right', paddingRight: '20px', color: colors.textDark, borderBottom: 'none' }}>GRAND TOTAL</td>
-              <td style={{ ...styles.tdBase, color: colors.textDark, fontSize: '18px', borderBottom: 'none' }}>{totalUsd.toFixed(2)}</td>
-              <td style={{ ...styles.tdBase, color: colors.red, fontSize: '18px', borderBottom: 'none' }}>{totalLkr.toLocaleString()}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      {/* Unsaved PDF Alert */}
       <AlertDialog open={showUnsavedAlert} onOpenChange={setShowUnsavedAlert}>
           <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
               <AlertDialogHeader>
-                  <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
-                      <AlertCircle className="w-6 h-6 text-red-600" />
+                  <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mb-4 border border-orange-200">
+                      <AlertTriangle className="w-6 h-6 text-orange-600" />
                   </div>
-                  <AlertDialogTitle className="text-xl font-bold text-gray-900">Data Not Saved!</AlertDialogTitle>
+                  <AlertDialogTitle className="text-xl font-bold text-gray-900">Save Before Downloading</AlertDialogTitle>
                   <AlertDialogDescription className="text-gray-500 text-base">
-                      You have unsaved changes. You must save the records to the database before generating a PDF. 
+                      You have unsaved packs or rate changes. You must save these records to the database before generating the PDF report to ensure data consistency.
                   </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="mt-6">
-                  <AlertDialogCancel 
-                      onClick={() => setShowUnsavedAlert(false)} 
-                      className="bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200 rounded-lg px-6 font-semibold"
-                  >
+                  <AlertDialogCancel className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg font-semibold mt-0">
                       Cancel
                   </AlertDialogCancel>
                   <AlertDialogAction 
-                      onClick={() => {
-                          setShowUnsavedAlert(false);
-                          handleSaveToDB(); 
-                      }} 
+                      onClick={handleSaveAndDownload} 
                       className="bg-[#1B6A31] hover:bg-green-800 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
                   >
-                      Save 
+                      Save & Download
                   </AlertDialogAction>
               </AlertDialogFooter>
           </AlertDialogContent>
       </AlertDialog>
 
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md -mt-8 -mx-8 pt-8 pb-4 px-8 mb-8 border-b border-gray-100 shadow-sm text-center sm:text-left flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+              <h2 className="text-3xl font-bold text-[#1B6A31] flex items-center justify-center sm:justify-start gap-2">
+                  <DollarSign size={28} /> Monthly Selling Details
+              </h2>
+              <p className="text-gray-500 mt-1 font-medium">Manage and export monthly sales data</p>
+          </div>
+          
+          <div className="flex flex-wrap gap-3 justify-center sm:justify-end">
+              <button 
+                  onClick={handleSaveToDB}
+                  disabled={isSaving || (isSaved && !hasChanges)}
+                  className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${isSaved && !hasChanges ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'}`}
+              >
+                  <Save size={18} /> {isSaved && !hasChanges ? "Saved" : isSaving ? "Saving..." : "Save to DB"}
+              </button>
+
+              <button 
+                  onClick={handleDownloadPDFClick}
+                  className="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-blue-700 transition-all duration-300"
+              >
+                  <FileDown size={18} /> Download PDF
+              </button>
+          </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="bg-gradient-to-br from-blue-50/50 to-white p-6 rounded-xl border border-blue-200 shadow-lg shadow-blue-900/5 flex flex-col justify-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
+              
+              <div className="flex justify-between items-center border-b border-blue-100 pb-3 mb-4">
+                  <h3 className="text-sm md:text-base font-extrabold text-blue-700 flex items-center gap-2 uppercase tracking-wider">
+                      <div className="p-1.5 bg-blue-100 rounded-lg"><Calendar size={18} className="text-blue-700"/></div>
+                      1. Active Workspace Month
+                  </h3>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 relative z-10 items-end">
+                  <div className="w-full">
+                      <input 
+                          type="month" 
+                          value={selectedMonth} 
+                          onChange={(e) => setSelectedMonth(e.target.value)} 
+                          className="w-full border border-gray-300 rounded-md p-3 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-white shadow-sm" 
+                      />
+                  </div>
+                  <button 
+                      onClick={handleFetchData}
+                      disabled={isFetching}
+                      className="w-full sm:w-auto whitespace-nowrap px-5 py-3 bg-blue-600 text-white rounded-md text-sm font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                  >
+                      {isFetching ? 'Loading...' : 'Load Month Data'}
+                  </button>
+              </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-orange-50/50 to-white p-6 rounded-xl border border-orange-200 shadow-lg shadow-orange-900/5 h-fit relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
+              
+              <div className="flex items-center gap-2 mb-4 border-b border-orange-100 pb-3">
+                  <h3 className="text-sm md:text-base font-extrabold text-orange-700 flex items-center gap-2 uppercase tracking-wider">
+                      <div className="p-1.5 bg-orange-100 rounded-lg"><Settings2 size={18} className="text-orange-600"/></div>
+                      2. Adjust Rates
+                  </h3>
+              </div>
+              
+              <div className="flex flex-col gap-1.5 relative z-10">
+                  <label className="text-xs font-bold text-gray-500 flex items-center gap-1">1 USD = (LKR)</label>
+                  <div className="relative">
+                      <span className="absolute left-3 top-3 text-gray-400 text-sm font-bold">Rs.</span>
+                      <input 
+                          type="number" 
+                          min="0" 
+                          onWheel={(e) => e.target.blur()} 
+                          value={exchangeRate} 
+                          onChange={handleExchangeRateChange} 
+                          className="w-full sm:w-1/2 border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm" 
+                      />
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mb-12 min-h-[300px]">
+        <div className="bg-[#1B6A31] p-4 border-b border-gray-200 flex items-center gap-2">
+            <DollarSign className="text-white" size={20}/>
+            <h3 className="text-lg font-bold text-white">Selling Details Board</h3>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
+            <thead>
+                <tr className="bg-gray-50 text-gray-800 uppercase text-xs tracking-wider border-b border-gray-200">
+                    <th className="px-4 py-4 font-extrabold border-r border-gray-200 align-middle bg-gray-100 w-48 text-left">Type of Tea</th>
+                    <th className="px-4 py-4 font-bold text-[#1B6A31] border-r border-gray-200 bg-[#8CC63F]/10 text-center">Amount (kg)</th>
+                    <th className="px-4 py-4 font-bold text-blue-700 border-r border-gray-200 bg-blue-50 text-center">Number of Packs</th>
+                    <th className="px-4 py-4 font-bold text-orange-600 border-r border-gray-200 bg-orange-50 text-center">Price / One (USD)</th>
+                    <th className="px-4 py-4 font-bold text-gray-700 border-r border-gray-200 bg-gray-100/50 text-center">Total (USD)</th>
+                    <th className="px-4 py-4 font-bold text-red-700 border-r border-gray-200 bg-red-50 text-center">Total (LKR)</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {tableData.map((row) => {
+                const calculatedUsd = (Number(row.packs) || 0) * (Number(row.price) || 0);
+                const calculatedLkr = calculatedUsd * exchangeRate;
+
+                return (
+                  <tr key={row.id} className="hover:bg-gray-50/80 transition-colors group text-center">
+                    <td className="px-4 py-4 border-r border-gray-200 font-bold text-[#1B6A31] bg-gray-50/50 whitespace-normal text-left">{row.type}</td>
+                    
+                    <td className="px-2 py-2 border-r border-gray-200 bg-[#8CC63F]/5">
+                      <input 
+                        type="number" 
+                        step="0.001" 
+                        min="0"
+                        onWheel={(e) => e.target.blur()}
+                        value={row.amount} 
+                        onChange={(e) => handleInputChange(row.id, 'amount', e.target.value)} 
+                        className="w-full p-2 border border-transparent hover:border-green-300 focus:border-green-300 rounded text-center font-bold text-[#1B6A31] outline-none focus:ring-2 focus:ring-green-500 shadow-inner bg-white" 
+                      />
+                    </td>
+                    
+                    <td className="px-2 py-2 border-r border-gray-200 bg-blue-50/30">
+                      <input 
+                        type="number" 
+                        placeholder="0" 
+                        min="0"
+                        onWheel={(e) => e.target.blur()}
+                        value={row.packs} 
+                        onChange={(e) => handleInputChange(row.id, 'packs', e.target.value)} 
+                        className="w-full p-2 border border-blue-300 rounded text-center font-bold text-blue-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner bg-white" 
+                      />
+                    </td>
+                    
+                    <td className="px-2 py-2 border-r border-gray-200 bg-orange-50/30">
+                      <input 
+                        type="number" 
+                        step="0.1" 
+                        min="0"
+                        onWheel={(e) => e.target.blur()}
+                        value={row.price} 
+                        onChange={(e) => handleInputChange(row.id, 'price', e.target.value)} 
+                        className="w-full p-2 border border-transparent hover:border-orange-300 focus:border-orange-300 rounded text-center font-bold text-orange-600 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner bg-white" 
+                      />
+                    </td>
+                    
+                    <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700 bg-gray-50/30">
+                        {calculatedUsd > 0 ? calculatedUsd.toFixed(2) : '0.00'}
+                    </td>
+                    
+                    <td className="px-3 py-4 font-black text-lg text-red-600 bg-red-50/30">
+                        {calculatedLkr > 0 ? calculatedLkr.toLocaleString() : '0'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            
+            <tfoot className="bg-gray-100/90 border-t-[3px] border-gray-300 font-black text-gray-900 text-center shadow-[inset_0_4px_6px_-4px_rgba(0,0,0,0.1)]">
+                <tr>
+                    <td colSpan="4" className="px-4 py-5 border-r border-gray-200 text-right uppercase tracking-wider text-xl">Grand Total</td>
+                    <td className="px-3 py-5 border-r border-gray-200 text-gray-800 text-lg">{totalUsd.toFixed(2)}</td>
+                    <td className="px-3 py-5 text-red-700 text-xl bg-red-100/50">{totalLkr.toLocaleString()}</td>
+                </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
