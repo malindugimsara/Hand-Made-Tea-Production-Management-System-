@@ -41,6 +41,12 @@ app.use('/api/dehydrator', dehydratorRouter);
 app.use('/api/cost-of-production', costOfProductionRouter);
 app.use('/api/raw-material-cost', rawMaterialCostRoutes);
 app.use('/api/users', userRouter); // User management routes (Admins only)
+<<<<<<<<< Temporary merge branch 1
+app.use('/api/production-summary', productionSummaryRouter);
+=========
+app.use('/api/selling-details', sellingDetailsRouter);
+
+>>>>>>>>> Temporary merge branch 2
 
 app.listen(3000, () => {
   console.log('Server is running on port 3000');
