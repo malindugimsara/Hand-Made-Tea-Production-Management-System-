@@ -1,7 +1,18 @@
 import React, { useState } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast'; // Toaster removed from component body
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { AlertCircle } from "lucide-react";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"; // Make sure this path is correct for your Shadcn UI installation
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -32,9 +43,17 @@ export default function SellingDetailsTable() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
+  
+  // States for PDF Validation
+  const [isSaved, setIsSaved] = useState(false); 
+  const [hasChanges, setHasChanges] = useState(false); 
+  const [showUnsavedAlert, setShowUnsavedAlert] = useState(false);
 
   // Handle changes for Amount, Packs, and Price
   const handleInputChange = (id, field, value) => {
+    // Prevent negative values
+    if (value !== '' && Number(value) < 0) return;
+
     const updatedData = tableData.map((row) => {
       if (row.id === id) {
         return { ...row, [field]: value };
@@ -42,9 +61,20 @@ export default function SellingDetailsTable() {
       return row;
     });
     setTableData(updatedData);
+    setHasChanges(true); // User made a change
+    setIsSaved(false); // Data is no longer matching DB
   };
 
-  // 1. FETCH DATA FOR THE SELECTED MONTH (Added Token)
+  // Handle Exchange Rate Change
+  const handleExchangeRateChange = (e) => {
+      const val = Number(e.target.value);
+      if (val < 0) return;
+      setExchangeRate(val);
+      setHasChanges(true);
+      setIsSaved(false);
+  };
+
+  // 1. FETCH DATA FOR THE SELECTED MONTH 
   const handleFetchData = async () => {
     if (!selectedMonth) {
       toast.error("Please select a month first.");
@@ -83,9 +113,14 @@ export default function SellingDetailsTable() {
 
           setTableData(mergedData);
           if (data.exchangeRate) setExchangeRate(data.exchangeRate);
+          
+          setIsSaved(true); // Data fetched from DB is considered saved
+          setHasChanges(false);
           toast.success(`Data for ${selectedMonth} loaded!`, { id: loadToast });
         } else {
           setTableData(defaultTeaData);
+          setIsSaved(false); // No data in DB
+          setHasChanges(false);
           toast('No data found. Ready for new entries.', { icon: 'ℹ️', id: loadToast });
         }
       } else {
@@ -103,9 +138,9 @@ export default function SellingDetailsTable() {
     }
   };
 
-  // 2. SAVE DATA UNDER THE SELECTED MONTH (Added Token)
+  // 2. SAVE DATA UNDER THE SELECTED MONTH 
   const handleSaveToDB = async () => {
-    const recordsToSave = tableData.filter((row) => row.packs !== '' && row.packs > 0);
+    const recordsToSave = tableData.filter((row) => row.packs !== '' && Number(row.packs) > 0);
     
     if (recordsToSave.length === 0) {
       toast.error("No packs entered. Nothing to save!");
@@ -134,6 +169,8 @@ export default function SellingDetailsTable() {
 
       if (response.ok) {
         toast.success(`Data successfully saved for ${selectedMonth}!`, { id: saveToast });
+        setIsSaved(true); // Successfully saved
+        setHasChanges(false); // Reset changes tracker
       } else {
         if (response.status === 403) {
             toast.error("Access Denied. You do not have permission to save.", { id: saveToast });
@@ -153,8 +190,26 @@ export default function SellingDetailsTable() {
   const totalUsd = tableData.reduce((sum, row) => sum + (Number(row.packs) || 0) * (Number(row.price) || 0), 0);
   const totalLkr = totalUsd * exchangeRate;
 
-  // 3. GENERATE PDF FUNCTION
-  const handleDownloadPDF = () => {
+  // 3. GENERATE PDF FUNCTION (With Validation)
+  const handleDownloadPDFClick = () => {
+      // If no packs are entered, nothing to download
+      const hasData = tableData.some(row => row.packs !== '' && Number(row.packs) > 0);
+      if (!hasData) {
+          toast.error("Table is empty. Please enter data first.");
+          return;
+      }
+
+      // If data is changed or never saved, show Alert
+      if (hasChanges || !isSaved) {
+          setShowUnsavedAlert(true);
+          return;
+      }
+
+      // If everything is saved, generate PDF
+      generatePDF();
+  };
+
+  const generatePDF = () => {
     const doc = new jsPDF('portrait'); 
     
     // Title
@@ -168,7 +223,7 @@ export default function SellingDetailsTable() {
     doc.text(`Active Month: ${selectedMonth}`, 14, 32);
     doc.text(`Exchange Rate: 1 USD = Rs. ${exchangeRate}`, 14, 38);
 
-    // Table Headers with customized background colors
+    // Table Headers
     const tableHead = [[
       { content: "Type of Tea", styles: { halign: 'center', fillColor: [50, 50, 50] } },
       { content: "Amount (kg)", styles: { halign: 'center', fillColor: [46, 107, 59] } },
@@ -178,8 +233,10 @@ export default function SellingDetailsTable() {
       { content: "Total (LKR)", styles: { halign: 'center', fillColor: [184, 29, 29] } }
     ]];
     
-    // Table Rows
-    const tableRows = tableData.map(row => {
+    // Table Rows (Only include rows with packs)
+    const recordsToPrint = tableData.filter((row) => row.packs !== '' && Number(row.packs) > 0);
+
+    const tableRows = recordsToPrint.map(row => {
       const calculatedUsd = (Number(row.packs) || 0) * (Number(row.price) || 0);
       const calculatedLkr = calculatedUsd * exchangeRate;
       
@@ -216,13 +273,11 @@ export default function SellingDetailsTable() {
         if (data.section === 'body') {
           const colIdx = data.column.index;
           
-          // Match text colors to column themes
-          if (colIdx === 1) data.cell.styles.textColor = [46, 107, 59]; // Green for amount
-          else if (colIdx === 2) data.cell.styles.textColor = [40, 88, 180]; // Blue for packs
-          else if (colIdx === 3) data.cell.styles.textColor = [214, 107, 45]; // Orange for price
-          else if (colIdx === 5) data.cell.styles.textColor = [184, 29, 29]; // Red for LKR
+          if (colIdx === 1) data.cell.styles.textColor = [46, 107, 59]; 
+          else if (colIdx === 2) data.cell.styles.textColor = [40, 88, 180]; 
+          else if (colIdx === 3) data.cell.styles.textColor = [214, 107, 45]; 
+          else if (colIdx === 5) data.cell.styles.textColor = [184, 29, 29]; 
 
-          // Highlight Grand Total Row
           if (data.row.index === tableRows.length - 1) {
             data.cell.styles.fillColor = [240, 240, 240];
             data.cell.styles.fontStyle = 'bold';
@@ -268,14 +323,12 @@ export default function SellingDetailsTable() {
 
   return (
     <div style={styles.container}>
-      {/* Toast Container */}
-      <Toaster position="top-center" reverseOrder={false} />
-
+      
       {/* Top Header & Global Actions */}
       <div style={styles.topBar}>
         <h1 style={styles.mainTitle}>Monthly Selling Details</h1>
         <div style={styles.actionButtons}>
-          <button onClick={handleDownloadPDF} style={styles.btnPdf}>
+          <button onClick={handleDownloadPDFClick} style={styles.btnPdf}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
             Download PDF
           </button>
@@ -312,8 +365,10 @@ export default function SellingDetailsTable() {
             <span style={{ fontSize: '12px', fontWeight: 'bold' }}>1 USD = Rs.</span>
             <input
               type="number"
+              min="0"
+              onWheel={(e) => e.target.blur()}
               value={exchangeRate}
-              onChange={(e) => setExchangeRate(Number(e.target.value))}
+              onChange={handleExchangeRateChange}
               style={{ ...styles.dateInput, width: '100px' }}
             />
           </div>
@@ -343,13 +398,37 @@ export default function SellingDetailsTable() {
                 <tr key={row.id}>
                   <td style={{ ...styles.tdBase, color: colors.green, textAlign: 'left', paddingLeft: '20px' }}>{row.type}</td>
                   <td style={styles.tdBase}>
-                    <input type="number" step="0.001" value={row.amount} onChange={(e) => handleInputChange(row.id, 'amount', e.target.value)} style={{ ...styles.inputBase, border: `1px solid transparent`, color: colors.green }} />
+                    <input 
+                      type="number" 
+                      step="0.001" 
+                      min="0"
+                      onWheel={(e) => e.target.blur()}
+                      value={row.amount} 
+                      onChange={(e) => handleInputChange(row.id, 'amount', e.target.value)} 
+                      style={{ ...styles.inputBase, border: `1px solid transparent`, color: colors.green }} 
+                    />
                   </td>
                   <td style={styles.tdBase}>
-                    <input type="number" placeholder="0" value={row.packs} onChange={(e) => handleInputChange(row.id, 'packs', e.target.value)} style={{ ...styles.inputBase, border: `1px solid ${colors.blue}`, color: colors.blue }} />
+                    <input 
+                      type="number" 
+                      placeholder="0" 
+                      min="0"
+                      onWheel={(e) => e.target.blur()}
+                      value={row.packs} 
+                      onChange={(e) => handleInputChange(row.id, 'packs', e.target.value)} 
+                      style={{ ...styles.inputBase, border: `1px solid ${colors.blue}`, color: colors.blue }} 
+                    />
                   </td>
                   <td style={styles.tdBase}>
-                    <input type="number" step="0.1" value={row.price} onChange={(e) => handleInputChange(row.id, 'price', e.target.value)} style={{ ...styles.inputBase, border: `1px solid transparent`, color: colors.orange }} />
+                    <input 
+                      type="number" 
+                      step="0.1" 
+                      min="0"
+                      onWheel={(e) => e.target.blur()}
+                      value={row.price} 
+                      onChange={(e) => handleInputChange(row.id, 'price', e.target.value)} 
+                      style={{ ...styles.inputBase, border: `1px solid transparent`, color: colors.orange }} 
+                    />
                   </td>
                   <td style={{ ...styles.tdBase, color: colors.textDark }}>{calculatedUsd > 0 ? calculatedUsd.toFixed(2) : '0'}</td>
                   <td style={{ ...styles.tdBase, color: colors.red }}>{calculatedLkr > 0 ? calculatedLkr.toLocaleString() : '0'}</td>
@@ -364,6 +443,39 @@ export default function SellingDetailsTable() {
           </tbody>
         </table>
       </div>
+
+      {/* Unsaved PDF Alert */}
+      <AlertDialog open={showUnsavedAlert} onOpenChange={setShowUnsavedAlert}>
+          <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
+              <AlertDialogHeader>
+                  <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
+                      <AlertCircle className="w-6 h-6 text-red-600" />
+                  </div>
+                  <AlertDialogTitle className="text-xl font-bold text-gray-900">Data Not Saved!</AlertDialogTitle>
+                  <AlertDialogDescription className="text-gray-500 text-base">
+                      You have unsaved changes. You must save the records to the database before generating a PDF. 
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="mt-6">
+                  <AlertDialogCancel 
+                      onClick={() => setShowUnsavedAlert(false)} 
+                      className="bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200 rounded-lg px-6 font-semibold"
+                  >
+                      Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction 
+                      onClick={() => {
+                          setShowUnsavedAlert(false);
+                          handleSaveToDB(); 
+                      }} 
+                      className="bg-[#1B6A31] hover:bg-green-800 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
+                  >
+                      Save Now
+                  </AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }

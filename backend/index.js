@@ -3,16 +3,15 @@ import bodyParser from 'body-parser';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
-
 import greenLeafRouter from './router/greenLeafRouter.js';
 import productionRouter from './router/productionRouter.js';
 import labourRouter from './router/labourRoutes.js';
 import dehydratorRouter from './router/dehydratorRouter.js';
 import costOfProductionRouter from './router/costOfProductionRoutes.js';
-
 import authRouter from './router/authRoute.js';
 import rawMaterialCostRoutes from './router/rawMaterialCostRoutes.js';
 import userRouter from './router/userRouter.js';
+import sellingDetailsRouter from './router/sellingDetailsRoutes.js';
 
 dotenv.config();
 const app = express();
@@ -42,6 +41,8 @@ app.use('/api/dehydrator', dehydratorRouter);
 app.use('/api/cost-of-production', costOfProductionRouter);
 app.use('/api/raw-material-cost', rawMaterialCostRoutes);
 app.use('/api/users', userRouter); // User management routes (Admins only)
+app.use('/api/selling-details', sellingDetailsRouter);
+
 
 app.listen(3000, () => {
   console.log('Server is running on port 3000');
