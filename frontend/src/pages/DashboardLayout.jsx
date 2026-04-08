@@ -67,9 +67,9 @@ import { useIsMobile } from '@/hooks/use-mobile';
 // --- ROLE-BASED DATA CONFIGURATION ---
 const DATA = {
   factory: {
-    name: 'Athukorala Tea',
-    plan: 'Main Factory',
-    logo: Leaf,
+    name: 'Athukorala Factory',
+    plan: 'Hand-Made Tea',
+    logo: () => <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain" />,
   },
   quickLinks: [
     { name: 'Dashboard Home', url: '/', icon: LayoutDashboard },
@@ -149,6 +149,8 @@ export default function DashboardLayout() {
       case '/production-summary': return 'Production Summary';
       case '/manage-users': return 'User Management'; 
       case '/create-user': return 'Create User'; 
+      case '/selling-details-table': return 'Selling Details';
+      case '/cost-of-production': return 'Cost of Production';
       default: return 'System';
     }
   };
@@ -162,11 +164,11 @@ export default function DashboardLayout() {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" className="hover:bg-white/50 cursor-default rounded-2xl transition-all duration-300">
-                <div className="flex aspect-square size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#1B6A31] to-[#4A9E46] text-white shadow-md">
+                {/* <div className="flex aspect-square size-11 items-center justify-center rounded-xl  text-white shadow-md"> */}
                   <DATA.factory.logo className="size-6" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight ml-2">
-                  <span className="truncate font-bold tracking-tight text-[#1B6A31] text-lg">
+                {/* </div> */}
+                <div className="grid flex-1 text-left text-smleading-tight ml-2">
+                  <span className="truncate font-bold tracking-tight text-[#1B6A31] text-[17px]">
                     {DATA.factory.name}
                   </span>
                   <span className="truncate text-xs font-medium text-[#4A9E46]">

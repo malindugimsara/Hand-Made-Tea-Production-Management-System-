@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import toast from 'react-hot-toast'; // Toaster ain kara
+import toast from 'react-hot-toast';
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
 import { Fan, Zap, Clock, AlertCircle, Calendar } from "lucide-react";
 
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 import { useNavigate } from 'react-router-dom';
@@ -76,8 +76,11 @@ export default function ViewDehydratorRecords() {
         return dateMatch && trialMatch;
     });
 
-    // Calculate Total Hours for the footer
+    // -------------------------------------------------------------
+    // Calculate Totals for the footer
+    // -------------------------------------------------------------
     const totalHours = filteredRecords.reduce((sum, record) => sum + (Number(record.timePeriodHours) || 0), 0);
+    const totalUnits = filteredRecords.reduce((sum, record) => sum + (Number(record.totalUnits) || 0), 0);
 
     const handleEditClick = (record) => {
         navigate('/edit-dehydrator', { state: { recordData: record } });
@@ -180,7 +183,7 @@ export default function ViewDehydratorRecords() {
                                 <tr className="bg-gray-50 text-gray-500 text-xs border-b border-gray-200">
                                     <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-200/60 w-28">Start</th>
                                     <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-200/60 w-28">End</th>
-                                    <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-200 w-28">Total</th>
+                                    <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-200 w-28">Total Pts</th>
                                 </tr>
                             </thead>
 
@@ -247,15 +250,18 @@ export default function ViewDehydratorRecords() {
                                 )}
                             </tbody>
                             
-                            {/* Footer for Total Hours */}
+                            {/* Footer for Totals */}
                             {filteredRecords.length > 0 && (
-                                <tfoot className="bg-blue-50/50 border-t-2 border-gray-200">
+                                <tfoot className="bg-gray-100/90 border-t-2 border-gray-200">
                                     <tr>
-                                        <td colSpan="5" className="px-4 py-4 text-right font-bold text-blue-900 tracking-wider uppercase border-r border-gray-200">
-                                            TOTAL HOURS
+                                        <td colSpan="4" className="px-4 py-4 text-right font-bold text-gray-800 tracking-wider uppercase border-r border-gray-200">
+                                            GRAND TOTAL
+                                        </td>
+                                        <td className="px-3 py-4 text-center font-black text-orange-700 text-lg border-r border-gray-200">
+                                            {totalUnits} Pts
                                         </td>
                                         <td className="px-3 py-4 text-center font-black text-blue-700 text-lg border-r border-gray-200">
-                                            {totalHours.toFixed(1)}
+                                            {totalHours.toFixed(1)} Hrs
                                         </td>
                                         <td></td>
                                     </tr>
