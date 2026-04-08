@@ -42,17 +42,14 @@ export default function ProductionSummary() {
         "Flower", "Chakra"
     ];
 
-    // Reset `isSaved` if inputs change
+    // Load Data on Mount
     useEffect(() => {
-        setIsSaved(false);
-    }, [manualInputs, labourRate, electricityRate, selectedTeaTypes]);
-
-    useEffect(() => {
-        fetchAllData();
+        fetchAllData(true); // 'true' means silent load (no extra toasts on mount)
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const fetchAllData = async () => {
+    // Fetches raw data, then automatically loads the active month's summary
+    const fetchAllData = async (isSilent = false) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
@@ -110,18 +107,71 @@ export default function ProductionSummary() {
 
             setRecords(merged);
             
-            // Auto-select tea types with G/L > 0 for the default month on initial load
-            autoSelectActiveTeaTypes(merged, filterMonth);
+            // Automatically process the active month after fetching raw data
+            await loadMonthDataInternal(filterMonth, merged, isSilent);
 
         } catch (error) {
-            toast.error("Could not load data from server.");
+            if (!isSilent) toast.error("Could not load data from server.");
         } finally {
             setLoading(false);
         }
     };
 
-    // --- AUTO-SELECT LOGIC ---
-    // Finds tea types that have G/L > 0 in the selected month and sets them as active
+    // Internal function to handle loading the month (used by mount and manual button click)
+    const loadMonthDataInternal = async (month, availableRecords, isSilent = false) => {
+        let toastId;
+        if (!isSilent) toastId = toast.loading(`Loading data for ${month}...`);
+
+        try {
+            const token = localStorage.getItem('token');
+            const authHeaders = { 'Authorization': `Bearer ${token}` };
+
+            const summaryRes = await fetch(`${BACKEND_URL}/api/production-summary`, { headers: authHeaders });
+            
+            if (summaryRes.ok) {
+                const summaries = await summaryRes.json();
+                const savedSummary = summaries.find(s => s.reportMonth === month);
+
+                if (savedSummary) {
+                    setLabourRate(savedSummary.labourRate);
+                    setElectricityRate(savedSummary.electricityRate);
+
+                    const newManualInputs = {};
+                    const activeTypes = [];
+
+                    savedSummary.teaSummaries.forEach(tea => {
+                        activeTypes.push(tea.type);
+                        newManualInputs[tea.type] = {
+                            handRolling: tea.hrWorkers,
+                            roller: tea.rPoints
+                        };
+                    });
+
+                    setSelectedTeaTypes(activeTypes);
+                    setManualInputs(newManualInputs);
+                    setIsSaved(true); 
+                    if (!isSilent) toast.success(`Loaded saved summary for ${month}!`, { id: toastId });
+                    return; 
+                }
+            }
+
+            // If no save exists, perform fresh calculations
+            autoSelectActiveTeaTypes(availableRecords, month);
+            if (!isSilent) toast.success(`Generated new calculations for ${month}`, { id: toastId });
+
+        } catch (err) {
+            if (!isSilent) toast.error("Error checking database.", { id: toastId });
+        }
+    };
+
+    const handleLoadMonthDataClick = () => {
+        if (!filterMonth) {
+            toast.error("Please select a month first!");
+            return;
+        }
+        loadMonthDataInternal(filterMonth, records, false);
+    };
+
     const autoSelectActiveTeaTypes = (allRecords, month) => {
         const monthRecords = allRecords.filter(r => r.date.startsWith(month));
         const glTotals = {};
@@ -134,17 +184,8 @@ export default function ProductionSummary() {
 
         const activeTypes = Object.keys(glTotals).filter(type => glTotals[type] > 0);
         setSelectedTeaTypes(activeTypes);
-        setManualInputs({}); // Reset manual inputs when loading a new month
-        setIsSaved(false);
-    };
-
-    const handleLoadMonthData = () => {
-        if (!filterMonth) {
-            toast.error("Please select a month first!");
-            return;
-        }
-        autoSelectActiveTeaTypes(records, filterMonth);
-        toast.success(`Loaded data for ${new Date(filterMonth + '-01').toLocaleString('default', { month: 'short', year: 'numeric' })}`);
+        setManualInputs({}); 
+        setIsSaved(false); 
     };
 
     const toggleTeaType = (type) => {
@@ -153,6 +194,7 @@ export default function ProductionSummary() {
         } else {
             setSelectedTeaTypes([...selectedTeaTypes, type]);
         }
+        setIsSaved(false);
     };
 
     const handleSelectAll = () => {
@@ -161,6 +203,7 @@ export default function ProductionSummary() {
         } else {
             setSelectedTeaTypes([...teaOptions]); 
         }
+        setIsSaved(false);
     };
 
     const handleManualChange = (type, field, value) => {
@@ -171,10 +214,21 @@ export default function ProductionSummary() {
                 [field]: Number(value) || 0
             }
         }));
+        setIsSaved(false);
+    };
+
+    const handleLabourRateChange = (e) => {
+        setLabourRate(e.target.value.replace(/^0+(?=\d)/, ''));
+        setIsSaved(false);
+    };
+
+    const handleElectricityRateChange = (e) => {
+        setElectricityRate(e.target.value.replace(/^0+(?=\d)/, ''));
+        setIsSaved(false);
     };
 
     const generateTableData = () => {
-        if (selectedTeaTypes.length === 0) return []; // Return empty if nothing selected
+        if (selectedTeaTypes.length === 0) return []; 
 
         let dateFiltered = records;
         if (filterMonth) {
@@ -422,7 +476,8 @@ export default function ProductionSummary() {
                 </AlertDialogContent>
             </AlertDialog>
 
-            <div className="mb-8 text-center sm:text-left flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            {/* --- STICKY HEADER SECTION --- */}
+            <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md -mt-8 -mx-8 pt-8 pb-4 px-8 mb-8 border-b border-gray-100 shadow-sm text-center sm:text-left flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-[#1B6A31] flex items-center justify-center sm:justify-start gap-2">
                         <Calculator size={28} /> Production Summary
@@ -432,7 +487,7 @@ export default function ProductionSummary() {
                 
                 <div className="flex flex-wrap gap-3 justify-center sm:justify-end">
                     <button 
-                        onClick={() => { fetchAllData(); toast.success("Data re-synced with server."); }}
+                        onClick={() => fetchAllData(false)}
                         disabled={loading}
                         className={`px-5 py-2.5 bg-white text-[#1B6A31] border border-[#8CC63F] rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F8FAF8]'}`}
                     >
@@ -456,10 +511,10 @@ export default function ProductionSummary() {
                     </button>
                 </div>
             </div>
+            {/* --------------------------- */}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                
-                {/* 1. Date Filter (Streamlined) */}
+                {/* 1. Date Filter */}
                 <div className="bg-gradient-to-br from-blue-50/50 to-white p-6 rounded-xl border border-blue-200 shadow-lg shadow-blue-900/5 flex flex-col justify-center relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
                     
@@ -481,10 +536,10 @@ export default function ProductionSummary() {
                             />
                         </div>
                         <button 
-                            onClick={handleLoadMonthData}
+                            onClick={handleLoadMonthDataClick}
                             className="w-full sm:w-auto whitespace-nowrap px-5 py-3 bg-blue-600 text-white rounded-md text-sm font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
                         >
-                            <Filter size={16} /> Load Month
+                            <Filter size={16} /> Load Month Data
                         </button>
                     </div>
                 </div>
@@ -507,7 +562,7 @@ export default function ProductionSummary() {
                                 <span className="absolute left-3 top-3 text-gray-400 text-sm font-bold">Rs.</span>
                                 <input 
                                     type="number" onWheel={(e) => e.target.blur()} value={labourRate} 
-                                    onChange={(e) => setLabourRate(e.target.value.replace(/^0+(?=\d)/, ''))} 
+                                    onChange={handleLabourRateChange} 
                                     className="w-full border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm" 
                                 />
                             </div>
@@ -518,7 +573,7 @@ export default function ProductionSummary() {
                                 <span className="absolute left-3 top-3 text-gray-400 text-sm font-bold">Rs.</span>
                                 <input 
                                     type="number" onWheel={(e) => e.target.blur()} value={electricityRate} 
-                                    onChange={(e) => setElectricityRate(e.target.value.replace(/^0+(?=\d)/, ''))} 
+                                    onChange={handleElectricityRateChange} 
                                     className="w-full border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm" 
                                 />
                             </div>
