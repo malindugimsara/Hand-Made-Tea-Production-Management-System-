@@ -1,18 +1,14 @@
+// costOfProductionRoutes.js
 import express from 'express';
-import { getCostOfProductionByMonth, saveCostOfProduction } from '../controller/costOfProductionController.js';
-
-
+import { saveCostOfProduction, getCostOfProductionByMonth } from '../controller/costOfProductionController.js';
 import { verifyToken, authorizeRoles } from '../middleware/auth.js'; 
-
 
 const costOfProductionRouter = express.Router();
 
-// Route: POST /api/cost-of-production
-// Description: Save or Update monthly cost data
-costOfProductionRouter.post('/', saveCostOfProduction);
+// POST: Save or Update
+costOfProductionRouter.post('/', verifyToken, authorizeRoles('Admin', 'Officer'), saveCostOfProduction);
 
-// Route: GET /api/cost-of-production/:month
-// Description: Get cost data for a specific month (e.g., /api/cost-of-production/2026-04)
-costOfProductionRouter.get('/:month', getCostOfProductionByMonth);
+// GET: Fetch by Month (URL එකේ අගට මාසය එනවා)
+costOfProductionRouter.get('/:month', verifyToken, authorizeRoles('Admin', 'Officer', 'Viewer'), getCostOfProductionByMonth);
 
 export default costOfProductionRouter;
