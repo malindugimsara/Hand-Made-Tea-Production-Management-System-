@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Trash2, Search, Leaf, Edit, AlertCircle, FilterX, Zap, DollarSign } from "lucide-react";
+import { Calendar, Trash2, Search, Leaf, Edit, AlertCircle, FilterX, Zap, DollarSign, RefreshCw } from "lucide-react";
+import PDFDownloader from '@/components/PDFDownloader';
+
 import {
     AlertDialog,
     AlertDialogAction,
@@ -19,6 +21,10 @@ export default function ViewRawMaterialCost() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const navigate = useNavigate();
     
+    // --- ROLE BASED ACCESS CONTROL ---
+    const userRole = localStorage.getItem('userRole') || ''; 
+    const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
+
     const [loading, setLoading] = useState(false);
     const [records, setRecords] = useState([]);
     
@@ -26,7 +32,7 @@ export default function ViewRawMaterialCost() {
     const [filterDate, setFilterDate] = useState('');
     const [filterMaterial, setFilterMaterial] = useState('');
 
-    // Delete Confirmation සඳහා අවශ්‍ය State එක
+    // Delete Confirmation
     const [recordToDelete, setRecordToDelete] = useState(null);
 
     const materialOptions = ["Heenbowitiya", "Moringa", "Gotukola", "Karapincha", "Iramusu", "Polpala", "Other"];
@@ -38,10 +44,24 @@ export default function ViewRawMaterialCost() {
     const fetchRecords = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${BACKEND_URL}/api/raw-material-cost`);
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${BACKEND_URL}/api/raw-material-cost`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
             if (res.ok) {
                 const data = await res.json();
-                setRecords(data);
+                const sortedData = data.sort((a, b) => new Date(b.date) - new Date(a.date));
+                setRecords(sortedData);
+            } else {
+                if (res.status === 401) {
+                    toast.error("Unauthorized. Please log in.");
+                } else {
+                    throw new Error('Failed to fetch');
+                }
             }
         } catch (error) {
             toast.error("Failed to fetch records");
@@ -59,20 +79,28 @@ export default function ViewRawMaterialCost() {
 
         const toastId = toast.loading('Deleting...');
         try {
+            const token = localStorage.getItem('token');
             const res = await fetch(`${BACKEND_URL}/api/raw-material-cost/${recordToDelete._id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
             });
 
             if (res.ok) {
                 toast.success("Deleted successfully!", { id: toastId });
-                fetchRecords(); // Table එක refresh කිරීම
+                fetchRecords(); // Refresh Table
             } else {
-                throw new Error('Failed to delete');
+                if(res.status === 403) {
+                    toast.error("Access Denied. Only Admins can delete.", { id: toastId });
+                } else {
+                    throw new Error('Failed to delete');
+                }
             }
         } catch (error) {
             toast.error("Error deleting record", { id: toastId });
         } finally {
-            setRecordToDelete(null); // Alert එක වැසීමට
+            setRecordToDelete(null); 
         }
     };
 
@@ -86,10 +114,8 @@ export default function ViewRawMaterialCost() {
     // -------------------------------------------------------------
     const filteredRecords = records.filter(rec => {
         const recDate = new Date(rec.date).toISOString().split('T')[0];
-        
         const matchDate = filterDate ? recDate === filterDate : true;
         const matchMaterial = filterMaterial ? rec.materialType === filterMaterial : true;
-        
         return matchDate && matchMaterial;
     });
 
@@ -102,6 +128,37 @@ export default function ViewRawMaterialCost() {
     const totalElecCost = filteredRecords.reduce((sum, rec) => sum + (Number(rec.electricityCost) || 0), 0);
     const grandTotalCost = filteredRecords.reduce((sum, rec) => sum + (Number(rec.totalCost) || 0), 0);
 
+    // -------------------------------------------------------------
+    // PREPARE PDF DATA
+    // -------------------------------------------------------------
+    const getPdfData = () => {
+        const tableRows = filteredRecords.map(rec => [
+            new Date(rec.date).toISOString().split('T')[0],
+            rec.materialType,
+            rec.dryWeight,
+            rec.meterStart,
+            rec.meterEnd,
+            rec.totalPoints,
+            rec.rawMaterialCost.toLocaleString(undefined, {minimumFractionDigits: 2}),
+            rec.electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2}),
+            rec.totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})
+        ]);
+
+        tableRows.push([
+            "GRAND TOTAL",
+            "-",
+            totalDryWeight.toFixed(2),
+            "-",
+            "-",
+            totalPoints,
+            totalRawCost.toLocaleString(undefined, {minimumFractionDigits: 2}),
+            totalElecCost.toLocaleString(undefined, {minimumFractionDigits: 2}),
+            grandTotalCost.toLocaleString(undefined, {minimumFractionDigits: 2})
+        ]);
+
+        return tableRows;
+    };
+
     return (
         <div className="p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 min-h-screen">
             
@@ -112,12 +169,27 @@ export default function ViewRawMaterialCost() {
                     </h2>
                     <p className="text-gray-500 mt-1 font-medium">History of all herbal material processing costs</p>
                 </div>
-                <button 
-                    onClick={fetchRecords}
-                    className="px-5 py-2.5 bg-white border border-green-600 text-green-700 rounded-lg hover:bg-green-50 font-bold shadow-sm transition-all"
-                >
-                    Refresh Data
-                </button>
+                
+                <div className="flex items-center gap-3">
+                    <PDFDownloader 
+                        title="Raw Material Cost Records"
+                        subtitle={`Filters -> Date: ${filterDate || 'All'} | Material: ${filterMaterial || 'All'}`}
+                        headers={["Date", "Material", "Dry Weight (g)", "Meter Start", "Meter End", "Total Pts", "Raw Cost (Rs)", "Elec Cost (Rs)", "Total Cost (Rs)"]}
+                        data={getPdfData()}
+                        fileName={`Raw_Material_Cost_${new Date().toISOString().split('T')[0]}.pdf`}
+                        orientation="landscape"
+                        disabled={loading || filteredRecords.length === 0}
+                    />
+
+                    <button 
+                        onClick={fetchRecords}
+                        disabled={loading}
+                        className={`px-4 py-2.5 bg-white text-[#1B6A31] border border-[#8CC63F] rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F8FAF8]'}`}
+                    >
+                        <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+                        Sync Data
+                    </button>
+                </div>
             </div>
 
             {/* --- FILTER SECTION --- */}
@@ -184,14 +256,17 @@ export default function ViewRawMaterialCost() {
                                         <div className="flex items-center justify-center gap-1"><Zap size={14}/> Meter Reading</div>
                                     </th>
                                     
-                                    <th rowSpan="2" className="px-4 py-3 font-bold text-orange-700 border-r border-gray-200 bg-orange-100/50 align-bottom text-center">Total Points</th>
+                                    <th rowSpan="2" className="px-4 py-3 font-bold text-orange-700 border-r border-gray-200 bg-orange-100/50 align-bottom text-center">Total Pts</th>
                                     
                                     <th colSpan="2" className="px-4 py-2 font-bold text-blue-700 border-r border-gray-200 bg-blue-50 text-center">
                                         <div className="flex items-center justify-center gap-1"><DollarSign size={14}/> Costs (Rs)</div>
                                     </th>
                                     
                                     <th rowSpan="2" className="px-4 py-3 font-black text-green-700 border-r border-gray-200 bg-green-50/50 align-bottom text-right">Total Cost</th>
-                                    <th rowSpan="2" className="px-4 py-3 font-semibold align-bottom text-center w-24 bg-gray-50">Action</th>
+                                    
+                                    {!isViewer && (
+                                        <th rowSpan="2" className="px-4 py-3 font-semibold align-bottom text-center w-24 bg-gray-50">Action</th>
+                                    )}
                                 </tr>
                                 <tr className="bg-gray-50 text-gray-500 text-xs border-b border-gray-200">
                                     <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-200/60 w-24">Start</th>
@@ -232,55 +307,56 @@ export default function ViewRawMaterialCost() {
                                             {rec.totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}
                                         </td>
                                         
-                                        <td className="px-3 py-3 text-center">
-                                            <div className="flex items-center justify-center gap-1">
-                                                <button 
-                                                    onClick={() => handleEdit(rec)}
-                                                    className="p-1.5 text-gray-500 hover:text-[#1B6A31] hover:bg-[#8CC63F]/20 rounded transition-all"
-                                                    title="Edit Record"
-                                                >
-                                                    <MdOutlineEdit size={20} />
-                                                </button>
-                                                
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <button 
-                                                            onClick={() => setRecordToDelete(rec)} 
-                                                            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-all"
-                                                            title="Delete Record"
-                                                        >
-                                                            <MdOutlineDeleteOutline size={20} />
-                                                        </button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
-                                                        <AlertDialogHeader>
-                                                            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
-                                                                <AlertCircle className="w-6 h-6 text-red-600" />
-                                                            </div>
-                                                            <AlertDialogTitle className="text-xl font-bold text-gray-900">Delete Record</AlertDialogTitle>
-                                                            <AlertDialogDescription className="text-gray-500 text-base">
-                                                                Are you sure you want to permanently delete the <span className="font-bold text-gray-800 ml-1">{rec.materialType}</span> record for <span className="font-bold text-gray-800">{new Date(rec.date).toISOString().split('T')[0]}</span>?
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter className="mt-6">
-                                                            <AlertDialogCancel 
-                                                                onClick={() => setRecordToDelete(null)} 
-                                                                className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg px-6 font-semibold"
+                                        {!isViewer && (
+                                            <td className="px-3 py-3 text-center">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <button 
+                                                        onClick={() => handleEdit(rec)}
+                                                        className="p-1.5 text-gray-500 hover:text-[#1B6A31] hover:bg-[#8CC63F]/20 rounded transition-all"
+                                                        title="Edit Record"
+                                                    >
+                                                        <MdOutlineEdit size={20} />
+                                                    </button>
+                                                    
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <button 
+                                                                onClick={() => setRecordToDelete(rec)} 
+                                                                className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                                                                title="Delete Record"
                                                             >
-                                                                Cancel
-                                                            </AlertDialogCancel>
-                                                            <AlertDialogAction 
-                                                                onClick={handleConfirmDelete} 
-                                                                className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
-                                                            >
-                                                                Delete Record
-                                                            </AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
-                                        </td>
-                                        
+                                                                <MdOutlineDeleteOutline size={20} />
+                                                            </button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
+                                                            <AlertDialogHeader>
+                                                                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
+                                                                    <AlertCircle className="w-6 h-6 text-red-600" />
+                                                                </div>
+                                                                <AlertDialogTitle className="text-xl font-bold text-gray-900">Delete Record</AlertDialogTitle>
+                                                                <AlertDialogDescription className="text-gray-500 text-base">
+                                                                    Are you sure you want to permanently delete the <span className="font-bold text-gray-800 ml-1">{rec.materialType}</span> record for <span className="font-bold text-gray-800">{new Date(rec.date).toISOString().split('T')[0]}</span>?
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter className="mt-6">
+                                                                <AlertDialogCancel 
+                                                                    onClick={() => setRecordToDelete(null)} 
+                                                                    className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg px-6 font-semibold"
+                                                                >
+                                                                    Cancel
+                                                                </AlertDialogCancel>
+                                                                <AlertDialogAction 
+                                                                    onClick={handleConfirmDelete} 
+                                                                    className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
+                                                                >
+                                                                    Delete Record
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </div>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>
@@ -297,7 +373,7 @@ export default function ViewRawMaterialCost() {
                                         <td className="px-4 py-4 border-r border-gray-200 text-right">{totalRawCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                         <td className="px-4 py-4 border-r border-gray-200 text-right">{totalElecCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                         <td className="px-4 py-4 border-r border-gray-200 text-green-700 text-lg text-right bg-green-50/20">{grandTotalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                                        <td className="px-4 py-4"></td>
+                                        {!isViewer && <td className="px-4 py-4"></td>}
                                     </tr>
                                 </tfoot>
                             )}

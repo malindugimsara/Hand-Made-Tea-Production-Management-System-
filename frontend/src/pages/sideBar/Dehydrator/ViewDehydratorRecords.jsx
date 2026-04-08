@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
-import { Fan, Zap, Clock, AlertCircle, Calendar } from "lucide-react";
+import { Fan, Zap, Clock, AlertCircle, Calendar, RefreshCw } from "lucide-react";
+import PDFDownloader from '@/components/PDFDownloader';
 
 import {
     AlertDialog,
@@ -22,6 +23,10 @@ export default function ViewDehydratorRecords() {
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
     const [recordToDelete, setRecordToDelete] = useState(null);
+
+    // --- ROLE BASED ACCESS CONTROL ---
+    const userRole = localStorage.getItem('userRole') || ''; 
+    const isViewer = userRole.toLowerCase() === 'viewer';
 
     // Filter States
     const [startDate, setStartDate] = useState('');
@@ -56,7 +61,6 @@ export default function ViewDehydratorRecords() {
             const sortedData = data.sort((a, b) => {
                 const dateDiff = new Date(b.date) - new Date(a.date);
                 if (dateDiff !== 0) return dateDiff;
-                // Dawasa samanai nam, add karapu welawa anuwa sort karanawa
                 return new Date(b.createdAt) - new Date(a.createdAt);
             });
 
@@ -76,9 +80,6 @@ export default function ViewDehydratorRecords() {
         return dateMatch && trialMatch;
     });
 
-    // -------------------------------------------------------------
-    // Calculate Totals for the footer
-    // -------------------------------------------------------------
     const totalHours = filteredRecords.reduce((sum, record) => sum + (Number(record.timePeriodHours) || 0), 0);
     const totalUnits = filteredRecords.reduce((sum, record) => sum + (Number(record.totalUnits) || 0), 0);
 
@@ -115,6 +116,29 @@ export default function ViewDehydratorRecords() {
         }
     };
 
+    // Prepare PDF Data Function
+    const getPdfData = () => {
+        const tableRows = filteredRecords.map(record => [
+            record.date,
+            record.trial,
+            record.meterStart,
+            record.meterEnd,
+            record.totalUnits,
+            record.timePeriodHours
+        ]);
+
+        tableRows.push([
+            "GRAND TOTAL",
+            "-",
+            "-",
+            "-",
+            `${totalUnits} Pts`,
+            `${totalHours.toFixed(1)} Hrs`
+        ]);
+
+        return tableRows;
+    };
+
     return (
         <div className="p-8 max-w-[1200px] mx-auto font-sans relative">
             
@@ -124,13 +148,26 @@ export default function ViewDehydratorRecords() {
                     <p className="text-sm text-gray-500 mt-1">Overview of Dehydrator Electricity and Time Usage</p>
                 </div>
                 
-                <button 
-                    onClick={fetchRecords}
-                    disabled={loading}
-                    className={`px-4 py-2 bg-white text-[#1B6A31] border border-[#8CC63F] rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F8FAF8]'}`}
-                >
-                    Sync Data
-                </button>
+                <div className="flex items-center gap-3">
+                    <PDFDownloader 
+                        title="Dehydrator Machine Records"
+                        subtitle={`Filters -> Date: ${startDate || 'All'} to ${endDate || 'All'} | Trial: ${trialFilter || 'All'}`}
+                        headers={["Date", "Trial", "Start Meter", "End Meter", "Total Pts", "Time (Hrs)"]}
+                        data={getPdfData()}
+                        fileName={`Dehydrator_Records_${new Date().toISOString().split('T')[0]}.pdf`}
+                        orientation="portrait"
+                        disabled={loading || filteredRecords.length === 0}
+                    />
+
+                    <button 
+                        onClick={fetchRecords}
+                        disabled={loading}
+                        className={`px-4 py-2.5 bg-white text-[#1B6A31] border border-[#8CC63F] rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F8FAF8]'}`}
+                    >
+                        <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+                        Sync Data
+                    </button>
+                </div>
             </div>
 
             {/* Filter Section */}
@@ -178,7 +215,9 @@ export default function ViewDehydratorRecords() {
                                     <th rowSpan="2" className="px-4 py-3 font-bold text-blue-700 border-r border-gray-200 bg-blue-50 align-bottom text-center w-32">
                                         <div className="flex flex-col items-center gap-1"><Clock size={14}/> Time Period<br/>(hours)</div>
                                     </th>
-                                    <th rowSpan="2" className="px-4 py-3 font-semibold align-bottom text-center w-24 bg-gray-50">Action</th>
+                                    {!isViewer && (
+                                        <th rowSpan="2" className="px-4 py-3 font-semibold align-bottom text-center w-24 bg-gray-50">Action</th>
+                                    )}
                                 </tr>
                                 <tr className="bg-gray-50 text-gray-500 text-xs border-b border-gray-200">
                                     <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-200/60 w-28">Start</th>
@@ -209,40 +248,43 @@ export default function ViewDehydratorRecords() {
                                             <td className="px-3 py-3 text-center border-r border-gray-100">
                                                 <span className="font-bold text-blue-700">{record.timePeriodHours}</span>
                                             </td>
-                                            <td className="px-3 py-3 text-center">
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-[#1B6A31] hover:bg-[#8CC63F]/20 rounded transition-all">
-                                                        <MdOutlineEdit size={20} />
-                                                    </button>
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-all">
-                                                                <MdOutlineDeleteOutline size={20} />
-                                                            </button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
-                                                            <AlertDialogHeader>
-                                                                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
-                                                                    <AlertCircle className="w-6 h-6 text-red-600" />
-                                                                </div>
-                                                                <AlertDialogTitle className="text-xl font-bold text-gray-900">Delete Record</AlertDialogTitle>
-                                                                <AlertDialogDescription className="text-gray-500 text-base">
-                                                                    Are you sure you want to delete the dehydrator record for <span className="font-bold text-gray-800 ml-1">{record.trial}</span> on <span className="font-bold text-gray-800">{record.date}</span>?
-                                                                </AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter className="mt-6">
-                                                                <AlertDialogCancel onClick={() => setRecordToDelete(null)} className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg px-6 font-semibold">Cancel</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors">Delete Record</AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                </div>
-                                            </td>
+                                            
+                                            {!isViewer && (
+                                                <td className="px-3 py-3 text-center">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-[#1B6A31] hover:bg-[#8CC63F]/20 rounded transition-all">
+                                                            <MdOutlineEdit size={20} />
+                                                        </button>
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-all">
+                                                                    <MdOutlineDeleteOutline size={20} />
+                                                                </button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
+                                                                <AlertDialogHeader>
+                                                                    <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
+                                                                        <AlertCircle className="w-6 h-6 text-red-600" />
+                                                                    </div>
+                                                                    <AlertDialogTitle className="text-xl font-bold text-gray-900">Delete Record</AlertDialogTitle>
+                                                                    <AlertDialogDescription className="text-gray-500 text-base">
+                                                                        Are you sure you want to delete the dehydrator record for <span className="font-bold text-gray-800 ml-1">{record.trial}</span> on <span className="font-bold text-gray-800">{record.date}</span>?
+                                                                    </AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter className="mt-6">
+                                                                    <AlertDialogCancel onClick={() => setRecordToDelete(null)} className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg px-6 font-semibold">Cancel</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors">Delete Record</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="7" className="p-16 text-center text-gray-400">
+                                        <td colSpan={isViewer ? "6" : "7"} className="p-16 text-center text-gray-400">
                                             <AlertCircle size={40} className="mx-auto mb-3 opacity-20" />
                                             <p className="text-lg font-medium text-gray-500">No records found matching filters</p>
                                         </td>
@@ -263,7 +305,7 @@ export default function ViewDehydratorRecords() {
                                         <td className="px-3 py-4 text-center font-black text-blue-700 text-lg border-r border-gray-200">
                                             {totalHours.toFixed(1)} Hrs
                                         </td>
-                                        <td></td>
+                                        {!isViewer && <td></td>}
                                     </tr>
                                 </tfoot>
                             )}
