@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast'; 
-import { Calculator, Calendar, Leaf, Zap, Users, Settings2, FileDown, RefreshCw, CheckSquare, Square, Save, AlertTriangle, Filter } from "lucide-react";
+import { Calculator, Calendar, Leaf, Zap, Users, Settings2, FileDown, RefreshCw, CheckSquare, Square, Save, AlertTriangle, Filter, Info, Eye } from "lucide-react";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable'; 
 
@@ -20,6 +20,10 @@ export default function ProductionSummary() {
     const [loading, setLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [records, setRecords] = useState([]);
+
+    // --- ROLE BASED ACCESS CONTROL ---
+    const userRole = localStorage.getItem('userRole') || ''; 
+    const isViewer = userRole.toLowerCase() === 'viewer';
 
     // Saving & Dialog States
     const [isSaved, setIsSaved] = useState(true); 
@@ -42,13 +46,15 @@ export default function ProductionSummary() {
         "Flower", "Chakra"
     ];
 
-    // Load Data on Mount
     useEffect(() => {
-        fetchAllData(true); // 'true' means silent load (no extra toasts on mount)
+        setIsSaved(false);
+    }, [manualInputs, labourRate, electricityRate, selectedTeaTypes]);
+
+    useEffect(() => {
+        fetchAllData(true); 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Fetches raw data, then automatically loads the active month's summary
     const fetchAllData = async (isSilent = false) => {
         setLoading(true);
         try {
@@ -64,7 +70,7 @@ export default function ProductionSummary() {
                 fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders })
             ]);
 
-            if (!greenLeafRes.ok || !productionRes.ok || !labourRes.ok) {
+            if (!greenLeafRes.ok || !productionRes.ok || !labRes.ok) {
                 throw new Error("Failed to fetch data");
             }
 
@@ -117,7 +123,6 @@ export default function ProductionSummary() {
         }
     };
 
-    // Internal function to handle loading the month (used by mount and manual button click)
     const loadMonthDataInternal = async (month, availableRecords, isSilent = false) => {
         let toastId;
         if (!isSilent) toastId = toast.loading(`Loading data for ${month}...`);
@@ -155,7 +160,6 @@ export default function ProductionSummary() {
                 }
             }
 
-            // If no save exists, perform fresh calculations
             autoSelectActiveTeaTypes(availableRecords, month);
             if (!isSilent) toast.success(`Generated new calculations for ${month}`, { id: toastId });
 
@@ -286,6 +290,12 @@ export default function ProductionSummary() {
     });
 
     const handleSaveToDatabase = async () => {
+        // --- Security Check ---
+        if (isViewer) {
+            toast.error("Viewers are not allowed to save data.");
+            return false;
+        }
+
         if (tableData.length === 0) {
             toast.error("No production data to save!");
             return false;
@@ -433,7 +443,8 @@ export default function ProductionSummary() {
     };
 
     const handleDownloadClick = () => {
-        if (!isSaved) {
+        // Viewers are allowed to download without triggering the unsaved warning!
+        if (!isSaved && !isViewer) {
             setShowUnsavedDialog(true);
         } else {
             generatePDF();
@@ -487,7 +498,7 @@ export default function ProductionSummary() {
                 
                 <div className="flex flex-wrap gap-3 justify-center sm:justify-end">
                     <button 
-                        onClick={() => fetchAllData(false)}
+                        onClick={() => { fetchAllData(false); toast.success("Data re-synced with server."); }}
                         disabled={loading}
                         className={`px-5 py-2.5 bg-white text-[#1B6A31] border border-[#8CC63F] rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F8FAF8]'}`}
                     >
@@ -496,10 +507,13 @@ export default function ProductionSummary() {
                     
                     <button 
                         onClick={handleSaveToDatabase}
-                        disabled={isSaving || isSaved || tableData.length === 0}
-                        className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${isSaved || tableData.length === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'}`}
+                        disabled={isSaving || isSaved || tableData.length === 0 || isViewer}
+                        className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
+                            (isSaved || tableData.length === 0 || isViewer) ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'
+                        }`}
                     >
-                        <Save size={18} /> {isSaved && tableData.length > 0 ? "Saved" : isSaving ? "Saving..." : "Save to DB"}
+                        {isViewer ? <Eye size={18}/> : <Save size={18} />} 
+                        {isViewer ? "View Only" : isSaving ? "Saving..." : (isSaved && tableData.length > 0) ? "Saved" : "Save to DB"}
                     </button>
 
                     <button 
@@ -512,6 +526,14 @@ export default function ProductionSummary() {
                 </div>
             </div>
             {/* --------------------------- */}
+
+            {/* Viewer Notification Banner */}
+            {isViewer && (
+                <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg flex items-center gap-3">
+                    <Info size={20} />
+                    <p className="text-sm font-medium">You are logged in as a <strong>Viewer</strong>. You can view data and download reports. Editing and saving are disabled.</p>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 {/* 1. Date Filter */}
@@ -551,7 +573,7 @@ export default function ProductionSummary() {
                     <div className="flex items-center gap-2 mb-4 border-b border-orange-100 pb-3">
                         <h3 className="text-sm md:text-base font-extrabold text-orange-700 flex items-center gap-2 uppercase tracking-wider">
                             <div className="p-1.5 bg-orange-100 rounded-lg"><Settings2 size={18} className="text-orange-600"/></div>
-                            2. Adjust Rates (LKR)
+                            2. Adjust Rates (LKR) {isViewer && "(Read Only)"}
                         </h3>
                     </div>
                     
@@ -563,7 +585,8 @@ export default function ProductionSummary() {
                                 <input 
                                     type="number" onWheel={(e) => e.target.blur()} value={labourRate} 
                                     onChange={handleLabourRateChange} 
-                                    className="w-full border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm" 
+                                    disabled={isViewer}
+                                    className="w-full border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed" 
                                 />
                             </div>
                         </div>
@@ -574,7 +597,8 @@ export default function ProductionSummary() {
                                 <input 
                                     type="number" onWheel={(e) => e.target.blur()} value={electricityRate} 
                                     onChange={handleElectricityRateChange} 
-                                    className="w-full border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm" 
+                                    disabled={isViewer}
+                                    className="w-full border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed" 
                                 />
                             </div>
                         </div>
@@ -621,7 +645,7 @@ export default function ProductionSummary() {
             </div>
 
             {/* Summary Table */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mb-12 min-h-[300px]">
+            <div className={`bg-white rounded-xl shadow-md border overflow-hidden mb-12 min-h-[300px] ${isViewer ? 'border-gray-200 opacity-95' : 'border-gray-200'}`}>
                 <div className="bg-[#1B6A31] p-4 border-b border-gray-200 flex items-center gap-2">
                     <Leaf className="text-white" size={20}/>
                     <h3 className="text-lg font-bold text-white">Calculation Board</h3>
@@ -672,13 +696,23 @@ export default function ProductionSummary() {
                                         <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.totalMT.toFixed(3)}</td>
                                         <td className="px-3 py-4 border-r border-gray-200 font-bold text-blue-700 bg-blue-50/10">{row.totalSelectionWorkers}</td>
                                         <td className="px-2 py-2 border-r border-gray-200 bg-blue-50/30">
-                                            <input type="number" onWheel={(e) => e.target.blur()} value={row.hrWorkers || ''} onChange={(e) => handleManualChange(row.type, 'handRolling', e.target.value.replace(/^0+(?=\d)/, ''))} className="w-full p-2 border border-blue-300 rounded text-center font-bold text-blue-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner bg-white" placeholder="0" />
+                                            <input 
+                                                type="number" onWheel={(e) => e.target.blur()} value={row.hrWorkers || ''} 
+                                                onChange={(e) => handleManualChange(row.type, 'handRolling', e.target.value.replace(/^0+(?=\d)/, ''))} 
+                                                disabled={isViewer}
+                                                className="w-full p-2 border border-blue-300 rounded text-center font-bold text-blue-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner bg-white disabled:bg-gray-100 disabled:cursor-not-allowed" placeholder="0" 
+                                            />
                                         </td>
                                         <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.selectionCost.toLocaleString()}</td>
                                         <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.handRollingCost.toLocaleString()}</td>
                                         <td className="px-3 py-4 border-r border-gray-200 font-bold text-orange-600 bg-orange-50/10">{row.totalDryerUnits}</td>
                                         <td className="px-2 py-2 border-r border-gray-200 bg-orange-50/30">
-                                            <input type="number" onWheel={(e) => e.target.blur()} value={row.rPoints || ''} onChange={(e) => handleManualChange(row.type, 'roller', e.target.value.replace(/^0+(?=\d)/, ''))} className="w-full p-2 border border-orange-300 rounded text-center font-bold text-orange-800 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner bg-white" placeholder="0" />
+                                            <input 
+                                                type="number" onWheel={(e) => e.target.blur()} value={row.rPoints || ''} 
+                                                onChange={(e) => handleManualChange(row.type, 'roller', e.target.value.replace(/^0+(?=\d)/, ''))} 
+                                                disabled={isViewer}
+                                                className="w-full p-2 border border-orange-300 rounded text-center font-bold text-orange-800 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner bg-white disabled:bg-gray-100 disabled:cursor-not-allowed" placeholder="0" 
+                                            />
                                         </td>
                                         <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.dryerCost.toLocaleString()}</td>
                                         <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.rollerCost.toLocaleString()}</td>
