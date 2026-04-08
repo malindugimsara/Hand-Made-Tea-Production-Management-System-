@@ -1,0 +1,99 @@
+import React from 'react';
+import { FileDown } from "lucide-react";
+import toast from 'react-hot-toast';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+// Props විදිහට මේ දේවල් Component එකට යවන්න පුළුවන්
+export default function PDFDownloader({ 
+    title = "Document", 
+    subtitle = "", 
+    headers = [], 
+    data = [], 
+    fileName = "document.pdf",
+    orientation = "portrait", // 'portrait' or 'landscape'
+    disabled = false,
+    className = ""
+}) {
+    
+    const handleDownload = async () => {
+        if (!data || data.length === 0) {
+            toast.error("No data available to download.");
+            return;
+        }
+
+        const toastId = toast.loading("Generating PDF...");
+        const doc = new jsPDF(orientation);
+
+        try {
+            // 1. Load Logo (Optional)
+            try {
+                const res = await fetch("/logo.png");
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const dataUrl = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(blob);
+                    });
+                    doc.addImage(dataUrl, "PNG", 14, 10, 25, 25); 
+                }
+            } catch (err) {
+                console.warn("Logo not found or couldn't be loaded.");
+            }
+
+            // 2. Add Titles
+            doc.setFontSize(22);
+            doc.setTextColor(27, 106, 49); // Dark Green
+            doc.text(title, 45, 20);
+            
+            if (subtitle) {
+                doc.setFontSize(10);
+                doc.setTextColor(100); // Gray
+                doc.text(subtitle, 45, 27);
+            }
+
+            // 3. Generate Table
+            autoTable(doc, {
+                startY: 40,
+                head: [headers],
+                body: data,
+                theme: 'grid',
+                headStyles: { fillColor: [27, 106, 49], textColor: 255, fontSize: 9, halign: 'center' },
+                bodyStyles: { fontSize: 8, halign: 'center' },
+                columnStyles: { 0: { fontStyle: 'bold', halign: 'left' } },
+                didParseCell: function(dataInfo) {
+                    // අන්තිම Row එක "GRAND TOTAL" නම් ඒක Highlight කිරීම
+                    if (dataInfo.section === 'body' && dataInfo.row.index === data.length - 1) {
+                        const firstCellText = String(data[data.length - 1][0] || '').toUpperCase();
+                        if (firstCellText.includes("TOTAL")) {
+                            dataInfo.cell.styles.fillColor = [230, 240, 230];
+                            dataInfo.cell.styles.fontStyle = 'bold';
+                            dataInfo.cell.styles.textColor = [27, 106, 49];
+                            if(dataInfo.column.index === 0) dataInfo.cell.styles.halign = 'right';
+                        }
+                    }
+                }
+            });
+
+            // 4. Save the file
+            doc.save(fileName);
+            toast.success("PDF Downloaded successfully!", { id: toastId });
+
+        } catch (error) {
+            console.error("PDF Generation Error: ", error);
+            toast.error("Failed to generate PDF.", { id: toastId });
+        }
+    };
+
+    return (
+        <button 
+            onClick={handleDownload}
+            disabled={disabled}
+            className={`px-4 py-2.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+        >
+            <FileDown size={18} />
+            Download PDF
+        </button>
+    );
+}

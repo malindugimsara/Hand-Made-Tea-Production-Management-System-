@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
 import { Leaf, Factory, Users, Zap, AlertCircle, RefreshCw } from "lucide-react";
+import PDFDownloader from '@/components/PDFDownloader';
 
 import {
     AlertDialog,
@@ -23,6 +24,10 @@ export default function ViewGreenLeafForm() {
     const [loading, setLoading] = useState(true);
     const [recordToDelete, setRecordToDelete] = useState(null);
 
+    // --- ROLE BASED ACCESS CONTROL ---
+    const userRole = localStorage.getItem('userRole') || ''; 
+    const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
+
     // Filter States
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -38,16 +43,12 @@ export default function ViewGreenLeafForm() {
     const fetchMergedRecords = async () => {
         setLoading(true); 
         try {
-            // 1. Get the token!
             const token = localStorage.getItem('token');
-            
-            // 2. Create the authorization header
             const authHeaders = {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             };
 
-            // 3. Pass the headers into your fetch requests
             const [greenLeafRes, productionRes, labourRes] = await Promise.all([
                 fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
                 fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
@@ -55,7 +56,6 @@ export default function ViewGreenLeafForm() {
             ]);
 
             if (!greenLeafRes.ok || !productionRes.ok || !labourRes.ok) {
-                console.error("Fetch statuses:", greenLeafRes.status, productionRes.status, labourRes.status);
                 throw new Error("Failed to fetch data. Check your login token.");
             }
 
@@ -117,12 +117,9 @@ export default function ViewGreenLeafForm() {
         return dateMatch && typeMatch && dryerMatch;
     });
 
-    // ---------------------------------------------------------------------------------
-    // 1. Grouping Overlapped Dryer Records (Highlight කිරීම සඳහා)
-    // ---------------------------------------------------------------------------------
+    // Grouping Overlapped Dryer Records
     const groupMap = {};
     filteredRecords.forEach(r => {
-        // හිස් අගයන් ගණනයෙන් ඉවත් කරන්න
         if (r.meterStart !== '-' && r.meterEnd !== '-' && r.meterStart !== '' && r.meterEnd !== '') {
             const key = `${r.date}_${r.dryerName}_${r.meterStart}_${r.meterEnd}`;
             if (!groupMap[key]) {
@@ -132,14 +129,7 @@ export default function ViewGreenLeafForm() {
         }
     });
 
-    const highlightColors = [
-        'bg-green-200/80', 
-        'bg-yellow-200/80', 
-        'bg-purple-200/80', 
-        'bg-blue-200/80', 
-        'bg-pink-200/80',
-        'bg-orange-200/80'
-    ];
+    const highlightColors = ['bg-green-200/80', 'bg-yellow-200/80', 'bg-purple-200/80', 'bg-blue-200/80', 'bg-pink-200/80', 'bg-orange-200/80'];
     let colorIndex = 0;
 
     Object.keys(groupMap).forEach(key => {
@@ -149,16 +139,13 @@ export default function ViewGreenLeafForm() {
         }
     });
 
-    // ---------------------------------------------------------------------------------
-    // 2. ACCURATE TOTAL CALCULATION (Average Units included)
-    // ---------------------------------------------------------------------------------
+    // ACCURATE TOTAL CALCULATION
     const totalGL = filteredRecords.reduce((sum, r) => sum + (Number(r.totalWeight) || 0), 0);
     const totalSelectedGL = filteredRecords.reduce((sum, r) => sum + (Number(r.selectedWeight) || 0), 0);
     const totalReturnedGL = filteredRecords.reduce((sum, r) => sum + (Number(r.returnedWeight) || 0), 0);
     const totalMadeTea = filteredRecords.reduce((sum, r) => sum + (Number(r.madeTeaWeight) || 0), 0);
     const totalLabour = filteredRecords.reduce((sum, r) => sum + (Number(r.workerCount) || 0), 0);
 
-    // Dryer Units සඳහා බෙදී ගිය (Average) අගයන් වල එකතුව
     const totalUnits = filteredRecords.reduce((sum, r) => {
         if (r.meterStart !== '-' && r.meterEnd !== '-' && r.meterStart !== '' && r.meterEnd !== '') {
             const key = `${r.date}_${r.dryerName}_${r.meterStart}_${r.meterEnd}`;
@@ -177,11 +164,8 @@ export default function ViewGreenLeafForm() {
         const { greenLeafId, productionId, labourId } = recordToDelete;
         const toastId = toast.loading('Deleting record...');
         try {
-            // Get the token and create headers for the DELETE requests
             const token = localStorage.getItem('token');
-            const authHeaders = {
-                'Authorization': `Bearer ${token}`
-            };
+            const authHeaders = { 'Authorization': `Bearer ${token}` };
 
             const promises = [];
             if (greenLeafId) promises.push(fetch(`${BACKEND_URL}/api/green-leaf/${greenLeafId}`, { method: 'DELETE', headers: authHeaders }));
@@ -199,9 +183,55 @@ export default function ViewGreenLeafForm() {
         }
     };
 
+    // -------------------------------------------------------------
+    // PREPARE PDF DATA
+    // -------------------------------------------------------------
+    const getPdfData = () => {
+        const tableRows = filteredRecords.map(record => {
+            let displayUnits = record.units;
+            if (record.meterStart !== '-' && record.meterEnd !== '-' && record.meterStart !== '' && record.meterEnd !== '') {
+                const key = `${record.date}_${record.dryerName}_${record.meterStart}_${record.meterEnd}`;
+                const groupInfo = groupMap[key];
+                if (groupInfo && groupInfo.count > 1) {
+                    const adjustedUnits = Number(record.units) / groupInfo.count;
+                    displayUnits = Number.isInteger(adjustedUnits) ? adjustedUnits : adjustedUnits.toFixed(2);
+                }
+            }
+
+            return [
+                record.date,
+                record.totalWeight,
+                record.selectedWeight,
+                record.returnedWeight > 0 ? record.returnedWeight : '-',
+                record.teaType,
+                record.madeTeaWeight,
+                record.dryerName,
+                record.meterStart,
+                record.meterEnd,
+                displayUnits !== '-' ? displayUnits : '-',
+                record.workerCount !== '-' ? record.workerCount : '-'
+            ];
+        });
+
+        tableRows.push([
+            "GRAND TOTAL",
+            totalGL.toFixed(2),
+            totalSelectedGL.toFixed(2),
+            totalReturnedGL.toFixed(2),
+            "-",
+            totalMadeTea.toFixed(3),
+            "-",
+            "-",
+            "-",
+            Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2),
+            totalLabour
+        ]);
+
+        return tableRows;
+    };
+
     return (
         <div className="p-8 max-w-[1500px] mx-auto font-sans relative">
-            <Toaster position="top-center" />
             
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
@@ -209,14 +239,26 @@ export default function ViewGreenLeafForm() {
                     <p className="text-sm text-gray-500 mt-1">Master overview of Green Leaf, Production, & Labour</p>
                 </div>
                 
-                <button 
-                    onClick={fetchMergedRecords}
-                    disabled={loading}
-                    className={`px-4 py-2 bg-white text-[#1B6A31] border border-[#8CC63F] rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F8FAF8]'}`}
-                >
-                    <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                    Sync Data
-                </button>
+                <div className="flex items-center gap-3">
+                    <PDFDownloader 
+                        title="Daily Production Log"
+                        subtitle={`Filters Applied -> Date: ${startDate || 'All'} to ${endDate || 'All'} | Tea: ${teaType} | Dryer: ${dryerType}`}
+                        headers={["Date", "Received GL", "Selected GL", "Return GL", "Tea Type", "Made Tea", "Dryer", "Start Meter", "End Meter", "Units", "Labour"]}
+                        data={getPdfData()}
+                        fileName={`Production_Log_${new Date().toISOString().split('T')[0]}.pdf`}
+                        orientation="landscape"
+                        disabled={loading || filteredRecords.length === 0}
+                    />
+
+                    <button 
+                        onClick={fetchMergedRecords}
+                        disabled={loading}
+                        className={`px-4 py-2.5 bg-white text-[#1B6A31] border border-[#8CC63F] rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F8FAF8]'}`}
+                    >
+                        <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+                        Sync Data
+                    </button>
+                </div>
             </div>
 
             {/* Filter Section */}
@@ -279,7 +321,11 @@ export default function ViewGreenLeafForm() {
                                     <th rowSpan="2" className="px-4 py-3 font-bold text-blue-700 border-r border-gray-200 bg-blue-50 align-bottom text-center">
                                         <div className="flex flex-col items-center gap-1"><Users size={14}/> Labour</div>
                                     </th>
-                                    <th rowSpan="2" className="px-4 py-3 font-semibold align-bottom text-center w-24 bg-gray-50">Action</th>
+                                    
+                                    {/* Hide Action header if Viewer */}
+                                    {!isViewer && (
+                                        <th rowSpan="2" className="px-4 py-3 font-semibold align-bottom text-center w-24 bg-gray-50">Action</th>
+                                    )}
                                 </tr>
                                 <tr className="bg-gray-50 text-gray-500 text-xs border-b border-gray-200">
                                     <th className="px-3 py-2 font-medium bg-[#8CC63F]/5 text-center border-r border-gray-200/60">Received</th>
@@ -297,7 +343,6 @@ export default function ViewGreenLeafForm() {
                             <tbody className="divide-y divide-gray-100">
                                 {filteredRecords.length > 0 ? (
                                     filteredRecords.map((record) => {
-                                        // Highlight සහ Average Units ලබා ගැනීම
                                         let isShared = false;
                                         let highlightClass = '';
                                         let displayUnits = record.units;
@@ -310,7 +355,6 @@ export default function ViewGreenLeafForm() {
                                                 isShared = true;
                                                 highlightClass = groupInfo.color;
                                                 const adjustedUnits = Number(record.units) / groupInfo.count;
-                                                // දශම ස්ථාන අවශ්‍ය නම් පෙන්වීමට
                                                 displayUnits = Number.isInteger(adjustedUnits) ? adjustedUnits : adjustedUnits.toFixed(2);
                                             }
                                         }
@@ -328,7 +372,6 @@ export default function ViewGreenLeafForm() {
                                                     {record.returnedWeight > 0 ? record.returnedWeight : '-'}
                                                 </td>
                                                 
-                                                {/* Tea Type & Made Tea */}
                                                 <td className="px-3 py-3 text-center border-r border-gray-100">
                                                     {record.teaType !== '-' ? <span className="text-purple-700 font-medium text-xs bg-purple-50 px-2 py-1 rounded border border-purple-100">{record.teaType}</span> : '-'}
                                                 </td>
@@ -337,7 +380,6 @@ export default function ViewGreenLeafForm() {
                                                 </td>
                                                 <td className="px-3 py-3 text-center border-r border-gray-100 text-gray-600">{record.dryerName}</td>
 
-                                                {/* Highlighted Dryer Reading Sections */}
                                                 <td className={`px-3 py-3 text-center border-r border-gray-100 text-xs ${isShared ? `${highlightClass} font-bold text-gray-900` : 'text-gray-500'}`}>
                                                     {record.meterStart}
                                                 </td>
@@ -351,41 +393,45 @@ export default function ViewGreenLeafForm() {
                                                 <td className="px-3 py-3 text-center border-r border-gray-100">
                                                     {record.workerCount !== '-' ? <span className="font-bold text-blue-700">{record.workerCount}</span> : '-'}
                                                 </td>
-                                                <td className="px-3 py-3 text-center">
-                                                    <div className="flex items-center justify-center gap-1">
-                                                        <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-[#1B6A31] hover:bg-[#8CC63F]/20 rounded transition-all">
-                                                            <MdOutlineEdit size={20} />
-                                                        </button>
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
-                                                                <button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-all">
-                                                                    <MdOutlineDeleteOutline size={20} />
-                                                                </button>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
-                                                                <AlertDialogHeader>
-                                                                    <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
-                                                                        <AlertCircle className="w-6 h-6 text-red-600" />
-                                                                    </div>
-                                                                    <AlertDialogTitle className="text-xl font-bold text-gray-900">Delete Production Record</AlertDialogTitle>
-                                                                    <AlertDialogDescription className="text-gray-500 text-base">
-                                                                        Are you sure you want to permanently delete data for <span className="font-bold text-gray-800 ml-1">{record.date}</span>?
-                                                                    </AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter className="mt-6">
-                                                                    <AlertDialogCancel onClick={() => setRecordToDelete(null)} className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg px-6 font-semibold">Cancel</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors">Delete Record</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                    </div>
-                                                </td>
+                                                
+                                                {/* Hide action buttons if Viewer */}
+                                                {!isViewer && (
+                                                    <td className="px-3 py-3 text-center">
+                                                        <div className="flex items-center justify-center gap-1">
+                                                            <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-[#1B6A31] hover:bg-[#8CC63F]/20 rounded transition-all">
+                                                                <MdOutlineEdit size={20} />
+                                                            </button>
+                                                            <AlertDialog>
+                                                                <AlertDialogTrigger asChild>
+                                                                    <button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-all">
+                                                                        <MdOutlineDeleteOutline size={20} />
+                                                                    </button>
+                                                                </AlertDialogTrigger>
+                                                                <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
+                                                                    <AlertDialogHeader>
+                                                                        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
+                                                                            <AlertCircle className="w-6 h-6 text-red-600" />
+                                                                        </div>
+                                                                        <AlertDialogTitle className="text-xl font-bold text-gray-900">Delete Production Record</AlertDialogTitle>
+                                                                        <AlertDialogDescription className="text-gray-500 text-base">
+                                                                            Are you sure you want to permanently delete data for <span className="font-bold text-gray-800 ml-1">{record.date}</span>?
+                                                                        </AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <AlertDialogFooter className="mt-6">
+                                                                        <AlertDialogCancel onClick={() => setRecordToDelete(null)} className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg px-6 font-semibold">Cancel</AlertDialogCancel>
+                                                                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors">Delete Record</AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
+                                                        </div>
+                                                    </td>
+                                                )}
                                             </tr>
                                         );
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan="12" className="p-16 text-center text-gray-400">
+                                        <td colSpan={isViewer ? "11" : "12"} className="p-16 text-center text-gray-400">
                                             <AlertCircle size={40} className="mx-auto mb-3 opacity-20" />
                                             <p className="text-lg font-medium text-gray-500">No records found matching filters</p>
                                         </td>
@@ -407,13 +453,15 @@ export default function ViewGreenLeafForm() {
                                         <td className="px-3 py-4 border-r border-gray-200">-</td>
                                         <td className="px-3 py-4 border-r border-gray-200">-</td>
                                         
-                                        {/* Total Units will now show the perfectly summed average points */}
                                         <td className="px-3 py-4 border-r border-gray-200 text-orange-600 text-base">
                                             {Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2)}
                                         </td>
                                         
                                         <td className="px-3 py-4 border-r border-gray-200 text-blue-700 text-base">{totalLabour}</td>
-                                        <td className="px-3 py-4"></td>
+                                        
+                                        {!isViewer && (
+                                            <td className="px-3 py-4"></td>
+                                        )}
                                     </tr>
                                 </tfoot>
                             )}
