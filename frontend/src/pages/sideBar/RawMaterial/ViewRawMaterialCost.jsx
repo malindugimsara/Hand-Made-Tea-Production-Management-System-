@@ -164,7 +164,7 @@ export default function ViewRawMaterialCost() {
             
             <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold text-[#1B6A31] flex items-center gap-2">
+                    <h2 className="text-2xl font-bold text-[#1B6A31] flex items-center gap-2">
                         <Leaf size={28} /> View Raw Material Costs
                     </h2>
                     <p className="text-gray-500 mt-1 font-medium">History of all herbal material processing costs</p>
