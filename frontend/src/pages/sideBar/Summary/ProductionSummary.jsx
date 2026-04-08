@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast'; 
-import { Calculator, Calendar, Leaf, Zap, Users, Settings2, RefreshCw, CheckSquare, Square, Save, AlertTriangle, Filter, Info, Eye, FileDown } from "lucide-react";
-import PDFDownloader from '@/components/PDFDownloader'; // Verify path
+import { Calculator, Calendar, Leaf, Zap, Users, Settings2, FileDown, RefreshCw, CheckSquare, Square, Save, AlertTriangle, Filter, Info, Eye } from "lucide-react";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable'; 
 
 import {
     AlertDialog,
@@ -22,7 +23,7 @@ export default function ProductionSummary() {
 
     // --- ROLE BASED ACCESS CONTROL ---
     const userRole = localStorage.getItem('userRole') || ''; 
-    const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
+    const isViewer = userRole.toLowerCase() === 'viewer';
 
     // Saving & Dialog States
     const [isSaved, setIsSaved] = useState(true); 
@@ -45,17 +46,13 @@ export default function ProductionSummary() {
         "Flower", "Chakra"
     ];
 
-    // Reset `isSaved` to false whenever any parameter changes
-    useEffect(() => {
-        setIsSaved(false);
-    }, [manualInputs, labourRate, electricityRate, selectedTeaTypes]);
-
     // Load Data on Mount & Month Change
     useEffect(() => {
-        fetchAllData(true); 
+        fetchAllData(true); // 'true' means silent load (no extra toasts on mount)
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filterMonth]);
 
+    // Fetches raw data, then automatically loads the active month's summary
     const fetchAllData = async (isSilent = false) => {
         setLoading(true);
         try {
@@ -71,7 +68,7 @@ export default function ProductionSummary() {
                 fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders })
             ]);
 
-            if (!greenLeafRes.ok || !productionRes.ok || !labourRes.ok) {
+            if (!greenLeafRes.ok || !productionRes.ok || !labRes.ok) {
                 throw new Error("Failed to fetch data");
             }
 
@@ -124,6 +121,7 @@ export default function ProductionSummary() {
         }
     };
 
+    // Internal function to handle loading the month
     const loadMonthDataInternal = async (month, availableRecords, isSilent = false) => {
         let toastId;
         if (!isSilent) toastId = toast.loading(`Loading data for ${month}...`);
@@ -136,7 +134,6 @@ export default function ProductionSummary() {
             
             if (summaryRes.ok) {
                 const summaries = await summaryRes.json();
-                // Check if the current month exists in the fetched summaries
                 const savedSummary = summaries.find(s => s.reportMonth === month);
 
                 if (savedSummary) {
@@ -156,7 +153,7 @@ export default function ProductionSummary() {
 
                     setSelectedTeaTypes(activeTypes);
                     setManualInputs(newManualInputs);
-                    setIsSaved(true); // <-- This effectively disables the Save button
+                    setIsSaved(true); // Effectively disables the Save button for loaded DB data
                     if (!isSilent) toast.success(`Loaded saved summary for ${month}!`, { id: toastId });
                     return; 
                 }
@@ -188,10 +185,16 @@ export default function ProductionSummary() {
             }
         });
 
-        const activeTypes = Object.keys(glTotals).filter(type => glTotals[type] > 0);
+        let activeTypes = Object.keys(glTotals).filter(type => glTotals[type] > 0);
+        
+        // --- FIX: If no tea types have data (fresh month), load ALL tea types by default so the table is visible!
+        if (activeTypes.length === 0) {
+            activeTypes = [...teaOptions];
+        }
+
         setSelectedTeaTypes(activeTypes);
         setManualInputs({}); 
-        setIsSaved(false); // Enable Save button for new calculations
+        setIsSaved(false); // Enable Save button for fresh unsaved calculations
     };
 
     const toggleTeaType = (type) => {
@@ -212,7 +215,10 @@ export default function ProductionSummary() {
         setIsSaved(false);
     };
 
+    // Restricts Negative Inputs & Triggers Unsaved State
     const handleManualChange = (type, field, value) => {
+        if (Number(value) < 0) return; // Prevent negative values
+        
         setManualInputs(prev => ({
             ...prev,
             [type]: {
@@ -220,17 +226,23 @@ export default function ProductionSummary() {
                 [field]: Number(value) || 0
             }
         }));
-        setIsSaved(false); // Enable Save button when manual input changes
+        setIsSaved(false);
     };
 
     const handleLabourRateChange = (e) => {
-        setLabourRate(e.target.value.replace(/^0+(?=\d)/, ''));
-        setIsSaved(false); // Enable Save button when rate changes
+        const val = e.target.value;
+        if (Number(val) < 0) return; // Prevent negative values
+        
+        setLabourRate(val.replace(/^0+(?=\d)/, ''));
+        setIsSaved(false);
     };
 
     const handleElectricityRateChange = (e) => {
-        setElectricityRate(e.target.value.replace(/^0+(?=\d)/, ''));
-        setIsSaved(false); // Enable Save button when rate changes
+        const val = e.target.value;
+        if (Number(val) < 0) return; // Prevent negative values
+        
+        setElectricityRate(val.replace(/^0+(?=\d)/, ''));
+        setIsSaved(false);
     };
 
     const generateTableData = () => {
@@ -292,7 +304,6 @@ export default function ProductionSummary() {
     });
 
     const handleSaveToDatabase = async () => {
-        // --- Security Check ---
         if (isViewer) {
             toast.error("Viewers are not allowed to save data.");
             return false;
@@ -331,7 +342,7 @@ export default function ProductionSummary() {
             }
 
             toast.success("Summary saved successfully!", { id: toastId });
-            setIsSaved(true); // Disable save button after successful save
+            setIsSaved(true); 
             return true;
         } catch (error) {
             toast.error(error.message || "Network error.", { id: toastId });
@@ -341,57 +352,122 @@ export default function ProductionSummary() {
         }
     };
 
-    // -------------------------------------------------------------
-    // PREPARE PDF DATA FOR THE COMPONENT
-    // -------------------------------------------------------------
-    const getPdfData = () => {
-        const rows = tableData.map(row => [
-            row.type, 
-            row.totalGL.toFixed(2), 
-            row.totalMT.toFixed(3), 
-            row.totalSelectionWorkers.toString(),
-            row.hrWorkers.toString(), 
-            row.selectionCost.toLocaleString(), 
-            row.handRollingCost.toLocaleString(),
-            row.totalDryerUnits.toString(), 
-            row.rPoints.toString(), 
-            row.dryerCost.toLocaleString(),
-            row.rollerCost.toLocaleString(), 
-            row.totalElectricityCost.toLocaleString()
+    const generatePDF = async () => {
+        if (tableData.length === 0) {
+            toast.error("No data available to download.");
+            return;
+        }
+
+        const doc = new jsPDF('landscape'); 
+        try {
+            const res = await fetch("/logo.png");
+            if (res.ok) {
+                const blob = await res.blob();
+                const dataUrl = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+                doc.addImage(dataUrl, "PNG", 14, 10, 30, 30); 
+            }
+        } catch (err) {}
+        
+        doc.setFontSize(20);
+        doc.setTextColor(27, 106, 49); 
+        doc.text("Hand Made Tea Factory - Production Summary", 50, 18);
+        
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+
+        const dateObj = new Date(`${filterMonth}-01`);
+        const dateFilterText = `Month: ${dateObj.toLocaleString('default', { month: 'long', year: 'numeric' })}`;
+        
+        doc.text(dateFilterText, 50, 25);
+        doc.text(`Selected Tea Types: ${selectedTeaTypes.join(', ')}`, 50, 31);
+        doc.text(`Rates -> Labour: Rs. ${labourRate} | Electricity: Rs. ${electricityRate}`, 50, 37);
+
+        const tableHead = [
+            [
+                { content: "Type of Tea", rowSpan: 2, styles: { halign: 'center', valign: 'middle', fillColor: [27, 106, 49] } },
+                { content: "Quantity (kg)", colSpan: 2, styles: { halign: 'center', fillColor: [27, 106, 49] } },
+                { content: "Labour Requirement", colSpan: 2, styles: { halign: 'center', fillColor: [27, 106, 49] } },
+                { content: "Labour Cost (Rs.)", colSpan: 2, styles: { halign: 'center', fillColor: [27, 106, 49] } },
+                { content: "Electricity (pts)", colSpan: 2, styles: { halign: 'center', fillColor: [27, 106, 49] } },
+                { content: "Electricity Cost (Rs.)", colSpan: 3, styles: { halign: 'center', fillColor: [27, 106, 49] } }
+            ],
+            [
+                { content: "G/L", styles: { halign: 'center', fillColor: [40, 130, 60] } },
+                { content: "M/T", styles: { halign: 'center', fillColor: [40, 130, 60] } },
+                { content: "Selection", styles: { halign: 'center', fillColor: [40, 130, 60] } },
+                { content: "Hand Roll", styles: { halign: 'center', fillColor: [40, 130, 60] } },
+                { content: "Selection", styles: { halign: 'center', fillColor: [40, 130, 60] } },
+                { content: "Hand Roll", styles: { halign: 'center', fillColor: [40, 130, 60] } },
+                { content: "Dryer", styles: { halign: 'center', fillColor: [40, 130, 60] } },
+                { content: "Roller", styles: { halign: 'center', fillColor: [40, 130, 60] } },
+                { content: "Dryer", styles: { halign: 'center', fillColor: [40, 130, 60] } },
+                { content: "Roller", styles: { halign: 'center', fillColor: [40, 130, 60] } },
+                { content: "Total Cost", styles: { halign: 'center', fillColor: [40, 130, 60] } }
+            ]
+        ];
+        
+        const tableRows = tableData.map(row => [
+            row.type, row.totalGL.toFixed(2), row.totalMT.toFixed(3), row.totalSelectionWorkers.toString(),
+            row.hrWorkers.toString(), row.selectionCost.toLocaleString(), row.handRollingCost.toLocaleString(),
+            row.totalDryerUnits.toString(), row.rPoints.toString(), row.dryerCost.toLocaleString(),
+            row.rollerCost.toLocaleString(), row.totalElectricityCost.toLocaleString()
         ]);
 
-        rows.push([
-            "GRAND TOTAL", 
-            grandTotals.totalGL.toFixed(2), 
-            grandTotals.totalMT.toFixed(3),
-            grandTotals.totalSelectionWorkers.toString(), 
-            grandTotals.hrWorkers.toString(),
-            grandTotals.selectionCost.toLocaleString(), 
-            grandTotals.handRollingCost.toLocaleString(),
-            grandTotals.totalDryerUnits.toString(), 
-            grandTotals.rPoints.toString(),
-            grandTotals.dryerCost.toLocaleString(), 
-            grandTotals.rollerCost.toLocaleString(),
+        tableRows.push([
+            "GRAND TOTAL", grandTotals.totalGL.toFixed(2), grandTotals.totalMT.toFixed(3),
+            grandTotals.totalSelectionWorkers.toString(), grandTotals.hrWorkers.toString(),
+            grandTotals.selectionCost.toLocaleString(), grandTotals.handRollingCost.toLocaleString(),
+            grandTotals.totalDryerUnits.toString(), grandTotals.rPoints.toString(),
+            grandTotals.dryerCost.toLocaleString(), grandTotals.rollerCost.toLocaleString(),
             grandTotals.totalElectricityCost.toLocaleString()
         ]);
 
-        return rows;
+        autoTable(doc, {
+            startY: 45,
+            head: tableHead,
+            body: tableRows,
+            theme: 'grid',
+            headStyles: { textColor: 255, fontSize: 8 },
+            bodyStyles: { fontSize: 8, halign: 'center', valign: 'middle' },
+            columnStyles: { 0: { cellWidth: 35, fontStyle: 'bold' } },
+            didParseCell: function(data) {
+                if (data.section === 'body') {
+                    const colIdx = data.column.index;
+                    if (colIdx === 1 || colIdx === 2) { data.cell.styles.textColor = [27, 106, 49]; data.cell.styles.fontStyle = 'bold'; } 
+                    else if (colIdx === 3 || colIdx === 4) { data.cell.styles.textColor = [29, 78, 216]; data.cell.styles.fontStyle = 'bold'; } 
+                    else if (colIdx === 7 || colIdx === 8) { data.cell.styles.textColor = [234, 88, 12]; data.cell.styles.fontStyle = 'bold'; } 
+                    else if (colIdx === 11) { data.cell.styles.textColor = [220, 38, 38]; data.cell.styles.fontStyle = 'bold'; }
+                    if (data.row.index === tableRows.length - 1) {
+                        data.cell.styles.fillColor = [240, 240, 240];
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                }
+            }
+        });
+
+        doc.save(`Production_Summary_${filterMonth}.pdf`);
+        toast.success("PDF Downloaded Successfully!");
+        setShowUnsavedDialog(false); 
     };
 
-    const pdfHeaders = [
-        "Type of Tea", "G/L (kg)", "M/T (kg)", 
-        "Sel. Workers", "H/R Workers", 
-        "Sel. Cost (Rs)", "H/R Cost (Rs)", 
-        "Dryer Pts", "Roller Pts", 
-        "Dryer Cost (Rs)", "Roller Cost (Rs)", 
-        "Total Cost (Rs)"
-    ];
+    const handleDownloadClick = () => {
+        // Viewers bypass the save check!
+        if (!isSaved && !isViewer) {
+            setShowUnsavedDialog(true);
+        } else {
+            generatePDF();
+        }
+    };
 
     const handleSaveAndDownload = async () => {
         const saved = await handleSaveToDatabase();
         if (saved) {
-            setShowUnsavedDialog(false);
-            toast.success("Saved! You can now download the PDF.");
+            generatePDF();
         }
     };
 
@@ -418,7 +494,7 @@ export default function ProductionSummary() {
                             onClick={handleSaveAndDownload} 
                             className="bg-[#1B6A31] hover:bg-green-800 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
                         >
-                            Save
+                            Save & Download
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -453,26 +529,13 @@ export default function ProductionSummary() {
                         {isViewer ? "View Only" : isSaving ? "Saving..." : (isSaved && tableData.length > 0) ? "Saved" : "Save to DB"}
                     </button>
 
-                    {(!isSaved && !isViewer) ? (
-                        <button 
-                            onClick={() => setShowUnsavedDialog(true)}
-                            disabled={tableData.length === 0}
-                            className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${tableData.length === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
-                        >
-                           <FileDown size={18} /> Download PDF
-                        </button>
-                    ) : (
-                        <PDFDownloader 
-                            title="Production Summary"
-                            subtitle={`Month: ${new Date(`${filterMonth}-01`).toLocaleString('default', { month: 'long', year: 'numeric' })} | Selected Tea Types: ${selectedTeaTypes.join(', ')}\nRates -> Labour: Rs. ${labourRate} | Electricity: Rs. ${electricityRate}`}
-                            headers={pdfHeaders}
-                            data={getPdfData()}
-                            fileName={`Production_Summary_${filterMonth}.pdf`}
-                            orientation="landscape"
-                            disabled={tableData.length === 0}
-                            className="bg-blue-600 hover:bg-blue-700 text-white" 
-                        />
-                    )}
+                    <button 
+                        onClick={handleDownloadClick}
+                        disabled={tableData.length === 0}
+                        className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${tableData.length === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                    >
+                        <FileDown size={18} /> Download PDF
+                    </button>
                 </div>
             </div>
             {/* --------------------------- */}
@@ -533,7 +596,7 @@ export default function ProductionSummary() {
                             <div className="relative">
                                 <span className="absolute left-3 top-3 text-gray-400 text-sm font-bold">Rs.</span>
                                 <input 
-                                    type="number" onWheel={(e) => e.target.blur()} value={labourRate} 
+                                    type="number" onWheel={(e) => e.target.blur()} value={labourRate} min="0"
                                     onChange={handleLabourRateChange} 
                                     disabled={isViewer}
                                     className="w-full border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed" 
@@ -545,7 +608,7 @@ export default function ProductionSummary() {
                             <div className="relative">
                                 <span className="absolute left-3 top-3 text-gray-400 text-sm font-bold">Rs.</span>
                                 <input 
-                                    type="number" onWheel={(e) => e.target.blur()} value={electricityRate} 
+                                    type="number" onWheel={(e) => e.target.blur()} value={electricityRate} min="0"
                                     onChange={handleElectricityRateChange} 
                                     disabled={isViewer}
                                     className="w-full border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed" 
@@ -647,7 +710,7 @@ export default function ProductionSummary() {
                                         <td className="px-3 py-4 border-r border-gray-200 font-bold text-blue-700 bg-blue-50/10">{row.totalSelectionWorkers}</td>
                                         <td className="px-2 py-2 border-r border-gray-200 bg-blue-50/30">
                                             <input 
-                                                type="number" onWheel={(e) => e.target.blur()} value={row.hrWorkers || ''} 
+                                                type="number" onWheel={(e) => e.target.blur()} value={row.hrWorkers === 0 ? '' : row.hrWorkers} min="0"
                                                 onChange={(e) => handleManualChange(row.type, 'handRolling', e.target.value.replace(/^0+(?=\d)/, ''))} 
                                                 disabled={isViewer}
                                                 className="w-full p-2 border border-blue-300 rounded text-center font-bold text-blue-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner bg-white disabled:bg-gray-100 disabled:cursor-not-allowed" placeholder="0" 
@@ -658,7 +721,7 @@ export default function ProductionSummary() {
                                         <td className="px-3 py-4 border-r border-gray-200 font-bold text-orange-600 bg-orange-50/10">{row.totalDryerUnits}</td>
                                         <td className="px-2 py-2 border-r border-gray-200 bg-orange-50/30">
                                             <input 
-                                                type="number" onWheel={(e) => e.target.blur()} value={row.rPoints || ''} 
+                                                type="number" onWheel={(e) => e.target.blur()} value={row.rPoints === 0 ? '' : row.rPoints} min="0"
                                                 onChange={(e) => handleManualChange(row.type, 'roller', e.target.value.replace(/^0+(?=\d)/, ''))} 
                                                 disabled={isViewer}
                                                 className="w-full p-2 border border-orange-300 rounded text-center font-bold text-orange-800 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner bg-white disabled:bg-gray-100 disabled:cursor-not-allowed" placeholder="0" 
