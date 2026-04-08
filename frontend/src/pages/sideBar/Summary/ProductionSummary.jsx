@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast'; 
-import { Calculator, Calendar, Leaf, Zap, Users, Settings2, FileDown, RefreshCw, CheckSquare, Square, Save, AlertTriangle, Filter, Info, Eye } from "lucide-react";
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable'; 
+import { Calculator, Calendar, Leaf, Zap, Users, Settings2, RefreshCw, CheckSquare, Square, Save, AlertTriangle, Filter, Info, Eye, FileDown } from "lucide-react";
+import PDFDownloader from '@/components/PDFDownloader'; // Verify path
 
 import {
     AlertDialog,
@@ -23,7 +22,7 @@ export default function ProductionSummary() {
 
     // --- ROLE BASED ACCESS CONTROL ---
     const userRole = localStorage.getItem('userRole') || ''; 
-    const isViewer = userRole.toLowerCase() === 'viewer';
+    const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
 
     // Saving & Dialog States
     const [isSaved, setIsSaved] = useState(true); 
@@ -46,14 +45,16 @@ export default function ProductionSummary() {
         "Flower", "Chakra"
     ];
 
+    // Reset `isSaved` to false whenever any parameter changes
     useEffect(() => {
         setIsSaved(false);
     }, [manualInputs, labourRate, electricityRate, selectedTeaTypes]);
 
+    // Load Data on Mount & Month Change
     useEffect(() => {
         fetchAllData(true); 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [filterMonth]);
 
     const fetchAllData = async (isSilent = false) => {
         setLoading(true);
@@ -70,7 +71,7 @@ export default function ProductionSummary() {
                 fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders })
             ]);
 
-            if (!greenLeafRes.ok || !productionRes.ok || !labRes.ok) {
+            if (!greenLeafRes.ok || !productionRes.ok || !labourRes.ok) {
                 throw new Error("Failed to fetch data");
             }
 
@@ -135,6 +136,7 @@ export default function ProductionSummary() {
             
             if (summaryRes.ok) {
                 const summaries = await summaryRes.json();
+                // Check if the current month exists in the fetched summaries
                 const savedSummary = summaries.find(s => s.reportMonth === month);
 
                 if (savedSummary) {
@@ -154,7 +156,7 @@ export default function ProductionSummary() {
 
                     setSelectedTeaTypes(activeTypes);
                     setManualInputs(newManualInputs);
-                    setIsSaved(true); 
+                    setIsSaved(true); // <-- This effectively disables the Save button
                     if (!isSilent) toast.success(`Loaded saved summary for ${month}!`, { id: toastId });
                     return; 
                 }
@@ -189,7 +191,7 @@ export default function ProductionSummary() {
         const activeTypes = Object.keys(glTotals).filter(type => glTotals[type] > 0);
         setSelectedTeaTypes(activeTypes);
         setManualInputs({}); 
-        setIsSaved(false); 
+        setIsSaved(false); // Enable Save button for new calculations
     };
 
     const toggleTeaType = (type) => {
@@ -218,17 +220,17 @@ export default function ProductionSummary() {
                 [field]: Number(value) || 0
             }
         }));
-        setIsSaved(false);
+        setIsSaved(false); // Enable Save button when manual input changes
     };
 
     const handleLabourRateChange = (e) => {
         setLabourRate(e.target.value.replace(/^0+(?=\d)/, ''));
-        setIsSaved(false);
+        setIsSaved(false); // Enable Save button when rate changes
     };
 
     const handleElectricityRateChange = (e) => {
         setElectricityRate(e.target.value.replace(/^0+(?=\d)/, ''));
-        setIsSaved(false);
+        setIsSaved(false); // Enable Save button when rate changes
     };
 
     const generateTableData = () => {
@@ -329,7 +331,7 @@ export default function ProductionSummary() {
             }
 
             toast.success("Summary saved successfully!", { id: toastId });
-            setIsSaved(true); 
+            setIsSaved(true); // Disable save button after successful save
             return true;
         } catch (error) {
             toast.error(error.message || "Network error.", { id: toastId });
@@ -339,122 +341,57 @@ export default function ProductionSummary() {
         }
     };
 
-    const generatePDF = async () => {
-        if (tableData.length === 0) {
-            toast.error("No data available to download.");
-            return;
-        }
-
-        const doc = new jsPDF('landscape'); 
-        try {
-            const res = await fetch("/logo.png");
-            if (res.ok) {
-                const blob = await res.blob();
-                const dataUrl = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
-                });
-                doc.addImage(dataUrl, "PNG", 14, 10, 30, 30); 
-            }
-        } catch (err) {}
-        
-        doc.setFontSize(20);
-        doc.setTextColor(27, 106, 49); 
-        doc.text("Hand Made Tea Factory - Production Summary", 50, 18);
-        
-        doc.setFontSize(11);
-        doc.setTextColor(100);
-
-        const dateObj = new Date(`${filterMonth}-01`);
-        const dateFilterText = `Month: ${dateObj.toLocaleString('default', { month: 'long', year: 'numeric' })}`;
-        
-        doc.text(dateFilterText, 50, 25);
-        doc.text(`Selected Tea Types: ${selectedTeaTypes.join(', ')}`, 50, 31);
-        doc.text(`Rates -> Labour: Rs. ${labourRate} | Electricity: Rs. ${electricityRate}`, 50, 37);
-
-        const tableHead = [
-            [
-                { content: "Type of Tea", rowSpan: 2, styles: { halign: 'center', valign: 'middle', fillColor: [27, 106, 49] } },
-                { content: "Quantity (kg)", colSpan: 2, styles: { halign: 'center', fillColor: [27, 106, 49] } },
-                { content: "Labour Requirement", colSpan: 2, styles: { halign: 'center', fillColor: [27, 106, 49] } },
-                { content: "Labour Cost (Rs.)", colSpan: 2, styles: { halign: 'center', fillColor: [27, 106, 49] } },
-                { content: "Electricity (pts)", colSpan: 2, styles: { halign: 'center', fillColor: [27, 106, 49] } },
-                { content: "Electricity Cost (Rs.)", colSpan: 3, styles: { halign: 'center', fillColor: [27, 106, 49] } }
-            ],
-            [
-                { content: "G/L", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "M/T", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Selection", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Hand Roll", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Selection", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Hand Roll", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Dryer", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Roller", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Dryer", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Roller", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Total Cost", styles: { halign: 'center', fillColor: [40, 130, 60] } }
-            ]
-        ];
-        
-        const tableRows = tableData.map(row => [
-            row.type, row.totalGL.toFixed(2), row.totalMT.toFixed(3), row.totalSelectionWorkers.toString(),
-            row.hrWorkers.toString(), row.selectionCost.toLocaleString(), row.handRollingCost.toLocaleString(),
-            row.totalDryerUnits.toString(), row.rPoints.toString(), row.dryerCost.toLocaleString(),
-            row.rollerCost.toLocaleString(), row.totalElectricityCost.toLocaleString()
+    // -------------------------------------------------------------
+    // PREPARE PDF DATA FOR THE COMPONENT
+    // -------------------------------------------------------------
+    const getPdfData = () => {
+        const rows = tableData.map(row => [
+            row.type, 
+            row.totalGL.toFixed(2), 
+            row.totalMT.toFixed(3), 
+            row.totalSelectionWorkers.toString(),
+            row.hrWorkers.toString(), 
+            row.selectionCost.toLocaleString(), 
+            row.handRollingCost.toLocaleString(),
+            row.totalDryerUnits.toString(), 
+            row.rPoints.toString(), 
+            row.dryerCost.toLocaleString(),
+            row.rollerCost.toLocaleString(), 
+            row.totalElectricityCost.toLocaleString()
         ]);
 
-        tableRows.push([
-            "GRAND TOTAL", grandTotals.totalGL.toFixed(2), grandTotals.totalMT.toFixed(3),
-            grandTotals.totalSelectionWorkers.toString(), grandTotals.hrWorkers.toString(),
-            grandTotals.selectionCost.toLocaleString(), grandTotals.handRollingCost.toLocaleString(),
-            grandTotals.totalDryerUnits.toString(), grandTotals.rPoints.toString(),
-            grandTotals.dryerCost.toLocaleString(), grandTotals.rollerCost.toLocaleString(),
+        rows.push([
+            "GRAND TOTAL", 
+            grandTotals.totalGL.toFixed(2), 
+            grandTotals.totalMT.toFixed(3),
+            grandTotals.totalSelectionWorkers.toString(), 
+            grandTotals.hrWorkers.toString(),
+            grandTotals.selectionCost.toLocaleString(), 
+            grandTotals.handRollingCost.toLocaleString(),
+            grandTotals.totalDryerUnits.toString(), 
+            grandTotals.rPoints.toString(),
+            grandTotals.dryerCost.toLocaleString(), 
+            grandTotals.rollerCost.toLocaleString(),
             grandTotals.totalElectricityCost.toLocaleString()
         ]);
 
-        autoTable(doc, {
-            startY: 45,
-            head: tableHead,
-            body: tableRows,
-            theme: 'grid',
-            headStyles: { textColor: 255, fontSize: 8 },
-            bodyStyles: { fontSize: 8, halign: 'center', valign: 'middle' },
-            columnStyles: { 0: { cellWidth: 35, fontStyle: 'bold' } },
-            didParseCell: function(data) {
-                if (data.section === 'body') {
-                    const colIdx = data.column.index;
-                    if (colIdx === 1 || colIdx === 2) { data.cell.styles.textColor = [27, 106, 49]; data.cell.styles.fontStyle = 'bold'; } 
-                    else if (colIdx === 3 || colIdx === 4) { data.cell.styles.textColor = [29, 78, 216]; data.cell.styles.fontStyle = 'bold'; } 
-                    else if (colIdx === 7 || colIdx === 8) { data.cell.styles.textColor = [234, 88, 12]; data.cell.styles.fontStyle = 'bold'; } 
-                    else if (colIdx === 11) { data.cell.styles.textColor = [220, 38, 38]; data.cell.styles.fontStyle = 'bold'; }
-                    if (data.row.index === tableRows.length - 1) {
-                        data.cell.styles.fillColor = [240, 240, 240];
-                        data.cell.styles.fontStyle = 'bold';
-                    }
-                }
-            }
-        });
-
-        doc.save(`Production_Summary_${filterMonth}.pdf`);
-        toast.success("PDF Downloaded Successfully!");
-        setShowUnsavedDialog(false); 
+        return rows;
     };
 
-    const handleDownloadClick = () => {
-        // Viewers are allowed to download without triggering the unsaved warning!
-        if (!isSaved && !isViewer) {
-            setShowUnsavedDialog(true);
-        } else {
-            generatePDF();
-        }
-    };
+    const pdfHeaders = [
+        "Type of Tea", "G/L (kg)", "M/T (kg)", 
+        "Sel. Workers", "H/R Workers", 
+        "Sel. Cost (Rs)", "H/R Cost (Rs)", 
+        "Dryer Pts", "Roller Pts", 
+        "Dryer Cost (Rs)", "Roller Cost (Rs)", 
+        "Total Cost (Rs)"
+    ];
 
     const handleSaveAndDownload = async () => {
         const saved = await handleSaveToDatabase();
         if (saved) {
-            generatePDF();
+            setShowUnsavedDialog(false);
+            toast.success("Saved! You can now download the PDF.");
         }
     };
 
@@ -481,7 +418,7 @@ export default function ProductionSummary() {
                             onClick={handleSaveAndDownload} 
                             className="bg-[#1B6A31] hover:bg-green-800 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
                         >
-                            Save & Download
+                            Save
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -516,13 +453,26 @@ export default function ProductionSummary() {
                         {isViewer ? "View Only" : isSaving ? "Saving..." : (isSaved && tableData.length > 0) ? "Saved" : "Save to DB"}
                     </button>
 
-                    <button 
-                        onClick={handleDownloadClick}
-                        disabled={tableData.length === 0}
-                        className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${tableData.length === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
-                    >
-                        <FileDown size={18} /> Download PDF
-                    </button>
+                    {(!isSaved && !isViewer) ? (
+                        <button 
+                            onClick={() => setShowUnsavedDialog(true)}
+                            disabled={tableData.length === 0}
+                            className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${tableData.length === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                        >
+                           <FileDown size={18} /> Download PDF
+                        </button>
+                    ) : (
+                        <PDFDownloader 
+                            title="Production Summary"
+                            subtitle={`Month: ${new Date(`${filterMonth}-01`).toLocaleString('default', { month: 'long', year: 'numeric' })} | Selected Tea Types: ${selectedTeaTypes.join(', ')}\nRates -> Labour: Rs. ${labourRate} | Electricity: Rs. ${electricityRate}`}
+                            headers={pdfHeaders}
+                            data={getPdfData()}
+                            fileName={`Production_Summary_${filterMonth}.pdf`}
+                            orientation="landscape"
+                            disabled={tableData.length === 0}
+                            className="bg-blue-600 hover:bg-blue-700 text-white" 
+                        />
+                    )}
                 </div>
             </div>
             {/* --------------------------- */}

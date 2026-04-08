@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast'; 
-import { Calculator, Calendar, Leaf, Zap, Users, Settings2, FileDown, RefreshCw, CheckSquare, Square, Save, AlertTriangle, Filter, Info, Eye } from "lucide-react";
+import { Calculator, DollarSign, Info, Calendar, FileDown, Save, X, AlertCircle, Eye } from "lucide-react"; 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable'; 
+import PDFDownloader from '@/components/PDFDownloader'; // Update path if needed
 
 import {
     AlertDialog,
@@ -15,50 +16,45 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-export default function ProductionSummary() {
+export default function CostOfProduction() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const [loading, setLoading] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [records, setRecords] = useState([]);
-
+    const [isSaving, setIsSaving] = useState(false); 
+    
     // --- ROLE BASED ACCESS CONTROL ---
     const userRole = localStorage.getItem('userRole') || ''; 
-    const isViewer = userRole.toLowerCase() === 'viewer';
+    const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view'; 
 
-    // Saving & Dialog States
-    const [isSaved, setIsSaved] = useState(true); 
-    const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+    // DB tracking
+    const [isSaved, setIsSaved] = useState(false);
+    
+    // PDF Unsaved Alert States
+    const [showUnsavedAlert, setShowUnsavedAlert] = useState(false);
+    const [pendingPdfAction, setPendingPdfAction] = useState(null); // 'single' or 'range'
 
-    // Filters
-    const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7)); 
-    const [selectedTeaTypes, setSelectedTeaTypes] = useState([]); 
-
-    // Rates
-    const [labourRate, setLabourRate] = useState(1350);
+    // Filters & Rates
+    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); 
+    const [monthlyGlRate, setMonthlyGlRate] = useState(0); 
+    const [labourRate, setLabourRate] = useState(1350); 
     const [electricityRate, setElectricityRate] = useState(10);
+    
+    const [records, setRecords] = useState([]);
+    const [supervisionCosts, setSupervisionCosts] = useState({});
+    const [handRollingWorkers, setHandRollingWorkers] = useState({});
 
-    // Manual Inputs
-    const [manualInputs, setManualInputs] = useState({});
+    // Range PDF Modal States
+    const [showRangeModal, setShowRangeModal] = useState(false);
+    const [rangeStartMonth, setRangeStartMonth] = useState('');
+    const [rangeEndMonth, setRangeEndMonth] = useState('');
+    const [isGeneratingRangePDF, setIsGeneratingRangePDF] = useState(false);
 
-    const teaOptions = [
-        "Purple Tea", "Pink Tea", "White Tea", "Silver Tips", 
-        "Silver Green", "VitaGlow Tea", "Slim Beauty", "Golden Tips", 
-        "Flower", "Chakra"
-    ];
+    const preferredOrder = ["Purple Tea", "Pink Tea", "Golden Tips", "Silver Green", "White Tea"];
 
-    // Load Data on Mount
     useEffect(() => {
-        fetchAllData(true); // 'true' means silent load (no extra toasts on mount)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        fetchAndProcessData();
+    }, [selectedMonth]); 
 
-    // Reset `isSaved` to false whenever any parameter changes
-    useEffect(() => {
-        setIsSaved(false);
-    }, [manualInputs, labourRate, electricityRate, selectedTeaTypes]);
-
-    // Fetches raw data, then automatically loads the active month's summary
-    const fetchAllData = async (isSilent = false) => {
+    const fetchAndProcessData = async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
@@ -67,27 +63,68 @@ export default function ProductionSummary() {
                 'Authorization': `Bearer ${token}`
             };
 
-            const [greenLeafRes, productionRes, labourRes] = await Promise.all([
+            const [glRes, prodRes, labRes, costRes] = await Promise.all([
                 fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
                 fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
-                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders })
+                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/cost-of-production/${selectedMonth}`, { headers: authHeaders }).catch(() => null)
             ]);
 
-            if (!greenLeafRes.ok || !productionRes.ok || !labRes.ok) {
+            if (!glRes.ok || !prodRes.ok || !labRes.ok) {
+                if (glRes.status === 401 || prodRes.status === 401 || labRes.status === 401) {
+                    throw new Error("Unauthorized. Please log in.");
+                }
                 throw new Error("Failed to fetch data");
             }
 
-            const greenLeafData = await greenLeafRes.json();
-            const productionData = await productionRes.json();
-            const labourData = await labourRes.json();
+            const glData = await glRes.json();
+            const prodData = await prodRes.json();
+            const labData = await labRes.json();
 
+            // 1. Check if current month is already saved & AUTO FILL DATA
+            if (costRes && costRes.ok) {
+                const savedMonthData = await costRes.json();
+                
+                if (savedMonthData && savedMonthData.month === selectedMonth) {
+                    setIsSaved(true);
+                    setMonthlyGlRate(savedMonthData.monthlyGlRate || 0);
+                    setLabourRate(savedMonthData.labourRate || 1350);
+                    setElectricityRate(savedMonthData.electricityRate || 10);
+
+                    const loadedSup = {};
+                    const loadedHr = {};
+                    const dbLabRate = savedMonthData.labourRate || 1350;
+
+                    (savedMonthData.teaCosts || []).forEach(tc => {
+                        loadedSup[tc.teaType] = tc.supervisionCost || 0;
+                        loadedHr[tc.teaType] = tc.handRollingCost ? (tc.handRollingCost / dbLabRate) : 0;
+                    });
+
+                    setSupervisionCosts(loadedSup);
+                    setHandRollingWorkers(loadedHr);
+                } else {
+                    setIsSaved(false);
+                    setSupervisionCosts({});
+                    setHandRollingWorkers({});
+                }
+            } else {
+                setIsSaved(false);
+                setSupervisionCosts({});
+                setHandRollingWorkers({});
+            }
+
+            // 2. Process Production & GL Data
+            const filteredProd = prodData.filter(p => p.date.startsWith(selectedMonth));
+            const summary = {};
             const glUsage = {};
             const labUsage = {};
 
-            const merged = productionData.map(prod => {
+            filteredProd.forEach(prod => {
+                const type = prod.teaType || 'Other';
                 const dateStr = new Date(prod.date).toISOString().split('T')[0];
-                const glsForDate = greenLeafData.filter(g => new Date(g.date).toISOString().split('T')[0] === dateStr);
-                const labsForDate = labourData.filter(l => new Date(l.date).toISOString().split('T')[0] === dateStr);
+                
+                const glsForDate = glData.filter(g => new Date(g.date).toISOString().split('T')[0] === dateStr);
+                const labsForDate = labData.filter(l => new Date(l.date).toISOString().split('T')[0] === dateStr);
 
                 if (glUsage[dateStr] === undefined) glUsage[dateStr] = 0;
                 if (labUsage[dateStr] === undefined) labUsage[dateStr] = 0;
@@ -97,654 +134,744 @@ export default function ProductionSummary() {
 
                 glUsage[dateStr]++;
                 labUsage[dateStr]++;
+
+                if (!summary[type]) {
+                    summary[type] = {
+                        teaType: type,
+                        selectedWeight: 0,
+                        madeTeaWeight: 0,
+                        selectionWorkers: 0,
+                        dryerUnits: 0
+                    };
+                }
+
+                summary[type].selectedWeight += Number(gl?.selectedWeight || 0);
+                summary[type].madeTeaWeight += Number(prod.madeTeaWeight || 0);
+                summary[type].selectionWorkers += Number(lab?.workerCount || 0);
                 
                 const mStart = Number(prod?.dryerDetails?.meterStart) || 0;
                 const mEnd = Number(prod?.dryerDetails?.meterEnd) || 0;
-                const calculatedUnits = mEnd > mStart ? (mEnd - mStart) : 0;
-
-                return {
-                    date: dateStr,
-                    teaType: prod.teaType || 'Unknown',
-                    madeTeaWeight: prod.madeTeaWeight || 0,
-                    selectedWeight: gl ? gl.selectedWeight : 0,
-                    workerCount: lab ? lab.workerCount : 0,
-                    meterStart: mStart, 
-                    meterEnd: mEnd,     
-                    dryerUnits: calculatedUnits
-                };
+                summary[type].dryerUnits += (mEnd > mStart ? mEnd - mStart : 0);
             });
 
-            setRecords(merged);
-            
-            // Automatically process the active month after fetching raw data
-            await loadMonthDataInternal(filterMonth, merged, isSilent);
+            let recordsArray = Object.values(summary);
+            recordsArray.sort((a, b) => {
+                const indexA = preferredOrder.indexOf(a.teaType);
+                const indexB = preferredOrder.indexOf(b.teaType);
+                if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                if (indexA !== -1) return -1;
+                if (indexB !== -1) return 1;
+                return a.teaType.localeCompare(b.teaType);
+            });
 
+            setRecords(recordsArray);
         } catch (error) {
-            if (!isSilent) toast.error("Could not load data from server.");
+            toast.error(error.message || "Error loading data");
         } finally {
             setLoading(false);
         }
     };
 
-    // Internal function to handle loading the month (used by mount and manual button click)
-    const loadMonthDataInternal = async (month, availableRecords, isSilent = false) => {
-        let toastId;
-        if (!isSilent) toastId = toast.loading(`Loading data for ${month}...`);
-
-        try {
-            const token = localStorage.getItem('token');
-            const authHeaders = { 'Authorization': `Bearer ${token}` };
-
-            const summaryRes = await fetch(`${BACKEND_URL}/api/production-summary`, { headers: authHeaders });
-            
-            if (summaryRes.ok) {
-                const summaries = await summaryRes.json();
-                const savedSummary = summaries.find(s => s.reportMonth === month);
-
-                if (savedSummary) {
-                    setLabourRate(savedSummary.labourRate);
-                    setElectricityRate(savedSummary.electricityRate);
-
-                    const newManualInputs = {};
-                    const activeTypes = [];
-
-                    savedSummary.teaSummaries.forEach(tea => {
-                        activeTypes.push(tea.type);
-                        newManualInputs[tea.type] = {
-                            handRolling: tea.hrWorkers,
-                            roller: tea.rPoints
-                        };
-                    });
-
-                    setSelectedTeaTypes(activeTypes);
-                    setManualInputs(newManualInputs);
-                    setIsSaved(true); 
-                    if (!isSilent) toast.success(`Loaded saved summary for ${month}!`, { id: toastId });
-                    return; 
-                }
-            }
-
-            // If no save exists, perform fresh calculations
-            autoSelectActiveTeaTypes(availableRecords, month);
-            if (!isSilent) toast.success(`Generated new calculations for ${month}`, { id: toastId });
-
-        } catch (err) {
-            if (!isSilent) toast.error("Error checking database.", { id: toastId });
-        }
-    };
-
-    const handleLoadMonthDataClick = () => {
-        if (!filterMonth) {
-            toast.error("Please select a month first!");
-            return;
-        }
-        loadMonthDataInternal(filterMonth, records, false);
-    };
-
-    const autoSelectActiveTeaTypes = (allRecords, month) => {
-        const monthRecords = allRecords.filter(r => r.date.startsWith(month));
-        const glTotals = {};
-        
-        monthRecords.forEach(r => {
-            if (r.teaType !== 'Unknown') {
-                glTotals[r.teaType] = (glTotals[r.teaType] || 0) + Number(r.selectedWeight || 0);
-            }
-        });
-
-        const activeTypes = Object.keys(glTotals).filter(type => glTotals[type] > 0);
-        setSelectedTeaTypes(activeTypes);
-        setManualInputs({}); 
-        setIsSaved(false); 
-    };
-
-    const toggleTeaType = (type) => {
-        if (selectedTeaTypes.includes(type)) {
-            setSelectedTeaTypes(selectedTeaTypes.filter(t => t !== type));
-        } else {
-            setSelectedTeaTypes([...selectedTeaTypes, type]);
-        }
+    // Manual input Change Handlers
+    const handleSupervisionChange = (type, value) => {
+        if (Number(value) < 0) return;
+        setSupervisionCosts(prev => ({ ...prev, [type]: Number(value) || 0 }));
         setIsSaved(false);
     };
 
-    const handleSelectAll = () => {
-        if (selectedTeaTypes.length === teaOptions.length) {
-            setSelectedTeaTypes([]); 
-        } else {
-            setSelectedTeaTypes([...teaOptions]); 
-        }
+    const handleHandRollingChange = (type, value) => {
+        if (Number(value) < 0) return;
+        setHandRollingWorkers(prev => ({ ...prev, [type]: Number(value) || 0 }));
         setIsSaved(false);
     };
 
-    const handleManualChange = (type, field, value) => {
-        setManualInputs(prev => ({
-            ...prev,
-            [type]: {
-                ...prev[type],
-                [field]: Number(value) || 0
-            }
-        }));
+    const handleRateChange = (setter) => (e) => {
+        const val = e.target.value.replace(/^0+(?=\d)/, '');
+        if (Number(val) < 0) return;
+        setter(val);
         setIsSaved(false);
     };
 
-    const handleLabourRateChange = (e) => {
-        setLabourRate(e.target.value.replace(/^0+(?=\d)/, ''));
-        setIsSaved(false);
-    };
+    const grandTotalAllTeas = records.reduce((total, item) => {
+        const glCost = item.selectedWeight * monthlyGlRate;
+        const selectionCost = item.selectionWorkers * labourRate;
+        const electricityCost = item.dryerUnits * electricityRate;
+        const supCost = supervisionCosts[item.teaType] || 0;
+        const hrWorkers = handRollingWorkers[item.teaType] || 0;
+        const handRollingCost = hrWorkers * labourRate;
 
-    const handleElectricityRateChange = (e) => {
-        setElectricityRate(e.target.value.replace(/^0+(?=\d)/, ''));
-        setIsSaved(false);
-    };
+        return total + glCost + selectionCost + handRollingCost + electricityCost + supCost;
+    }, 0);
 
-    const generateTableData = () => {
-        if (selectedTeaTypes.length === 0) return []; 
-
-        let dateFiltered = records;
-        if (filterMonth) {
-            dateFiltered = dateFiltered.filter(r => r.date.startsWith(filterMonth));
-        }
-
-        return selectedTeaTypes.map(type => {
-            const relevantRecords = dateFiltered.filter(r => r.teaType === type);
-
-            const totalGL = relevantRecords.reduce((sum, r) => sum + Number(r.selectedWeight || 0), 0);
-            const totalSelectionWorkers = relevantRecords.reduce((sum, r) => sum + Number(r.workerCount || 0), 0);
-            const totalMT = relevantRecords.reduce((sum, r) => sum + Number(r.madeTeaWeight || 0), 0);
-
-            const uniqueDryerRecords = [];
-            relevantRecords.forEach(r => {
-                const isDuplicate = uniqueDryerRecords.some(ud => ud.date === r.date && ud.meterStart === r.meterStart && ud.meterEnd === r.meterEnd);
-                if (!isDuplicate) uniqueDryerRecords.push(r);
-            });
-            const totalDryerUnits = uniqueDryerRecords.reduce((sum, r) => sum + Number(r.dryerUnits || 0), 0);
-
-            const hrWorkers = manualInputs[type]?.handRolling || 0;
-            const rPoints = manualInputs[type]?.roller || 0;
-
-            const selectionCost = totalSelectionWorkers * labourRate;
-            const handRollingCost = hrWorkers * labourRate;
-            const dryerCost = totalDryerUnits * electricityRate;
-            const rollerCost = rPoints * electricityRate;
-            const totalElectricityCost = dryerCost + rollerCost;
-
-            return {
-                type, totalGL, totalMT, totalSelectionWorkers, hrWorkers, selectionCost,
-                handRollingCost, totalDryerUnits, rPoints, dryerCost, rollerCost, totalElectricityCost
-            };
-        });
-    };
-
-    const tableData = generateTableData();
-
-    const grandTotals = tableData.reduce((acc, row) => ({
-        totalGL: acc.totalGL + row.totalGL,
-        totalMT: acc.totalMT + row.totalMT,
-        totalSelectionWorkers: acc.totalSelectionWorkers + row.totalSelectionWorkers,
-        hrWorkers: acc.hrWorkers + row.hrWorkers,
-        selectionCost: acc.selectionCost + row.selectionCost,
-        handRollingCost: acc.handRollingCost + row.handRollingCost,
-        totalDryerUnits: acc.totalDryerUnits + row.totalDryerUnits,
-        rPoints: acc.rPoints + row.rPoints,
-        dryerCost: acc.dryerCost + row.dryerCost,
-        rollerCost: acc.rollerCost + row.rollerCost,
-        totalElectricityCost: acc.totalElectricityCost + row.totalElectricityCost
-    }), {
-        totalGL: 0, totalMT: 0, totalSelectionWorkers: 0, hrWorkers: 0,
-        selectionCost: 0, handRollingCost: 0, totalDryerUnits: 0, rPoints: 0,
-        dryerCost: 0, rollerCost: 0, totalElectricityCost: 0
-    });
-
+    // Save to Database Logic
     const handleSaveToDatabase = async () => {
         if (isViewer) {
             toast.error("Viewers are not allowed to save data.");
             return false;
         }
 
-        if (tableData.length === 0) {
-            toast.error("No production data to save!");
+        if (records.length === 0) {
+            toast.error("No records to save!");
             return false;
         }
 
         setIsSaving(true);
-        const toastId = toast.loading("Saving summary to database...");
+        const toastId = toast.loading('Saving to database...');
 
         try {
-            const token = localStorage.getItem('token');
+            const teaCostsPayload = records.map(item => {
+                const glCost = item.selectedWeight * monthlyGlRate;
+                const selectionCost = item.selectionWorkers * labourRate;
+                const electricityCost = item.dryerUnits * electricityRate;
+                const supCost = supervisionCosts[item.teaType] || 0;
+                const hrWorkers = handRollingWorkers[item.teaType] || 0;
+                const handRollingCost = hrWorkers * labourRate;
+                const totalCost = glCost + selectionCost + handRollingCost + electricityCost + supCost;
+
+                return {
+                    teaType: item.teaType,
+                    selectedWeight: item.selectedWeight,
+                    madeTeaWeight: item.madeTeaWeight,
+                    glCost,
+                    selectionCost,
+                    handRollingCost,
+                    electricityCost,
+                    supervisionCost: supCost,
+                    totalCost
+                };
+            });
+
             const payload = {
-                reportMonth: filterMonth,
+                month: selectedMonth,
+                monthlyGlRate: Number(monthlyGlRate),
                 labourRate: Number(labourRate),
                 electricityRate: Number(electricityRate),
-                teaSummaries: tableData,
-                grandTotals: grandTotals
+                teaCosts: teaCostsPayload,
+                grandTotal: grandTotalAllTeas
             };
 
-            const response = await fetch(`${BACKEND_URL}/api/production-summary`, {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BACKEND_URL}/api/cost-of-production`, {
                 method: 'POST',
-                headers: {
+                headers: { 
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify(payload)
             });
 
-            if (!response.ok) {
-                if (response.status === 403) throw new Error("Access Denied. Admins/Officers only.");
-                throw new Error("Failed to save to database");
+            if (response.ok) {
+                toast.success(`Cost data for ${selectedMonth} saved successfully!`, { id: toastId });
+                setIsSaved(true);
+                return true;
+            } else {
+                if (response.status === 403) {
+                    toast.error("Access Denied. You don't have permission.", { id: toastId });
+                } else {
+                    throw new Error("Failed to save data");
+                }
+                return false;
             }
-
-            toast.success("Summary saved successfully!", { id: toastId });
-            setIsSaved(true); 
-            return true;
         } catch (error) {
-            toast.error(error.message || "Network error.", { id: toastId });
+            console.error(error);
+            toast.error("Database saving failed.", { id: toastId });
             return false;
         } finally {
             setIsSaving(false);
         }
     };
 
-    const generatePDF = async () => {
-        if (tableData.length === 0) {
-            toast.error("No data available to download.");
+    const handleSaveAndDownload = async () => {
+        setShowUnsavedAlert(false);
+        const success = await handleSaveToDatabase();
+        
+        if (success) {
+            if (pendingPdfAction === 'single') {
+                toast.success("Saved! You can now click Download PDF again.");
+            } else if (pendingPdfAction === 'range') {
+                generateRangePDF(true); 
+            }
+        }
+        setPendingPdfAction(null);
+    };
+
+    // -------------------------------------------------------------
+    // Prepare Data for Single Month PDF (using PDFDownloader)
+    // -------------------------------------------------------------
+    const getSinglePdfData = () => {
+        const rows = [];
+
+        records.forEach((item) => {
+            const glCost = item.selectedWeight * monthlyGlRate;
+            const selectionCost = item.selectionWorkers * labourRate;
+            const electricityCost = item.dryerUnits * electricityRate;
+            const supCost = supervisionCosts[item.teaType] || 0;
+            const hrWorkers = handRollingWorkers[item.teaType] || 0;
+            const handRollingCost = hrWorkers * labourRate;
+            const totalCost = glCost + selectionCost + handRollingCost + electricityCost + supCost;
+
+            rows.push([
+                item.teaType,
+                "Green Leaf (G/L) Cost",
+                `${item.selectedWeight.toFixed(2)} kg @ Rs.${monthlyGlRate}`,
+                glCost.toLocaleString(undefined, {minimumFractionDigits: 2})
+            ]);
+            rows.push([
+                "",
+                "G/L Selection Cost",
+                `${item.selectionWorkers} workers`,
+                selectionCost.toLocaleString(undefined, {minimumFractionDigits: 2})
+            ]);
+            rows.push([
+                "",
+                "Hand Rolling Cost",
+                `${hrWorkers} workers`,
+                handRollingCost.toLocaleString(undefined, {minimumFractionDigits: 2})
+            ]);
+            rows.push([
+                "",
+                "Electricity Cost",
+                `${item.dryerUnits} units`,
+                electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2})
+            ]);
+            rows.push([
+                "",
+                "Supervision Cost",
+                "Manual Input",
+                supCost.toLocaleString(undefined, {minimumFractionDigits: 2})
+            ]);
+            rows.push([
+                "",
+                "TOTAL COST",
+                `Made Tea: ${item.madeTeaWeight.toFixed(3)} kg`,
+                totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})
+            ]);
+        });
+
+        rows.push([
+            "GRAND TOTAL (ALL TEAS)", "-", "-", grandTotalAllTeas.toLocaleString(undefined, {minimumFractionDigits: 2})
+        ]);
+
+        return rows;
+    };
+
+    // -------------------------------------------------------------
+    // Range Months PDF Generation (Custom jsPDF logic)
+    // -------------------------------------------------------------
+    const generateRangePDF = async (bypassCheck = false) => {
+        if (!rangeStartMonth || !rangeEndMonth) {
+            toast.error("Please select both Start and End months.");
             return;
         }
 
-        const doc = new jsPDF('landscape'); 
+        if (rangeStartMonth > rangeEndMonth) {
+            toast.error("Start month must be before End month.");
+            return;
+        }
+
+        // Viewer can bypass the save check, Admin/Officer must save first
+        if (!isSaved && !bypassCheck && !isViewer) {
+            setPendingPdfAction('range');
+            setShowUnsavedAlert(true);
+            return;
+        }
+
+        setIsGeneratingRangePDF(true);
+        const toastId = toast.loading('Fetching data and generating PDF...');
+
         try {
-            const res = await fetch("/logo.png");
-            if (res.ok) {
-                const blob = await res.blob();
-                const dataUrl = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
-                });
-                doc.addImage(dataUrl, "PNG", 14, 10, 30, 30); 
+            let start = new Date(rangeStartMonth);
+            let end = new Date(rangeEndMonth);
+            let monthsArray = [];
+            let current = new Date(start);
+            while (current <= end) {
+                monthsArray.push(current.toISOString().slice(0, 7));
+                current.setMonth(current.getMonth() + 1);
             }
-        } catch (err) {}
-        
-        doc.setFontSize(20);
-        doc.setTextColor(27, 106, 49); 
-        doc.text("Hand Made Tea Factory - Production Summary", 50, 18);
-        
-        doc.setFontSize(11);
-        doc.setTextColor(100);
 
-        const dateObj = new Date(`${filterMonth}-01`);
-        const dateFilterText = `Month: ${dateObj.toLocaleString('default', { month: 'long', year: 'numeric' })}`;
-        
-        doc.text(dateFilterText, 50, 25);
-        doc.text(`Selected Tea Types: ${selectedTeaTypes.join(', ')}`, 50, 31);
-        doc.text(`Rates -> Labour: Rs. ${labourRate} | Electricity: Rs. ${electricityRate}`, 50, 37);
+            const token = localStorage.getItem('token');
+            const authHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
 
-        const tableHead = [
-            [
-                { content: "Type of Tea", rowSpan: 2, styles: { halign: 'center', valign: 'middle', fillColor: [27, 106, 49] } },
-                { content: "Quantity (kg)", colSpan: 2, styles: { halign: 'center', fillColor: [27, 106, 49] } },
-                { content: "Labour Requirement", colSpan: 2, styles: { halign: 'center', fillColor: [27, 106, 49] } },
-                { content: "Labour Cost (Rs.)", colSpan: 2, styles: { halign: 'center', fillColor: [27, 106, 49] } },
-                { content: "Electricity (pts)", colSpan: 2, styles: { halign: 'center', fillColor: [27, 106, 49] } },
-                { content: "Electricity Cost (Rs.)", colSpan: 3, styles: { halign: 'center', fillColor: [27, 106, 49] } }
-            ],
-            [
-                { content: "G/L", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "M/T", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Selection", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Hand Roll", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Selection", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Hand Roll", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Dryer", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Roller", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Dryer", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Roller", styles: { halign: 'center', fillColor: [40, 130, 60] } },
-                { content: "Total Cost", styles: { halign: 'center', fillColor: [40, 130, 60] } }
-            ]
-        ];
-        
-        const tableRows = tableData.map(row => [
-            row.type, row.totalGL.toFixed(2), row.totalMT.toFixed(3), row.totalSelectionWorkers.toString(),
-            row.hrWorkers.toString(), row.selectionCost.toLocaleString(), row.handRollingCost.toLocaleString(),
-            row.totalDryerUnits.toString(), row.rPoints.toString(), row.dryerCost.toLocaleString(),
-            row.rollerCost.toLocaleString(), row.totalElectricityCost.toLocaleString()
-        ]);
+            const [glRes, prodRes, labRes] = await Promise.all([
+                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders })
+            ]);
 
-        tableRows.push([
-            "GRAND TOTAL", grandTotals.totalGL.toFixed(2), grandTotals.totalMT.toFixed(3),
-            grandTotals.totalSelectionWorkers.toString(), grandTotals.hrWorkers.toString(),
-            grandTotals.selectionCost.toLocaleString(), grandTotals.handRollingCost.toLocaleString(),
-            grandTotals.totalDryerUnits.toString(), grandTotals.rPoints.toString(),
-            grandTotals.dryerCost.toLocaleString(), grandTotals.rollerCost.toLocaleString(),
-            grandTotals.totalElectricityCost.toLocaleString()
-        ]);
+            if (!glRes.ok || !prodRes.ok || !labRes.ok) {
+                throw new Error("Failed to fetch data for range PDF");
+            }
 
-        autoTable(doc, {
-            startY: 45,
-            head: tableHead,
-            body: tableRows,
-            theme: 'grid',
-            headStyles: { textColor: 255, fontSize: 8 },
-            bodyStyles: { fontSize: 8, halign: 'center', valign: 'middle' },
-            columnStyles: { 0: { cellWidth: 35, fontStyle: 'bold' } },
-            didParseCell: function(data) {
-                if (data.section === 'body') {
-                    const colIdx = data.column.index;
-                    if (colIdx === 1 || colIdx === 2) { data.cell.styles.textColor = [27, 106, 49]; data.cell.styles.fontStyle = 'bold'; } 
-                    else if (colIdx === 3 || colIdx === 4) { data.cell.styles.textColor = [29, 78, 216]; data.cell.styles.fontStyle = 'bold'; } 
-                    else if (colIdx === 7 || colIdx === 8) { data.cell.styles.textColor = [234, 88, 12]; data.cell.styles.fontStyle = 'bold'; } 
-                    else if (colIdx === 11) { data.cell.styles.textColor = [220, 38, 38]; data.cell.styles.fontStyle = 'bold'; }
-                    if (data.row.index === tableRows.length - 1) {
-                        data.cell.styles.fillColor = [240, 240, 240];
-                        data.cell.styles.fontStyle = 'bold';
+            const glData = await glRes.json();
+            const prodData = await prodRes.json();
+            const labData = await labRes.json();
+
+            const doc = new jsPDF('landscape');
+
+            try {
+                const res = await fetch("/logo.png");
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const dataUrl = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(blob);
+                    });
+                    doc.addImage(dataUrl, "PNG", 14, 10, 25, 25); 
+                }
+            } catch (err) {}
+
+            doc.setFontSize(22);
+            doc.setTextColor(27, 106, 49); 
+            doc.text("Monthly Cost Summary", 45, 20);
+            
+            doc.setFontSize(11);
+            doc.setTextColor(100);
+            const startName = new Date(rangeStartMonth).toLocaleString('default', { month: 'short', year: 'numeric' });
+            const endName = new Date(rangeEndMonth).toLocaleString('default', { month: 'short', year: 'numeric' });
+            doc.text(`Period: ${startName} to ${endName}`, 45, 27);
+
+            const headRow = ["Type of Cost", ...monthsArray.map(m => new Date(m).toLocaleString('default', { month: 'short', year: '2-digit' }).toUpperCase())];
+            
+            let allRows = [];
+            let overallGrandTotal = new Array(monthsArray.length).fill(0);
+
+            preferredOrder.forEach((teaType) => {
+                let typeRow = [{ content: teaType, colSpan: monthsArray.length + 1, styles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' } }];
+                allRows.push(typeRow);
+
+                let glCostRow = ["G/L Cost"];
+                let selCostRow = ["G/L Selection Cost"];
+                let hrCostRow = ["Hand Rolling Cost"];
+                let elecCostRow = ["Electricity Cost"];
+                let supCostRow = ["Supervision Cost"];
+                let mtRow = ["MADE TEA (KG)"];
+                let costPerKgRow = ["COST PER 1 KG (Rs.)"];
+                let totalCostRow = [{ content: "Total Cost", styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }];
+
+                monthsArray.forEach((month, index) => {
+                    const filteredProd = prodData.filter(p => p.date.startsWith(month) && p.teaType === teaType);
+                    
+                    let m_selectedWeight = 0;
+                    let m_madeTeaWeight = 0;
+                    let m_selectionWorkers = 0;
+                    let m_dryerUnits = 0;
+
+                    const glUsage = {};
+                    const labUsage = {};
+
+                    filteredProd.forEach(prod => {
+                        const dateStr = new Date(prod.date).toISOString().split('T')[0];
+                        const glsForDate = glData.filter(g => new Date(g.date).toISOString().split('T')[0] === dateStr);
+                        const labsForDate = labData.filter(l => new Date(l.date).toISOString().split('T')[0] === dateStr);
+
+                        if (glUsage[dateStr] === undefined) glUsage[dateStr] = 0;
+                        if (labUsage[dateStr] === undefined) labUsage[dateStr] = 0;
+
+                        const gl = glsForDate[glUsage[dateStr]] || null;
+                        const lab = labsForDate[labUsage[dateStr]] || null;
+
+                        glUsage[dateStr]++;
+                        labUsage[dateStr]++;
+
+                        m_selectedWeight += Number(gl?.selectedWeight || 0);
+                        m_madeTeaWeight += Number(prod.madeTeaWeight || 0);
+                        m_selectionWorkers += Number(lab?.workerCount || 0);
+                        
+                        const mStart = Number(prod?.dryerDetails?.meterStart) || 0;
+                        const mEnd = Number(prod?.dryerDetails?.meterEnd) || 0;
+                        m_dryerUnits += (mEnd > mStart ? mEnd - mStart : 0);
+                    });
+
+                    const m_glCost = m_selectedWeight * monthlyGlRate;
+                    const m_selectionCost = m_selectionWorkers * labourRate;
+                    const m_electricityCost = m_dryerUnits * electricityRate;
+                    const m_supCost = supervisionCosts[teaType] || 0; 
+                    const m_hrWorkers = handRollingWorkers[teaType] || 0;
+                    const m_handRollingCost = m_hrWorkers * labourRate;
+
+                    const m_totalCost = m_glCost + m_selectionCost + m_handRollingCost + m_electricityCost + m_supCost;
+                    const m_costPerKg = m_madeTeaWeight > 0 ? (m_totalCost / m_madeTeaWeight) : 0;
+
+                    glCostRow.push(m_glCost > 0 ? m_glCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-");
+                    selCostRow.push(m_selectionCost > 0 ? m_selectionCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-");
+                    hrCostRow.push(m_handRollingCost > 0 ? m_handRollingCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-");
+                    elecCostRow.push(m_electricityCost > 0 ? m_electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-");
+                    supCostRow.push(m_supCost > 0 ? m_supCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-");
+                    totalCostRow.push({ content: m_totalCost > 0 ? m_totalCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } });
+                    
+                    mtRow.push(m_madeTeaWeight > 0 ? m_madeTeaWeight.toFixed(3) : "-");
+                    costPerKgRow.push({ content: m_costPerKg > 0 ? m_costPerKg.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: { fontStyle: 'bold', fillColor: [210, 230, 210] } });
+
+                    overallGrandTotal[index] += m_totalCost;
+                });
+
+                allRows.push(glCostRow, selCostRow, hrCostRow, elecCostRow, supCostRow, totalCostRow, mtRow, costPerKgRow);
+            });
+
+            // Grand Total Row
+            let grandTotalRow = [{ content: "GRAND TOTAL (All Teas)", styles: { fontStyle: 'bold', fillColor: [27, 106, 49], textColor: 255 } }];
+            overallGrandTotal.forEach(total => {
+                grandTotalRow.push({ content: total > 0 ? total.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: { fontStyle: 'bold', fillColor: [27, 106, 49], textColor: 255 } });
+            });
+            allRows.push(grandTotalRow);
+
+            autoTable(doc, {
+                startY: 45,
+                head: [headRow],
+                body: allRows,
+                theme: 'grid',
+                headStyles: { fillColor: [200, 200, 200], textColor: 0, fontSize: 9, halign: 'center' },
+                bodyStyles: { fontSize: 8 },
+                columnStyles: { 0: { fontStyle: 'bold', cellWidth: 45 } },
+                styles: { halign: 'right' },
+                didParseCell: function(data) {
+                    if (data.section === 'body' && data.column.index === 0) {
+                        data.cell.styles.halign = 'left';
                     }
                 }
-            }
-        });
+            });
 
-        doc.save(`Production_Summary_${filterMonth}.pdf`);
-        toast.success("PDF Downloaded Successfully!");
-        setShowUnsavedDialog(false); 
-    };
+            doc.save(`Monthly_Cost_Summary_${startName}_to_${endName}.pdf`);
+            toast.success("Range PDF Downloaded Successfully!", { id: toastId });
+            setShowRangeModal(false);
 
-    const handleDownloadClick = () => {
-        // Viewers can bypass the save check!
-        if (!isSaved && !isViewer) {
-            setShowUnsavedDialog(true);
-        } else {
-            generatePDF();
-        }
-    };
-
-    const handleSaveAndDownload = async () => {
-        const saved = await handleSaveToDatabase();
-        if (saved) {
-            generatePDF();
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to generate PDF.", { id: toastId });
+        } finally {
+            setIsGeneratingRangePDF(false);
         }
     };
 
     return (
-        <div className="p-8 max-w-[1400px] mx-auto font-sans relative">
+        <div className="p-8 max-w-6xl mx-auto font-sans bg-gray-50 min-h-screen relative">
             
-            {/* STRICT UNSAVED DATA ALERT DIALOG */}
-            <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
+            {/* Modal for Range PDF */}
+            {showRangeModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md relative">
+                        <button onClick={() => setShowRangeModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
+                            <X size={24} />
+                        </button>
+                        <h3 className="text-xl font-bold text-[#1B6A31] mb-2">Download Range Summary</h3>
+                        <p className="text-sm text-gray-500 mb-6">Select a date range to generate a combined PDF report for multiple months.</p>
+                        
+                        <div className="flex flex-col gap-4 mb-6">
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 mb-1 block">FROM MONTH</label>
+                                <input type="month" value={rangeStartMonth} onChange={(e) => setRangeStartMonth(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 mb-1 block">TO MONTH</label>
+                                <input type="month" value={rangeEndMonth} onChange={(e) => setRangeEndMonth(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" />
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => generateRangePDF(false)}
+                            disabled={isGeneratingRangePDF}
+                            className={`w-full py-3 rounded-lg text-white font-bold flex justify-center items-center gap-2 ${isGeneratingRangePDF ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
+                        >
+                            <FileDown size={18} /> {isGeneratingRangePDF ? "Generating PDF..." : "Download Report"}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Unsaved PDF Alert */}
+            <AlertDialog open={showUnsavedAlert} onOpenChange={setShowUnsavedAlert}>
                 <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
                     <AlertDialogHeader>
-                        <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mb-4 border border-orange-200">
-                            <AlertTriangle className="w-6 h-6 text-orange-600" />
+                        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
+                            <AlertCircle className="w-6 h-6 text-red-600" />
                         </div>
-                        <AlertDialogTitle className="text-xl font-bold text-gray-900">Save Before Downloading</AlertDialogTitle>
+                        <AlertDialogTitle className="text-xl font-bold text-gray-900">Data Not Saved!</AlertDialogTitle>
                         <AlertDialogDescription className="text-gray-500 text-base">
-                            You have unsaved calculations on this board. You must save these records to the database before generating the PDF report to ensure data consistency.
+                            You have unsaved changes. You must save the records to the database before generating a PDF. 
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="mt-6">
-                        <AlertDialogCancel className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg font-semibold mt-0">
+                        <AlertDialogCancel 
+                            onClick={() => {
+                                setShowUnsavedAlert(false);
+                                setPendingPdfAction(null);
+                            }} 
+                            className="bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200 rounded-lg px-6 font-semibold"
+                        >
                             Cancel
                         </AlertDialogCancel>
                         <AlertDialogAction 
                             onClick={handleSaveAndDownload} 
                             className="bg-[#1B6A31] hover:bg-green-800 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
                         >
-                            Save & Download
+                            Save and Download
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* --- STICKY HEADER SECTION --- */}
-            <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md -mt-8 -mx-8 pt-8 pb-4 px-8 mb-8 border-b border-gray-100 shadow-sm text-center sm:text-left flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="mb-8 border-b pb-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
                 <div>
-                    <h2 className="text-3xl font-bold text-[#1B6A31] flex items-center justify-center sm:justify-start gap-2">
-                        <Calculator size={28} /> Production Summary
+                    <h2 className="text-3xl font-bold text-[#1B6A31] flex items-center gap-2">
+                        <DollarSign /> Cost of Production
                     </h2>
-                    <p className="text-gray-500 mt-1 font-medium">Calculate costs and export PDF reports</p>
+                    <p className="text-gray-500 font-medium">Detailed monthly analysis per tea type</p>
                 </div>
-                
-                <div className="flex flex-wrap gap-3 justify-center sm:justify-end">
-                    <button 
-                        onClick={() => { fetchAllData(false); toast.success("Data re-synced with server."); }}
-                        disabled={loading}
-                        className={`px-5 py-2.5 bg-white text-[#1B6A31] border border-[#8CC63F] rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F8FAF8]'}`}
-                    >
-                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Sync Data
-                    </button>
-                    
-                    <button 
-                        onClick={handleSaveToDatabase}
-                        disabled={isSaving || isSaved || tableData.length === 0 || isViewer}
-                        className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
-                            (isSaved || tableData.length === 0 || isViewer) ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'
-                        }`}
-                    >
-                        {isViewer ? <Eye size={18}/> : <Save size={18} />} 
-                        {isViewer ? "View Only" : isSaving ? "Saving..." : (isSaved && tableData.length > 0) ? "Saved" : "Save to DB"}
-                    </button>
 
-                    <button 
-                        onClick={handleDownloadClick}
-                        disabled={tableData.length === 0}
-                        className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${tableData.length === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
-                    >
-                        <FileDown size={18} /> Download PDF
-                    </button>
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <div className="flex flex-col gap-1 w-full sm:w-auto">
+                        <label className="text-xs font-bold text-gray-500 flex items-center gap-1">
+                            <Calendar size={14}/> ACTIVE MONTH
+                        </label>
+                        <input 
+                            type="month" 
+                            value={selectedMonth} 
+                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            className="p-2.5 border border-green-200 rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-green-500 outline-none font-bold text-gray-700"
+                        />
+                    </div>
+
+                    <div className="flex flex-wrap gap-3 mt-4 sm:mt-0">
+                        <button 
+                            onClick={() => setShowRangeModal(true)}
+                            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all"
+                        >
+                            <FileDown size={18} /> Range PDF
+                        </button>
+
+                        {/* SINGLE PDF BUTTON - Swaps to PDFDownloader when Saved */}
+                        {(!isSaved && !isViewer) ? (
+                            <button 
+                                onClick={() => {
+                                    setPendingPdfAction('single');
+                                    setShowUnsavedAlert(true);
+                                }}
+                                disabled={loading || records.length === 0}
+                                className={`px-4 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all ${(loading || records.length === 0) ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                            >
+                                <FileDown size={18} /> Single PDF
+                            </button>
+                        ) : (
+                            <PDFDownloader 
+                                title="Cost of Production Summary"
+                                subtitle={`Month: ${new Date(selectedMonth).toLocaleString('default', { month: 'long', year: 'numeric' })} | Global Rates -> G/L: Rs.${monthlyGlRate} | Labour: Rs.${labourRate} | Electricity: Rs.${electricityRate}`}
+                                headers={["Tea Type", "Cost Category", "Basis", "Cost (LKR)"]}
+                                data={getSinglePdfData()}
+                                fileName={`Cost_Of_Production_${selectedMonth}.pdf`}
+                                orientation="portrait"
+                                disabled={loading || records.length === 0}
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                            />
+                        )}
+
+                        <button 
+                            onClick={handleSaveToDatabase}
+                            disabled={isSaving || records.length === 0 || isSaved || isViewer}
+                            className={`px-4 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all ${
+                                (isSaving || records.length === 0 || isSaved || isViewer) ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#1B6A31] hover:bg-green-800'
+                            }`}
+                        >
+                            {isViewer ? <Eye size={18}/> : <Save size={18} />} 
+                            {isViewer ? "View Only" : isSaving ? "Saving..." : isSaved ? "Saved to DB" : "Save to DB"}
+                        </button>
+                    </div>
                 </div>
             </div>
-            {/* --------------------------- */}
 
             {/* Viewer Notification Banner */}
             {isViewer && (
                 <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg flex items-center gap-3">
                     <Info size={20} />
-                    <p className="text-sm font-medium">You are logged in as a <strong>Viewer</strong>. You can view data and download reports. Editing and saving are disabled.</p>
+                    <p className="text-sm font-medium">You are logged in as a <strong>Viewer</strong>. You can only view the data and download reports. Editing and saving are disabled.</p>
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                {/* 1. Date Filter */}
-                <div className="bg-gradient-to-br from-blue-50/50 to-white p-6 rounded-xl border border-blue-200 shadow-lg shadow-blue-900/5 flex flex-col justify-center relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
-                    
-                    <div className="flex justify-between items-center border-b border-blue-100 pb-3 mb-4">
-                        <h3 className="text-sm md:text-base font-extrabold text-blue-700 flex items-center gap-2 uppercase tracking-wider">
-                            <div className="p-1.5 bg-blue-100 rounded-lg"><Calendar size={18} className="text-blue-700"/></div>
-                            1. Select Report Month
-                        </h3>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-3 relative z-10 items-end">
-                        <div className="w-full">
-                            <label className="text-xs font-bold text-gray-500 mb-1 block">MONTHLY FILTER</label>
+            <div className={`bg-white p-6 rounded-xl border shadow-sm mb-10 ${isViewer ? 'border-gray-200 opacity-90' : 'border-gray-200'}`}>
+                <div className="flex items-center gap-2 mb-4 border-b pb-2">
+                    <span className="text-orange-500 font-bold text-lg">⚯</span>
+                    <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
+                        ADJUST RATES (LKR) {isViewer && "(Read Only)"}
+                    </h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-gray-500">G/L RATE (PER KG)</label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-2.5 text-gray-400 text-sm font-bold">Rs.</span>
                             <input 
-                                type="month" 
-                                value={filterMonth} 
-                                onChange={(e) => setFilterMonth(e.target.value)} 
-                                className="w-full border border-gray-300 rounded-md p-3 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-white shadow-sm" 
+                                type="number" 
+                                min="0"
+                                value={monthlyGlRate === 0 ? '' : monthlyGlRate} 
+                                onChange={handleRateChange(setMonthlyGlRate)}
+                                onWheel={(e) => e.target.blur()}
+                                disabled={isViewer}
+                                className="w-full border border-gray-300 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 disabled:cursor-not-allowed" 
+                                placeholder="0.00" 
                             />
                         </div>
-                        <button 
-                            onClick={handleLoadMonthDataClick}
-                            className="w-full sm:w-auto whitespace-nowrap px-5 py-3 bg-blue-600 text-white rounded-md text-sm font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                        >
-                            <Filter size={16} /> Load Month Data
-                        </button>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-gray-500">LABOUR RATE (PER HEAD)</label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-2.5 text-gray-400 text-sm font-bold">Rs.</span>
+                            <input 
+                                type="number" 
+                                min="0"
+                                value={labourRate} 
+                                onChange={handleRateChange(setLabourRate)}
+                                onWheel={(e) => e.target.blur()}
+                                disabled={isViewer}
+                                className="w-full border border-gray-300 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 disabled:cursor-not-allowed" 
+                            />
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-gray-500">ELECTRICITY RATE (PER UNIT)</label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-2.5 text-gray-400 text-sm font-bold">Rs.</span>
+                            <input 
+                                type="number"
+                                min="0" 
+                                value={electricityRate} 
+                                onChange={handleRateChange(setElectricityRate)}
+                                onWheel={(e) => e.target.blur()}
+                                disabled={isViewer}
+                                className="w-full border border-gray-300 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 disabled:cursor-not-allowed" 
+                            />
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                {/* 2. Rate Settings */}
-                <div className="bg-gradient-to-br from-orange-50/50 to-white p-6 rounded-xl border border-orange-200 shadow-lg shadow-orange-900/5 h-fit relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
-                    
-                    <div className="flex items-center gap-2 mb-4 border-b border-orange-100 pb-3">
-                        <h3 className="text-sm md:text-base font-extrabold text-orange-700 flex items-center gap-2 uppercase tracking-wider">
-                            <div className="p-1.5 bg-orange-100 rounded-lg"><Settings2 size={18} className="text-orange-600"/></div>
-                            2. Adjust Rates (LKR) {isViewer && "(Read Only)"}
-                        </h3>
+            {loading ? (
+                <div className="text-center py-20 text-gray-500 font-bold">Processing Monthly Data...</div>
+            ) : records.length > 0 ? (
+                <>
+                    <div className="grid grid-cols-1 gap-10">
+                        {records.map((item) => {
+                            const glCost = item.selectedWeight * monthlyGlRate;
+                            const selectionCost = item.selectionWorkers * labourRate;
+                            const electricityCost = item.dryerUnits * electricityRate;
+                            const supCost = supervisionCosts[item.teaType] || 0;
+                            const hrWorkers = handRollingWorkers[item.teaType] || 0;
+                            const handRollingCost = hrWorkers * labourRate;
+                            const totalCost = glCost + selectionCost + handRollingCost + electricityCost + supCost;
+
+                            return (
+                                <div key={item.teaType} className={`bg-white rounded-2xl shadow-lg overflow-hidden border ${isViewer ? 'border-gray-200 opacity-95' : 'border-gray-200'}`}>
+                                    <div className="bg-[#1B6A31] p-4 text-white flex justify-between items-center px-8">
+                                        <h3 className="text-xl font-bold">{item.teaType}</h3>
+                                        <span className="bg-white/20 px-4 py-1 rounded-full text-sm font-semibold">
+                                            Total Output: {item.madeTeaWeight.toFixed(3)} kg
+                                        </span>
+                                    </div>
+
+                                    <div className="p-8 overflow-x-auto">
+                                        <table className="w-full text-left">
+                                            <thead>
+                                                <tr className="text-gray-400 text-xs uppercase tracking-widest border-b">
+                                                    <th className="pb-4 font-bold">Type of Cost</th>
+                                                    <th className="pb-4 font-bold text-right">Basis</th>
+                                                    <th className="pb-4 font-bold text-right">Cost (Rs.)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100">
+                                                <tr>
+                                                    <td className="py-4 font-semibold text-gray-700">Green Leaf (G/L) Cost</td>
+                                                    <td className="py-4 text-right text-gray-500">{item.selectedWeight.toFixed(2)} kg @ Rs.{monthlyGlRate}</td>
+                                                    <td className="py-4 text-right font-bold text-gray-900">{glCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="py-4 font-semibold text-gray-700">G/L Selection Cost</td>
+                                                    <td className="py-4 text-right text-gray-500">{item.selectionWorkers} Worker days</td>
+                                                    <td className="py-4 text-right font-bold text-gray-900">{selectionCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="py-4 font-semibold text-gray-700">Hand Rolling Cost</td>
+                                                    <td className="py-4 text-right">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <input 
+                                                                type="number" 
+                                                                min="0"
+                                                                value={handRollingWorkers[item.teaType] === 0 ? '' : (handRollingWorkers[item.teaType] || '')}
+                                                                placeholder="Workers"
+                                                                disabled={isViewer}
+                                                                className="w-24 p-1 border border-gray-300 rounded text-right focus:ring-1 focus:ring-green-400 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                                                onChange={(e) => handleHandRollingChange(item.teaType, e.target.value)}
+                                                                onWheel={(e) => e.target.blur()}
+                                                            />
+                                                            <span className="text-gray-500 text-sm">x Rs.{labourRate}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-4 text-right font-bold text-gray-900">{handRollingCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="py-4 font-semibold text-gray-700">Electricity Cost</td>
+                                                    <td className="py-4 text-right text-gray-500">{item.dryerUnits} Units Used</td>
+                                                    <td className="py-4 text-right font-bold text-gray-900">{electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="py-4 font-semibold text-gray-700">Supervision Cost</td>
+                                                    <td className="py-4 text-right">
+                                                        <input 
+                                                            type="number" 
+                                                            min="0"
+                                                            value={supervisionCosts[item.teaType] === 0 ? '' : (supervisionCosts[item.teaType] || '')}
+                                                            placeholder="Manual Input"
+                                                            disabled={isViewer}
+                                                            className="w-32 p-1 border border-gray-300 rounded text-right focus:ring-1 focus:ring-green-400 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                                            onChange={(e) => handleSupervisionChange(item.teaType, e.target.value)}
+                                                            onWheel={(e) => e.target.blur()}
+                                                        />
+                                                    </td>
+                                                    <td className="py-4 text-right font-bold text-gray-900">{supCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                                </tr>
+                                            </tbody>
+                                            <tfoot>
+                                                <tr className="bg-green-50/50">
+                                                    <td colSpan="2" className="py-5 px-4 text-lg font-bold text-[#1B6A31]">Total Production Cost ({item.teaType})</td>
+                                                    <td className="py-5 px-4 text-right text-2xl font-black text-[#1B6A31]">
+                                                        Rs. {totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 relative z-10">
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold text-gray-500 flex items-center gap-1"><Users size={12}/> LABOUR (PER HEAD)</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-3 text-gray-400 text-sm font-bold">Rs.</span>
-                                <input 
-                                    type="number" onWheel={(e) => e.target.blur()} value={labourRate} 
-                                    onChange={handleLabourRateChange} 
-                                    disabled={isViewer}
-                                    className="w-full border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed" 
-                                />
+
+                    <div className="mt-10 bg-[#1B6A31] text-white rounded-2xl shadow-xl overflow-hidden border border-green-800">
+                        <div className="p-5 flex flex-col md:flex-row items-center justify-between gap-6">
+                            <div className="flex items-center gap-4">
+                                <div className="bg-white/20 p-4 rounded-full">
+                                    <Calculator size={25} className="text-white" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold uppercase tracking-wider">Grand Total</h2>
+                                    <p className="text-green-100 font-medium text-md">Sum of all production costs for {new Date(selectedMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-sm text-green-200 font-bold uppercase tracking-widest block mb-1">Total LKR</span>
+                                <span className="text-xl md:text-3xl font-black">
+                                    Rs. {grandTotalAllTeas.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                </span>
                             </div>
                         </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold text-gray-500 flex items-center gap-1"><Zap size={12}/> ELECTRICITY (PER UNIT)</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-3 text-gray-400 text-sm font-bold">Rs.</span>
-                                <input 
-                                    type="number" onWheel={(e) => e.target.blur()} value={electricityRate} 
-                                    onChange={handleElectricityRateChange} 
-                                    disabled={isViewer}
-                                    className="w-full border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed" 
-                                />
-                            </div>
-                        </div>
                     </div>
+                </>
+            ) : (
+                <div className="bg-white p-20 text-center rounded-xl border border-dashed border-gray-300 text-gray-400">
+                    No production records found for the selected month.
                 </div>
-            </div>
-
-            {/* 3. TEA TYPE SELECTION */}
-            <div className="bg-gradient-to-br from-green-50/50 to-white p-6 rounded-xl border border-green-200 shadow-lg shadow-green-900/5 mb-8 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-[#1B6A31]"></div>
-                
-                <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 border-b border-green-100 pb-3'>
-                    <div>
-                        <h3 className="text-sm md:text-base font-extrabold text-[#1B6A31] flex items-center gap-2 uppercase tracking-wider">
-                            <div className="p-1.5 bg-green-100 rounded-lg"><Leaf size={18} className="text-[#1B6A31]"/></div>
-                            3. Select Tea Types
-                        </h3>
-                        <p className="text-xs text-gray-500 mt-1 ml-9">Active types (G/L {'>'} 0) are auto-selected. Click to add/remove.</p>
-                    </div>
-                    <button 
-                        onClick={handleSelectAll}
-                        className="text-xs font-bold flex items-center gap-1.5 px-4 py-2 bg-white border border-green-200 text-[#1B6A31] rounded-lg hover:bg-green-50 hover:border-green-300 transition-all shadow-sm"
-                    >
-                        {selectedTeaTypes.length === teaOptions.length ? <CheckSquare size={16}/> : <Square size={16}/>}
-                        {selectedTeaTypes.length === teaOptions.length ? "Deselect All" : "Select All"}
-                    </button>
-                </div>
-                
-                <div className="flex flex-wrap gap-2.5">
-                    {teaOptions.map(type => (
-                        <button
-                            key={type}
-                            onClick={() => toggleTeaType(type)}
-                            className={`px-4 py-2 text-xs font-bold rounded-xl border-2 transition-all duration-200 ${
-                                selectedTeaTypes.includes(type) 
-                                ? 'bg-[#1B6A31] border-[#1B6A31] text-white shadow-md shadow-green-900/20 transform scale-105' 
-                                : 'bg-white border-gray-200 text-gray-500 hover:border-[#8CC63F] hover:text-[#1B6A31]'
-                            }`}
-                        >
-                            {type} {selectedTeaTypes.includes(type) && '✓'}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* Summary Table */}
-            <div className={`bg-white rounded-xl shadow-md border overflow-hidden mb-12 min-h-[300px] ${isViewer ? 'border-gray-200 opacity-95' : 'border-gray-200'}`}>
-                <div className="bg-[#1B6A31] p-4 border-b border-gray-200 flex items-center gap-2">
-                    <Leaf className="text-white" size={20}/>
-                    <h3 className="text-lg font-bold text-white">Calculation Board</h3>
-                </div>
-                
-                {tableData.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4 border border-gray-100 shadow-sm">
-                            <Leaf size={30} className="text-gray-300" />
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-700 mb-2">No Tea Types Selected</h3>
-                        <p className="text-gray-500 max-w-md">
-                            Load a month with production data using the filters above, or manually select tea types to begin calculations.
-                        </p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
-                            <thead>
-                                <tr className="bg-gray-50 text-gray-800 uppercase text-xs tracking-wider border-b border-gray-200">
-                                    <th rowSpan="2" className="px-4 py-4 font-extrabold border-r border-gray-200 align-middle bg-gray-100 w-48 text-center">Type of Tea</th>
-                                    <th colSpan="2" className="px-4 py-2 font-bold text-[#1B6A31] border-r border-gray-200 bg-[#8CC63F]/10 text-center">Quantity (kg)</th>
-                                    <th colSpan="2" className="px-4 py-2 font-bold text-blue-700 border-r border-gray-200 bg-blue-50 text-center">Labour Requirement</th>
-                                    <th colSpan="2" className="px-4 py-2 font-bold text-blue-900 border-r border-gray-200 bg-blue-100/50 text-center">Labour Cost (Rs.)</th>
-                                    <th colSpan="2" className="px-4 py-2 font-bold text-orange-600 border-r border-gray-200 bg-orange-50 text-center">Electricity (points)</th>
-                                    <th colSpan="3" className="px-4 py-2 font-bold text-orange-900 border-r border-gray-200 bg-orange-100/50 text-center">Electricity Cost (Rs.)</th>
-                                </tr>
-                                <tr className="bg-gray-50 text-gray-600 text-xs border-b border-gray-200">
-                                    <th className="px-3 py-2 font-semibold bg-[#8CC63F]/5 text-center border-r border-gray-200/60 w-24">G/L</th>
-                                    <th className="px-3 py-2 font-semibold bg-[#8CC63F]/5 text-center border-r border-gray-200 w-24">M/T</th>
-                                    <th className="px-3 py-2 font-semibold bg-blue-50/50 text-center border-r border-gray-200/60 w-24">Selection</th>
-                                    <th className="px-3 py-2 font-semibold bg-blue-50/50 text-center border-r border-gray-200 w-32">Hand Roll</th>
-                                    <th className="px-3 py-2 font-semibold bg-blue-100/30 text-center border-r border-gray-200/60 w-28">Selection</th>
-                                    <th className="px-3 py-2 font-semibold bg-blue-100/30 text-center border-r border-gray-200 w-28">Hand Roll</th>
-                                    <th className="px-3 py-2 font-semibold bg-orange-50/50 text-center border-r border-gray-200/60 w-24">Dryer</th>
-                                    <th className="px-3 py-2 font-semibold bg-orange-50/50 text-center border-r border-gray-200 w-28">Roller</th>
-                                    <th className="px-3 py-2 font-semibold bg-orange-100/30 text-center border-r border-gray-200/60 w-28">Dryer</th>
-                                    <th className="px-3 py-2 font-semibold bg-orange-100/30 text-center border-r border-gray-200/60 w-28">Roller</th>
-                                    <th className="px-3 py-2 font-black bg-orange-200/40 text-center text-orange-900 w-32">Total Cost</th>
-                                </tr>
-                            </thead>
-
-                            <tbody className="divide-y divide-gray-100">
-                                {tableData.map((row, index) => (
-                                    <tr key={index} className="hover:bg-gray-50/80 transition-colors group text-center">
-                                        <td className="px-4 py-4 border-r border-gray-200 font-bold text-[#1B6A31] bg-gray-50/50 whitespace-normal">{row.type}</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.totalGL.toFixed(2)}</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.totalMT.toFixed(3)}</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 font-bold text-blue-700 bg-blue-50/10">{row.totalSelectionWorkers}</td>
-                                        <td className="px-2 py-2 border-r border-gray-200 bg-blue-50/30">
-                                            <input 
-                                                type="number" onWheel={(e) => e.target.blur()} value={row.hrWorkers || ''} 
-                                                onChange={(e) => handleManualChange(row.type, 'handRolling', e.target.value.replace(/^0+(?=\d)/, ''))} 
-                                                disabled={isViewer}
-                                                className="w-full p-2 border border-blue-300 rounded text-center font-bold text-blue-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner bg-white disabled:bg-gray-100 disabled:cursor-not-allowed" placeholder="0" 
-                                            />
-                                        </td>
-                                        <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.selectionCost.toLocaleString()}</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.handRollingCost.toLocaleString()}</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 font-bold text-orange-600 bg-orange-50/10">{row.totalDryerUnits}</td>
-                                        <td className="px-2 py-2 border-r border-gray-200 bg-orange-50/30">
-                                            <input 
-                                                type="number" onWheel={(e) => e.target.blur()} value={row.rPoints || ''} 
-                                                onChange={(e) => handleManualChange(row.type, 'roller', e.target.value.replace(/^0+(?=\d)/, ''))} 
-                                                disabled={isViewer}
-                                                className="w-full p-2 border border-orange-300 rounded text-center font-bold text-orange-800 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner bg-white disabled:bg-gray-100 disabled:cursor-not-allowed" placeholder="0" 
-                                            />
-                                        </td>
-                                        <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.dryerCost.toLocaleString()}</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.rollerCost.toLocaleString()}</td>
-                                        <td className="px-3 py-4 font-black text-lg text-red-600 bg-red-50/30">{row.totalElectricityCost.toLocaleString()}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                            
-                            <tfoot className="bg-gray-100/90 border-t-[3px] border-gray-300 font-black text-gray-900 text-center shadow-[inset_0_4px_6px_-4px_rgba(0,0,0,0.1)]">
-                                <tr>
-                                    <td className="px-4 py-5 border-r border-gray-200 text-right uppercase tracking-wider text-sm">Grand Total</td>
-                                    <td className="px-3 py-5 border-r border-gray-200 text-[#1B6A31] text-base">{grandTotals.totalGL.toFixed(2)}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200 text-[#1B6A31] text-base">{grandTotals.totalMT.toFixed(3)}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200 text-blue-800 text-base">{grandTotals.totalSelectionWorkers}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200 text-blue-800 text-base">{grandTotals.hrWorkers}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200">{grandTotals.selectionCost.toLocaleString()}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200">{grandTotals.handRollingCost.toLocaleString()}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200 text-orange-700 text-base">{grandTotals.totalDryerUnits}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200 text-orange-700 text-base">{grandTotals.rPoints}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200">{grandTotals.dryerCost.toLocaleString()}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200">{grandTotals.rollerCost.toLocaleString()}</td>
-                                    <td className="px-3 py-5 text-red-700 text-xl bg-red-100/50">{grandTotals.totalElectricityCost.toLocaleString()}</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                )}
-            </div>
+            )}
         </div>
     );
 }
