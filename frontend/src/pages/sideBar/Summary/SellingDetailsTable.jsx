@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { AlertTriangle, Calendar, Settings2, FileDown, Save, DollarSign } from "lucide-react";
+import { AlertTriangle, Calendar, Settings2, FileDown, Save, DollarSign, Info, Eye } from "lucide-react";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -45,6 +45,16 @@ export default function SellingDetailsTable() {
   const [hasChanges, setHasChanges] = useState(false); 
   const [showUnsavedAlert, setShowUnsavedAlert] = useState(false);
 
+  // --- ROLE BASED ACCESS CONTROL ---
+  const userRole = localStorage.getItem('userRole') || ''; 
+  const isViewer = userRole.toLowerCase() === 'viewer'; 
+
+  // --- AUTO LOAD ON MOUNT ---
+  useEffect(() => {
+      handleFetchData(true);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleInputChange = (id, field, value) => {
     if (value !== '' && Number(value) < 0) return;
 
@@ -67,14 +77,15 @@ export default function SellingDetailsTable() {
       setIsSaved(false);
   };
 
-  const handleFetchData = async () => {
+  const handleFetchData = async (isSilent = false) => {
     if (!selectedMonth) {
-      toast.error("Please select a month first.");
+      if (!isSilent) toast.error("Please select a month first.");
       return;
     }
 
     setIsFetching(true);
-    const loadToast = toast.loading('Fetching data...');
+    let loadToast;
+    if (!isSilent) loadToast = toast.loading('Fetching data...');
 
     try {
       const token = localStorage.getItem('token');
@@ -109,28 +120,33 @@ export default function SellingDetailsTable() {
           
           setIsSaved(true); 
           setHasChanges(false);
-          toast.success(`Data for ${selectedMonth} loaded!`, { id: loadToast });
+          if (!isSilent) toast.success(`Data for ${selectedMonth} loaded!`, { id: loadToast });
         } else {
           setTableData(defaultTeaData);
           setIsSaved(false); 
           setHasChanges(false);
-          toast('No data found. Ready for new entries.', { icon: 'ℹ️', id: loadToast });
+          if (!isSilent) toast('No data found. Ready for new entries.', { icon: 'ℹ️', id: loadToast });
         }
       } else {
         if (response.status === 401 || response.status === 403) {
-            toast.error('Session expired. Please log in again.', { id: loadToast });
+            if (!isSilent) toast.error('Session expired. Please log in again.', { id: loadToast });
         } else {
-            toast.error('Failed to fetch data.', { id: loadToast });
+            if (!isSilent) toast.error('Failed to fetch data.', { id: loadToast });
         }
       }
     } catch (error) {
-      toast.error('Network error while fetching.', { id: loadToast });
+      if (!isSilent) toast.error('Network error while fetching.', { id: loadToast });
     } finally {
       setIsFetching(false);
     }
   };
 
   const handleSaveToDB = async () => {
+    if (isViewer) {
+        toast.error("Viewers are not allowed to save data.");
+        return false;
+    }
+
     const recordsToSave = tableData.filter((row) => row.packs !== '' && Number(row.packs) > 0);
     
     if (recordsToSave.length === 0) {
@@ -189,7 +205,8 @@ export default function SellingDetailsTable() {
           return;
       }
 
-      if (hasChanges || !isSaved) {
+      // Viewers bypass the save requirement
+      if ((hasChanges || !isSaved) && !isViewer) {
           setShowUnsavedAlert(true);
       } else {
           generatePDF();
@@ -204,17 +221,32 @@ export default function SellingDetailsTable() {
       }
   };
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     const doc = new jsPDF('portrait'); 
     
+    try {
+        const res = await fetch("/logo.png");
+        if (res.ok) {
+            const blob = await res.blob();
+            const dataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+            doc.addImage(dataUrl, "PNG", 14, 10, 25, 25); 
+        }
+    } catch (err) {}
+
     doc.setFontSize(20);
     doc.setTextColor(46, 107, 59); 
-    doc.text("Monthly Selling Details Summary", 14, 22);
+    doc.text("Monthly Selling Details Summary", 45, 22);
     
     doc.setFontSize(11);
     doc.setTextColor(100);
-    doc.text(`Active Month: ${selectedMonth}`, 14, 32);
-    doc.text(`Exchange Rate: 1 USD = Rs. ${exchangeRate}`, 14, 38);
+    const monthName = new Date(selectedMonth).toLocaleString('default', { month: 'long', year: 'numeric' });
+    doc.text(`Active Month: ${monthName}`, 45, 32);
+    doc.text(`Exchange Rate: 1 USD = Rs. ${exchangeRate}`, 45, 38);
 
     const tableHead = [[
       { content: "Type of Tea", styles: { halign: 'center', fillColor: [50, 50, 50] } },
@@ -317,10 +349,13 @@ export default function SellingDetailsTable() {
           <div className="flex flex-wrap gap-3 justify-center sm:justify-end">
               <button 
                   onClick={handleSaveToDB}
-                  disabled={isSaving || (isSaved && !hasChanges)}
-                  className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${isSaved && !hasChanges ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'}`}
+                  disabled={isSaving || (isSaved && !hasChanges) || isViewer}
+                  className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
+                      (isSaved && !hasChanges) || isViewer ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'
+                  }`}
               >
-                  <Save size={18} /> {isSaved && !hasChanges ? "Saved" : isSaving ? "Saving..." : "Save to DB"}
+                  {isViewer ? <Eye size={18}/> : <Save size={18} />} 
+                  {isViewer ? "View Only" : isSaving ? "Saving..." : isSaved && !hasChanges ? "Saved" : "Save to DB"}
               </button>
 
               <button 
@@ -331,6 +366,14 @@ export default function SellingDetailsTable() {
               </button>
           </div>
       </div>
+
+      {/* Viewer Notification Banner */}
+      {isViewer && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg flex items-center gap-3">
+              <Info size={20} />
+              <p className="text-sm font-medium">You are logged in as a <strong>Viewer</strong>. You can view data and download reports. Editing and saving are disabled.</p>
+          </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div className="bg-gradient-to-br from-blue-50/50 to-white p-6 rounded-xl border border-blue-200 shadow-lg shadow-blue-900/5 flex flex-col justify-center relative overflow-hidden">
@@ -353,7 +396,7 @@ export default function SellingDetailsTable() {
                       />
                   </div>
                   <button 
-                      onClick={handleFetchData}
+                      onClick={() => handleFetchData(false)}
                       disabled={isFetching}
                       className="w-full sm:w-auto whitespace-nowrap px-5 py-3 bg-blue-600 text-white rounded-md text-sm font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
                   >
@@ -368,7 +411,7 @@ export default function SellingDetailsTable() {
               <div className="flex items-center gap-2 mb-4 border-b border-orange-100 pb-3">
                   <h3 className="text-sm md:text-base font-extrabold text-orange-700 flex items-center gap-2 uppercase tracking-wider">
                       <div className="p-1.5 bg-orange-100 rounded-lg"><Settings2 size={18} className="text-orange-600"/></div>
-                      2. Adjust Rates
+                      2. Adjust Rates {isViewer && "(Read Only)"}
                   </h3>
               </div>
               
@@ -382,41 +425,41 @@ export default function SellingDetailsTable() {
                           onWheel={(e) => e.target.blur()} 
                           value={exchangeRate} 
                           onChange={handleExchangeRateChange} 
-                          className="w-full sm:w-1/2 border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm" 
+                          disabled={isViewer}
+                          className="w-full sm:w-1/2 border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed" 
                       />
                   </div>
               </div>
           </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mb-12 min-h-[300px]">
+      <div className={`bg-white rounded-xl shadow-md overflow-hidden mb-12 min-h-[300px] border ${isViewer ? 'border-gray-200 opacity-95' : 'border-gray-200'}`}>
         <div className="bg-[#1B6A31] p-4 border-b border-gray-200 flex items-center gap-2">
             <DollarSign className="text-white" size={20}/>
             <h3 className="text-lg font-bold text-white">Selling Details Board</h3>
         </div>
         
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
+        <div className="overflow-x-auto p-4">
+          <table className="w-full border-collapse">
             <thead>
-                <tr className="bg-gray-50 text-gray-800 uppercase text-xs tracking-wider border-b border-gray-200">
-                    <th className="px-4 py-4 font-extrabold border-r border-gray-200 align-middle bg-gray-100 w-48 text-left">Type of Tea</th>
-                    <th className="px-4 py-4 font-bold text-[#1B6A31] border-r border-gray-200 bg-[#8CC63F]/10 text-center">Amount (kg)</th>
-                    <th className="px-4 py-4 font-bold text-blue-700 border-r border-gray-200 bg-blue-50 text-center">Number of Packs</th>
-                    <th className="px-4 py-4 font-bold text-orange-600 border-r border-gray-200 bg-orange-50 text-center">Price / One (USD)</th>
-                    <th className="px-4 py-4 font-bold text-gray-700 border-r border-gray-200 bg-gray-100/50 text-center">Total (USD)</th>
-                    <th className="px-4 py-4 font-bold text-red-700 border-r border-gray-200 bg-red-50 text-center">Total (LKR)</th>
-                </tr>
+              <tr>
+                <th className="px-4 py-4 font-extrabold text-xs tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#1a1a1a] bg-[#f9f9f9] text-center">Type of tea</th>
+                <th className="px-4 py-4 font-extrabold text-xs tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#2e6b3b] bg-[#f4f9f4] text-center">Amount (kg)</th>
+                <th className="px-4 py-4 font-extrabold text-xs tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#2858b4] bg-[#f0f5fd] text-center">Number of Packs</th>
+                <th className="px-4 py-4 font-extrabold text-xs tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#d66b2d] bg-[#fdf7f2] text-center">Price per one (USD)</th>
+                <th className="px-4 py-4 font-extrabold text-xs tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#1a1a1a] bg-[#f9f9f9] text-center">Total (USD)</th>
+                <th className="px-4 py-4 font-extrabold text-xs tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#b81d1d] bg-[#fcedec] text-center">Total (LKR)</th>
+              </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {tableData.map((row) => {
                 const calculatedUsd = (Number(row.packs) || 0) * (Number(row.price) || 0);
                 const calculatedLkr = calculatedUsd * exchangeRate;
 
                 return (
-                  <tr key={row.id} className="hover:bg-gray-50/80 transition-colors group text-center">
-                    <td className="px-4 py-4 border-r border-gray-200 font-bold text-[#1B6A31] bg-gray-50/50 whitespace-normal text-left">{row.type}</td>
-                    
-                    <td className="px-2 py-2 border-r border-gray-200 bg-[#8CC63F]/5">
+                  <tr key={row.id}>
+                    <td className="p-3 text-sm font-bold border-b border-r border-gray-200 text-[#2e6b3b] text-left pl-5">{row.type}</td>
+                    <td className="p-3 text-sm font-bold border-b border-r border-gray-200 text-center">
                       <input 
                         type="number" 
                         step="0.001" 
@@ -424,11 +467,11 @@ export default function SellingDetailsTable() {
                         onWheel={(e) => e.target.blur()}
                         value={row.amount} 
                         onChange={(e) => handleInputChange(row.id, 'amount', e.target.value)} 
-                        className="w-full p-2 border border-transparent hover:border-green-300 focus:border-green-300 rounded text-center font-bold text-[#1B6A31] outline-none focus:ring-2 focus:ring-green-500 shadow-inner bg-white" 
+                        disabled={isViewer}
+                        className="w-[80%] p-2 border border-transparent hover:border-green-300 focus:border-green-300 rounded text-center font-bold text-[#1B6A31] outline-none focus:ring-2 focus:ring-green-500 shadow-inner bg-white disabled:bg-transparent disabled:opacity-70 disabled:cursor-not-allowed" 
                       />
                     </td>
-                    
-                    <td className="px-2 py-2 border-r border-gray-200 bg-blue-50/30">
+                    <td className="p-3 text-sm font-bold border-b border-r border-gray-200 text-center">
                       <input 
                         type="number" 
                         placeholder="0" 
@@ -436,11 +479,11 @@ export default function SellingDetailsTable() {
                         onWheel={(e) => e.target.blur()}
                         value={row.packs} 
                         onChange={(e) => handleInputChange(row.id, 'packs', e.target.value)} 
-                        className="w-full p-2 border border-blue-300 rounded text-center font-bold text-blue-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner bg-white" 
+                        disabled={isViewer}
+                        className="w-[80%] p-2 border border-blue-300 rounded text-center font-bold text-blue-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner bg-white disabled:bg-gray-50 disabled:opacity-70 disabled:cursor-not-allowed" 
                       />
                     </td>
-                    
-                    <td className="px-2 py-2 border-r border-gray-200 bg-orange-50/30">
+                    <td className="p-3 text-sm font-bold border-b border-r border-gray-200 text-center">
                       <input 
                         type="number" 
                         step="0.1" 
@@ -448,29 +491,21 @@ export default function SellingDetailsTable() {
                         onWheel={(e) => e.target.blur()}
                         value={row.price} 
                         onChange={(e) => handleInputChange(row.id, 'price', e.target.value)} 
-                        className="w-full p-2 border border-transparent hover:border-orange-300 focus:border-orange-300 rounded text-center font-bold text-orange-600 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner bg-white" 
+                        disabled={isViewer}
+                        className="w-[80%] p-2 border border-transparent hover:border-orange-300 focus:border-orange-300 rounded text-center font-bold text-orange-600 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner bg-white disabled:bg-transparent disabled:opacity-70 disabled:cursor-not-allowed" 
                       />
                     </td>
-                    
-                    <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700 bg-gray-50/30">
-                        {calculatedUsd > 0 ? calculatedUsd.toFixed(2) : '0.00'}
-                    </td>
-                    
-                    <td className="px-3 py-4 font-black text-lg text-red-600 bg-red-50/30">
-                        {calculatedLkr > 0 ? calculatedLkr.toLocaleString() : '0'}
-                    </td>
+                    <td className="p-3 text-sm font-bold border-b border-r border-gray-200 text-center text-[#1a1a1a] bg-gray-50/50">{calculatedUsd > 0 ? calculatedUsd.toFixed(2) : '0'}</td>
+                    <td className="p-3 text-sm font-black border-b border-r border-gray-200 text-center text-[#b81d1d] bg-red-50/30">{calculatedLkr > 0 ? calculatedLkr.toLocaleString() : '0'}</td>
                   </tr>
                 );
               })}
+              <tr className="bg-[#fcedec]">
+                <td colSpan="4" className="p-3 text-sm font-bold text-[#1a1a1a] text-right pr-5 border-r border-gray-200">GRAND TOTAL</td>
+                <td className="p-3 text-lg font-bold text-[#1a1a1a] text-center border-r border-gray-200">{totalUsd.toFixed(2)}</td>
+                <td className="p-3 text-lg font-black text-[#b81d1d] text-center border-r border-gray-200">{totalLkr.toLocaleString()}</td>
+              </tr>
             </tbody>
-            
-            <tfoot className="bg-gray-100/90 border-t-[3px] border-gray-300 font-black text-gray-900 text-center shadow-[inset_0_4px_6px_-4px_rgba(0,0,0,0.1)]">
-                <tr>
-                    <td colSpan="4" className="px-4 py-5 border-r border-gray-200 text-right uppercase tracking-wider text-xl">Grand Total</td>
-                    <td className="px-3 py-5 border-r border-gray-200 text-gray-800 text-lg">{totalUsd.toFixed(2)}</td>
-                    <td className="px-3 py-5 text-red-700 text-xl bg-red-100/50">{totalLkr.toLocaleString()}</td>
-                </tr>
-            </tfoot>
           </table>
         </div>
       </div>
