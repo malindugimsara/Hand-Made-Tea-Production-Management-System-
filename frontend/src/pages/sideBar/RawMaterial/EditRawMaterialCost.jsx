@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import toast from 'react-hot-toast'; // Toaster component එක අයින් කර ඇත
+import toast from 'react-hot-toast'; 
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Leaf, Zap, Calculator, Save, X } from "lucide-react";
 
@@ -9,6 +9,10 @@ export default function EditRawMaterialCost() {
     const location = useLocation();
     
     const [isSaving, setIsSaving] = useState(false);
+
+    // --- ROLE BASED ACCESS CONTROL ---
+    const userRole = localStorage.getItem('userRole') || ''; 
+    const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
 
     // View page එකෙන් එවන දත්ත ලබා ගැනීම
     const recordData = location.state?.record;
@@ -28,6 +32,13 @@ export default function EditRawMaterialCost() {
 
     // පිටුව ලෝඩ් වෙද්දී කලින් තිබුණ දත්ත Form එකට පිරවීම
     useEffect(() => {
+        // Security check: Bounce Viewers out immediately
+        if (isViewer) {
+            toast.error("Access Denied. Viewers cannot edit records.");
+            navigate('/view-raw-material-cost');
+            return;
+        }
+
         if (recordData) {
             setFormData({
                 date: new Date(recordData.date).toISOString().split('T')[0],
@@ -42,7 +53,7 @@ export default function EditRawMaterialCost() {
             toast.error("No record data found!");
             navigate('/view-raw-material-cost'); // Data නැත්නම් ආපහු View එකට යවනවා
         }
-    }, [recordData, navigate]);
+    }, [recordData, navigate, isViewer]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -76,17 +87,27 @@ export default function EditRawMaterialCost() {
         };
 
         try {
+            // FIX: Grab the token to prove you are authorized!
+            const token = localStorage.getItem('token');
+            
             const res = await fetch(`${BACKEND_URL}/api/raw-material-cost/${recordData._id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // <-- This fixes the 401 Error!
+                },
                 body: JSON.stringify(payload)
             });
 
             if (res.ok) {
                 toast.success("Record updated successfully!", { id: toastId });
-                setTimeout(() => navigate('/view-raw-material-cost'), 1000); // තත්පරයකින් View Page එකට යවයි
+                setTimeout(() => navigate('/view-raw-material-cost'), 1000); 
             } else {
-                throw new Error('Failed to update');
+                if (res.status === 403) {
+                    toast.error("Access Denied.", { id: toastId });
+                } else {
+                    throw new Error('Failed to update');
+                }
             }
         } catch (error) {
             console.error(error);
