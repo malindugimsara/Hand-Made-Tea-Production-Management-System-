@@ -81,9 +81,24 @@ export default function ViewGreenLeafForm() {
 
                 glUsage[dateStr]++;
                 labUsage[dateStr]++;
+
+                // --- Calculate if the record was edited after initial creation ---
+                const getSafeTime = (item, field) => item && item[field] ? new Date(item[field]).getTime() : 0;
+                
+                const createdTimes = [getSafeTime(gl, 'createdAt'), getSafeTime(prod, 'createdAt'), getSafeTime(lab, 'createdAt')].filter(t => t > 0);
+                const updatedTimes = [getSafeTime(gl, 'updatedAt'), getSafeTime(prod, 'updatedAt'), getSafeTime(lab, 'updatedAt')].filter(t => t > 0);
+                
+                const maxCreated = createdTimes.length > 0 ? Math.max(...createdTimes) : 0;
+                const maxUpdated = updatedTimes.length > 0 ? Math.max(...updatedTimes) : 0;
+
+                // If updated timestamp is > 5 seconds after creation timestamp, it counts as edited
+                const isEdited = (maxUpdated - maxCreated) > 5000;
+                const lastUpdatedDate = isEdited ? new Date(maxUpdated).toISOString().split('T')[0] : '';
                 
                 return {
                     date: dateStr,
+                    isEdited,
+                    lastUpdatedDate,
                     greenLeafId: gl ? gl._id : null,
                     productionId: prod._id, 
                     labourId: lab ? lab._id : null,
@@ -206,8 +221,11 @@ export default function ViewGreenLeafForm() {
                 ? `${record.dryerName}\n(${record.dryerUpdatedDate})` 
                 : '-';
 
+            // Add edited date to PDF Date column if applicable
+            const pdfDateCell = record.isEdited ? `${record.date}\n(Edited: ${record.lastUpdatedDate})` : record.date;
+
             return [
-                record.date,
+                pdfDateCell,
                 record.totalWeight,
                 record.selectedWeight,
                 record.returnedWeight > 0 ? record.returnedWeight : '-',
@@ -368,8 +386,15 @@ export default function ViewGreenLeafForm() {
 
                                         return (
                                             <tr key={record.productionId} className="hover:bg-gray-50/80 transition-colors group">
-                                                <td className="px-4 py-3 border-r border-gray-300">
-                                                    <span className="font-semibold text-gray-800">{record.date}</span>
+                                                <td className="px-4 py-3 border-r border-gray-300 align-top">
+                                                    <div className="flex flex-col items-start gap-1 mt-1">
+                                                        <span className="font-semibold text-gray-800">{record.date}</span>
+                                                        {record.isEdited && (
+                                                            <span className="text-[9px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded font-bold w-max">
+                                                                Edited: {record.lastUpdatedDate}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="px-3 py-3 text-center text-gray-600 border-r border-gray-300">{record.totalWeight}</td>
                                                 <td className="px-3 py-3 text-center border-r border-gray-300">
