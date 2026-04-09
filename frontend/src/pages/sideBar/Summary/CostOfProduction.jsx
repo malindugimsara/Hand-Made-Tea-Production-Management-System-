@@ -614,7 +614,7 @@ export default function CostOfProduction() {
                 </AlertDialogContent>
             </AlertDialog>
 
-            <div className="mb-8 border-b pb-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md -mt-8 -mx-8 pt-8 pb-4 px-8 mb-8 border-b border-gray-100 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-[#1B6A31] flex items-center gap-2">
                         <DollarSign /> Cost of Production
