@@ -1,17 +1,24 @@
-import { Production } from '../models/production.js';
+import { Production } from '../models/production.js'; // Adjust path if needed
 
 export const createProduction = async (req, res) => {
     try {
-        const { date, teaType, madeTeaWeight, dryerDetails } = req.body;
+        // Added expectedDryerDate to the destructured body
+        const { date, teaType, madeTeaWeight, expectedDryerDate, dryerDetails } = req.body;
         
-        // Auto-calculate dryer units if not provided
-        const units = dryerDetails.meterEnd - dryerDetails.meterStart;
+        let processedDryerDetails = dryerDetails;
+
+        // Safely auto-calculate dryer units ONLY IF dryer details are actually provided
+        if (dryerDetails && dryerDetails.meterStart !== undefined && dryerDetails.meterEnd !== undefined) {
+            const units = dryerDetails.meterEnd - dryerDetails.meterStart;
+            processedDryerDetails = { ...dryerDetails, units };
+        }
         
         const newProduction = new Production({
             date,
             teaType,
             madeTeaWeight,
-            dryerDetails: { ...dryerDetails, units }
+            expectedDryerDate, // Save the new date
+            dryerDetails: processedDryerDetails
         });
 
         await newProduction.save();
@@ -40,18 +47,26 @@ export const deleteProduction = async (req, res) => {
     }
 };
 
-// Update production record with new data, including auto-calculating units if meter readings are updated
+// Update production record with new data (Used by Day 2 Pop-Up)
 export const updateProduction = async (req, res) => {
     try {
         const { id } = req.params;
         const updatedData = req.body;
         
-        // Auto-calculate dryer units if meter readings are provided in the update
-        if (updatedData.dryerDetails && updatedData.dryerDetails.meterEnd && updatedData.dryerDetails.meterStart) {
+        // Safely Auto-calculate dryer units if meter readings are provided in the update
+        if (updatedData.dryerDetails && 
+            updatedData.dryerDetails.meterEnd !== undefined && 
+            updatedData.dryerDetails.meterStart !== undefined) {
+            
             updatedData.dryerDetails.units = updatedData.dryerDetails.meterEnd - updatedData.dryerDetails.meterStart;
         }
 
         const record = await Production.findByIdAndUpdate(id, updatedData, { new: true });
+        
+        if (!record) {
+            return res.status(404).json({ message: "Production record not found" });
+        }
+
         res.status(200).json(record);
     } catch (error) {
         res.status(400).json({ message: error.message });
