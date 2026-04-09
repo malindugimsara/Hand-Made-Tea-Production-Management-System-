@@ -39,6 +39,7 @@ export default function ViewRawMaterialCost() {
 
     useEffect(() => {
         fetchRecords();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchRecords = async () => {
@@ -54,7 +55,24 @@ export default function ViewRawMaterialCost() {
 
             if (res.ok) {
                 const data = await res.json();
-                const sortedData = data.sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                // --- Process Data to check for edits ---
+                const processedData = data.map(rec => {
+                    const createdTime = rec.createdAt ? new Date(rec.createdAt).getTime() : 0;
+                    const updatedTime = rec.updatedAt ? new Date(rec.updatedAt).getTime() : 0;
+                    
+                    // If updated timestamp is > 5 seconds after creation timestamp, it counts as edited
+                    const isEdited = createdTime > 0 && updatedTime > 0 && (updatedTime - createdTime) > 5000;
+                    const lastUpdatedDate = isEdited ? new Date(rec.updatedAt).toISOString().split('T')[0] : '';
+                    
+                    return {
+                        ...rec,
+                        isEdited,
+                        lastUpdatedDate
+                    };
+                });
+
+                const sortedData = processedData.sort((a, b) => new Date(b.date) - new Date(a.date));
                 setRecords(sortedData);
             } else {
                 if (res.status === 401) {
@@ -132,17 +150,22 @@ export default function ViewRawMaterialCost() {
     // PREPARE PDF DATA
     // -------------------------------------------------------------
     const getPdfData = () => {
-        const tableRows = filteredRecords.map(rec => [
-            new Date(rec.date).toISOString().split('T')[0],
-            rec.materialType,
-            rec.dryWeight,
-            rec.meterStart,
-            rec.meterEnd,
-            rec.totalPoints,
-            rec.rawMaterialCost.toLocaleString(undefined, {minimumFractionDigits: 2}),
-            rec.electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2}),
-            rec.totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})
-        ]);
+        const tableRows = filteredRecords.map(rec => {
+            const baseDate = new Date(rec.date).toISOString().split('T')[0];
+            const pdfDateCell = rec.isEdited ? `${baseDate}\n(Edited: ${rec.lastUpdatedDate})` : baseDate;
+
+            return [
+                pdfDateCell,
+                rec.materialType,
+                rec.dryWeight,
+                rec.meterStart,
+                rec.meterEnd,
+                rec.totalPoints,
+                rec.rawMaterialCost.toLocaleString(undefined, {minimumFractionDigits: 2}),
+                rec.electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2}),
+                rec.totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})
+            ];
+        });
 
         tableRows.push([
             "GRAND TOTAL",
@@ -256,7 +279,7 @@ export default function ViewRawMaterialCost() {
                                         <div className="flex items-center justify-center gap-1"><Zap size={14}/> Meter Reading</div>
                                     </th>
                                     
-                                    <th rowSpan="2" className="px-4 py-3 font-bold text-orange-700 border-r border-gray-200 bg-orange-100/50 align-bottom text-center">Total Pts</th>
+                                    <th rowSpan="2" className="px-4 py-3 font-bold text-orange-700 border-r border-gray-200 bg-orange-100/50 align-bottom text-center">Total Points</th>
                                     
                                     <th colSpan="2" className="px-4 py-2 font-bold text-blue-700 border-r border-gray-200 bg-blue-50 text-center">
                                         <div className="flex items-center justify-center gap-1"><DollarSign size={14}/> Costs (Rs)</div>
@@ -264,6 +287,7 @@ export default function ViewRawMaterialCost() {
                                     
                                     <th rowSpan="2" className="px-4 py-3 font-black text-green-700 border-r border-gray-200 bg-green-50/50 align-bottom text-right">Total Cost</th>
                                     
+                                    {/* HIDE ACTION COLUMN FOR VIEWERS */}
                                     {!isViewer && (
                                         <th rowSpan="2" className="px-4 py-3 font-semibold align-bottom text-center w-24 bg-gray-50">Action</th>
                                     )}
@@ -279,8 +303,17 @@ export default function ViewRawMaterialCost() {
                             <tbody className="divide-y divide-gray-100">
                                 {filteredRecords.map((rec) => (
                                     <tr key={rec._id} className="hover:bg-gray-50/80 transition-colors group">
-                                        <td className="px-4 py-3 border-r border-gray-100 font-medium text-gray-600">
-                                            {new Date(rec.date).toISOString().split('T')[0]}
+                                        <td className="px-4 py-3 border-r border-gray-100 font-medium text-gray-600 align-top">
+                                            <div className="flex flex-col items-start gap-1">
+                                                <span className="font-semibold text-gray-800">
+                                                    {new Date(rec.date).toISOString().split('T')[0]}
+                                                </span>
+                                                {rec.isEdited && (
+                                                    <span className="text-[9px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded font-bold w-max">
+                                                        Edited: {rec.lastUpdatedDate}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 border-r border-gray-100 font-bold text-gray-800">
                                             <span className="px-3 py-1 bg-white border border-gray-200 rounded-md text-xs">{rec.materialType}</span>
@@ -307,6 +340,7 @@ export default function ViewRawMaterialCost() {
                                             {rec.totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}
                                         </td>
                                         
+                                        {/* HIDE ACTION BUTTONS FOR VIEWERS */}
                                         {!isViewer && (
                                             <td className="px-3 py-3 text-center">
                                                 <div className="flex items-center justify-center gap-1">
@@ -357,6 +391,7 @@ export default function ViewRawMaterialCost() {
                                                 </div>
                                             </td>
                                         )}
+                                        
                                     </tr>
                                 ))}
                             </tbody>
@@ -373,6 +408,8 @@ export default function ViewRawMaterialCost() {
                                         <td className="px-4 py-4 border-r border-gray-200 text-right">{totalRawCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                         <td className="px-4 py-4 border-r border-gray-200 text-right">{totalElecCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                         <td className="px-4 py-4 border-r border-gray-200 text-green-700 text-lg text-right bg-green-50/20">{grandTotalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                        
+                                        {/* HIDE ACTION FOOTER CELL FOR VIEWERS */}
                                         {!isViewer && <td className="px-4 py-4"></td>}
                                     </tr>
                                 </tfoot>

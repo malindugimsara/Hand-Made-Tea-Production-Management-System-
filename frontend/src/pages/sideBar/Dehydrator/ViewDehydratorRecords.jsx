@@ -37,6 +37,7 @@ export default function ViewDehydratorRecords() {
     
     useEffect(() => {
         fetchRecords();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchRecords = async () => {
@@ -58,7 +59,23 @@ export default function ViewDehydratorRecords() {
 
             const data = await response.json();
             
-            const sortedData = data.sort((a, b) => {
+            // --- Process Data to check for edits ---
+            const processedData = data.map(rec => {
+                const createdTime = rec.createdAt ? new Date(rec.createdAt).getTime() : 0;
+                const updatedTime = rec.updatedAt ? new Date(rec.updatedAt).getTime() : 0;
+                
+                // If updated timestamp is > 5 seconds after creation timestamp, it counts as edited
+                const isEdited = createdTime > 0 && updatedTime > 0 && (updatedTime - createdTime) > 5000;
+                const lastUpdatedDate = isEdited ? new Date(rec.updatedAt).toISOString().split('T')[0] : '';
+                
+                return {
+                    ...rec,
+                    isEdited,
+                    lastUpdatedDate
+                };
+            });
+
+            const sortedData = processedData.sort((a, b) => {
                 const dateDiff = new Date(b.date) - new Date(a.date);
                 if (dateDiff !== 0) return dateDiff;
                 return new Date(b.createdAt) - new Date(a.createdAt);
@@ -118,14 +135,19 @@ export default function ViewDehydratorRecords() {
 
     // Prepare PDF Data Function
     const getPdfData = () => {
-        const tableRows = filteredRecords.map(record => [
-            record.date,
-            record.trial,
-            record.meterStart,
-            record.meterEnd,
-            record.totalUnits,
-            record.timePeriodHours
-        ]);
+        const tableRows = filteredRecords.map(record => {
+            const baseDate = new Date(record.date).toISOString().split('T')[0];
+            const pdfDateCell = record.isEdited ? `${baseDate}\n(Edited: ${record.lastUpdatedDate})` : baseDate;
+
+            return [
+                pdfDateCell,
+                record.trial,
+                record.meterStart,
+                record.meterEnd,
+                record.totalUnits,
+                record.timePeriodHours
+            ];
+        });
 
         tableRows.push([
             "GRAND TOTAL",
@@ -230,8 +252,17 @@ export default function ViewDehydratorRecords() {
                                 {filteredRecords.length > 0 ? (
                                     filteredRecords.map((record) => (
                                         <tr key={record._id} className="hover:bg-gray-50/80 transition-colors group">
-                                            <td className="px-4 py-3 border-r border-gray-100">
-                                                <span className="font-semibold text-gray-800">{record.date}</span>
+                                            <td className="px-4 py-3 border-r border-gray-100 align-top">
+                                                <div className="flex flex-col items-start gap-1 mt-1">
+                                                    <span className="font-semibold text-gray-800">
+                                                        {new Date(record.date).toISOString().split('T')[0]}
+                                                    </span>
+                                                    {record.isEdited && (
+                                                        <span className="text-[9px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded font-bold w-max">
+                                                            Edited: {record.lastUpdatedDate}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-4 py-3 border-r border-gray-100 font-medium text-[#1B6A31]">
                                                 {record.trial}
