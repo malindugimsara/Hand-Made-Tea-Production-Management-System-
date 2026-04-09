@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { PlusCircle, Trash2, ListChecks, Save, X } from "lucide-react";
+import { PlusCircle, Trash2, ListChecks, Save, X, CalendarClock, Zap, AlertCircle, Search } from "lucide-react";
 
 export default function GreenLeafForm() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -10,23 +10,42 @@ export default function GreenLeafForm() {
     const [isSavingAll, setIsSavingAll] = useState(false);
     const [pendingRecords, setPendingRecords] = useState([]);
 
+    // Safely get today's date in local YYYY-MM-DD format
+    const getTodayLocalString = () => {
+        const today = new Date();
+        return today.getFullYear() + '-' + 
+               String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+               String(today.getDate()).padStart(2, '0');
+    };
+
+    // --- DAY 1 FORM STATE ---
     const [formData, setFormData] = useState({
-        date: new Date().toISOString().split('T')[0],
+        date: getTodayLocalString(),
         totalWeight: '',
         selectedWeight: '',
         teaType: '',
         madeTeaWeight: '',
-        dryerName: '',
-        meterStart: '',
-        meterEnd: '',
+        expectedDryerDate: '', 
         workerCount: ''
     });
 
     const [existingDates, setExistingDates] = useState([]);
     const [lastReadings, setLastReadings] = useState({ 'Dryer 1': '', 'Dryer 2': '' });
+    const [allProductionData, setAllProductionData] = useState([]); 
+
+    // --- DAY 2 MODAL STATES ---
+    const [pendingDryerTasks, setPendingDryerTasks] = useState([]);
+    const [activeTaskIndex, setActiveTaskIndex] = useState(0);
+    const [isSubmittingDryer, setIsSubmittingDryer] = useState(false);
+    const [dryerFormData, setDryerFormData] = useState({
+        dryerName: '',
+        meterStart: '',
+        meterEnd: ''
+    });
 
     useEffect(() => {
         fetchInitialData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchInitialData = async () => {
@@ -44,7 +63,7 @@ export default function GreenLeafForm() {
 
             if (glRes.ok) {
                 const glData = await glRes.json();
-                const dates = glData.map(record => new Date(record.date).toISOString().split('T')[0]);
+                const dates = glData.map(record => record.date ? record.date.substring(0, 10) : '');
                 setExistingDates(dates);
             } else if (glRes.status === 401 || glRes.status === 403) {
                 toast.error("Session expired. Please log in again.");
@@ -54,6 +73,8 @@ export default function GreenLeafForm() {
             if (prodRes.ok) {
                 const prodData = await prodRes.json();
                 prodData.sort((a, b) => new Date(b.date) - new Date(a.date)); 
+                
+                setAllProductionData(prodData); 
 
                 let d1Last = '';
                 let d2Last = '';
@@ -65,27 +86,54 @@ export default function GreenLeafForm() {
                 if (d2Record) d2Last = d2Record.dryerDetails.meterEnd;
 
                 setLastReadings({ 'Dryer 1': d1Last, 'Dryer 2': d2Last });
+
+                // --- AUTO-POPUP LOGIC ---
+                const todayStr = getTodayLocalString();
+                const tasksNeedingDryer = prodData.filter(p => {
+                    const hasNoDryer = !p.dryerDetails || !p.dryerDetails.dryerName || p.dryerDetails.dryerName === "";
+                    
+                    // Use substring to avoid timezone shift bugs from MongoDB
+                    const expectedDateStr = p.expectedDryerDate ? p.expectedDryerDate.substring(0, 10) : null;
+                    
+                    // If the expected date is today or earlier, it's due!
+                    const isDue = expectedDateStr && expectedDateStr <= todayStr;
+                    return hasNoDryer && isDue;
+                });
+
+                if (tasksNeedingDryer.length > 0) {
+                    setPendingDryerTasks(tasksNeedingDryer.reverse()); 
+                }
             }
         } catch (error) {
             console.error("Data fetch error:", error);
         }
     };
 
+    // --- MANUAL LOAD DATE BUTTON LOGIC ---
+    const handleLoadDateTasks = () => {
+        const tasksForDate = allProductionData.filter(p => {
+            const hasNoDryer = !p.dryerDetails || !p.dryerDetails.dryerName || p.dryerDetails.dryerName === "";
+            
+            // FIX: Check against expectedDryerDate, NOT the collection date (p.date)
+            const expectedDateStr = p.expectedDryerDate ? p.expectedDryerDate.substring(0, 10) : null;
+            
+            return hasNoDryer && expectedDateStr === formData.date;
+        });
+
+        if (tasksForDate.length > 0) {
+            setPendingDryerTasks(tasksForDate);
+            setActiveTaskIndex(0);
+            toast.success(`Found ${tasksForDate.length} pending task(s) expected to be dried on this date!`);
+        } else {
+            toast.success("No pending dryer tasks scheduled for this date.");
+        }
+    };
+
     const returnedWeight = (Number(formData.totalWeight) || 0) - (Number(formData.selectedWeight) || 0);
-    const dryerUnits = (Number(formData.meterEnd) || 0) - (Number(formData.meterStart) || 0);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
-    };
-
-    const handleDryerSelect = (e) => {
-        const selectedDryer = e.target.value;
-        setFormData({ 
-            ...formData, 
-            dryerName: selectedDryer,
-            meterStart: lastReadings[selectedDryer] !== undefined ? String(lastReadings[selectedDryer]) : '' 
-        });
     };
 
     const playErrorSound = () => {
@@ -106,15 +154,13 @@ export default function GreenLeafForm() {
         }
     };
 
-    // 1. තාවකාලික ලැයිස්තුවට එකතු කිරීම
+    // --- DAY 1: ADD TO PENDING LIST ---
     const handleAddToList = (e) => {
         e.preventDefault();
 
         const total = Number(formData.totalWeight);
         const selected = Number(formData.selectedWeight);
         const made = Number(formData.madeTeaWeight);
-        const mStart = Number(formData.meterStart);
-        const mEnd = Number(formData.meterEnd);
 
         if (selected > total) {
             playErrorSound();
@@ -128,44 +174,33 @@ export default function GreenLeafForm() {
             return;
         }
 
-        if (mEnd < mStart) {
+        if (formData.expectedDryerDate < formData.date) {
             playErrorSound();
-            toast.error("End Reading must be greater than Start Reading!");
+            toast.error("Expected Dryer Date cannot be before the collection date!");
             return;
         }
 
-        // List එකට එකතු කිරීම
-        const newRecord = { ...formData, returnedWeight, dryerUnits };
+        const newRecord = { ...formData, returnedWeight };
         setPendingRecords([...pendingRecords, newRecord]);
         toast.success("Added to list!");
 
-        // ඊළඟ රෙකෝඩ් එක සඳහා Start Meter එක යාවත්කාලීන කිරීම
-        setLastReadings(prev => ({
-            ...prev,
-            [formData.dryerName]: formData.meterEnd
-        }));
-
-        // Form එක හිස් කිරීම (Date එක පමණක් ඉතිරි කර)
         setFormData({
             ...formData,
             totalWeight: '',
             selectedWeight: '',
             teaType: '',
             madeTeaWeight: '',
-            dryerName: '',
-            meterStart: '',
-            meterEnd: '',
+            expectedDryerDate: '',
             workerCount: ''
         });
     };
 
-    // 2. ලැයිස්තුවෙන් ඉවත් කිරීම
     const handleRemoveFromList = (indexToRemove) => {
         const updatedList = pendingRecords.filter((_, index) => index !== indexToRemove);
         setPendingRecords(updatedList);
     };
 
-    // 3. සියල්ල එකවර Database එකට Save කිරීම
+    // --- DAY 1: SAVE ALL TO DB ---
     const handleSaveAll = async () => {
         if (pendingRecords.length === 0) {
             toast.error("No records in the list to save!");
@@ -176,7 +211,6 @@ export default function GreenLeafForm() {
         const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
 
         try {
-            // Get the token once before processing the loop
             const token = localStorage.getItem('token');
             const authHeaders = {
                 'Content-Type': 'application/json',
@@ -187,14 +221,18 @@ export default function GreenLeafForm() {
                 const total = Number(record.totalWeight);
                 const selected = Number(record.selectedWeight);
                 const made = Number(record.madeTeaWeight);
-                const mStart = Number(record.meterStart);
-                const mEnd = Number(record.meterEnd);
 
                 const greenLeafPayload = { date: record.date, totalWeight: total, selectedWeight: selected };
-                const productionPayload = { date: record.date, teaType: record.teaType, madeTeaWeight: made, dryerDetails: { dryerName: record.dryerName, meterStart: mStart, meterEnd: mEnd } };
+                
+                const productionPayload = { 
+                    date: record.date, 
+                    teaType: record.teaType, 
+                    madeTeaWeight: made,
+                    expectedDryerDate: record.expectedDryerDate 
+                };
+                
                 const labourPayload = { date: record.date, workerCount: Number(record.workerCount) };
 
-                // සෑම රෙකෝඩ් එකකටම අදාළව API 3 කට data යැවීම (With Auth Headers)
                 const [glRes, prodRes, labRes] = await Promise.all([
                     fetch(`${BACKEND_URL}/api/green-leaf`, { method: 'POST', headers: authHeaders, body: JSON.stringify(greenLeafPayload) }),
                     fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(productionPayload) }),
@@ -202,9 +240,7 @@ export default function GreenLeafForm() {
                 ]);
 
                 if (!glRes.ok || !prodRes.ok || !labRes.ok) {
-                    if (glRes.status === 403 || prodRes.status === 403 || labRes.status === 403) {
-                        throw new Error('Access Denied');
-                    }
+                    if (glRes.status === 403 || prodRes.status === 403 || labRes.status === 403) throw new Error('Access Denied');
                     throw new Error('Failed to save a record');
                 }
             });
@@ -213,7 +249,7 @@ export default function GreenLeafForm() {
             
             toast.success("All records saved successfully!", { id: toastId });
             setExistingDates([...existingDates, ...pendingRecords.map(r => r.date)]);
-            setPendingRecords([]); // Save වූ පසු ලැයිස්තුව හිස් කිරීම
+            setPendingRecords([]); 
             
             setTimeout(() => {
                 navigation('/view-green-leaf');
@@ -221,7 +257,6 @@ export default function GreenLeafForm() {
 
         } catch (error) {
             playErrorSound();
-            console.error(error);
             if (error.message === 'Access Denied') {
                 toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
             } else {
@@ -229,6 +264,78 @@ export default function GreenLeafForm() {
             }
         } finally {
             setIsSavingAll(false);
+        }
+    };
+
+    // --- DAY 2: MODAL HANDLERS ---
+    const handleModalDryerSelect = (e) => {
+        const selectedDryer = e.target.value;
+        setDryerFormData({ 
+            ...dryerFormData, 
+            dryerName: selectedDryer,
+            meterStart: lastReadings[selectedDryer] !== undefined ? String(lastReadings[selectedDryer]) : '' 
+        });
+    };
+
+    const handleModalSubmit = async (e) => {
+        e.preventDefault();
+        const mStart = Number(dryerFormData.meterStart);
+        const mEnd = Number(dryerFormData.meterEnd);
+
+        if (mEnd < mStart) {
+            playErrorSound();
+            toast.error("End Reading must be greater than Start Reading!");
+            return;
+        }
+
+        setIsSubmittingDryer(true);
+        const toastId = toast.loading("Saving dryer readings...");
+        const currentTask = pendingDryerTasks[activeTaskIndex];
+
+        try {
+            const token = localStorage.getItem('token');
+            const payload = {
+                dryerDetails: {
+                    dryerName: dryerFormData.dryerName,
+                    meterStart: mStart,
+                    meterEnd: mEnd
+                }
+            };
+
+            const res = await fetch(`${BACKEND_URL}/api/production/${currentTask._id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error("Failed to update record");
+
+            toast.success("Dryer details saved!", { id: toastId });
+
+            setLastReadings(prev => ({
+                ...prev,
+                [dryerFormData.dryerName]: mEnd
+            }));
+
+            setAllProductionData(prev => prev.map(p => 
+                p._id === currentTask._id ? { ...p, dryerDetails: payload.dryerDetails } : p
+            ));
+
+            if (activeTaskIndex < pendingDryerTasks.length - 1) {
+                setActiveTaskIndex(prev => prev + 1);
+                setDryerFormData({ dryerName: '', meterStart: '', meterEnd: '' });
+            } else {
+                setPendingDryerTasks([]); 
+                toast.success("All pending dryer tasks complete!");
+            }
+
+        } catch (error) {
+            toast.error("Error saving dryer readings.", { id: toastId });
+        } finally {
+            setIsSubmittingDryer(false);
         }
     };
 
@@ -244,6 +351,85 @@ export default function GreenLeafForm() {
 
     return (
         <div className="p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 min-h-screen">
+            {/* Removed local Toaster to prevent duplicates */}
+
+            {/* --- DAY 2 PENDING DRYER MODAL --- */}
+            {pendingDryerTasks.length > 0 && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-orange-200">
+                        
+                        <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-6 text-white relative">
+                            <button onClick={() => setPendingDryerTasks([])} className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors">
+                                <X size={24} />
+                            </button>
+                            <div className="flex items-center gap-3 mb-2">
+                                <AlertCircle size={28} />
+                                <h2 className="text-2xl font-bold">Pending Dryer Readings</h2>
+                            </div>
+                            <p className="text-orange-100 font-medium">
+                                Task {activeTaskIndex + 1} of {pendingDryerTasks.length}
+                            </p>
+                        </div>
+
+                        <div className="p-6">
+                            <div className="bg-orange-50 text-orange-800 p-4 rounded-xl mb-6 border border-orange-100">
+                                <p className="text-sm font-bold uppercase tracking-wider text-orange-600 mb-1">Record Details</p>
+                                <p className="font-medium"><strong>Date Collected:</strong> {new Date(pendingDryerTasks[activeTaskIndex].date).toISOString().split('T')[0]}</p>
+                                <p className="font-medium"><strong>Tea Type:</strong> {pendingDryerTasks[activeTaskIndex].teaType}</p>
+                                <p className="font-medium"><strong>Made Tea Output:</strong> {pendingDryerTasks[activeTaskIndex].madeTeaWeight} kg</p>
+                            </div>
+
+                            <form onSubmit={handleModalSubmit} className="space-y-5">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1">SELECT DRYER</label>
+                                    <select 
+                                        name="dryerName" 
+                                        value={dryerFormData.dryerName} 
+                                        onChange={handleModalDryerSelect} 
+                                        required 
+                                        className="w-full p-3 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-orange-400 outline-none"
+                                    >
+                                        <option value="">Select Dryer...</option>
+                                        <option value="Dryer 1">Dryer 1</option>
+                                        <option value="Dryer 2">Dryer 2</option>
+                                    </select>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1">START READING</label>
+                                        <input 
+                                            type="number" 
+                                            value={dryerFormData.meterStart} 
+                                            onChange={(e) => setDryerFormData({...dryerFormData, meterStart: e.target.value})} 
+                                            onWheel={(e) => e.target.blur()} 
+                                            required 
+                                            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-400 outline-none" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1">END READING</label>
+                                        <input 
+                                            type="number" 
+                                            value={dryerFormData.meterEnd} 
+                                            onChange={(e) => setDryerFormData({...dryerFormData, meterEnd: e.target.value})} 
+                                            onWheel={(e) => e.target.blur()} 
+                                            required 
+                                            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-400 outline-none" 
+                                        />
+                                    </div>
+                                </div>
+                                <button 
+                                    type="submit" 
+                                    disabled={isSubmittingDryer}
+                                    className="w-full py-4 mt-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl transition-colors shadow-md disabled:bg-orange-400"
+                                >
+                                    {isSubmittingDryer ? "Saving..." : activeTaskIndex < pendingDryerTasks.length - 1 ? "Save & Next" : "Save & Complete"}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
             
             <div className="mb-8 text-center sm:text-left">
                 <h2 className="text-3xl font-bold text-[#1B6A31]">Add Daily Production Records</h2>
@@ -256,7 +442,7 @@ export default function GreenLeafForm() {
                 <div className="lg:col-span-3">
                     <form onSubmit={handleAddToList} className="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-gray-200">
                         
-                        <div className="mb-8 pb-6 border-b border-gray-100 flex items-center gap-4">
+                        <div className="mb-8 pb-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-4">
                             <label className="block text-sm font-bold text-gray-700">Select Date:</label>
                             <input 
                                 type="date" 
@@ -264,8 +450,16 @@ export default function GreenLeafForm() {
                                 value={formData.date} 
                                 onChange={handleInputChange} 
                                 required 
-                                className="p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#8CC63F] outline-none" 
+                                className="p-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#8CC63F] outline-none w-full sm:w-auto" 
                             />
+                            {/* NEW BUTTON: Load specific date's tasks */}
+                            <button 
+                                type="button" 
+                                onClick={handleLoadDateTasks}
+                                className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-md transition-colors flex items-center gap-2"
+                            >
+                                <Search size={18} /> Load Pending Tasks
+                            </button>
                         </div>
 
                         {/* 1. GREEN LEAF */}
@@ -314,30 +508,20 @@ export default function GreenLeafForm() {
                             </div>
                         </div>
 
-                        {/* 3. DRYER METER */}
+                        {/* 3. EXPECTED DRYER DATE (REPLACES OLD METER LOGIC) */}
                         <div className="mb-8 bg-orange-50 border border-orange-200 rounded-xl p-6">
-                            <h3 className="text-lg font-bold text-orange-600 mb-4 flex items-center gap-2"><span>⚡</span> 3. Dryer Meter Reading</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                <div className="col-span-1 md:col-span-3">
-                                    <label className="block text-xs font-bold text-gray-500 mb-1">SELECT DRYER</label>
-                                    <select name="dryerName" value={formData.dryerName} onChange={handleDryerSelect} required className="w-full p-3 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-orange-400 outline-none">
-                                        <option value="">Select Dryer...</option>
-                                        <option value="Dryer 1">Dryer 1</option>
-                                        <option value="Dryer 2">Dryer 2</option>
-                                    </select>
-                                </div>
-                                <div className="col-span-1 md:col-span-1">
-                                    <label className="block text-xs font-bold text-gray-500 mb-1">START READING</label>
-                                    <input type="number" name="meterStart" value={formData.meterStart} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-400 outline-none" />
-                                </div>
-                                <div className="col-span-1 md:col-span-1">
-                                    <label className="block text-xs font-bold text-gray-500 mb-1">END READING</label>
-                                    <input type="number" name="meterEnd" value={formData.meterEnd} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-400 outline-none" />
-                                </div>
-                                <div className="col-span-1 md:col-span-1">
-                                    <label className="block text-xs font-bold text-gray-500 mb-1">UNITS CONSUMED</label>
-                                    <div className="w-full p-3 border border-orange-300 bg-orange-100 text-orange-800 font-bold rounded-md flex items-center">{dryerUnits > 0 ? dryerUnits : 0}</div>
-                                </div>
+                            <h3 className="text-lg font-bold text-orange-600 mb-4 flex items-center gap-2"><span>🗓️</span> 3. Expected Dryer Schedule</h3>
+                            <p className="text-sm text-gray-500 mb-4">Select the date this batch is scheduled to enter the dryer. You will be prompted to enter the meter readings on that day.</p>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">EXPECTED DRYER DATE</label>
+                                <input 
+                                    type="date" 
+                                    name="expectedDryerDate" 
+                                    value={formData.expectedDryerDate} 
+                                    onChange={handleInputChange} 
+                                    required 
+                                    className="w-full p-3 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-orange-400 outline-none" 
+                                />
                             </div>
                         </div>
 
@@ -408,14 +592,13 @@ export default function GreenLeafForm() {
                                                         Sel: <span className="font-bold text-green-700">{item.selectedWeight}kg</span><br/>
                                                         Tot: {item.totalWeight}kg
                                                     </div>
-                                                    <div className="bg-white p-2 rounded border border-gray-100">
-                                                        <span className="block text-gray-400 font-bold mb-0.5 text-[9px] uppercase">{item.dryerName}</span>
-                                                        Units: <span className="font-bold text-orange-600">{item.dryerUnits}</span><br/>
-                                                        ({item.meterStart} - {item.meterEnd})
+                                                    <div className="bg-white p-2 rounded border border-gray-100 flex flex-col justify-center">
+                                                        <span className="block text-gray-400 font-bold mb-0.5 text-[9px] uppercase">Drying Schedule</span>
+                                                        <span className="font-bold text-orange-600 flex items-center gap-1"><CalendarClock size={12}/> {item.expectedDryerDate}</span>
                                                     </div>
                                                 </div>
 
-                                                <div className="text-xs text-gray-500 font-medium">
+                                                <div className="text-xs text-gray-500 font-medium mt-1">
                                                     Workers: <span className="font-bold text-blue-600">{item.workerCount}</span>
                                                 </div>
                                             </div>
