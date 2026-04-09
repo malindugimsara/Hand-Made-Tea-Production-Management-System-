@@ -38,6 +38,7 @@ export default function ViewGreenLeafForm() {
     
     useEffect(() => {
         fetchMergedRecords();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchMergedRecords = async () => {
@@ -80,9 +81,24 @@ export default function ViewGreenLeafForm() {
 
                 glUsage[dateStr]++;
                 labUsage[dateStr]++;
+
+                // --- Calculate if the record was edited after initial creation ---
+                const getSafeTime = (item, field) => item && item[field] ? new Date(item[field]).getTime() : 0;
+                
+                const createdTimes = [getSafeTime(gl, 'createdAt'), getSafeTime(prod, 'createdAt'), getSafeTime(lab, 'createdAt')].filter(t => t > 0);
+                const updatedTimes = [getSafeTime(gl, 'updatedAt'), getSafeTime(prod, 'updatedAt'), getSafeTime(lab, 'updatedAt')].filter(t => t > 0);
+                
+                const maxCreated = createdTimes.length > 0 ? Math.max(...createdTimes) : 0;
+                const maxUpdated = updatedTimes.length > 0 ? Math.max(...updatedTimes) : 0;
+
+                // If updated timestamp is > 5 seconds after creation timestamp, it counts as edited
+                const isEdited = (maxUpdated - maxCreated) > 5000;
+                const lastUpdatedDate = isEdited ? new Date(maxUpdated).toISOString().split('T')[0] : '';
                 
                 return {
                     date: dateStr,
+                    isEdited,
+                    lastUpdatedDate,
                     greenLeafId: gl ? gl._id : null,
                     productionId: prod._id, 
                     labourId: lab ? lab._id : null,
@@ -92,9 +108,12 @@ export default function ViewGreenLeafForm() {
                     teaType: prod.teaType || '-',
                     madeTeaWeight: prod.madeTeaWeight || 0,
                     dryerName: prod?.dryerDetails?.dryerName || '-',
-                    meterStart: prod?.dryerDetails?.meterStart || '-',
-                    meterEnd: prod?.dryerDetails?.meterEnd || '-',
-                    units: prod?.dryerDetails?.units || 0,
+                    meterStart: prod?.dryerDetails?.meterStart ?? '-',
+                    meterEnd: prod?.dryerDetails?.meterEnd ?? '-',
+                    units: prod?.dryerDetails?.units ?? 0,
+                    dryerUpdatedDate: (prod?.dryerDetails?.dryerName && prod.updatedAt) 
+                        ? new Date(prod.updatedAt).toISOString().split('T')[0] 
+                        : '-',
                     workerCount: lab ? lab.workerCount : 0
                 };
             });
@@ -198,14 +217,21 @@ export default function ViewGreenLeafForm() {
                 }
             }
 
+            const pdfDryerName = record.dryerName !== '-' 
+                ? `${record.dryerName}\n(${record.dryerUpdatedDate})` 
+                : '-';
+
+            // Add edited date to PDF Date column if applicable
+            const pdfDateCell = record.isEdited ? `${record.date}\n(Edited: ${record.lastUpdatedDate})` : record.date;
+
             return [
-                record.date,
+                pdfDateCell,
                 record.totalWeight,
                 record.selectedWeight,
                 record.returnedWeight > 0 ? record.returnedWeight : '-',
                 record.teaType,
                 record.madeTeaWeight,
-                record.dryerName,
+                pdfDryerName,
                 record.meterStart,
                 record.meterEnd,
                 displayUnits !== '-' ? displayUnits : '-',
@@ -262,18 +288,18 @@ export default function ViewGreenLeafForm() {
             </div>
 
             {/* Filter Section */}
-            <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 bg-white p-4 rounded-xl border border-gray-300 shadow-sm">
                 <div className="flex flex-col gap-1">
                     <label className="text-xs font-bold text-gray-500">FROM DATE</label>
-                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border rounded p-2 text-sm outline-none focus:border-[#8CC63F]" />
+                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border border-gray-300 rounded p-2 text-sm outline-none focus:border-[#8CC63F]" />
                 </div>
                 <div className="flex flex-col gap-1">
                     <label className="text-xs font-bold text-gray-500">TO DATE</label>
-                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border rounded p-2 text-sm outline-none focus:border-[#8CC63F]" />
+                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border border-gray-300 rounded p-2 text-sm outline-none focus:border-[#8CC63F]" />
                 </div>
                 <div className="flex flex-col gap-1">
                     <label className="text-xs font-bold text-gray-500">TEA TYPE</label>
-                    <select value={teaType} onChange={(e) => setTeaType(e.target.value)} className="border rounded p-2 text-sm outline-none focus:border-[#8CC63F]">
+                    <select value={teaType} onChange={(e) => setTeaType(e.target.value)} className="border border-gray-300 rounded p-2 text-sm outline-none focus:border-[#8CC63F]">
                         <option value="All">All Types</option>
                         <option value="Purple Tea">Purple Tea</option>
                         <option value="Pink Tea">Pink Tea</option>
@@ -289,7 +315,7 @@ export default function ViewGreenLeafForm() {
                 </div>
                 <div className="flex flex-col gap-1">
                     <label className="text-xs font-bold text-gray-500">DRYER</label>
-                    <select value={dryerType} onChange={(e) => setDryerType(e.target.value)} className="border rounded p-2 text-sm outline-none focus:border-[#8CC63F]">
+                    <select value={dryerType} onChange={(e) => setDryerType(e.target.value)} className="border border-gray-300 rounded p-2 text-sm outline-none focus:border-[#8CC63F]">
                         <option value="All">All Dryers</option>
                         <option value="Dryer 1">Dryer 1</option>
                         <option value="Dryer 2">Dryer 2</option>
@@ -297,7 +323,7 @@ export default function ViewGreenLeafForm() {
                 </div>
             </div>
             
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden self-start w-full max-w-full">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-300 overflow-hidden self-start w-full max-w-full">
                 {loading ? (
                     <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center h-64">
                         <div className="w-8 h-8 border-4 border-[#8CC63F] border-t-[#1B6A31] rounded-full animate-spin mb-4"></div>
@@ -307,40 +333,39 @@ export default function ViewGreenLeafForm() {
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
                             <thead>
-                                <tr className="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider border-b border-gray-200">
-                                    <th rowSpan="2" className="px-4 py-3 font-semibold border-r border-gray-200 align-bottom w-24">Date</th>
-                                    <th colSpan="3" className="px-4 py-2 font-bold text-[#1B6A31] border-r border-gray-200 bg-[#8CC63F]/10 text-center">
+                                <tr className="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider border-b border-gray-300">
+                                    <th rowSpan="2" className="px-4 py-3 font-semibold border-r border-gray-300 align-bottom w-24">Date</th>
+                                    <th colSpan="3" className="px-4 py-2 font-bold text-[#1B6A31] border-r border-gray-300 bg-[#8CC63F]/10 text-center">
                                         <div className="flex items-center justify-center gap-1"><Leaf size={14}/> Raw Material (kg)</div>
                                     </th>
-                                    <th colSpan="2" className="px-4 py-2 font-bold text-purple-700 border-r border-gray-200 bg-purple-50 text-center">
+                                    <th colSpan="2" className="px-4 py-2 font-bold text-purple-700 border-r border-gray-300 bg-purple-50 text-center">
                                         <div className="flex items-center justify-center gap-1"><Factory size={14}/> Output</div>
                                     </th>
-                                    <th colSpan="4" className="px-4 py-2 font-bold text-orange-700 border-r border-gray-200 bg-orange-50 text-center">
+                                    <th colSpan="4" className="px-4 py-2 font-bold text-orange-700 border-r border-gray-300 bg-orange-50 text-center">
                                         <div className="flex items-center justify-center gap-1"><Zap size={14}/> Machine Usage</div>
                                     </th>
-                                    <th rowSpan="2" className="px-4 py-3 font-bold text-blue-700 border-r border-gray-200 bg-blue-50 align-bottom text-center">
+                                    <th rowSpan="2" className="px-4 py-3 font-bold text-blue-700 border-r border-gray-300 bg-blue-50 align-bottom text-center">
                                         <div className="flex flex-col items-center gap-1"><Users size={14}/> Labour</div>
                                     </th>
                                     
-                                    {/* Hide Action header if Viewer */}
                                     {!isViewer && (
                                         <th rowSpan="2" className="px-4 py-3 font-semibold align-bottom text-center w-24 bg-gray-50">Action</th>
                                     )}
                                 </tr>
-                                <tr className="bg-gray-50 text-gray-500 text-xs border-b border-gray-200">
-                                    <th className="px-3 py-2 font-medium bg-[#8CC63F]/5 text-center border-r border-gray-200/60">Received</th>
-                                    <th className="px-3 py-2 font-medium bg-[#8CC63F]/5 text-center border-r border-gray-200/60">Selected</th>
-                                    <th className="px-3 py-2 font-medium bg-[#8CC63F]/5 text-center border-r border-gray-200">Return</th>
-                                    <th className="px-3 py-2 font-medium bg-purple-50/50 text-center border-r border-gray-200/60">Type</th>
-                                    <th className="px-3 py-2 font-medium bg-purple-50/50 text-center border-r border-gray-200">Made (kg)</th>
-                                    <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-200/60">Dryer</th>
-                                    <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-200/60">Start</th>
-                                    <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-200/60">End</th>
-                                    <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-200">Units</th>
+                                <tr className="bg-gray-50 text-gray-500 text-xs border-b border-gray-300">
+                                    <th className="px-3 py-2 font-medium bg-[#8CC63F]/5 text-center border-r border-gray-300">Received</th>
+                                    <th className="px-3 py-2 font-medium bg-[#8CC63F]/5 text-center border-r border-gray-300">Selected</th>
+                                    <th className="px-3 py-2 font-medium bg-[#8CC63F]/5 text-center border-r border-gray-300">Return</th>
+                                    <th className="px-3 py-2 font-medium bg-purple-50/50 text-center border-r border-gray-300">Type</th>
+                                    <th className="px-3 py-2 font-medium bg-purple-50/50 text-center border-r border-gray-300">Made (kg)</th>
+                                    <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-300">Dryer</th>
+                                    <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-300">Start</th>
+                                    <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-300">End</th>
+                                    <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-300">Units</th>
                                 </tr>
                             </thead>
 
-                            <tbody className="divide-y divide-gray-100">
+                            <tbody className="divide-y divide-gray-300">
                                 {filteredRecords.length > 0 ? (
                                     filteredRecords.map((record) => {
                                         let isShared = false;
@@ -361,40 +386,58 @@ export default function ViewGreenLeafForm() {
 
                                         return (
                                             <tr key={record.productionId} className="hover:bg-gray-50/80 transition-colors group">
-                                                <td className="px-4 py-3 border-r border-gray-100">
-                                                    <span className="font-semibold text-gray-800">{record.date}</span>
+                                                <td className="px-4 py-3 border-r border-gray-300 align-top">
+                                                    <div className="flex flex-col items-start gap-1 mt-1">
+                                                        <span className="font-semibold text-gray-800">{record.date}</span>
+                                                        {record.isEdited && (
+                                                            <span className="text-[9px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded font-bold w-max">
+                                                                Edited: {record.lastUpdatedDate}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
-                                                <td className="px-3 py-3 text-center text-gray-600 border-r border-gray-100">{record.totalWeight}</td>
-                                                <td className="px-3 py-3 text-center border-r border-gray-100">
+                                                <td className="px-3 py-3 text-center text-gray-600 border-r border-gray-300">{record.totalWeight}</td>
+                                                <td className="px-3 py-3 text-center border-r border-gray-300">
                                                     <span className="px-2 py-1 rounded-full bg-[#8CC63F]/20 text-[#1B6A31] font-bold text-xs">{record.selectedWeight}</span>
                                                 </td>
-                                                <td className="px-3 py-3 text-center border-r border-gray-100 text-gray-500">
+                                                <td className="px-3 py-3 text-center border-r border-gray-300 text-gray-500">
                                                     {record.returnedWeight > 0 ? record.returnedWeight : '-'}
                                                 </td>
                                                 
-                                                <td className="px-3 py-3 text-center border-r border-gray-100">
-                                                    {record.teaType !== '-' ? <span className="text-purple-700 font-medium text-xs bg-purple-50 px-2 py-1 rounded border border-purple-100">{record.teaType}</span> : '-'}
+                                                <td className="px-3 py-3 text-center border-r border-gray-300">
+                                                    {record.teaType !== '-' ? <span className="text-purple-700 font-medium text-xs bg-purple-50 px-2 py-1 rounded border border-purple-200">{record.teaType}</span> : '-'}
                                                 </td>
-                                                <td className="px-3 py-3 text-center border-r border-gray-100">
+                                                <td className="px-3 py-3 text-center border-r border-gray-300">
                                                     <span className="font-bold text-gray-800">{record.madeTeaWeight}</span>
                                                 </td>
-                                                <td className="px-3 py-3 text-center border-r border-gray-100 text-gray-600">{record.dryerName}</td>
+                                                
+                                                <td className="px-3 py-2 text-center border-r border-gray-300">
+                                                    {record.dryerName !== '-' ? (
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="font-semibold text-gray-700 leading-tight">{record.dryerName}</span>
+                                                            <span className="text-[9px] text-green-700 px-1.5 py-0.5 rounded mt-0.5 shadow-sm font-bold whitespace-nowrap">
+                                                                {record.dryerUpdatedDate}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-400">-</span>
+                                                    )}
+                                                </td>
 
-                                                <td className={`px-3 py-3 text-center border-r border-gray-100 text-xs ${isShared ? `${highlightClass} font-bold text-gray-900` : 'text-gray-500'}`}>
+                                                <td className={`px-3 py-3 text-center border-r border-gray-300 text-xs ${isShared ? `${highlightClass} font-bold text-gray-900` : 'text-gray-500'}`}>
                                                     {record.meterStart}
                                                 </td>
-                                                <td className={`px-3 py-3 text-center border-r border-gray-100 text-xs ${isShared ? `${highlightClass} font-bold text-gray-900` : 'text-gray-500'}`}>
+                                                <td className={`px-3 py-3 text-center border-r border-gray-300 text-xs ${isShared ? `${highlightClass} font-bold text-gray-900` : 'text-gray-500'}`}>
                                                     {record.meterEnd}
                                                 </td>
-                                                <td className={`px-3 py-3 text-center border-r border-gray-100 ${isShared ? highlightClass : ''}`}>
+                                                <td className={`px-3 py-3 text-center border-r border-gray-300 ${isShared ? highlightClass : ''}`}>
                                                     {record.units !== '-' ? <span className={`font-bold ${isShared ? 'text-gray-900' : 'text-orange-600'}`}>{displayUnits}</span> : '-'}
                                                 </td>
 
-                                                <td className="px-3 py-3 text-center border-r border-gray-100">
+                                                <td className="px-3 py-3 text-center border-r border-gray-300">
                                                     {record.workerCount !== '-' ? <span className="font-bold text-blue-700">{record.workerCount}</span> : '-'}
                                                 </td>
                                                 
-                                                {/* Hide action buttons if Viewer */}
                                                 {!isViewer && (
                                                     <td className="px-3 py-3 text-center">
                                                         <div className="flex items-center justify-center gap-1">
@@ -441,23 +484,23 @@ export default function ViewGreenLeafForm() {
 
                             {/* --- TOTAL ROW --- */}
                             {filteredRecords.length > 0 && (
-                                <tfoot className="bg-gray-100/90 border-t-[3px] border-gray-300 font-black text-gray-900 text-center shadow-[inset_0_4px_6px_-4px_rgba(0,0,0,0.1)]">
+                                <tfoot className="bg-gray-100/90 border-t-[3px] border-gray-400 font-black text-gray-900 text-center shadow-[inset_0_4px_6px_-4px_rgba(0,0,0,0.1)]">
                                     <tr>
-                                        <td className="px-4 py-4 border-r border-gray-200 text-right uppercase tracking-wider text-sm">Total</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 text-[#1B6A31] text-base">{totalGL.toFixed(2)}</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 text-[#1B6A31] text-base">{totalSelectedGL.toFixed(2)}</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 text-gray-600 text-base">{totalReturnedGL.toFixed(2)}</td>
-                                        <td className="px-3 py-4 border-r border-gray-200">-</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 text-purple-700 text-base">{totalMadeTea.toFixed(3)}</td>
-                                        <td className="px-3 py-4 border-r border-gray-200">-</td>
-                                        <td className="px-3 py-4 border-r border-gray-200">-</td>
-                                        <td className="px-3 py-4 border-r border-gray-200">-</td>
+                                        <td className="px-4 py-4 border-r border-gray-300 text-right uppercase tracking-wider text-sm">Total</td>
+                                        <td className="px-3 py-4 border-r border-gray-300 text-[#1B6A31] text-base">{totalGL.toFixed(2)}</td>
+                                        <td className="px-3 py-4 border-r border-gray-300 text-[#1B6A31] text-base">{totalSelectedGL.toFixed(2)}</td>
+                                        <td className="px-3 py-4 border-r border-gray-300 text-gray-600 text-base">{totalReturnedGL.toFixed(2)}</td>
+                                        <td className="px-3 py-4 border-r border-gray-300">-</td>
+                                        <td className="px-3 py-4 border-r border-gray-300 text-purple-700 text-base">{totalMadeTea.toFixed(3)}</td>
+                                        <td className="px-3 py-4 border-r border-gray-300">-</td>
+                                        <td className="px-3 py-4 border-r border-gray-300">-</td>
+                                        <td className="px-3 py-4 border-r border-gray-300">-</td>
                                         
-                                        <td className="px-3 py-4 border-r border-gray-200 text-orange-600 text-base">
+                                        <td className="px-3 py-4 border-r border-gray-300 text-orange-600 text-base">
                                             {Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2)}
                                         </td>
                                         
-                                        <td className="px-3 py-4 border-r border-gray-200 text-blue-700 text-base">{totalLabour}</td>
+                                        <td className="px-3 py-4 border-r border-gray-300 text-blue-700 text-base">{totalLabour}</td>
                                         
                                         {!isViewer && (
                                             <td className="px-3 py-4"></td>

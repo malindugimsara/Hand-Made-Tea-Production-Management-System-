@@ -137,22 +137,7 @@ export default function GreenLeafForm() {
         }
     };
 
-    const playErrorSound = () => {
-        try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = ctx.createOscillator();
-            const gainNode = ctx.createGain();
-            osc.type = 'square'; 
-            osc.frequency.setValueAtTime(150, ctx.currentTime); 
-            gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-            osc.connect(gainNode);
-            gainNode.connect(ctx.destination);
-            osc.start();
-            osc.stop(ctx.currentTime + 0.3);
-        } catch (e) {
-            console.log("Audio not supported");
-        }
-    };
+
 
     // --- DAY 1: ADD TO PENDING LIST ---
     const handleAddToList = (e) => {
