@@ -114,7 +114,9 @@ export default function ViewGreenLeafForm() {
                     dryerUpdatedDate: (prod?.dryerDetails?.dryerName && prod.updatedAt) 
                         ? new Date(prod.updatedAt).toISOString().split('T')[0] 
                         : '-',
-                    workerCount: lab ? lab.workerCount : 0
+                    workerCount: lab ? lab.workerCount : 0,
+                    rollingType: lab ? (lab.rollingType || 'Machine Rolling') : 'Machine Rolling',
+                    rollingWorkerCount: (lab && lab.rollingType === 'Hand Rolling') ? lab.rollingWorkerCount : 0
                 };
             });
 
@@ -163,7 +165,8 @@ export default function ViewGreenLeafForm() {
     const totalSelectedGL = filteredRecords.reduce((sum, r) => sum + (Number(r.selectedWeight) || 0), 0);
     const totalReturnedGL = filteredRecords.reduce((sum, r) => sum + (Number(r.returnedWeight) || 0), 0);
     const totalMadeTea = filteredRecords.reduce((sum, r) => sum + (Number(r.madeTeaWeight) || 0), 0);
-    const totalLabour = filteredRecords.reduce((sum, r) => sum + (Number(r.workerCount) || 0), 0);
+    const totalSelectionLabour = filteredRecords.reduce((sum, r) => sum + (Number(r.workerCount) || 0), 0);
+    const totalHandRollingLabour = filteredRecords.reduce((sum, r) => sum + (Number(r.rollingWorkerCount) || 0), 0);
 
     const totalUnits = filteredRecords.reduce((sum, r) => {
         if (r.meterStart !== '-' && r.meterEnd !== '-' && r.meterStart !== '' && r.meterEnd !== '') {
@@ -221,8 +224,13 @@ export default function ViewGreenLeafForm() {
                 ? `${record.dryerName}\n(${record.dryerUpdatedDate})` 
                 : '-';
 
-            // Add edited date to PDF Date column if applicable
             const pdfDateCell = record.isEdited ? `${record.date}\n(Edited: ${record.lastUpdatedDate})` : record.date;
+            
+            // Generate Short name for PDF
+            const rTypeShort = record.rollingType === 'Hand Rolling' ? 'H/R' : (record.rollingType === 'Machine Rolling' ? 'M/R' : record.rollingType);
+            const rollingText = record.rollingType === 'Hand Rolling' 
+                ? `${rTypeShort}\n(${record.rollingWorkerCount} wkrs)` 
+                : rTypeShort;
 
             return [
                 pdfDateCell,
@@ -235,7 +243,8 @@ export default function ViewGreenLeafForm() {
                 record.meterStart,
                 record.meterEnd,
                 displayUnits !== '-' ? displayUnits : '-',
-                record.workerCount !== '-' ? record.workerCount : '-'
+                record.workerCount !== '-' ? record.workerCount : '-',
+                rollingText
             ];
         });
 
@@ -250,7 +259,8 @@ export default function ViewGreenLeafForm() {
             "-",
             "-",
             Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2),
-            totalLabour
+            totalSelectionLabour,
+            totalHandRollingLabour > 0 ? `${totalHandRollingLabour} (H/R)` : '-'
         ]);
 
         return tableRows;
@@ -269,7 +279,7 @@ export default function ViewGreenLeafForm() {
                     <PDFDownloader 
                         title="Daily Production Log"
                         subtitle={`Filters Applied -> Date: ${startDate || 'All'} to ${endDate || 'All'} | Tea: ${teaType} | Dryer: ${dryerType}`}
-                        headers={["Date", "Received GL", "Selected GL", "Return GL", "Tea Type", "Made Tea", "Dryer", "Start Meter", "End Meter", "Units", "Labour"]}
+                        headers={["Date", "Received GL", "Selected GL", "Return GL", "Tea Type", "Made Tea", "Dryer", "Start Meter", "End Meter", "Units", "Sel. Lab", "Rolling"]}
                         data={getPdfData()}
                         fileName={`Production_Log_${new Date().toISOString().split('T')[0]}.pdf`}
                         orientation="landscape"
@@ -344,8 +354,9 @@ export default function ViewGreenLeafForm() {
                                     <th colSpan="4" className="px-4 py-2 font-bold text-orange-700 border-r border-gray-300 bg-orange-50 text-center">
                                         <div className="flex items-center justify-center gap-1"><Zap size={14}/> Machine Usage</div>
                                     </th>
-                                    <th rowSpan="2" className="px-4 py-3 font-bold text-blue-700 border-r border-gray-300 bg-blue-50 align-bottom text-center">
-                                        <div className="flex flex-col items-center gap-1"><Users size={14}/> Labour</div>
+                                    
+                                    <th colSpan="2" className="px-4 py-2 font-bold text-blue-700 border-r border-gray-300 bg-blue-50 text-center">
+                                        <div className="flex items-center justify-center gap-1"><Users size={14}/> Labour Info</div>
                                     </th>
                                     
                                     {!isViewer && (
@@ -356,12 +367,17 @@ export default function ViewGreenLeafForm() {
                                     <th className="px-3 py-2 font-medium bg-[#8CC63F]/5 text-center border-r border-gray-300">Received</th>
                                     <th className="px-3 py-2 font-medium bg-[#8CC63F]/5 text-center border-r border-gray-300">Selected</th>
                                     <th className="px-3 py-2 font-medium bg-[#8CC63F]/5 text-center border-r border-gray-300">Return</th>
+                                    
                                     <th className="px-3 py-2 font-medium bg-purple-50/50 text-center border-r border-gray-300">Type</th>
                                     <th className="px-3 py-2 font-medium bg-purple-50/50 text-center border-r border-gray-300">Made (kg)</th>
+                                    
                                     <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-300">Dryer</th>
                                     <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-300">Start</th>
                                     <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-300">End</th>
                                     <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-300">Units</th>
+
+                                    <th className="px-3 py-2 font-medium bg-blue-50/50 text-center border-r border-gray-300">Selection</th>
+                                    <th className="px-3 py-2 font-medium bg-blue-50/50 text-center border-r border-gray-300">Rolling</th>
                                 </tr>
                             </thead>
 
@@ -396,51 +412,66 @@ export default function ViewGreenLeafForm() {
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className="px-3 py-3 text-center text-gray-600 border-r border-gray-300">{record.totalWeight}</td>
-                                                <td className="px-3 py-3 text-center border-r border-gray-300">
-                                                    <span className="px-2 py-1 rounded-full bg-[#8CC63F]/20 text-[#1B6A31] font-bold text-xs">{record.selectedWeight}</span>
+                                                <td className="px-3 py-3 text-center text-gray-600 border-r border-gray-300 align-top"><div className="mt-1">{record.totalWeight}</div></td>
+                                                <td className="px-3 py-3 text-center border-r border-gray-300 align-top">
+                                                    <div className="mt-1"><span className="px-2 py-1 rounded-full bg-[#8CC63F]/20 text-[#1B6A31] font-bold text-xs">{record.selectedWeight}</span></div>
                                                 </td>
-                                                <td className="px-3 py-3 text-center border-r border-gray-300 text-gray-500">
-                                                    {record.returnedWeight > 0 ? record.returnedWeight : '-'}
+                                                <td className="px-3 py-3 text-center border-r border-gray-300 text-gray-500 align-top">
+                                                    <div className="mt-1">{record.returnedWeight > 0 ? record.returnedWeight : '-'}</div>
                                                 </td>
                                                 
-                                                <td className="px-3 py-3 text-center border-r border-gray-300">
-                                                    {record.teaType !== '-' ? <span className="text-purple-700 font-medium text-xs bg-purple-50 px-2 py-1 rounded border border-purple-200">{record.teaType}</span> : '-'}
+                                                <td className="px-3 py-3 text-center border-r border-gray-300 align-top">
+                                                    <div className="mt-1">{record.teaType !== '-' ? <span className="text-purple-700 font-medium text-xs bg-purple-50 px-2 py-1 rounded border border-purple-200">{record.teaType}</span> : '-'}</div>
                                                 </td>
-                                                <td className="px-3 py-3 text-center border-r border-gray-300">
-                                                    <span className="font-bold text-gray-800">{record.madeTeaWeight}</span>
+                                                <td className="px-3 py-3 text-center border-r border-gray-300 align-top">
+                                                    <div className="mt-1"><span className="font-bold text-gray-800">{record.madeTeaWeight}</span></div>
                                                 </td>
                                                 
                                                 <td className="px-3 py-2 text-center border-r border-gray-300">
                                                     {record.dryerName !== '-' ? (
-                                                        <div className="flex flex-col items-center">
+                                                        <div className="flex flex-col items-center mt-1">
                                                             <span className="font-semibold text-gray-700 leading-tight">{record.dryerName}</span>
                                                             <span className="text-[9px] text-green-700 px-1.5 py-0.5 rounded mt-0.5 shadow-sm font-bold whitespace-nowrap">
                                                                 {record.dryerUpdatedDate}
                                                             </span>
                                                         </div>
                                                     ) : (
-                                                        <span className="text-gray-400">-</span>
+                                                        <span className="text-gray-400 mt-1 block">-</span>
                                                     )}
                                                 </td>
 
-                                                <td className={`px-3 py-3 text-center border-r border-gray-300 text-xs ${isShared ? `${highlightClass} font-bold text-gray-900` : 'text-gray-500'}`}>
-                                                    {record.meterStart}
+                                                <td className={`px-3 py-3 text-center border-r border-gray-300 text-xs align-top ${isShared ? `${highlightClass} font-bold text-gray-900` : 'text-gray-500'}`}>
+                                                    <div className="mt-1">{record.meterStart}</div>
                                                 </td>
-                                                <td className={`px-3 py-3 text-center border-r border-gray-300 text-xs ${isShared ? `${highlightClass} font-bold text-gray-900` : 'text-gray-500'}`}>
-                                                    {record.meterEnd}
+                                                <td className={`px-3 py-3 text-center border-r border-gray-300 text-xs align-top ${isShared ? `${highlightClass} font-bold text-gray-900` : 'text-gray-500'}`}>
+                                                    <div className="mt-1">{record.meterEnd}</div>
                                                 </td>
-                                                <td className={`px-3 py-3 text-center border-r border-gray-300 ${isShared ? highlightClass : ''}`}>
-                                                    {record.units !== '-' ? <span className={`font-bold ${isShared ? 'text-gray-900' : 'text-orange-600'}`}>{displayUnits}</span> : '-'}
+                                                <td className={`px-3 py-3 text-center border-r border-gray-300 align-top ${isShared ? highlightClass : ''}`}>
+                                                    <div className="mt-1">{record.units !== '-' ? <span className={`font-bold ${isShared ? 'text-gray-900' : 'text-orange-600'}`}>{displayUnits}</span> : '-'}</div>
                                                 </td>
 
-                                                <td className="px-3 py-3 text-center border-r border-gray-300">
-                                                    {record.workerCount !== '-' ? <span className="font-bold text-blue-700">{record.workerCount}</span> : '-'}
+                                                <td className="px-3 py-3 text-center border-r border-gray-300 bg-blue-50/10 align-top">
+                                                    <div className="mt-1 font-bold text-blue-700">{record.workerCount !== '-' ? record.workerCount : '-'}</div>
+                                                </td>
+                                                <td className="px-3 py-3 text-center border-r border-gray-300 bg-blue-50/10 align-top">
+                                                    <div className="flex flex-col items-center gap-0.5 mt-1">
+                                                        <span className="text-gray-700 font-medium">
+                                                            {record.rollingType === 'Hand Rolling' 
+                                                                ? 'H/R' 
+                                                                : (record.rollingType === 'Machine Rolling' ? 'M/R' : record.rollingType)
+                                                            }
+                                                        </span>
+                                                        {record.rollingWorkerCount > 0 && (
+                                                            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                                                                {record.rollingWorkerCount} wkrs
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 
                                                 {!isViewer && (
-                                                    <td className="px-3 py-3 text-center">
-                                                        <div className="flex items-center justify-center gap-1">
+                                                    <td className="px-3 py-3 text-center align-top">
+                                                        <div className="flex items-center justify-center gap-1 mt-0.5">
                                                             <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-[#1B6A31] hover:bg-[#8CC63F]/20 rounded transition-all">
                                                                 <MdOutlineEdit size={20} />
                                                             </button>
@@ -474,7 +505,7 @@ export default function ViewGreenLeafForm() {
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan={isViewer ? "11" : "12"} className="p-16 text-center text-gray-400">
+                                        <td colSpan={isViewer ? "12" : "13"} className="p-16 text-center text-gray-400">
                                             <AlertCircle size={40} className="mx-auto mb-3 opacity-20" />
                                             <p className="text-lg font-medium text-gray-500">No records found matching filters</p>
                                         </td>
@@ -500,7 +531,8 @@ export default function ViewGreenLeafForm() {
                                             {Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2)}
                                         </td>
                                         
-                                        <td className="px-3 py-4 border-r border-gray-300 text-blue-700 text-base">{totalLabour}</td>
+                                        <td className="px-3 py-4 border-r border-gray-300 text-blue-700 text-base">{totalSelectionLabour}</td>
+                                        <td className="px-3 py-4 border-r border-gray-300 text-blue-700 text-base">{totalHandRollingLabour > 0 ? `${totalHandRollingLabour} (H/R)` : '-'}</td>
                                         
                                         {!isViewer && (
                                             <td className="px-3 py-4"></td>

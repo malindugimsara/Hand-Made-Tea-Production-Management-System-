@@ -5,19 +5,15 @@ import { IoMdArrowRoundBack } from "react-icons/io";
 
 export default function EditRecordPage() {
     // 1. Configuration & Hooks
-    // Get Backend URL from environment variables
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-    
-    // useLocation to receive data passed from the View page
     const location = useLocation();
-    // useNavigate to redirect users after successful update
     const navigate = useNavigate();
-    
-    // State to handle button loading animation
     const [showSpinner, setShowSpinner] = useState(false);
 
+    // State to hold the latest meter readings for auto-filling
+    const [lastReadings, setLastReadings] = useState({ 'Dryer 1': '', 'Dryer 2': '' });
+
     // 2. Form State Management
-    // Stores all fields required for GreenLeaf, Production, and Labour models
     const [formData, setFormData] = useState({
         greenLeafId: '',
         productionId: '',
@@ -30,17 +26,15 @@ export default function EditRecordPage() {
         dryerName: '',
         meterStart: '',
         meterEnd: '',
-        workerCount: ''
+        workerCount: '',
+        rollingType: 'Machine Rolling',
+        rollingWorkerCount: ''
     });
 
     // 3. Lifecycle - Initial Data Loading
-    // Runs once when the component mounts
     useEffect(() => {
-        // Check if record data was passed via navigation state
         if (location.state && location.state.recordData) {
             const data = location.state.recordData;
-
-            // Map incoming data to form state fields
             setFormData({
                 greenLeafId: data.greenLeafId,
                 productionId: data.productionId,
@@ -53,31 +47,77 @@ export default function EditRecordPage() {
                 dryerName: data.dryerName || '',
                 meterStart: data.meterStart || '',
                 meterEnd: data.meterEnd || '',
-                workerCount: data.workerCount || ''
+                workerCount: data.workerCount || '',
+                rollingType: data.rollingType && data.rollingType !== '-' ? data.rollingType : 'Machine Rolling',
+                rollingWorkerCount: data.rollingWorkerCount || ''
             });
         } else {
-            // Fallback: If someone accesses the URL directly without data, send them back
             navigate('/view-green-leaf'); 
         }
     }, [location, navigate]);
 
+    // Fetch latest meter readings for auto-filling
+    useEffect(() => {
+        const fetchLastReadings = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch(`${BACKEND_URL}/api/production`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (res.ok) {
+                    const prodData = await res.json();
+                    
+                    // Sort descending by date & created time to get the absolute latest
+                    prodData.sort((a, b) => {
+                        const dateDiff = new Date(b.date) - new Date(a.date);
+                        if (dateDiff !== 0) return dateDiff;
+                        return new Date(b.createdAt) - new Date(a.createdAt);
+                    });
+                    
+                    let d1Last = '';
+                    let d2Last = '';
+
+                    const d1Record = prodData.find(p => p.dryerDetails?.dryerName === 'Dryer 1');
+                    if (d1Record) d1Last = d1Record.dryerDetails.meterEnd;
+
+                    const d2Record = prodData.find(p => p.dryerDetails?.dryerName === 'Dryer 2');
+                    if (d2Record) d2Last = d2Record.dryerDetails.meterEnd;
+
+                    setLastReadings({ 'Dryer 1': d1Last, 'Dryer 2': d2Last });
+                }
+            } catch (error) {
+                console.error("Failed to fetch last dryer readings", error);
+            }
+        };
+
+        fetchLastReadings();
+    }, [BACKEND_URL]);
+
     // 4. Derived State (Calculations)
-    // Calculate Returned Weight (Total - Selected) for UI display
     const returnedWeight = (Number(formData.totalWeight) || 0) - (Number(formData.selectedWeight) || 0);
-    
-    // Calculate Total Dryer Units (End - Start) for UI display
     const dryerUnits = (Number(formData.meterEnd) || 0) - (Number(formData.meterStart) || 0);
 
     // 5. Event Handlers
-    // Update state whenever an input field changes
     const handleInputChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        
+        if (name === 'rollingType' && value !== 'Hand Rolling') {
+            setFormData({ ...formData, [name]: value, rollingWorkerCount: '' });
+        } else if (name === 'dryerName') {
+            // Auto-fill meterStart based on the newly selected dryer
+            setFormData({ 
+                ...formData, 
+                [name]: value,
+                meterStart: lastReadings[value] !== undefined ? String(lastReadings[value]) : '' 
+            });
+        } else {
+            setFormData({ ...formData, [name]: value });
+        }
     };
 
-    // Helper to prevent number change when scrolling with mouse wheel over inputs
     const handleWheel = (e) => e.target.blur();
 
-    // Browser Audio API to play a simple error beep
     const playErrorSound = () => {
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -91,19 +131,17 @@ export default function EditRecordPage() {
         } catch (e) { console.error("Audio error", e); }
     };
 
-  // 6. Main Submit Logic (Update)
+    // 6. Main Submit Logic (Update)
     const handleUpdate = async (e) => {
-        e.preventDefault(); // Stop page refresh
-        setShowSpinner(true); // Start loading state
+        e.preventDefault(); 
+        setShowSpinner(true); 
 
-        // Local variable conversion for validation logic
         const total = Number(formData.totalWeight);
         const selected = Number(formData.selectedWeight);
         const made = Number(formData.madeTeaWeight);
         const mStart = Number(formData.meterStart);
         const mEnd = Number(formData.meterEnd);
 
-        // --- Business Logic Validations ---
         if (selected > total) {
             playErrorSound(); toast.error("Selected weight must be less than Total!");
             setShowSpinner(false); return;
@@ -112,7 +150,7 @@ export default function EditRecordPage() {
             playErrorSound(); toast.error("Made tea weight must be less than Selected!");
             setShowSpinner(false); return;
         }
-        if (mEnd < mStart) {
+        if (mEnd < mStart && formData.meterEnd !== '') {
             playErrorSound(); toast.error("End Reading must be greater than Start!");
             setShowSpinner(false); return;
         }
@@ -120,29 +158,26 @@ export default function EditRecordPage() {
         const toastId = toast.loading('Updating record...');
 
         try {
-            // 1. GET THE TOKEN AND CREATE HEADERS
             const token = localStorage.getItem('token');
             const authHeaders = {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` // The magic key!
+                'Authorization': `Bearer ${token}` 
             };
 
             const promises = [];
 
-            // Add GreenLeaf Update Request to promise array if ID exists
             if (formData.greenLeafId) {
                 promises.push(fetch(`${BACKEND_URL}/api/green-leaf/${formData.greenLeafId}`, {
                     method: 'PUT',
-                    headers: authHeaders, // Use the authHeaders here
+                    headers: authHeaders, 
                     body: JSON.stringify({ totalWeight: total, selectedWeight: selected })
                 }));
             }
 
-            // Add Production Update Request (includes Dryer details)
             if (formData.productionId) {
                 promises.push(fetch(`${BACKEND_URL}/api/production/${formData.productionId}`, {
                     method: 'PUT',
-                    headers: authHeaders, // Use the authHeaders here
+                    headers: authHeaders, 
                     body: JSON.stringify({
                         teaType: formData.teaType,
                         madeTeaWeight: made,
@@ -151,19 +186,20 @@ export default function EditRecordPage() {
                 }));
             }
 
-            // Add Labour Update Request
             if (formData.labourId) {
                 promises.push(fetch(`${BACKEND_URL}/api/labour/${formData.labourId}`, {
                     method: 'PUT',
-                    headers: authHeaders, // Use the authHeaders here
-                    body: JSON.stringify({ workerCount: Number(formData.workerCount) })
+                    headers: authHeaders, 
+                    body: JSON.stringify({ 
+                        workerCount: Number(formData.workerCount),
+                        rollingType: formData.rollingType,
+                        rollingWorkerCount: formData.rollingType === 'Hand Rolling' ? Number(formData.rollingWorkerCount) : 0
+                    })
                 }));
             }
 
-            // Execute all API requests in parallel for better performance
             const responses = await Promise.all(promises);
             
-            // Optional: Check if any of the updates were rejected by the backend (e.g., if a Viewer tried to hack an update)
             const failedResponse = responses.find(res => !res.ok);
             if (failedResponse) {
                 if (failedResponse.status === 401 || failedResponse.status === 403) {
@@ -174,7 +210,6 @@ export default function EditRecordPage() {
             
             toast.success("Record updated successfully!", { id: toastId });
             
-            // Wait 1 second and navigate back to the log view
             setTimeout(() => { navigate('/view-green-leaf'); }, 500);
 
         } catch (error) {
@@ -182,13 +217,14 @@ export default function EditRecordPage() {
             playErrorSound();
             toast.error(error.message || "Network error. Could not update.", { id: toastId });
         } finally {
-            setShowSpinner(false); // Stop loading state
+            setShowSpinner(false); 
         }
     };
+    
     return (
         <div className="p-8 max-w-4xl mx-auto font-sans">
             <Toaster position="top-center" />    
-            {/* Header UI */}
+            
             <div className="mb-8 flex items-center gap-4">
                 <button onClick={() => navigate(-1)} className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded font-bold transition-colors">
                     <IoMdArrowRoundBack />
@@ -199,10 +235,8 @@ export default function EditRecordPage() {
                 </div>
             </div>
             
-            {/* Main Form UI */}
             <form onSubmit={handleUpdate} className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
                 
-                {/* Section 1: Green Leaf Data */}
                 <div className="mb-8 bg-[#F8FAF8] border border-[#A3D9A5] rounded-lg p-6">
                     <h3 className="text-lg font-bold text-[#1B6A31] mb-4">1. Green Leaf (kg)</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -217,7 +251,6 @@ export default function EditRecordPage() {
                     </div>
                 </div>
 
-                {/* Section 2: Production Data */}
                 <div className="mb-8 bg-purple-50 border border-purple-200 rounded-lg p-6">
                     <h3 className="text-lg font-bold text-purple-700 mb-4">2. Made Tea</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -238,40 +271,73 @@ export default function EditRecordPage() {
                     </div>
                 </div>
 
-                {/* Section 3: Dryer Meter Data */}
                 <div className="mb-8 bg-orange-50 border border-orange-200 rounded-lg p-6">
                     <h3 className="text-lg font-bold text-orange-600 mb-4">3. Dryer Meter Readings</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label className="text-sm font-semibold text-gray-700">Dryer Unit</label>
                             <select name="dryerName" value={formData.dryerName} onChange={handleInputChange} required className="w-full p-3 border rounded-md bg-white focus:ring-2 focus:ring-orange-400">
+                                <option value="">Select Dryer</option>
                                 <option value="Dryer 1">Dryer 1</option>
                                 <option value="Dryer 2">Dryer 2</option>
                             </select>
                         </div>
                         <div>
                             <label className="text-sm font-semibold text-gray-700">Start Reading</label>
-                            <input type="number" name="meterStart" value={formData.meterStart} onChange={handleInputChange} onWheel={handleWheel} required className="w-full p-3 border rounded-md" />
+                            <input type="number" name="meterStart" value={formData.meterStart} onChange={handleInputChange} onWheel={handleWheel} required className="w-full p-3 border rounded-md focus:ring-2 focus:ring-orange-400" />
                         </div>
                         <div>
                             <label className="text-sm font-semibold text-gray-700">End Reading</label>
-                            <input type="number" name="meterEnd" value={formData.meterEnd} onChange={handleInputChange} onWheel={handleWheel} required className="w-full p-3 border rounded-md" />
+                            <input type="number" name="meterEnd" value={formData.meterEnd} onChange={handleInputChange} onWheel={handleWheel} required className="w-full p-3 border rounded-md focus:ring-2 focus:ring-orange-400" />
                         </div>
                     </div>
                 </div>
 
-                {/* Section 4: Workforce Data */}
                 <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-                    <h3 className="text-lg font-bold text-blue-700 mb-4">4. Labour</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="text-sm font-semibold text-gray-700">Worker Count</label>
-                            <input type="number" name="workerCount" value={formData.workerCount} onChange={handleInputChange} onWheel={handleWheel} required className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-400" />
+                    <h3 className="text-lg font-bold text-blue-700 mb-4">4. Labour & Rolling Details</h3>
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="text-sm font-semibold text-gray-700">Selection Worker Count</label>
+                                <input type="number" name="workerCount" value={formData.workerCount} onChange={handleInputChange} onWheel={handleWheel} required className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-400" />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-blue-200">
+                            <div>
+                                <label className="text-sm font-semibold text-gray-700">Rolling Type</label>
+                                <select 
+                                    name="rollingType" 
+                                    value={formData.rollingType} 
+                                    onChange={handleInputChange} 
+                                    className="w-full p-3 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-blue-400 outline-none"
+                                >
+                                    <option value="Machine Rolling">Machine Rolling</option>
+                                    <option value="Hand Rolling">Hand Rolling</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className={`text-sm font-semibold ${formData.rollingType === 'Hand Rolling' ? 'text-gray-700' : 'text-gray-400'}`}>
+                                    Hand Rolling Labour Count
+                                </label>
+                                <input 
+                                    type="number" 
+                                    name="rollingWorkerCount" 
+                                    value={formData.rollingWorkerCount} 
+                                    onChange={handleInputChange} 
+                                    onWheel={handleWheel} 
+                                    disabled={formData.rollingType !== 'Hand Rolling'}
+                                    placeholder={formData.rollingType === 'Hand Rolling' ? "Enter count" : "Not Required"}
+                                    required={formData.rollingType === 'Hand Rolling'}
+                                    className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed" 
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* 9. Action Button */}
                 <div className="flex gap-4">
                     <button
                         type="button"
@@ -292,4 +358,3 @@ export default function EditRecordPage() {
         </div>
     );
 }
-
