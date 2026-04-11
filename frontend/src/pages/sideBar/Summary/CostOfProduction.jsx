@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { Calculator, DollarSign, Info, Calendar, FileDown, Save, X, AlertCircle, Eye } from "lucide-react"; 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable'; 
-import PDFDownloader from '@/components/PDFDownloader'; // Update path if needed
+import PDFDownloader from '@/components/PDFDownloader'; 
 
 import {
     AlertDialog,
@@ -548,33 +548,33 @@ export default function CostOfProduction() {
     };
 
     return (
-        <div className="p-8 max-w-6xl mx-auto font-sans bg-gray-50 min-h-screen relative">
+        <div className="p-8 max-w-6xl mx-auto font-sans bg-gray-50 dark:bg-zinc-950 min-h-screen relative transition-colors duration-300">
             
             {/* Modal for Range PDF */}
             {showRangeModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md relative">
-                        <button onClick={() => setShowRangeModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/80 backdrop-blur-sm transition-colors">
+                    <div className="bg-white dark:bg-zinc-900 p-8 rounded-2xl shadow-2xl w-full max-w-md relative border border-gray-200 dark:border-zinc-800">
+                        <button onClick={() => setShowRangeModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
                             <X size={24} />
                         </button>
-                        <h3 className="text-xl font-bold text-[#1B6A31] mb-2">Download Range Summary</h3>
-                        <p className="text-sm text-gray-500 mb-6">Select a date range to generate a combined PDF report for multiple months.</p>
+                        <h3 className="text-xl font-bold text-[#1B6A31] dark:text-green-500 mb-2">Download Range Summary</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Select a date range to generate a combined PDF report for multiple months.</p>
                         
                         <div className="flex flex-col gap-4 mb-6">
                             <div>
-                                <label className="text-xs font-bold text-gray-500 mb-1 block">FROM MONTH</label>
-                                <input type="month" value={rangeStartMonth} onChange={(e) => setRangeStartMonth(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" />
+                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 block">FROM MONTH</label>
+                                <input type="month" value={rangeStartMonth} onChange={(e) => setRangeStartMonth(e.target.value)} className="w-full p-3 border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition-colors" />
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-gray-500 mb-1 block">TO MONTH</label>
-                                <input type="month" value={rangeEndMonth} onChange={(e) => setRangeEndMonth(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" />
+                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 block">TO MONTH</label>
+                                <input type="month" value={rangeEndMonth} onChange={(e) => setRangeEndMonth(e.target.value)} className="w-full p-3 border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition-colors" />
                             </div>
                         </div>
 
                         <button 
                             onClick={() => generateRangePDF(false)}
                             disabled={isGeneratingRangePDF}
-                            className={`w-full py-3 rounded-lg text-white font-bold flex justify-center items-center gap-2 ${isGeneratingRangePDF ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
+                            className={`w-full py-3 rounded-lg text-white font-bold flex justify-center items-center gap-2 transition-colors ${isGeneratingRangePDF ? 'bg-gray-400 dark:bg-zinc-700' : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600'}`}
                         >
                             <FileDown size={18} /> {isGeneratingRangePDF ? "Generating PDF..." : "Download Report"}
                         </button>
@@ -584,13 +584,13 @@ export default function CostOfProduction() {
 
             {/* Unsaved PDF Alert */}
             <AlertDialog open={showUnsavedAlert} onOpenChange={setShowUnsavedAlert}>
-                <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
+                <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-md transition-colors">
                     <AlertDialogHeader>
-                        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
-                            <AlertCircle className="w-6 h-6 text-red-600" />
+                        <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4 border border-red-200 dark:border-red-800/50">
+                            <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
                         </div>
-                        <AlertDialogTitle className="text-xl font-bold text-gray-900">Data Not Saved!</AlertDialogTitle>
-                        <AlertDialogDescription className="text-gray-500 text-base">
+                        <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-white">Data Not Saved!</AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-base">
                             You have unsaved changes. You must save the records to the database before generating a PDF. 
                         </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -600,13 +600,13 @@ export default function CostOfProduction() {
                                 setShowUnsavedAlert(false);
                                 setPendingPdfAction(null);
                             }} 
-                            className="bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200 rounded-lg px-6 font-semibold"
+                            className="bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-700 rounded-lg px-6 font-semibold transition-colors"
                         >
                             Cancel
                         </AlertDialogCancel>
                         <AlertDialogAction 
                             onClick={handleSaveAndDownload} 
-                            className="bg-[#1B6A31] hover:bg-green-800 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
+                            className="bg-[#1B6A31] hover:bg-green-800 dark:bg-green-700 dark:hover:bg-green-600 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
                         >
                             Save and Download
                         </AlertDialogAction>
@@ -614,31 +614,31 @@ export default function CostOfProduction() {
                 </AlertDialogContent>
             </AlertDialog>
 
-            <div className="mb-8 border-b pb-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div className="mb-8 border-b border-gray-200 dark:border-zinc-800 pb-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 transition-colors">
                 <div>
-                    <h2 className="text-3xl font-bold text-[#1B6A31] flex items-center gap-2">
+                    <h2 className="text-3xl font-bold text-[#1B6A31] dark:text-green-500 flex items-center gap-2">
                         <DollarSign /> Cost of Production
                     </h2>
-                    <p className="text-gray-500 font-medium">Detailed monthly analysis per tea type</p>
+                    <p className="text-gray-500 dark:text-gray-400 font-medium">Detailed monthly analysis per tea type</p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center gap-4">
                     <div className="flex flex-col gap-1 w-full sm:w-auto">
-                        <label className="text-xs font-bold text-gray-500 flex items-center gap-1">
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 flex items-center gap-1">
                             <Calendar size={14}/> ACTIVE MONTH
                         </label>
                         <input 
                             type="month" 
                             value={selectedMonth} 
                             onChange={(e) => setSelectedMonth(e.target.value)}
-                            className="p-2.5 border border-green-200 rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-green-500 outline-none font-bold text-gray-700"
+                            className="p-2.5 border border-green-200 dark:border-green-900/50 rounded-lg bg-white dark:bg-zinc-950 shadow-sm focus:ring-2 focus:ring-green-500 outline-none font-bold text-gray-700 dark:text-gray-200 transition-colors"
                         />
                     </div>
 
                     <div className="flex flex-wrap gap-3 mt-4 sm:mt-0">
                         <button 
                             onClick={() => setShowRangeModal(true)}
-                            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all"
+                            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-colors"
                         >
                             <FileDown size={18} /> Range PDF
                         </button>
@@ -651,7 +651,7 @@ export default function CostOfProduction() {
                                     setShowUnsavedAlert(true);
                                 }}
                                 disabled={loading || records.length === 0}
-                                className={`px-4 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all ${(loading || records.length === 0) ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                                className={`px-4 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all ${(loading || records.length === 0) ? 'bg-gray-400 dark:bg-zinc-700 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600'}`}
                             >
                                 <FileDown size={18} /> Single PDF
                             </button>
@@ -664,7 +664,7 @@ export default function CostOfProduction() {
                                 fileName={`Cost_Of_Production_${selectedMonth}.pdf`}
                                 orientation="portrait"
                                 disabled={loading || records.length === 0}
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white"
                             />
                         )}
 
@@ -672,7 +672,7 @@ export default function CostOfProduction() {
                             onClick={handleSaveToDatabase}
                             disabled={isSaving || records.length === 0 || isSaved || isViewer}
                             className={`px-4 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all ${
-                                (isSaving || records.length === 0 || isSaved || isViewer) ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#1B6A31] hover:bg-green-800'
+                                (isSaving || records.length === 0 || isSaved || isViewer) ? 'bg-gray-400 dark:bg-zinc-700 cursor-not-allowed' : 'bg-[#1B6A31] hover:bg-green-800 dark:bg-green-700 dark:hover:bg-green-600'
                             }`}
                         >
                             {isViewer ? <Eye size={18}/> : <Save size={18} />} 
@@ -684,25 +684,25 @@ export default function CostOfProduction() {
 
             {/* Viewer Notification Banner */}
             {isViewer && (
-                <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg flex items-center gap-3">
+                <div className="mb-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800/50 text-blue-700 dark:text-blue-400 px-4 py-3 rounded-lg flex items-center gap-3 transition-colors">
                     <Info size={20} />
-                    <p className="text-sm font-medium">You are logged in as a <strong>Viewer</strong>. You can only view the data and download reports. Editing and saving are disabled.</p>
+                    <p className="text-sm font-medium">You are logged in as a <strong className="dark:text-white">Viewer</strong>. You can only view the data and download reports. Editing and saving are disabled.</p>
                 </div>
             )}
 
-            <div className={`bg-white p-6 rounded-xl border shadow-sm mb-10 ${isViewer ? 'border-gray-200 opacity-90' : 'border-gray-200'}`}>
-                <div className="flex items-center gap-2 mb-4 border-b pb-2">
+            <div className={`bg-white dark:bg-zinc-900 p-6 rounded-xl border shadow-sm mb-10 transition-colors duration-300 ${isViewer ? 'border-gray-200 dark:border-zinc-800 opacity-90' : 'border-gray-200 dark:border-zinc-800'}`}>
+                <div className="flex items-center gap-2 mb-4 border-b border-gray-100 dark:border-zinc-800 pb-2">
                     <span className="text-orange-500 font-bold text-lg">⚯</span>
-                    <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
+                    <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
                         ADJUST RATES (LKR) {isViewer && "(Read Only)"}
                     </h3>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500">G/L RATE (PER KG)</label>
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">G/L RATE (PER KG)</label>
                         <div className="relative">
-                            <span className="absolute left-3 top-2.5 text-gray-400 text-sm font-bold">Rs.</span>
+                            <span className="absolute left-3 top-2.5 text-gray-400 dark:text-gray-500 text-sm font-bold">Rs.</span>
                             <input 
                                 type="number" 
                                 min="0"
@@ -710,15 +710,15 @@ export default function CostOfProduction() {
                                 onChange={handleRateChange(setMonthlyGlRate)}
                                 onWheel={(e) => e.target.blur()}
                                 disabled={isViewer}
-                                className="w-full border border-gray-300 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 disabled:cursor-not-allowed" 
+                                className="w-full border border-gray-300 dark:border-zinc-700 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed transition-colors" 
                                 placeholder="0.00" 
                             />
                         </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500">LABOUR RATE (PER HEAD)</label>
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">LABOUR RATE (PER HEAD)</label>
                         <div className="relative">
-                            <span className="absolute left-3 top-2.5 text-gray-400 text-sm font-bold">Rs.</span>
+                            <span className="absolute left-3 top-2.5 text-gray-400 dark:text-gray-500 text-sm font-bold">Rs.</span>
                             <input 
                                 type="number" 
                                 min="0"
@@ -726,14 +726,14 @@ export default function CostOfProduction() {
                                 onChange={handleRateChange(setLabourRate)}
                                 onWheel={(e) => e.target.blur()}
                                 disabled={isViewer}
-                                className="w-full border border-gray-300 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 disabled:cursor-not-allowed" 
+                                className="w-full border border-gray-300 dark:border-zinc-700 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed transition-colors" 
                             />
                         </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500">ELECTRICITY RATE (PER UNIT)</label>
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">ELECTRICITY RATE (PER UNIT)</label>
                         <div className="relative">
-                            <span className="absolute left-3 top-2.5 text-gray-400 text-sm font-bold">Rs.</span>
+                            <span className="absolute left-3 top-2.5 text-gray-400 dark:text-gray-500 text-sm font-bold">Rs.</span>
                             <input 
                                 type="number"
                                 min="0" 
@@ -741,7 +741,7 @@ export default function CostOfProduction() {
                                 onChange={handleRateChange(setElectricityRate)}
                                 onWheel={(e) => e.target.blur()}
                                 disabled={isViewer}
-                                className="w-full border border-gray-300 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 disabled:cursor-not-allowed" 
+                                className="w-full border border-gray-300 dark:border-zinc-700 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed transition-colors" 
                             />
                         </div>
                     </div>
@@ -749,7 +749,7 @@ export default function CostOfProduction() {
             </div>
 
             {loading ? (
-                <div className="text-center py-20 text-gray-500 font-bold">Processing Monthly Data...</div>
+                <div className="text-center py-20 text-gray-500 dark:text-gray-400 font-bold">Processing Monthly Data...</div>
             ) : records.length > 0 ? (
                 <>
                     <div className="grid grid-cols-1 gap-10">
@@ -763,10 +763,10 @@ export default function CostOfProduction() {
                             const totalCost = glCost + selectionCost + handRollingCost + electricityCost + supCost;
 
                             return (
-                                <div key={item.teaType} className={`bg-white rounded-2xl shadow-lg overflow-hidden border ${isViewer ? 'border-gray-200 opacity-95' : 'border-gray-200'}`}>
-                                    <div className="bg-[#1B6A31] p-4 text-white flex justify-between items-center px-8">
+                                <div key={item.teaType} className={`bg-white dark:bg-zinc-900 rounded-2xl shadow-lg overflow-hidden border transition-colors duration-300 ${isViewer ? 'border-gray-200 dark:border-zinc-800 opacity-95' : 'border-gray-200 dark:border-zinc-800'}`}>
+                                    <div className="bg-[#1B6A31] dark:bg-green-800 p-4 text-white flex justify-between items-center px-8 transition-colors">
                                         <h3 className="text-xl font-bold">{item.teaType}</h3>
-                                        <span className="bg-white/20 px-4 py-1 rounded-full text-sm font-semibold">
+                                        <span className="bg-white/20 dark:bg-white/10 px-4 py-1 rounded-full text-sm font-semibold">
                                             Total Output: {item.madeTeaWeight.toFixed(3)} kg
                                         </span>
                                     </div>
@@ -774,25 +774,25 @@ export default function CostOfProduction() {
                                     <div className="p-8 overflow-x-auto">
                                         <table className="w-full text-left">
                                             <thead>
-                                                <tr className="text-gray-400 text-xs uppercase tracking-widest border-b">
+                                                <tr className="text-gray-400 dark:text-gray-500 text-xs uppercase tracking-widest border-b border-gray-100 dark:border-zinc-800">
                                                     <th className="pb-4 font-bold">Type of Cost</th>
                                                     <th className="pb-4 font-bold text-right">Basis</th>
                                                     <th className="pb-4 font-bold text-right">Cost (Rs.)</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-gray-100">
+                                            <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
                                                 <tr>
-                                                    <td className="py-4 font-semibold text-gray-700">Green Leaf (G/L) Cost</td>
-                                                    <td className="py-4 text-right text-gray-500">{item.selectedWeight.toFixed(2)} kg @ Rs.{monthlyGlRate}</td>
-                                                    <td className="py-4 text-right font-bold text-gray-900">{glCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                                    <td className="py-4 font-semibold text-gray-700 dark:text-gray-300">Green Leaf (G/L) Cost</td>
+                                                    <td className="py-4 text-right text-gray-500 dark:text-gray-400">{item.selectedWeight.toFixed(2)} kg @ Rs.{monthlyGlRate}</td>
+                                                    <td className="py-4 text-right font-bold text-gray-900 dark:text-gray-100">{glCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                                 </tr>
                                                 <tr>
-                                                    <td className="py-4 font-semibold text-gray-700">G/L Selection Cost</td>
-                                                    <td className="py-4 text-right text-gray-500">{item.selectionWorkers} Worker days</td>
-                                                    <td className="py-4 text-right font-bold text-gray-900">{selectionCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                                    <td className="py-4 font-semibold text-gray-700 dark:text-gray-300">G/L Selection Cost</td>
+                                                    <td className="py-4 text-right text-gray-500 dark:text-gray-400">{item.selectionWorkers} Worker days</td>
+                                                    <td className="py-4 text-right font-bold text-gray-900 dark:text-gray-100">{selectionCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                                 </tr>
                                                 <tr>
-                                                    <td className="py-4 font-semibold text-gray-700">Hand Rolling Cost</td>
+                                                    <td className="py-4 font-semibold text-gray-700 dark:text-gray-300">Hand Rolling Cost</td>
                                                     <td className="py-4 text-right">
                                                         <div className="flex items-center justify-end gap-2">
                                                             <input 
@@ -801,22 +801,22 @@ export default function CostOfProduction() {
                                                                 value={handRollingWorkers[item.teaType] === 0 ? '' : (handRollingWorkers[item.teaType] || '')}
                                                                 placeholder="Workers"
                                                                 disabled={isViewer}
-                                                                className="w-24 p-1 border border-gray-300 rounded text-right focus:ring-1 focus:ring-green-400 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                                                className="w-24 p-1 border border-gray-300 dark:border-zinc-700 rounded text-right focus:ring-1 focus:ring-green-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed transition-colors"
                                                                 onChange={(e) => handleHandRollingChange(item.teaType, e.target.value)}
                                                                 onWheel={(e) => e.target.blur()}
                                                             />
-                                                            <span className="text-gray-500 text-sm">x Rs.{labourRate}</span>
+                                                            <span className="text-gray-500 dark:text-gray-400 text-sm">x Rs.{labourRate}</span>
                                                         </div>
                                                     </td>
-                                                    <td className="py-4 text-right font-bold text-gray-900">{handRollingCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                                    <td className="py-4 text-right font-bold text-gray-900 dark:text-gray-100">{handRollingCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                                 </tr>
                                                 <tr>
-                                                    <td className="py-4 font-semibold text-gray-700">Electricity Cost</td>
-                                                    <td className="py-4 text-right text-gray-500">{item.dryerUnits} Units Used</td>
-                                                    <td className="py-4 text-right font-bold text-gray-900">{electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                                    <td className="py-4 font-semibold text-gray-700 dark:text-gray-300">Electricity Cost</td>
+                                                    <td className="py-4 text-right text-gray-500 dark:text-gray-400">{item.dryerUnits} Units Used</td>
+                                                    <td className="py-4 text-right font-bold text-gray-900 dark:text-gray-100">{electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                                 </tr>
                                                 <tr>
-                                                    <td className="py-4 font-semibold text-gray-700">Supervision Cost</td>
+                                                    <td className="py-4 font-semibold text-gray-700 dark:text-gray-300">Supervision Cost</td>
                                                     <td className="py-4 text-right">
                                                         <input 
                                                             type="number" 
@@ -824,18 +824,18 @@ export default function CostOfProduction() {
                                                             value={supervisionCosts[item.teaType] === 0 ? '' : (supervisionCosts[item.teaType] || '')}
                                                             placeholder="Manual Input"
                                                             disabled={isViewer}
-                                                            className="w-32 p-1 border border-gray-300 rounded text-right focus:ring-1 focus:ring-green-400 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                                            className="w-32 p-1 border border-gray-300 dark:border-zinc-700 rounded text-right focus:ring-1 focus:ring-green-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed transition-colors"
                                                             onChange={(e) => handleSupervisionChange(item.teaType, e.target.value)}
                                                             onWheel={(e) => e.target.blur()}
                                                         />
                                                     </td>
-                                                    <td className="py-4 text-right font-bold text-gray-900">{supCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                                    <td className="py-4 text-right font-bold text-gray-900 dark:text-gray-100">{supCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                                 </tr>
                                             </tbody>
                                             <tfoot>
-                                                <tr className="bg-green-50/50">
-                                                    <td colSpan="2" className="py-5 px-4 text-lg font-bold text-[#1B6A31]">Total Production Cost ({item.teaType})</td>
-                                                    <td className="py-5 px-4 text-right text-2xl font-black text-[#1B6A31]">
+                                                <tr className="bg-green-50/50 dark:bg-green-900/10 transition-colors">
+                                                    <td colSpan="2" className="py-5 px-4 text-lg font-bold text-[#1B6A31] dark:text-green-500">Total Production Cost ({item.teaType})</td>
+                                                    <td className="py-5 px-4 text-right text-2xl font-black text-[#1B6A31] dark:text-green-400">
                                                         Rs. {totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}
                                                     </td>
                                                 </tr>
@@ -847,19 +847,19 @@ export default function CostOfProduction() {
                         })}
                     </div>
 
-                    <div className="mt-10 bg-[#1B6A31] text-white rounded-2xl shadow-xl overflow-hidden border border-green-800">
+                    <div className="mt-10 bg-[#1B6A31] dark:bg-green-800 text-white rounded-2xl shadow-xl overflow-hidden border border-green-800 dark:border-green-900 transition-colors duration-300">
                         <div className="p-5 flex flex-col md:flex-row items-center justify-between gap-6">
                             <div className="flex items-center gap-4">
-                                <div className="bg-white/20 p-4 rounded-full">
+                                <div className="bg-white/20 dark:bg-black/20 p-4 rounded-full">
                                     <Calculator size={25} className="text-white" />
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-bold uppercase tracking-wider">Grand Total</h2>
-                                    <p className="text-green-100 font-medium text-md">Sum of all production costs for {new Date(selectedMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
+                                    <p className="text-green-100 dark:text-green-200 font-medium text-md">Sum of all production costs for {new Date(selectedMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
                                 </div>
                             </div>
                             <div className="text-right">
-                                <span className="text-sm text-green-200 font-bold uppercase tracking-widest block mb-1">Total LKR</span>
+                                <span className="text-sm text-green-200 dark:text-green-300 font-bold uppercase tracking-widest block mb-1">Total LKR</span>
                                 <span className="text-xl md:text-3xl font-black">
                                     Rs. {grandTotalAllTeas.toLocaleString(undefined, {minimumFractionDigits: 2})}
                                 </span>
@@ -868,7 +868,7 @@ export default function CostOfProduction() {
                     </div>
                 </>
             ) : (
-                <div className="bg-white p-20 text-center rounded-xl border border-dashed border-gray-300 text-gray-400">
+                <div className="bg-white dark:bg-zinc-900 p-20 text-center rounded-xl border border-dashed border-gray-300 dark:border-zinc-700 text-gray-400 dark:text-gray-500 transition-colors duration-300">
                     No production records found for the selected month.
                 </div>
             )}

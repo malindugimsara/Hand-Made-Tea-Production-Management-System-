@@ -1,1 +1,4 @@
 @import "tailwindcss";
+
+/* ADD THIS LINE FOR DARK MODE TOGGLE */
+@variant dark (&:is(.dark *));

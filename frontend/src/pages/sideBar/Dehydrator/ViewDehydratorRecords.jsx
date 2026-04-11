@@ -162,12 +162,12 @@ export default function ViewDehydratorRecords() {
     };
 
     return (
-        <div className="p-8 max-w-[1200px] mx-auto font-sans relative">
+        <div className="p-8 max-w-[1200px] mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
             
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-[#1B6A31] flex items-center gap-2">Dehydrator Machine Records</h2>
-                    <p className="text-sm text-gray-500 mt-1">Overview of Dehydrator Electricity and Time Usage</p>
+                    <h2 className="text-2xl font-bold text-[#1B6A31] dark:text-green-500 flex items-center gap-2">Dehydrator Machine Records</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Overview of Dehydrator Electricity and Time Usage</p>
                 </div>
                 
                 <div className="flex items-center gap-3">
@@ -184,7 +184,7 @@ export default function ViewDehydratorRecords() {
                     <button 
                         onClick={fetchRecords}
                         disabled={loading}
-                        className={`px-4 py-2.5 bg-white text-[#1B6A31] border border-[#8CC63F] rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F8FAF8]'}`}
+                        className={`px-4 py-2.5 bg-white dark:bg-zinc-900 text-[#1B6A31] dark:text-green-500 border border-[#8CC63F] dark:border-green-800 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F8FAF8] dark:hover:bg-zinc-800'}`}
                     >
                         <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
                         Sync Data
@@ -193,117 +193,117 @@ export default function ViewDehydratorRecords() {
             </div>
 
             {/* Filter Section */}
-            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-zinc-900 p-4 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-colors duration-300">
                 <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-gray-500">FROM DATE</label>
-                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border rounded p-2 text-sm outline-none focus:border-[#8CC63F]" />
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400">FROM DATE</label>
+                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border dark:border-zinc-800 rounded p-2 text-sm outline-none focus:border-[#8CC63F] dark:focus:border-green-600 bg-transparent dark:text-gray-200 transition-colors" />
                 </div>
                 <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-gray-500">TO DATE</label>
-                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border rounded p-2 text-sm outline-none focus:border-[#8CC63F]" />
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400">TO DATE</label>
+                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border dark:border-zinc-800 rounded p-2 text-sm outline-none focus:border-[#8CC63F] dark:focus:border-green-600 bg-transparent dark:text-gray-200 transition-colors" />
                 </div>
                 <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-gray-500">TRIAL (SEARCH ITEM)</label>
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400">TRIAL (SEARCH ITEM)</label>
                     <input 
                         type="text" 
                         placeholder="e.g. Mango, Kiwi..." 
                         value={trialFilter} 
                         onChange={(e) => setTrialFilter(e.target.value)} 
-                        className="border rounded p-2 text-sm outline-none focus:border-[#8CC63F]" 
+                        className="border dark:border-zinc-800 rounded p-2 text-sm outline-none focus:border-[#8CC63F] dark:focus:border-green-600 bg-transparent dark:text-gray-200 transition-colors" 
                     />
                 </div>
             </div>
             
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden self-start w-full max-w-full">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden self-start w-full max-w-full transition-colors duration-300">
                 {loading ? (
-                    <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center h-64">
-                        <div className="w-8 h-8 border-4 border-[#8CC63F] border-t-[#1B6A31] rounded-full animate-spin mb-4"></div>
+                    <div className="p-12 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center h-64">
+                        <div className="w-8 h-8 border-4 border-[#8CC63F] dark:border-green-700 border-t-[#1B6A31] dark:border-t-green-400 rounded-full animate-spin mb-4"></div>
                         <p className="font-medium">Loading dehydrator records...</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
                             <thead>
-                                <tr className="bg-gray-50 text-gray-500 uppercase text-xs tracking-wider border-b border-gray-200">
-                                    <th rowSpan="2" className="px-4 py-3 font-semibold border-r border-gray-200 align-bottom w-32">
+                                <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-800 transition-colors">
+                                    <th rowSpan="2" className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-800 align-bottom w-32">
                                         <div className="flex items-center gap-1"><Calendar size={14}/> Date</div>
                                     </th>
-                                    <th rowSpan="2" className="px-4 py-3 font-bold text-[#1B6A31] border-r border-gray-200 bg-[#8CC63F]/10 align-bottom w-40">
+                                    <th rowSpan="2" className="px-4 py-3 font-bold text-[#1B6A31] dark:text-green-500 border-r border-gray-200 dark:border-zinc-800 bg-[#8CC63F]/10 dark:bg-green-900/20 align-bottom w-40">
                                         <div className="flex items-center gap-1"><Fan size={14}/> Trial</div>
                                     </th>
-                                    <th colSpan="3" className="px-4 py-2 font-bold text-orange-700 border-r border-gray-200 bg-orange-50 text-center">
+                                    <th colSpan="3" className="px-4 py-2 font-bold text-orange-700 dark:text-orange-500 border-r border-gray-200 dark:border-zinc-800 bg-orange-50 dark:bg-orange-950/30 text-center">
                                         <div className="flex items-center justify-center gap-1"><Zap size={14}/> Electricity Meter Reading</div>
                                     </th>
-                                    <th rowSpan="2" className="px-4 py-3 font-bold text-blue-700 border-r border-gray-200 bg-blue-50 align-bottom text-center w-32">
+                                    <th rowSpan="2" className="px-4 py-3 font-bold text-blue-700 dark:text-blue-400 border-r border-gray-200 dark:border-zinc-800 bg-blue-50 dark:bg-blue-950/30 align-bottom text-center w-32">
                                         <div className="flex flex-col items-center gap-1"><Clock size={14}/> Time Period<br/>(hours)</div>
                                     </th>
                                     {!isViewer && (
-                                        <th rowSpan="2" className="px-4 py-3 font-semibold align-bottom text-center w-24 bg-gray-50">Action</th>
+                                        <th rowSpan="2" className="px-4 py-3 font-semibold align-bottom text-center w-24 bg-gray-50 dark:bg-zinc-950/50">Action</th>
                                     )}
                                 </tr>
-                                <tr className="bg-gray-50 text-gray-500 text-xs border-b border-gray-200">
-                                    <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-200/60 w-28">Start</th>
-                                    <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-200/60 w-28">End</th>
-                                    <th className="px-3 py-2 font-medium bg-orange-50/50 text-center border-r border-gray-200 w-28">Total Pts</th>
+                                <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 text-xs border-b border-gray-200 dark:border-zinc-800 transition-colors">
+                                    <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800 w-28">Start</th>
+                                    <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800 w-28">End</th>
+                                    <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200 dark:border-zinc-800 w-28">Total Pts</th>
                                 </tr>
                             </thead>
 
-                            <tbody className="divide-y divide-gray-100">
+                            <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
                                 {filteredRecords.length > 0 ? (
                                     filteredRecords.map((record) => (
-                                        <tr key={record._id} className="hover:bg-gray-50/80 transition-colors group">
-                                            <td className="px-4 py-3 border-r border-gray-100 align-top">
+                                        <tr key={record._id} className="hover:bg-gray-50/80 dark:hover:bg-zinc-800/50 transition-colors group">
+                                            <td className="px-4 py-3 border-r border-gray-100 dark:border-zinc-800 align-top">
                                                 <div className="flex flex-col items-start gap-1 mt-1">
-                                                    <span className="font-semibold text-gray-800">
+                                                    <span className="font-semibold text-gray-800 dark:text-gray-200">
                                                         {new Date(record.date).toISOString().split('T')[0]}
                                                     </span>
                                                     {record.isEdited && (
-                                                        <span className="text-[9px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded font-bold w-max">
+                                                        <span className="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 px-1.5 py-0.5 rounded font-bold w-max">
                                                             Edited: {record.lastUpdatedDate}
                                                         </span>
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3 border-r border-gray-100 font-medium text-[#1B6A31]">
+                                            <td className="px-4 py-3 border-r border-gray-100 dark:border-zinc-800 font-medium text-[#1B6A31] dark:text-green-400">
                                                 {record.trial}
                                             </td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 text-gray-600">
+                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300">
                                                 {record.meterStart}
                                             </td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 text-gray-600">
+                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300">
                                                 {record.meterEnd}
                                             </td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100">
-                                                <span className="font-bold text-orange-600">{record.totalUnits}</span>
+                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800">
+                                                <span className="font-bold text-orange-600 dark:text-orange-400">{record.totalUnits}</span>
                                             </td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100">
-                                                <span className="font-bold text-blue-700">{record.timePeriodHours}</span>
+                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800">
+                                                <span className="font-bold text-blue-700 dark:text-blue-400">{record.timePeriodHours}</span>
                                             </td>
                                             
                                             {!isViewer && (
                                                 <td className="px-3 py-3 text-center">
                                                     <div className="flex items-center justify-center gap-1">
-                                                        <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-[#1B6A31] hover:bg-[#8CC63F]/20 rounded transition-all">
+                                                        <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-400 hover:bg-[#8CC63F]/20 dark:hover:bg-zinc-800 rounded transition-all">
                                                             <MdOutlineEdit size={20} />
                                                         </button>
                                                         <AlertDialog>
                                                             <AlertDialogTrigger asChild>
-                                                                <button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-all">
+                                                                <button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all">
                                                                     <MdOutlineDeleteOutline size={20} />
                                                                 </button>
                                                             </AlertDialogTrigger>
-                                                            <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
+                                                            <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-md">
                                                                 <AlertDialogHeader>
-                                                                    <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 border border-red-200">
-                                                                        <AlertCircle className="w-6 h-6 text-red-600" />
+                                                                    <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4 border border-red-200 dark:border-red-800">
+                                                                        <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
                                                                     </div>
-                                                                    <AlertDialogTitle className="text-xl font-bold text-gray-900">Delete Record</AlertDialogTitle>
-                                                                    <AlertDialogDescription className="text-gray-500 text-base">
-                                                                        Are you sure you want to delete the dehydrator record for <span className="font-bold text-gray-800 ml-1">{record.trial}</span> on <span className="font-bold text-gray-800">{record.date}</span>?
+                                                                    <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-white">Delete Record</AlertDialogTitle>
+                                                                    <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-base">
+                                                                        Are you sure you want to delete the dehydrator record for <span className="font-bold text-gray-800 dark:text-gray-200 ml-1">{record.trial}</span> on <span className="font-bold text-gray-800 dark:text-gray-200">{record.date}</span>?
                                                                     </AlertDialogDescription>
                                                                 </AlertDialogHeader>
                                                                 <AlertDialogFooter className="mt-6">
-                                                                    <AlertDialogCancel onClick={() => setRecordToDelete(null)} className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg px-6 font-semibold">Cancel</AlertDialogCancel>
+                                                                    <AlertDialogCancel onClick={() => setRecordToDelete(null)} className="border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 rounded-lg px-6 font-semibold">Cancel</AlertDialogCancel>
                                                                     <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors">Delete Record</AlertDialogAction>
                                                                 </AlertDialogFooter>
                                                             </AlertDialogContent>
@@ -315,9 +315,9 @@ export default function ViewDehydratorRecords() {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={isViewer ? "6" : "7"} className="p-16 text-center text-gray-400">
+                                        <td colSpan={isViewer ? "6" : "7"} className="p-16 text-center text-gray-400 dark:text-zinc-600">
                                             <AlertCircle size={40} className="mx-auto mb-3 opacity-20" />
-                                            <p className="text-lg font-medium text-gray-500">No records found matching filters</p>
+                                            <p className="text-lg font-medium text-gray-500 dark:text-zinc-500">No records found matching filters</p>
                                         </td>
                                     </tr>
                                 )}
@@ -325,15 +325,15 @@ export default function ViewDehydratorRecords() {
                             
                             {/* Footer for Totals */}
                             {filteredRecords.length > 0 && (
-                                <tfoot className="bg-gray-100/90 border-t-2 border-gray-200">
+                                <tfoot className="bg-gray-100/90 dark:bg-zinc-900/90 border-t-2 border-gray-200 dark:border-zinc-800 transition-colors duration-300">
                                     <tr>
-                                        <td colSpan="4" className="px-4 py-4 text-right font-bold text-gray-800 tracking-wider uppercase border-r border-gray-200">
+                                        <td colSpan="4" className="px-4 py-4 text-right font-bold text-gray-800 dark:text-gray-200 tracking-wider uppercase border-r border-gray-200 dark:border-zinc-800">
                                             GRAND TOTAL
                                         </td>
-                                        <td className="px-3 py-4 text-center font-black text-orange-700 text-lg border-r border-gray-200">
+                                        <td className="px-3 py-4 text-center font-black text-orange-700 dark:text-orange-500 text-lg border-r border-gray-200 dark:border-zinc-800">
                                             {totalUnits} Pts
                                         </td>
-                                        <td className="px-3 py-4 text-center font-black text-blue-700 text-lg border-r border-gray-200">
+                                        <td className="px-3 py-4 text-center font-black text-blue-700 dark:text-blue-400 text-lg border-r border-gray-200 dark:border-zinc-800">
                                             {totalHours.toFixed(1)} Hrs
                                         </td>
                                         {!isViewer && <td></td>}
