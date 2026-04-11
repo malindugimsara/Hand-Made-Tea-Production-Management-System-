@@ -235,6 +235,15 @@ export default function SellingDetailsTable() {
       }
   };
 
+  const getCurrentMonthCode = () => {
+        const date = new Date();
+        const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
+        const year = date.getFullYear();
+        return `HT/SDS/${month}.${year}`; // Result: HT/SDS/APRIL.2026
+    };
+
+    const uniqueCode = getCurrentMonthCode();
+
   return (
     <div className="p-8 max-w-[1200px] mx-auto font-sans relative">
 
@@ -307,6 +316,7 @@ export default function SellingDetailsTable() {
                       subtitle={`Active Month: ${new Date(`${selectedMonth}-01`).toLocaleString('default', { month: 'long', year: 'numeric' })} | Exchange Rate: 1 USD = Rs. ${exchangeRate}`}
                       headers={pdfHeaders}
                       data={getPdfData()}
+                      uniqueCode={uniqueCode}
                       fileName={`Selling_Details_${selectedMonth}.pdf`}
                       orientation="portrait"
                       disabled={tableData.filter(row => row.packs !== '' && Number(row.packs) > 0).length === 0}

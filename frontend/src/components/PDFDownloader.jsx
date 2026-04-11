@@ -13,7 +13,8 @@ export default function PDFDownloader({
     fileName = "document.pdf",
     orientation = "portrait", // 'portrait' or 'landscape'
     disabled = false,
-    className = ""
+    className = "",
+    uniqueCode = ""
 }) {
     
     const handleDownload = async () => {
@@ -52,6 +53,11 @@ export default function PDFDownloader({
                 doc.setTextColor(100); // Gray
                 doc.text(subtitle, 45, 27);
             }
+
+            doc.setFontSize(10);
+            doc.setTextColor(150); // Light gray for the code
+            const pageWidth = doc.internal.pageSize.getWidth();
+            doc.text(`Doc Ref: ${uniqueCode}`, pageWidth - 14, 12, { align: 'right' });
 
             // --- Pre-process data for autoTable ---
             // Extract just the array of strings/numbers for the body

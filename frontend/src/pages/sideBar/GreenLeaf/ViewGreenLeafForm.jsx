@@ -288,6 +288,14 @@ export default function ViewGreenLeafForm() {
         return tableRows;
     };
 
+    const getCurrentMonthCode = () => {
+        const date = new Date();
+        const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
+        const year = date.getFullYear();
+        return `HT/DP/${month}.${year}`; // Result: HT/DP/APRIL.2026
+    };
+
+const uniqueCode = getCurrentMonthCode();
     return (
         <div className="p-8 max-w-[1500px] mx-auto font-sans relative">
             
@@ -300,10 +308,12 @@ export default function ViewGreenLeafForm() {
                 <div className="flex items-center gap-3">
                     <PDFDownloader 
                         title="Daily Production Log"
-                        subtitle={`Filters Applied -> Date: ${startDate || 'All'} to ${endDate || 'All'} | Tea: ${teaType} | Dryer: ${dryerType}`}
+                        // Add the uniqueCode as a subtitle or a new prop
+                        subtitle={`Code: Filters: Date ${startDate || 'All'} to ${endDate || 'All'}`}
                         headers={["Date", "Received GL", "Selected GL", "Return GL", "Tea Type", "Made Tea", "Dryer", "Start Meter", "End Meter", "Units", "Sel. Lab", "Rolling"]}
                         data={getPdfData()} 
-                        fileName={`Production_Log_${new Date().toISOString().split('T')[0]}.pdf`}
+                        uniqueCode={uniqueCode}
+                        fileName={`Production_Log_${uniqueCode}_${new Date().toISOString().split('T')[0]}.pdf`}
                         orientation="landscape"
                         disabled={loading || filteredRecords.length === 0}
                     />

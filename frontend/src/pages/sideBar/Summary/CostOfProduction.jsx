@@ -441,15 +441,33 @@ export default function CostOfProduction() {
                 }
             } catch (err) {}
 
+            // 1. Generate the Unique Code for the Range
+            const getRangeDocCode = () => {
+                const d1 = new Date(rangeStartMonth);
+                const d2 = new Date(rangeEndMonth);
+                const m1 = d1.toLocaleString('default', { month: 'short' }).toUpperCase();
+                const m2 = d2.toLocaleString('default', { month: 'short' }).toUpperCase();
+                const year = d2.getFullYear(); 
+                return `HT/CPS/${m1}-${m2}.${year}`; 
+            };
+            const uniqueRangeCode = getRangeDocCode();
+
+            // 2. Add Main Titles
             doc.setFontSize(22);
             doc.setTextColor(27, 106, 49); 
-            doc.text("Monthly Cost Summary", 45, 20);
+            doc.text("Monthly Cost of Production Summary", 45, 20);
             
             doc.setFontSize(11);
             doc.setTextColor(100);
             const startName = new Date(rangeStartMonth).toLocaleString('default', { month: 'short', year: 'numeric' });
             const endName = new Date(rangeEndMonth).toLocaleString('default', { month: 'short', year: 'numeric' });
             doc.text(`Period: ${startName} to ${endName}`, 45, 27);
+
+            // 3. Add the Unique Code to the Top Right Corner (Y=12 prevents overlap)
+            doc.setFontSize(10);
+            doc.setTextColor(150); 
+            const pageWidth = doc.internal.pageSize.getWidth();
+            doc.text(`Doc Ref: ${uniqueRangeCode}`, pageWidth - 14, 12, { align: 'right' });
 
             const headRow = ["Type of Cost", ...monthsArray.map(m => new Date(m).toLocaleString('default', { month: 'short', year: '2-digit' }).toUpperCase())];
             
@@ -569,6 +587,15 @@ export default function CostOfProduction() {
         }
     };
 
+    const getCurrentMonthCode = () => {
+        const date = new Date();
+        const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
+        const year = date.getFullYear();
+        return `HT/CPS/${month}.${year}`; // Result: HT/CPS/APRIL.2026
+    };
+
+    const uniqueCode = getCurrentMonthCode();
+
     return (
         <div className="p-8 max-w-6xl mx-auto font-sans bg-gray-50 min-h-screen relative">
             
@@ -680,6 +707,7 @@ export default function CostOfProduction() {
                                 subtitle={`Month: ${new Date(selectedMonth).toLocaleString('default', { month: 'long', year: 'numeric' })} | Global Rates -> G/L: Rs.${monthlyGlRate} | Labour: Rs.${labourRate} | Electricity: Rs.${electricityRate}`}
                                 headers={["Tea Type", "Cost Category", "Basis", "Cost (LKR)"]}
                                 data={getSinglePdfData()}
+                                uniqueCode={uniqueCode}
                                 fileName={`Cost_Of_Production_${selectedMonth}.pdf`}
                                 orientation="portrait"
                                 disabled={loading || records.length === 0}
