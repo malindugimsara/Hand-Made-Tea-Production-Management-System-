@@ -9,11 +9,12 @@ export default function PDFDownloader({
     title = "Document", 
     subtitle = "", 
     headers = [], 
-    data = [], 
+    data = [], // Now accepts either an array of arrays OR an array of objects { data: [], fillColor: [r,g,b], isFooter: boolean }
     fileName = "document.pdf",
     orientation = "portrait", // 'portrait' or 'landscape'
     disabled = false,
-    className = ""
+    className = "",
+    uniqueCode = ""
 }) {
     
     const handleDownload = async () => {
@@ -53,24 +54,56 @@ export default function PDFDownloader({
                 doc.text(subtitle, 45, 27);
             }
 
+            doc.setFontSize(10);
+            doc.setTextColor(150); // Light gray for the code
+            const pageWidth = doc.internal.pageSize.getWidth();
+            doc.text(`Doc Ref: ${uniqueCode}`, pageWidth - 14, 12, { align: 'right' });
+
+            // --- Pre-process data for autoTable ---
+            // Extract just the array of strings/numbers for the body
+            const processedBody = data.map(item => Array.isArray(item) ? item : item.data);
+
             // 3. Generate Table
             autoTable(doc, {
                 startY: 40,
                 head: [headers],
-                body: data,
+                body: processedBody,
                 theme: 'grid',
                 headStyles: { fillColor: [27, 106, 49], textColor: 255, fontSize: 9, halign: 'center' },
                 bodyStyles: { fontSize: 8, halign: 'center' },
                 columnStyles: { 0: { fontStyle: 'bold', halign: 'left' } },
                 didParseCell: function(dataInfo) {
-                    // අන්තිම Row එක "GRAND TOTAL" නම් ඒක Highlight කිරීම
-                    if (dataInfo.section === 'body' && dataInfo.row.index === data.length - 1) {
-                        const firstCellText = String(data[data.length - 1][0] || '').toUpperCase();
-                        if (firstCellText.includes("TOTAL")) {
-                            dataInfo.cell.styles.fillColor = [230, 240, 230];
-                            dataInfo.cell.styles.fontStyle = 'bold';
-                            dataInfo.cell.styles.textColor = [27, 106, 49];
-                            if(dataInfo.column.index === 0) dataInfo.cell.styles.halign = 'right';
+                    if (dataInfo.section === 'body') {
+                        const rowIndex = dataInfo.row.index;
+                        const originalRowData = data[rowIndex];
+
+                        // If the row was passed as an object with specific configurations
+                        if (!Array.isArray(originalRowData)) {
+                            
+                            // Apply custom fillColor if provided (for highlighted rows)
+                            if (originalRowData.fillColor) {
+                                dataInfo.cell.styles.fillColor = originalRowData.fillColor;
+                                dataInfo.cell.styles.fontStyle = 'bold'; // Optional: make highlighted rows bold
+                            }
+
+                            // Footer row styling (Grand Total)
+                            if (originalRowData.isFooter) {
+                                dataInfo.cell.styles.fillColor = [230, 240, 230];
+                                dataInfo.cell.styles.fontStyle = 'bold';
+                                dataInfo.cell.styles.textColor = [27, 106, 49];
+                                if(dataInfo.column.index === 0) dataInfo.cell.styles.halign = 'right';
+                            }
+                        } else {
+                            // Fallback for simple arrays (Legacy support)
+                            if (rowIndex === data.length - 1) {
+                                const firstCellText = String(data[data.length - 1][0] || '').toUpperCase();
+                                if (firstCellText.includes("TOTAL")) {
+                                    dataInfo.cell.styles.fillColor = [230, 240, 230];
+                                    dataInfo.cell.styles.fontStyle = 'bold';
+                                    dataInfo.cell.styles.textColor = [27, 106, 49];
+                                    if(dataInfo.column.index === 0) dataInfo.cell.styles.halign = 'right';
+                                }
+                            }
                         }
                     }
                 }
@@ -96,4 +129,4 @@ export default function PDFDownloader({
             Download PDF
         </button>
     );
-}
+} 

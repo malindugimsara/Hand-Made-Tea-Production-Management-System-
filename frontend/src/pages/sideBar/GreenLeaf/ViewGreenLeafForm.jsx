@@ -82,18 +82,26 @@ export default function ViewGreenLeafForm() {
                 glUsage[dateStr]++;
                 labUsage[dateStr]++;
 
-                // --- Calculate if the record was edited after initial creation ---
                 const getSafeTime = (item, field) => item && item[field] ? new Date(item[field]).getTime() : 0;
                 
-                const createdTimes = [getSafeTime(gl, 'createdAt'), getSafeTime(prod, 'createdAt'), getSafeTime(lab, 'createdAt')].filter(t => t > 0);
-                const updatedTimes = [getSafeTime(gl, 'updatedAt'), getSafeTime(prod, 'updatedAt'), getSafeTime(lab, 'updatedAt')].filter(t => t > 0);
-                
-                const maxCreated = createdTimes.length > 0 ? Math.max(...createdTimes) : 0;
-                const maxUpdated = updatedTimes.length > 0 ? Math.max(...updatedTimes) : 0;
+                const glCreated = getSafeTime(gl, 'createdAt');
+                const glUpdated = getSafeTime(gl, 'updatedAt');
+                const labCreated = getSafeTime(lab, 'createdAt');
+                const labUpdated = getSafeTime(lab, 'updatedAt');
+                const prodUpdated = getSafeTime(prod, 'updatedAt');
 
-                // If updated timestamp is > 5 seconds after creation timestamp, it counts as edited
-                const isEdited = (maxUpdated - maxCreated) > 5000;
-                const lastUpdatedDate = isEdited ? new Date(maxUpdated).toISOString().split('T')[0] : '';
+                // FIX: Only consider it an "Edit" if Green Leaf or Labour records were updated. 
+                // The Dryer Modal only updates the Production record, so it won't trigger the "Edited" badge anymore!
+                const isEdited = (glUpdated - glCreated > 5000) || (labUpdated - labCreated > 5000);
+                
+                const lastUpdatedDate = isEdited ? new Date(Math.max(glUpdated, labUpdated, prodUpdated)).toISOString().split('T')[0] : '';
+                
+                let rType = '-';
+                if (lab && lab.rollingType) {
+                    rType = lab.rollingType;
+                } else if (lab) {
+                    rType = 'Machine Rolling'; 
+                }
                 
                 return {
                     date: dateStr,
@@ -115,7 +123,7 @@ export default function ViewGreenLeafForm() {
                         ? new Date(prod.updatedAt).toISOString().split('T')[0] 
                         : '-',
                     workerCount: lab ? lab.workerCount : 0,
-                    rollingType: lab ? (lab.rollingType || 'Machine Rolling') : 'Machine Rolling',
+                    rollingType: rType,
                     rollingWorkerCount: (lab && lab.rollingType === 'Hand Rolling') ? lab.rollingWorkerCount : 0
                 };
             });
@@ -130,7 +138,6 @@ export default function ViewGreenLeafForm() {
         }
     };
 
-    // Filter Logic
     const filteredRecords = records.filter(record => {
         const dateMatch = (!startDate || record.date >= startDate) && (!endDate || record.date <= endDate);
         const typeMatch = teaType === 'All' || record.teaType === teaType;
@@ -138,29 +145,36 @@ export default function ViewGreenLeafForm() {
         return dateMatch && typeMatch && dryerMatch;
     });
 
-    // Grouping Overlapped Dryer Records
     const groupMap = {};
     filteredRecords.forEach(r => {
         if (r.meterStart !== '-' && r.meterEnd !== '-' && r.meterStart !== '' && r.meterEnd !== '') {
             const key = `${r.date}_${r.dryerName}_${r.meterStart}_${r.meterEnd}`;
             if (!groupMap[key]) {
-                groupMap[key] = { count: 0, color: '' };
+                groupMap[key] = { count: 0, uiColor: '', pdfColor: '' };
             }
             groupMap[key].count += 1;
         }
     });
 
-    const highlightColors = ['bg-green-200/80', 'bg-yellow-200/80', 'bg-purple-200/80', 'bg-blue-200/80', 'bg-pink-200/80', 'bg-orange-200/80'];
+    const highlightColors = [
+        { ui: 'bg-green-200/80', pdf: '#bbf7d0' },  
+        { ui: 'bg-yellow-200/80', pdf: '#fef08a' }, 
+        { ui: 'bg-purple-200/80', pdf: '#e9d5ff' }, 
+        { ui: 'bg-blue-200/80', pdf: '#bfdbfe' },   
+        { ui: 'bg-pink-200/80', pdf: '#fbcfe8' },   
+        { ui: 'bg-orange-200/80', pdf: '#fed7aa' }  
+    ];
     let colorIndex = 0;
 
     Object.keys(groupMap).forEach(key => {
         if (groupMap[key].count > 1) {
-            groupMap[key].color = highlightColors[colorIndex % highlightColors.length];
+            const colorObj = highlightColors[colorIndex % highlightColors.length];
+            groupMap[key].uiColor = colorObj.ui;
+            groupMap[key].pdfColor = colorObj.pdf;
             colorIndex++;
         }
     });
 
-    // ACCURATE TOTAL CALCULATION
     const totalGL = filteredRecords.reduce((sum, r) => sum + (Number(r.totalWeight) || 0), 0);
     const totalSelectedGL = filteredRecords.reduce((sum, r) => sum + (Number(r.selectedWeight) || 0), 0);
     const totalReturnedGL = filteredRecords.reduce((sum, r) => sum + (Number(r.returnedWeight) || 0), 0);
@@ -205,18 +219,18 @@ export default function ViewGreenLeafForm() {
         }
     };
 
-    // -------------------------------------------------------------
-    // PREPARE PDF DATA
-    // -------------------------------------------------------------
     const getPdfData = () => {
         const tableRows = filteredRecords.map(record => {
             let displayUnits = record.units;
+            let rowColor = null;
+
             if (record.meterStart !== '-' && record.meterEnd !== '-' && record.meterStart !== '' && record.meterEnd !== '') {
                 const key = `${record.date}_${record.dryerName}_${record.meterStart}_${record.meterEnd}`;
                 const groupInfo = groupMap[key];
                 if (groupInfo && groupInfo.count > 1) {
                     const adjustedUnits = Number(record.units) / groupInfo.count;
                     displayUnits = Number.isInteger(adjustedUnits) ? adjustedUnits : adjustedUnits.toFixed(2);
+                    rowColor = groupInfo.pdfColor; 
                 }
             }
 
@@ -226,46 +240,62 @@ export default function ViewGreenLeafForm() {
 
             const pdfDateCell = record.isEdited ? `${record.date}\n(Edited: ${record.lastUpdatedDate})` : record.date;
             
-            // Generate Short name for PDF
-            const rTypeShort = record.rollingType === 'Hand Rolling' ? 'H/R' : (record.rollingType === 'Machine Rolling' ? 'M/R' : record.rollingType);
+            let rTypeShort = record.rollingType;
+            if(rTypeShort === 'Machine Rolling') rTypeShort = 'M/R';
+            if(rTypeShort === 'Hand Rolling') rTypeShort = 'H/R';
+
             const rollingText = record.rollingType === 'Hand Rolling' 
                 ? `${rTypeShort}\n(${record.rollingWorkerCount} wkrs)` 
                 : rTypeShort;
 
-            return [
-                pdfDateCell,
-                record.totalWeight,
-                record.selectedWeight,
-                record.returnedWeight > 0 ? record.returnedWeight : '-',
-                record.teaType,
-                record.madeTeaWeight,
-                pdfDryerName,
-                record.meterStart,
-                record.meterEnd,
-                displayUnits !== '-' ? displayUnits : '-',
-                record.workerCount !== '-' ? record.workerCount : '-',
-                rollingText
-            ];
+            return {
+                data: [
+                    pdfDateCell,
+                    record.totalWeight,
+                    record.selectedWeight,
+                    record.returnedWeight > 0 ? record.returnedWeight : '-',
+                    record.teaType,
+                    record.madeTeaWeight,
+                    pdfDryerName,
+                    record.meterStart,
+                    record.meterEnd,
+                    displayUnits !== '-' ? displayUnits : '-',
+                    record.workerCount !== '-' ? record.workerCount : '-',
+                    rollingText
+                ],
+                fillColor: rowColor 
+            };
         });
 
-        tableRows.push([
-            "GRAND TOTAL",
-            totalGL.toFixed(2),
-            totalSelectedGL.toFixed(2),
-            totalReturnedGL.toFixed(2),
-            "-",
-            totalMadeTea.toFixed(3),
-            "-",
-            "-",
-            "-",
-            Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2),
-            totalSelectionLabour,
-            totalHandRollingLabour > 0 ? `${totalHandRollingLabour} (H/R)` : '-'
-        ]);
+        tableRows.push({
+            data: [
+                "GRAND TOTAL",
+                totalGL.toFixed(2),
+                totalSelectedGL.toFixed(2),
+                totalReturnedGL.toFixed(2),
+                "-",
+                totalMadeTea.toFixed(3),
+                "-",
+                "-",
+                "-",
+                Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2),
+                totalSelectionLabour,
+                totalHandRollingLabour > 0 ? `${totalHandRollingLabour} (H/R)` : '-'
+            ],
+            isFooter: true
+        });
 
         return tableRows;
     };
 
+    const getCurrentMonthCode = () => {
+        const date = new Date();
+        const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
+        const year = date.getFullYear();
+        return `HT/DP/${month}.${year}`; // Result: HT/DP/APRIL.2026
+    };
+
+const uniqueCode = getCurrentMonthCode();
     return (
         <div className="p-8 max-w-[1500px] mx-auto font-sans relative">
             
@@ -278,10 +308,12 @@ export default function ViewGreenLeafForm() {
                 <div className="flex items-center gap-3">
                     <PDFDownloader 
                         title="Daily Production Log"
-                        subtitle={`Filters Applied -> Date: ${startDate || 'All'} to ${endDate || 'All'} | Tea: ${teaType} | Dryer: ${dryerType}`}
+                        // Add the uniqueCode as a subtitle or a new prop
+                        subtitle={`Code: Filters: Date ${startDate || 'All'} to ${endDate || 'All'}`}
                         headers={["Date", "Received GL", "Selected GL", "Return GL", "Tea Type", "Made Tea", "Dryer", "Start Meter", "End Meter", "Units", "Sel. Lab", "Rolling"]}
-                        data={getPdfData()}
-                        fileName={`Production_Log_${new Date().toISOString().split('T')[0]}.pdf`}
+                        data={getPdfData()} 
+                        uniqueCode={uniqueCode}
+                        fileName={`Production_Log_${uniqueCode}_${new Date().toISOString().split('T')[0]}.pdf`}
                         orientation="landscape"
                         disabled={loading || filteredRecords.length === 0}
                     />
@@ -394,14 +426,14 @@ export default function ViewGreenLeafForm() {
                                             
                                             if (groupInfo && groupInfo.count > 1) {
                                                 isShared = true;
-                                                highlightClass = groupInfo.color;
+                                                highlightClass = groupInfo.uiColor;
                                                 const adjustedUnits = Number(record.units) / groupInfo.count;
                                                 displayUnits = Number.isInteger(adjustedUnits) ? adjustedUnits : adjustedUnits.toFixed(2);
                                             }
                                         }
 
                                         return (
-                                            <tr key={record.productionId} className="hover:bg-gray-50/80 transition-colors group">
+                                            <tr key={record.productionId} className={`transition-colors group ${isShared ? highlightClass : 'hover:bg-gray-50/80'}`}>
                                                 <td className="px-4 py-3 border-r border-gray-300 align-top">
                                                     <div className="flex flex-col items-start gap-1 mt-1">
                                                         <span className="font-semibold text-gray-800">{record.date}</span>
@@ -440,13 +472,13 @@ export default function ViewGreenLeafForm() {
                                                     )}
                                                 </td>
 
-                                                <td className={`px-3 py-3 text-center border-r border-gray-300 text-xs align-top ${isShared ? `${highlightClass} font-bold text-gray-900` : 'text-gray-500'}`}>
+                                                <td className={`px-3 py-3 text-center border-r border-gray-300 text-xs align-top ${isShared ? 'font-bold text-gray-900' : 'text-gray-500'}`}>
                                                     <div className="mt-1">{record.meterStart}</div>
                                                 </td>
-                                                <td className={`px-3 py-3 text-center border-r border-gray-300 text-xs align-top ${isShared ? `${highlightClass} font-bold text-gray-900` : 'text-gray-500'}`}>
+                                                <td className={`px-3 py-3 text-center border-r border-gray-300 text-xs align-top ${isShared ? 'font-bold text-gray-900' : 'text-gray-500'}`}>
                                                     <div className="mt-1">{record.meterEnd}</div>
                                                 </td>
-                                                <td className={`px-3 py-3 text-center border-r border-gray-300 align-top ${isShared ? highlightClass : ''}`}>
+                                                <td className={`px-3 py-3 text-center border-r border-gray-300 align-top ${isShared ? '' : ''}`}>
                                                     <div className="mt-1">{record.units !== '-' ? <span className={`font-bold ${isShared ? 'text-gray-900' : 'text-orange-600'}`}>{displayUnits}</span> : '-'}</div>
                                                 </td>
 
@@ -470,7 +502,7 @@ export default function ViewGreenLeafForm() {
                                                 </td>
                                                 
                                                 {!isViewer && (
-                                                    <td className="px-3 py-3 text-center align-top">
+                                                    <td className="px-3 py-3 text-center align-top bg-white">
                                                         <div className="flex items-center justify-center gap-1 mt-0.5">
                                                             <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-[#1B6A31] hover:bg-[#8CC63F]/20 rounded transition-all">
                                                                 <MdOutlineEdit size={20} />

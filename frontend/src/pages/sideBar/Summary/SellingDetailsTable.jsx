@@ -45,11 +45,9 @@ export default function SellingDetailsTable() {
   const [hasChanges, setHasChanges] = useState(false); 
   const [showUnsavedAlert, setShowUnsavedAlert] = useState(false);
 
-  // --- ROLE BASED ACCESS CONTROL ---
   const userRole = localStorage.getItem('userRole') || ''; 
   const isViewer = userRole.toLowerCase() === 'viewer'; 
 
-  // --- AUTO LOAD ON MOUNT ---
   useEffect(() => {
       handleFetchData(true);
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -233,9 +231,18 @@ export default function SellingDetailsTable() {
       const saved = await handleSaveToDB();
       if (saved) {
           setShowUnsavedAlert(false);
-          toast.success("Saved! You can now download the PDF.");
+          toast.success("Saved! You can now click the Download PDF button.");
       }
   };
+
+  const getCurrentMonthCode = () => {
+        const date = new Date();
+        const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
+        const year = date.getFullYear();
+        return `HT/SDS/${month}.${year}`; // Result: HT/SDS/APRIL.2026
+    };
+
+    const uniqueCode = getCurrentMonthCode();
 
   return (
     <div className="p-8 max-w-[1200px] mx-auto font-sans relative">
@@ -260,7 +267,7 @@ export default function SellingDetailsTable() {
                       onClick={handleSaveAndDownload} 
                       className="bg-[#1B6A31] hover:bg-green-800 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
                   >
-                      Save & Download
+                      Save & Continue
                   </AlertDialogAction>
               </AlertDialogFooter>
           </AlertDialogContent>
@@ -292,13 +299,14 @@ export default function SellingDetailsTable() {
                   }`}
               >
                   {isViewer ? <Eye size={18}/> : <Save size={18} />} 
-                  {isViewer ? "View Only" : isSaving ? "Saving..." : isSaved && !hasChanges ? "Save to DB" : "Save to DB"}
+                  {isViewer ? "View Only" : isSaving ? "Saving..." : isSaved && !hasChanges ? "Saved to DB" : "Save to DB"}
               </button>
 
               {(!isSaved && !isViewer && hasChanges) ? (
                   <button 
                       onClick={() => setShowUnsavedAlert(true)}
-                      className="px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 bg-blue-600 hover:bg-blue-700"
+                      disabled={tableData.filter(row => row.packs !== '' && Number(row.packs) > 0).length === 0}
+                      className="px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                   >
                      <FileDown size={18} /> Download PDF
                   </button>
@@ -308,6 +316,7 @@ export default function SellingDetailsTable() {
                       subtitle={`Active Month: ${new Date(`${selectedMonth}-01`).toLocaleString('default', { month: 'long', year: 'numeric' })} | Exchange Rate: 1 USD = Rs. ${exchangeRate}`}
                       headers={pdfHeaders}
                       data={getPdfData()}
+                      uniqueCode={uniqueCode}
                       fileName={`Selling_Details_${selectedMonth}.pdf`}
                       orientation="portrait"
                       disabled={tableData.filter(row => row.packs !== '' && Number(row.packs) > 0).length === 0}

@@ -314,6 +314,15 @@ export default function ProductionSummary() {
 
     const pdfHeaders = ["Type of Tea", "G/L (kg)", "M/T (kg)", "Sel. Workers", "H/R Workers", "Sel. Cost", "H/R Cost", "Dryer Pts", "Roller Pts", "Dryer Cost", "Roller Cost", "Total Cost"];
 
+    const getCurrentMonthCode = () => {
+        const date = new Date();
+        const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
+        const year = date.getFullYear();
+        return `HT/PS/${month}.${year}`; // Result: HT/PS/APRIL.2026
+    };
+
+    const uniqueCode = getCurrentMonthCode();
+    
     return (
         <div className="p-8 max-w-[1400px] mx-auto font-sans relative">
             <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
@@ -343,7 +352,7 @@ export default function ProductionSummary() {
                     {(!isSaved && !isViewer) ? (
                         <button onClick={() => setShowUnsavedDialog(true)} disabled={tableData.length === 0} className="px-5 py-2.5 text-white bg-blue-600 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-blue-700 transition-all duration-300"><FileDown size={18} /> Download PDF</button>
                     ) : (
-                        <PDFDownloader title="Production Summary" subtitle={`Month: ${filterMonth} | Selected Types: ${selectedTeaTypes.join(', ')}`} headers={pdfHeaders} data={getPdfData()} fileName={`Production_Summary_${filterMonth}.pdf`} orientation="landscape" disabled={tableData.length === 0} className="bg-blue-600 hover:bg-blue-700 text-white" />
+                        <PDFDownloader title="Production Summary" subtitle={`Month: ${filterMonth} | Selected Types: ${selectedTeaTypes.join(', ')}`} headers={pdfHeaders} data={getPdfData()} uniqueCode={uniqueCode} fileName={`Production_Summary_${filterMonth}.pdf`} orientation="landscape" disabled={tableData.length === 0} className="bg-blue-600 hover:bg-blue-700 text-white" />
                     )}
                 </div>
             </div>
