@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import toast from 'react-hot-toast'; 
-import { Calculator, Calendar, Leaf, Zap, Users, Settings2, RefreshCw, CheckSquare, Square, Save, AlertTriangle, Filter, Info, Eye, FileDown } from "lucide-react";
-import PDFDownloader from '@/components/PDFDownloader'; 
+import toast, { Toaster } from 'react-hot-toast';
+import { AlertTriangle, Calendar, Settings2, FileDown, Save, DollarSign, Info, Eye, RefreshCw } from "lucide-react";
+import PDFDownloader from '@/components/PDFDownloader'; // PDFDownloader import
 
 import {
     AlertDialog,
@@ -12,683 +12,464 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog"; 
 
-export default function ProductionSummary() {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-    const [loading, setLoading] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [records, setRecords] = useState([]);
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-    // --- ROLE BASED ACCESS CONTROL ---
-    const userRole = localStorage.getItem('userRole') || ''; 
-    const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
+const defaultTeaData = [
+  { id: 1, type: 'Pink tea', amount: 0.025, packs: '', price: 8 },
+  { id: 2, type: 'Pink tea(paper can)', amount: 0.025, packs: '', price: 10 },
+  { id: 3, type: 'Vita glow', amount: 0.025, packs: '', price: 5 },
+  { id: 4, type: 'Christmass tea', amount: 0.005, packs: '', price: 7 },
+  { id: 5, type: 'Christmass tea (reusable bag)', amount: 0.005, packs: '', price: 10 },
+  { id: 6, type: 'White tea', amount: 0.025, packs: '', price: 7 },
+  { id: 7, type: 'White tea(paper can)', amount: 0.025, packs: '', price: 9 },
+  { id: 8, type: 'Purple tea', amount: 0.01, packs: '', price: 7 },
+  { id: 9, type: 'Purple tea(paper can)', amount: 0.005, packs: '', price: 9 },
+  { id: 10, type: 'Slim beauty', amount: 0.01, packs: '', price: 11 },
+  { id: 11, type: 'Slim beauty(paper can)', amount: 0.005, packs: '', price: 7 },
+  { id: 12, type: 'Golden tips', amount: 0.002, packs: '', price: 14 },
+  { id: 13, type: 'Golden tips', amount: 0.004, packs: '', price: 25 },
+  { id: 14, type: 'Golden tips', amount: 0.005, packs: '', price: 35 },
+];
 
-    // Saving & Dialog States
-    const [isSaved, setIsSaved] = useState(true); 
-    const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+export default function SellingDetailsTable() {
+  const [tableData, setTableData] = useState(defaultTeaData);
+  const [exchangeRate, setExchangeRate] = useState(300);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
 
-    // Filters
-    const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7)); 
-    const [selectedTeaTypes, setSelectedTeaTypes] = useState([]); 
+  const [isSaving, setIsSaving] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
+  
+  const [isSaved, setIsSaved] = useState(true); 
+  const [hasChanges, setHasChanges] = useState(false); 
+  const [showUnsavedAlert, setShowUnsavedAlert] = useState(false);
 
-    // Rates
-    const [labourRate, setLabourRate] = useState(1350);
-    const [electricityRate, setElectricityRate] = useState(10);
+  const userRole = localStorage.getItem('userRole') || ''; 
+  const isViewer = userRole.toLowerCase() === 'viewer'; 
 
-    // Manual Inputs
-    const [manualInputs, setManualInputs] = useState({});
+  useEffect(() => {
+      handleFetchData(true);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    const teaOptions = [
-        "Purple Tea", "Pink Tea", "White Tea", "Silver Tips", 
-        "Silver Green", "VitaGlow Tea", "Slim Beauty", "Golden Tips", 
-        "Flower", "Chakra"
-    ];
+  const handleInputChange = (id, field, value) => {
+    if (value !== '' && Number(value) < 0) return;
 
-    // Load Data on Mount & Month Change
-    useEffect(() => {
-        fetchAllData(true); 
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filterMonth]); 
+    const updatedData = tableData.map((row) => {
+      if (row.id === id) {
+        return { ...row, [field]: value };
+      }
+      return row;
+    });
+    setTableData(updatedData);
+    setHasChanges(true); 
+    setIsSaved(false); 
+  };
 
-    const fetchAllData = async (isSilent = false) => {
-        setLoading(true);
-        try {
-            const token = localStorage.getItem('token');
-            const authHeaders = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            };
+  const handleExchangeRateChange = (e) => {
+      const val = Number(e.target.value);
+      if (val < 0) return;
+      setExchangeRate(val);
+      setHasChanges(true);
+      setIsSaved(false);
+  };
 
-            const [greenLeafRes, productionRes, labourRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
-                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
-                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders })
-            ]);
+  const handleFetchData = async (isSilent = false) => {
+    if (!selectedMonth) {
+      if (!isSilent) toast.error("Please select a month first.");
+      return;
+    }
 
-            if (!greenLeafRes.ok || !productionRes.ok || !labourRes.ok) {
-                throw new Error("Failed to fetch data");
-            }
+    setIsFetching(true);
+    let loadToast;
+    if (!isSilent) loadToast = toast.loading('Fetching data...');
 
-            const greenLeafData = await greenLeafRes.json();
-            const productionData = await productionRes.json();
-            const labourData = await labourRes.json();
-
-            const glUsage = {};
-            const labUsage = {};
-
-            const merged = productionData.map(prod => {
-                const dateStr = new Date(prod.date).toISOString().split('T')[0];
-                const glsForDate = greenLeafData.filter(g => new Date(g.date).toISOString().split('T')[0] === dateStr);
-                const labsForDate = labourData.filter(l => new Date(l.date).toISOString().split('T')[0] === dateStr);
-
-                if (glUsage[dateStr] === undefined) glUsage[dateStr] = 0;
-                if (labUsage[dateStr] === undefined) labUsage[dateStr] = 0;
-
-                const gl = glsForDate[glUsage[dateStr]] || null;
-                const lab = labsForDate[labUsage[dateStr]] || null;
-
-                glUsage[dateStr]++;
-                labUsage[dateStr]++;
-                
-                const mStart = Number(prod?.dryerDetails?.meterStart) || 0;
-                const mEnd = Number(prod?.dryerDetails?.meterEnd) || 0;
-                const calculatedUnits = mEnd > mStart ? (mEnd - mStart) : 0;
-
-                return {
-                    date: dateStr,
-                    teaType: prod.teaType || 'Unknown',
-                    madeTeaWeight: prod.madeTeaWeight || 0,
-                    selectedWeight: gl ? gl.selectedWeight : 0,
-                    workerCount: lab ? lab.workerCount : 0,
-                    meterStart: mStart, 
-                    meterEnd: mEnd,     
-                    dryerUnits: calculatedUnits
-                };
-            });
-
-            setRecords(merged);
-            
-            await loadMonthDataInternal(filterMonth, merged, isSilent);
-
-        } catch (error) {
-            if (!isSilent) toast.error("Could not load data from server.");
-        } finally {
-            setLoading(false);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${BACKEND_URL}/api/selling-details?month=${selectedMonth}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-    };
-
-    const loadMonthDataInternal = async (month, availableRecords, isSilent = false) => {
-        let toastId;
-        if (!isSilent) toastId = toast.loading(`Loading data for ${month}...`);
-
-        try {
-            const token = localStorage.getItem('token');
-            const authHeaders = { 'Authorization': `Bearer ${token}` };
-
-            const summaryRes = await fetch(`${BACKEND_URL}/api/production-summary`, { headers: authHeaders });
-            
-            if (summaryRes.ok) {
-                const summaries = await summaryRes.json();
-                
-                let savedSummary = null;
-                if (Array.isArray(summaries)) {
-                    savedSummary = summaries.find(s => s.reportMonth === month);
-                } else if (summaries && summaries.reportMonth === month) {
-                    savedSummary = summaries;
-                }
-
-                if (savedSummary) {
-                    setLabourRate(savedSummary.labourRate);
-                    setElectricityRate(savedSummary.electricityRate);
-
-                    const newManualInputs = {};
-                    const activeTypes = [];
-
-                    savedSummary.teaSummaries.forEach(tea => {
-                        activeTypes.push(tea.type);
-                        newManualInputs[tea.type] = {
-                            handRolling: tea.hrWorkers,
-                            roller: tea.rPoints
-                        };
-                    });
-
-                    setSelectedTeaTypes(activeTypes);
-                    setManualInputs(newManualInputs);
-                    
-                    // Force the button to be Saved
-                    setTimeout(() => setIsSaved(true), 100); 
-                    
-                    if (!isSilent) toast.success(`Loaded saved summary for ${month}!`, { id: toastId });
-                    return; 
-                }
-            }
-
-            autoSelectActiveTeaTypes(availableRecords, month);
-            if (!isSilent) toast.success(`Generated new calculations for ${month}`, { id: toastId });
-
-        } catch (err) {
-            if (!isSilent) toast.error("Error checking database.", { id: toastId });
-        }
-    };
-
-    const handleLoadMonthDataClick = () => {
-        if (!filterMonth) {
-            toast.error("Please select a month first!");
-            return;
-        }
-        loadMonthDataInternal(filterMonth, records, false);
-    };
-
-    const autoSelectActiveTeaTypes = (allRecords, month) => {
-        const monthRecords = allRecords.filter(r => r.date.startsWith(month));
-        const glTotals = {};
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
         
-        monthRecords.forEach(r => {
-            if (r.teaType !== 'Unknown') {
-                glTotals[r.teaType] = (glTotals[r.teaType] || 0) + Number(r.selectedWeight || 0);
+        if (data && data.records && data.records.length > 0) {
+          const fetchedRecords = data.records;
+          
+          const mergedData = defaultTeaData.map((defaultRow) => {
+            const foundRecord = fetchedRecords.find((r) => r.type === defaultRow.type && Number(r.amount) === Number(defaultRow.amount));
+            if (foundRecord) {
+              return { 
+                ...defaultRow, 
+                amount: foundRecord.amount, 
+                packs: foundRecord.packs, 
+                price: foundRecord.price 
+              };
             }
-        });
+            return { ...defaultRow, packs: '' };
+          });
 
-        const activeTypes = Object.keys(glTotals).filter(type => glTotals[type] > 0);
-        setSelectedTeaTypes(activeTypes);
-        setManualInputs({}); 
-        setTimeout(() => setIsSaved(false), 100); 
-    };
-
-    const toggleTeaType = (type) => {
-        if (selectedTeaTypes.includes(type)) {
-            setSelectedTeaTypes(selectedTeaTypes.filter(t => t !== type));
+          setTableData(mergedData);
+          if (data.exchangeRate) setExchangeRate(data.exchangeRate);
+          
+          setIsSaved(true); 
+          setHasChanges(false);
+          if (!isSilent) toast.success(`Data for ${selectedMonth} loaded!`, { id: loadToast });
         } else {
-            setSelectedTeaTypes([...selectedTeaTypes, type]);
+          setTableData(defaultTeaData);
+          setIsSaved(false); 
+          setHasChanges(false);
+          if (!isSilent) toast('No data found. Ready for new entries.', { icon: 'ℹ️', id: loadToast });
         }
-        setIsSaved(false);
-    };
-
-    const handleSelectAll = () => {
-        if (selectedTeaTypes.length === teaOptions.length) {
-            setSelectedTeaTypes([]); 
+      } else {
+        if (response.status === 401 || response.status === 403) {
+            if (!isSilent) toast.error('Session expired. Please log in again.', { id: loadToast });
         } else {
-            setSelectedTeaTypes([...teaOptions]); 
+            if (!isSilent) toast.error('Failed to fetch data.', { id: loadToast });
         }
-        setIsSaved(false);
-    };
+      }
+    } catch (error) {
+      if (!isSilent) toast.error('Network error while fetching.', { id: loadToast });
+    } finally {
+      setIsFetching(false);
+    }
+  };
 
-    const handleManualChange = (type, field, value) => {
-        setManualInputs(prev => ({
-            ...prev,
-            [type]: {
-                ...prev[type],
-                [field]: Number(value) || 0
-            }
-        }));
-        setIsSaved(false);
-    };
+  const handleSaveToDB = async () => {
+    if (isViewer) {
+        toast.error("Viewers are not allowed to save data.");
+        return false;
+    }
 
-    const handleLabourRateChange = (e) => {
-        setLabourRate(e.target.value.replace(/^0+(?=\d)/, ''));
-        setIsSaved(false);
-    };
+    const recordsToSave = tableData.filter((row) => row.packs !== '' && Number(row.packs) > 0);
+    
+    if (recordsToSave.length === 0) {
+      toast.error("No packs entered. Nothing to save!");
+      return false;
+    }
 
-    const handleElectricityRateChange = (e) => {
-        setElectricityRate(e.target.value.replace(/^0+(?=\d)/, ''));
-        setIsSaved(false);
-    };
+    setIsSaving(true);
+    const saveToast = toast.loading('Saving to database...');
 
-    const generateTableData = () => {
-        if (selectedTeaTypes.length === 0) return []; 
+    try {
+      const saveDate = new Date(`${selectedMonth}-01`).toISOString();
+      const token = localStorage.getItem('token');
 
-        let dateFiltered = records;
-        if (filterMonth) {
-            dateFiltered = dateFiltered.filter(r => r.date.startsWith(filterMonth));
+      const response = await fetch(`${BACKEND_URL}/api/selling-details`, {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({
+          date: saveDate, 
+          exchangeRate: exchangeRate,
+          records: recordsToSave,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success(`Data successfully saved for ${selectedMonth}!`, { id: saveToast });
+        setIsSaved(true); 
+        setHasChanges(false); 
+        return true;
+      } else {
+        if (response.status === 403) {
+            toast.error("Access Denied. You do not have permission to save.", { id: saveToast });
+        } else {
+            toast.error('Failed to save data.', { id: saveToast });
         }
+        return false;
+      }
+    } catch (error) {
+      toast.error('Network error while saving.', { id: saveToast });
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-        return selectedTeaTypes.map(type => {
-            const relevantRecords = dateFiltered.filter(r => r.teaType === type);
+  const totalUsd = tableData.reduce((sum, row) => sum + (Number(row.packs) || 0) * (Number(row.price) || 0), 0);
+  const totalLkr = totalUsd * exchangeRate;
 
-            const totalGL = relevantRecords.reduce((sum, r) => sum + Number(r.selectedWeight || 0), 0);
-            const totalSelectionWorkers = relevantRecords.reduce((sum, r) => sum + Number(r.workerCount || 0), 0);
-            const totalMT = relevantRecords.reduce((sum, r) => sum + Number(r.madeTeaWeight || 0), 0);
+  // -------------------------------------------------------------
+  // PREPARE PDF DATA FOR COMPONENT
+  // -------------------------------------------------------------
+  const getPdfData = () => {
+    const recordsToPrint = tableData.filter((row) => row.packs !== '' && Number(row.packs) > 0);
 
-            const uniqueDryerRecords = [];
-            relevantRecords.forEach(r => {
-                const isDuplicate = uniqueDryerRecords.some(ud => ud.date === r.date && ud.meterStart === r.meterStart && ud.meterEnd === r.meterEnd);
-                if (!isDuplicate) uniqueDryerRecords.push(r);
-            });
-            const totalDryerUnits = uniqueDryerRecords.reduce((sum, r) => sum + Number(r.dryerUnits || 0), 0);
-
-            const hrWorkers = manualInputs[type]?.handRolling || 0;
-            const rPoints = manualInputs[type]?.roller || 0;
-
-            const selectionCost = totalSelectionWorkers * labourRate;
-            const handRollingCost = hrWorkers * labourRate;
-            const dryerCost = totalDryerUnits * electricityRate;
-            const rollerCost = rPoints * electricityRate;
-            const totalElectricityCost = dryerCost + rollerCost;
-
-            return {
-                type, totalGL, totalMT, totalSelectionWorkers, hrWorkers, selectionCost,
-                handRollingCost, totalDryerUnits, rPoints, dryerCost, rollerCost, totalElectricityCost
-            };
-        });
-    };
-
-    const tableData = generateTableData();
-
-    const grandTotals = tableData.reduce((acc, row) => ({
-        totalGL: acc.totalGL + row.totalGL,
-        totalMT: acc.totalMT + row.totalMT,
-        totalSelectionWorkers: acc.totalSelectionWorkers + row.totalSelectionWorkers,
-        hrWorkers: acc.hrWorkers + row.hrWorkers,
-        selectionCost: acc.selectionCost + row.selectionCost,
-        handRollingCost: acc.handRollingCost + row.handRollingCost,
-        totalDryerUnits: acc.totalDryerUnits + row.totalDryerUnits,
-        rPoints: acc.rPoints + row.rPoints,
-        dryerCost: acc.dryerCost + row.dryerCost,
-        rollerCost: acc.rollerCost + row.rollerCost,
-        totalElectricityCost: acc.totalElectricityCost + row.totalElectricityCost
-    }), {
-        totalGL: 0, totalMT: 0, totalSelectionWorkers: 0, hrWorkers: 0,
-        selectionCost: 0, handRollingCost: 0, totalDryerUnits: 0, rPoints: 0,
-        dryerCost: 0, rollerCost: 0, totalElectricityCost: 0
+    const tableRows = recordsToPrint.map(row => {
+      const calculatedUsd = (Number(row.packs) || 0) * (Number(row.price) || 0);
+      const calculatedLkr = calculatedUsd * exchangeRate;
+      
+      return [
+        row.type,
+        Number(row.amount).toFixed(3),
+        row.packs ? row.packs.toString() : "0",
+        Number(row.price).toFixed(2),
+        calculatedUsd.toFixed(2),
+        calculatedLkr.toLocaleString()
+      ];
     });
 
-    const handleSaveToDatabase = async () => {
-        if (isViewer) {
-            toast.error("Viewers are not allowed to save data.");
-            return false;
-        }
+    tableRows.push([
+      "GRAND TOTAL", "-", "-", "-",
+      totalUsd.toFixed(2),
+      totalLkr.toLocaleString()
+    ]);
 
-        if (tableData.length === 0) {
-            toast.error("No production data to save!");
-            return false;
-        }
+    return tableRows;
+  };
 
-        setIsSaving(true);
-        const toastId = toast.loading("Saving summary to database...");
+  const pdfHeaders = ["Type of Tea", "Amount (kg)", "Nu. of Packs", "Price/One ($)", "Total (USD)", "Total (LKR)"];
 
-        try {
-            const token = localStorage.getItem('token');
-            const payload = {
-                reportMonth: filterMonth,
-                labourRate: Number(labourRate),
-                electricityRate: Number(electricityRate),
-                teaSummaries: tableData,
-                grandTotals: grandTotals
-            };
+  const handleSaveAndDownload = async () => {
+      const saved = await handleSaveToDB();
+      if (saved) {
+          setShowUnsavedAlert(false);
+          toast.success("Saved! You can now click the Download PDF button.");
+      }
+  };
 
-            const response = await fetch(`${BACKEND_URL}/api/production-summary`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                if (response.status === 403) throw new Error("Access Denied. Admins/Officers only.");
-                throw new Error("Failed to save to database");
-            }
-
-            toast.success("Summary saved successfully!", { id: toastId });
-            setIsSaved(true); 
-            return true;
-        } catch (error) {
-            toast.error(error.message || "Network error.", { id: toastId });
-            return false;
-        } finally {
-            setIsSaving(false);
-        }
+  const getCurrentMonthCode = () => {
+        const date = new Date();
+        const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
+        const year = date.getFullYear();
+        return `HT/SDS/${month}.${year}`; // Result: HT/SDS/APRIL.2026
     };
 
-    const getPdfData = () => {
-        const rows = tableData.map(row => [
-            row.type, 
-            row.totalGL.toFixed(2), 
-            row.totalMT.toFixed(3), 
-            row.totalSelectionWorkers.toString(),
-            row.hrWorkers.toString(), 
-            row.selectionCost.toLocaleString(), 
-            row.handRollingCost.toLocaleString(),
-            row.totalDryerUnits.toString(), 
-            row.rPoints.toString(), 
-            row.dryerCost.toLocaleString(),
-            row.rollerCost.toLocaleString(), 
-            row.totalElectricityCost.toLocaleString()
-        ]);
+    const uniqueCode = getCurrentMonthCode();
 
-        rows.push([
-            "GRAND TOTAL", 
-            grandTotals.totalGL.toFixed(2), 
-            grandTotals.totalMT.toFixed(3),
-            grandTotals.totalSelectionWorkers.toString(), 
-            grandTotals.hrWorkers.toString(),
-            grandTotals.selectionCost.toLocaleString(), 
-            grandTotals.handRollingCost.toLocaleString(),
-            grandTotals.totalDryerUnits.toString(), 
-            grandTotals.rPoints.toString(),
-            grandTotals.dryerCost.toLocaleString(), 
-            grandTotals.rollerCost.toLocaleString(),
-            grandTotals.totalElectricityCost.toLocaleString()
-        ]);
+  return (
+    <div className="p-8 max-w-[1200px] mx-auto font-sans relative">
 
-        return rows;
-    };
+      {/* STRICT UNSAVED DATA ALERT DIALOG */}
+      <AlertDialog open={showUnsavedAlert} onOpenChange={setShowUnsavedAlert}>
+          <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
+              <AlertDialogHeader>
+                  <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mb-4 border border-orange-200">
+                      <AlertTriangle className="w-6 h-6 text-orange-600" />
+                  </div>
+                  <AlertDialogTitle className="text-xl font-bold text-gray-900">Save Before Downloading</AlertDialogTitle>
+                  <AlertDialogDescription className="text-gray-500 text-base">
+                      You have unsaved packs or rate changes. You must save these records to the database before generating the PDF report to ensure data consistency.
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="mt-6">
+                  <AlertDialogCancel className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg font-semibold mt-0">
+                      Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction 
+                      onClick={handleSaveAndDownload} 
+                      className="bg-[#1B6A31] hover:bg-green-800 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
+                  >
+                      Save & Continue
+                  </AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
 
-    const pdfHeaders = [
-        "Type of Tea", "G/L (kg)", "M/T (kg)", 
-        "Sel. Workers", "H/R Workers", 
-        "Sel. Cost (Rs)", "H/R Cost (Rs)", 
-        "Dryer Pts", "Roller Pts", 
-        "Dryer Cost (Rs)", "Roller Cost (Rs)", 
-        "Total Cost (Rs)"
-    ];
+      {/* STICKY HEADER */}
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md -mt-8 -mx-8 pt-8 pb-4 px-8 mb-8 border-b border-gray-100 shadow-sm text-center sm:text-left flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+              <h2 className="text-3xl font-bold text-[#1B6A31] flex items-center justify-center sm:justify-start gap-2">
+                  <DollarSign size={28} /> Monthly Selling Details
+              </h2>
+              <p className="text-gray-500 mt-1 font-medium">Manage and export monthly sales data</p>
+          </div>
+          
+          <div className="flex flex-wrap gap-3 justify-center sm:justify-end">
+              <button 
+                  onClick={() => handleFetchData(false)}
+                  disabled={isFetching}
+                  className={`px-5 py-2.5 bg-white text-[#1B6A31] border border-[#8CC63F] rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${isFetching ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F8FAF8]'}`}
+              >
+                  <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} /> Sync Data
+              </button>
 
-    const handleSaveAndDownload = async () => {
-        const saved = await handleSaveToDatabase();
-        if (saved) {
-            setShowUnsavedDialog(false);
-            toast.success("Saved! You can now download the PDF.");
-        }
-    };
+              <button 
+                  onClick={handleSaveToDB}
+                  disabled={isSaving || (isSaved && !hasChanges) || isViewer}
+                  className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
+                      (isSaved && !hasChanges) || isViewer ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'
+                  }`}
+              >
+                  {isViewer ? <Eye size={18}/> : <Save size={18} />} 
+                  {isViewer ? "View Only" : isSaving ? "Saving..." : isSaved && !hasChanges ? "Saved to DB" : "Save to DB"}
+              </button>
 
-    return (
-        <div className="p-8 max-w-[1400px] mx-auto font-sans relative">
-            
-            {/* STRICT UNSAVED DATA ALERT DIALOG */}
-            <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
-                <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
-                    <AlertDialogHeader>
-                        <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mb-4 border border-orange-200">
-                            <AlertTriangle className="w-6 h-6 text-orange-600" />
-                        </div>
-                        <AlertDialogTitle className="text-xl font-bold text-gray-900">Save Before Downloading</AlertDialogTitle>
-                        <AlertDialogDescription className="text-gray-500 text-base">
-                            You have unsaved calculations on this board. You must save these records to the database before generating the PDF report to ensure data consistency.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="mt-6">
-                        <AlertDialogCancel className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg font-semibold mt-0">
-                            Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction 
-                            onClick={handleSaveAndDownload} 
-                            className="bg-[#1B6A31] hover:bg-green-800 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
-                        >
-                            Save
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+              {(!isSaved && !isViewer && hasChanges) ? (
+                  <button 
+                      onClick={() => setShowUnsavedAlert(true)}
+                      disabled={tableData.filter(row => row.packs !== '' && Number(row.packs) > 0).length === 0}
+                      className="px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                     <FileDown size={18} /> Download PDF
+                  </button>
+              ) : (
+                  <PDFDownloader 
+                      title="Monthly Selling Details Summary"
+                      subtitle={`Active Month: ${new Date(`${selectedMonth}-01`).toLocaleString('default', { month: 'long', year: 'numeric' })} | Exchange Rate: 1 USD = Rs. ${exchangeRate}`}
+                      headers={pdfHeaders}
+                      data={getPdfData()}
+                      uniqueCode={uniqueCode}
+                      fileName={`Selling_Details_${selectedMonth}.pdf`}
+                      orientation="portrait"
+                      disabled={tableData.filter(row => row.packs !== '' && Number(row.packs) > 0).length === 0}
+                      className="bg-blue-600 hover:bg-blue-700 text-white" 
+                  />
+              )}
+          </div>
+      </div>
 
-            {/* --- STICKY HEADER SECTION --- */}
-            <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md -mt-8 -mx-8 pt-8 pb-4 px-8 mb-8 border-b border-gray-100 shadow-sm text-center sm:text-left flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h2 className="text-3xl font-bold text-[#1B6A31] flex items-center justify-center sm:justify-start gap-2">
-                        <Calculator size={28} /> Production Summary
-                    </h2>
-                    <p className="text-gray-500 mt-1 font-medium">Calculate costs and export PDF reports</p>
-                </div>
-                
-                <div className="flex flex-wrap gap-3 justify-center sm:justify-end">
-                    <button 
-                        onClick={() => { fetchAllData(false); toast.success("Data re-synced with server."); }}
-                        disabled={loading}
-                        className={`px-5 py-2.5 bg-white text-[#1B6A31] border border-[#8CC63F] rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F8FAF8]'}`}
-                    >
-                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Sync Data
-                    </button>
-                    
-                    <button 
-                        onClick={handleSaveToDatabase}
-                        disabled={isSaving || isSaved || tableData.length === 0 || isViewer}
-                        className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
-                            (isSaved || tableData.length === 0 || isViewer) ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'
-                        }`}
-                    >
-                        {isViewer ? <Eye size={18}/> : <Save size={18} />} 
-                        {isViewer ? "View Only" : isSaving ? "Saving..." : (isSaved && tableData.length > 0) ? "Saved" : "Save to DB"}
-                    </button>
+      {/* Viewer Notification Banner */}
+      {isViewer && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg flex items-center gap-3">
+              <Info size={20} />
+              <p className="text-sm font-medium">You are logged in as a <strong>Viewer</strong>. You can view data and download reports. Editing and saving are disabled.</p>
+          </div>
+      )}
 
-                    {(!isSaved && !isViewer) ? (
-                        <button 
-                            onClick={() => setShowUnsavedDialog(true)}
-                            disabled={tableData.length === 0}
-                            className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${tableData.length === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
-                        >
-                           <FileDown size={18} /> Download PDF
-                        </button>
-                    ) : (
-                        <PDFDownloader 
-                            title="Production Summary"
-                            subtitle={`Month: ${new Date(`${filterMonth}-01`).toLocaleString('default', { month: 'long', year: 'numeric' })} | Selected Tea Types: ${selectedTeaTypes.join(', ')}\nRates -> Labour: Rs. ${labourRate} | Electricity: Rs. ${electricityRate}`}
-                            headers={pdfHeaders}
-                            data={getPdfData()}
-                            fileName={`Production_Summary_${filterMonth}.pdf`}
-                            orientation="landscape"
-                            disabled={tableData.length === 0}
-                            className="bg-blue-600 hover:bg-blue-700 text-white" 
-                        />
-                    )}
-                </div>
-            </div>
-            {/* --------------------------- */}
+      {/* Control Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="bg-gradient-to-br from-blue-50/50 to-white p-6 rounded-xl border border-blue-200 shadow-lg shadow-blue-900/5 flex flex-col justify-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
+              
+              <div className="flex justify-between items-center border-b border-blue-100 pb-3 mb-4">
+                  <h3 className="text-sm md:text-base font-extrabold text-blue-700 flex items-center gap-2 uppercase tracking-wider">
+                      <div className="p-1.5 bg-blue-100 rounded-lg"><Calendar size={18} className="text-blue-700"/></div>
+                      1. Active Workspace Month
+                  </h3>
+              </div>
 
-            {/* Viewer Notification Banner */}
-            {isViewer && (
-                <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg flex items-center gap-3">
-                    <Info size={20} />
-                    <p className="text-sm font-medium">You are logged in as a <strong>Viewer</strong>. You can view data and download reports. Editing and saving are disabled.</p>
-                </div>
-            )}
+              <div className="flex flex-col sm:flex-row gap-3 relative z-10 items-end">
+                  <div className="w-full">
+                      <input 
+                          type="month" 
+                          value={selectedMonth} 
+                          onChange={(e) => setSelectedMonth(e.target.value)} 
+                          className="w-full border border-gray-300 rounded-md p-3 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-white shadow-sm" 
+                      />
+                  </div>
+                  <button 
+                      onClick={() => handleFetchData(false)}
+                      disabled={isFetching}
+                      className="w-full sm:w-auto whitespace-nowrap px-5 py-3 bg-blue-600 text-white rounded-md text-sm font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                  >
+                      {isFetching ? 'Loading...' : 'Load Month Data'}
+                  </button>
+              </div>
+          </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                {/* 1. Date Filter */}
-                <div className="bg-gradient-to-br from-blue-50/50 to-white p-6 rounded-xl border border-blue-200 shadow-lg shadow-blue-900/5 flex flex-col justify-center relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
-                    
-                    <div className="flex justify-between items-center border-b border-blue-100 pb-3 mb-4">
-                        <h3 className="text-sm md:text-base font-extrabold text-blue-700 flex items-center gap-2 uppercase tracking-wider">
-                            <div className="p-1.5 bg-blue-100 rounded-lg"><Calendar size={18} className="text-blue-700"/></div>
-                            1. Select Report Month
-                        </h3>
-                    </div>
+          <div className="bg-gradient-to-br from-orange-50/50 to-white p-6 rounded-xl border border-orange-200 shadow-lg shadow-orange-900/5 h-fit relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
+              
+              <div className="flex items-center gap-2 mb-4 border-b border-orange-100 pb-3">
+                  <h3 className="text-sm md:text-base font-extrabold text-orange-700 flex items-center gap-2 uppercase tracking-wider">
+                      <div className="p-1.5 bg-orange-100 rounded-lg"><Settings2 size={18} className="text-orange-600"/></div>
+                      2. Adjust Rates {isViewer && "(Read Only)"}
+                  </h3>
+              </div>
+              
+              <div className="flex flex-col gap-1.5 relative z-10">
+                  <label className="text-xs font-bold text-gray-500 flex items-center gap-1">1 USD = (LKR)</label>
+                  <div className="relative">
+                      <span className="absolute left-3 top-3 text-gray-400 text-sm font-bold">Rs.</span>
+                      <input 
+                          type="number" 
+                          min="0" 
+                          onWheel={(e) => e.target.blur()} 
+                          value={exchangeRate} 
+                          onChange={handleExchangeRateChange} 
+                          disabled={isViewer}
+                          className="w-full sm:w-1/2 border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed" 
+                      />
+                  </div>
+              </div>
+          </div>
+      </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3 relative z-10 items-end">
-                        <div className="w-full">
-                            <label className="text-xs font-bold text-gray-500 mb-1 block">MONTHLY FILTER</label>
-                            <input 
-                                type="month" 
-                                value={filterMonth} 
-                                onChange={(e) => setFilterMonth(e.target.value)} 
-                                className="w-full border border-gray-300 rounded-md p-3 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-white shadow-sm" 
-                            />
-                        </div>
-                        <button 
-                            onClick={handleLoadMonthDataClick}
-                            className="w-full sm:w-auto whitespace-nowrap px-5 py-3 bg-blue-600 text-white rounded-md text-sm font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                        >
-                            <Filter size={16} /> Load Month Data
-                        </button>
-                    </div>
-                </div>
-
-                {/* 2. Rate Settings */}
-                <div className="bg-gradient-to-br from-orange-50/50 to-white p-6 rounded-xl border border-orange-200 shadow-lg shadow-orange-900/5 h-fit relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
-                    
-                    <div className="flex items-center gap-2 mb-4 border-b border-orange-100 pb-3">
-                        <h3 className="text-sm md:text-base font-extrabold text-orange-700 flex items-center gap-2 uppercase tracking-wider">
-                            <div className="p-1.5 bg-orange-100 rounded-lg"><Settings2 size={18} className="text-orange-600"/></div>
-                            2. Adjust Rates (LKR) {isViewer && "(Read Only)"}
-                        </h3>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 relative z-10">
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold text-gray-500 flex items-center gap-1"><Users size={12}/> LABOUR (PER HEAD)</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-3 text-gray-400 text-sm font-bold">Rs.</span>
-                                <input 
-                                    type="number" onWheel={(e) => e.target.blur()} value={labourRate} 
-                                    onChange={handleLabourRateChange} 
-                                    disabled={isViewer}
-                                    className="w-full border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed" 
-                                />
-                            </div>
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold text-gray-500 flex items-center gap-1"><Zap size={12}/> ELECTRICITY (PER UNIT)</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-3 text-gray-400 text-sm font-bold">Rs.</span>
-                                <input 
-                                    type="number" onWheel={(e) => e.target.blur()} value={electricityRate} 
-                                    onChange={handleElectricityRateChange} 
-                                    disabled={isViewer}
-                                    className="w-full border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-orange-400 bg-white shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed" 
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* 3. TEA TYPE SELECTION */}
-            <div className="bg-gradient-to-br from-green-50/50 to-white p-6 rounded-xl border border-green-200 shadow-lg shadow-green-900/5 mb-8 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-[#1B6A31]"></div>
-                
-                <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 border-b border-green-100 pb-3'>
-                    <div>
-                        <h3 className="text-sm md:text-base font-extrabold text-[#1B6A31] flex items-center gap-2 uppercase tracking-wider">
-                            <div className="p-1.5 bg-green-100 rounded-lg"><Leaf size={18} className="text-[#1B6A31]"/></div>
-                            3. Select Tea Types
-                        </h3>
-                        <p className="text-xs text-gray-500 mt-1 ml-9">Active types (G/L {'>'} 0) are auto-selected. Click to add/remove.</p>
-                    </div>
-                    <button 
-                        onClick={handleSelectAll}
-                        className="text-xs font-bold flex items-center gap-1.5 px-4 py-2 bg-white border border-green-200 text-[#1B6A31] rounded-lg hover:bg-green-50 hover:border-green-300 transition-all shadow-sm"
-                    >
-                        {selectedTeaTypes.length === teaOptions.length ? <CheckSquare size={16}/> : <Square size={16}/>}
-                        {selectedTeaTypes.length === teaOptions.length ? "Deselect All" : "Select All"}
-                    </button>
-                </div>
-                
-                <div className="flex flex-wrap gap-2.5">
-                    {teaOptions.map(type => (
-                        <button
-                            key={type}
-                            onClick={() => toggleTeaType(type)}
-                            className={`px-4 py-2 text-xs font-bold rounded-xl border-2 transition-all duration-200 ${
-                                selectedTeaTypes.includes(type) 
-                                ? 'bg-[#1B6A31] border-[#1B6A31] text-white shadow-md shadow-green-900/20 transform scale-105' 
-                                : 'bg-white border-gray-200 text-gray-500 hover:border-[#8CC63F] hover:text-[#1B6A31]'
-                            }`}
-                        >
-                            {type} {selectedTeaTypes.includes(type) && '✓'}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* Summary Table */}
-            <div className={`bg-white rounded-xl shadow-md border overflow-hidden mb-12 min-h-[300px] ${isViewer ? 'border-gray-200 opacity-95' : 'border-gray-200'}`}>
-                <div className="bg-[#1B6A31] p-4 border-b border-gray-200 flex items-center gap-2">
-                    <Leaf className="text-white" size={20}/>
-                    <h3 className="text-lg font-bold text-white">Calculation Board</h3>
-                </div>
-                
-                {tableData.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4 border border-gray-100 shadow-sm">
-                            <Leaf size={30} className="text-gray-300" />
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-700 mb-2">No Tea Types Selected</h3>
-                        <p className="text-gray-500 max-w-md">
-                            Load a month with production data using the filters above, or manually select tea types to begin calculations.
-                        </p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
-                            <thead>
-                                <tr className="bg-gray-50 text-gray-800 uppercase text-xs tracking-wider border-b border-gray-200">
-                                    <th rowSpan="2" className="px-4 py-4 font-extrabold border-r border-gray-200 align-middle bg-gray-100 w-48 text-center">Type of Tea</th>
-                                    <th colSpan="2" className="px-4 py-2 font-bold text-[#1B6A31] border-r border-gray-200 bg-[#8CC63F]/10 text-center">Quantity (kg)</th>
-                                    <th colSpan="2" className="px-4 py-2 font-bold text-blue-700 border-r border-gray-200 bg-blue-50 text-center">Labour Requirement</th>
-                                    <th colSpan="2" className="px-4 py-2 font-bold text-blue-900 border-r border-gray-200 bg-blue-100/50 text-center">Labour Cost (Rs.)</th>
-                                    <th colSpan="2" className="px-4 py-2 font-bold text-orange-600 border-r border-gray-200 bg-orange-50 text-center">Electricity (points)</th>
-                                    <th colSpan="3" className="px-4 py-2 font-bold text-orange-900 border-r border-gray-200 bg-orange-100/50 text-center">Electricity Cost (Rs.)</th>
-                                </tr>
-                                <tr className="bg-gray-50 text-gray-600 text-xs border-b border-gray-200">
-                                    <th className="px-3 py-2 font-semibold bg-[#8CC63F]/5 text-center border-r border-gray-200/60 w-24">G/L</th>
-                                    <th className="px-3 py-2 font-semibold bg-[#8CC63F]/5 text-center border-r border-gray-200 w-24">M/T</th>
-                                    <th className="px-3 py-2 font-semibold bg-blue-50/50 text-center border-r border-gray-200/60 w-24">Selection</th>
-                                    <th className="px-3 py-2 font-semibold bg-blue-50/50 text-center border-r border-gray-200 w-32">Hand Roll</th>
-                                    <th className="px-3 py-2 font-semibold bg-blue-100/30 text-center border-r border-gray-200/60 w-28">Selection</th>
-                                    <th className="px-3 py-2 font-semibold bg-blue-100/30 text-center border-r border-gray-200 w-28">Hand Roll</th>
-                                    <th className="px-3 py-2 font-semibold bg-orange-50/50 text-center border-r border-gray-200/60 w-24">Dryer</th>
-                                    <th className="px-3 py-2 font-semibold bg-orange-50/50 text-center border-r border-gray-200 w-28">Roller</th>
-                                    <th className="px-3 py-2 font-semibold bg-orange-100/30 text-center border-r border-gray-200/60 w-28">Dryer</th>
-                                    <th className="px-3 py-2 font-semibold bg-orange-100/30 text-center border-r border-gray-200/60 w-28">Roller</th>
-                                    <th className="px-3 py-2 font-black bg-orange-200/40 text-center text-orange-900 w-32">Total Cost</th>
-                                </tr>
-                            </thead>
-
-                            <tbody className="divide-y divide-gray-100">
-                                {tableData.map((row, index) => (
-                                    <tr key={index} className="hover:bg-gray-50/80 transition-colors group text-center">
-                                        <td className="px-4 py-4 border-r border-gray-200 font-bold text-[#1B6A31] bg-gray-50/50 whitespace-normal">{row.type}</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.totalGL.toFixed(2)}</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.totalMT.toFixed(3)}</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 font-bold text-blue-700 bg-blue-50/10">{row.totalSelectionWorkers}</td>
-                                        <td className="px-2 py-2 border-r border-gray-200 bg-blue-50/30">
-                                            <input 
-                                                type="number" onWheel={(e) => e.target.blur()} value={row.hrWorkers || ''} 
-                                                onChange={(e) => handleManualChange(row.type, 'handRolling', e.target.value.replace(/^0+(?=\d)/, ''))} 
-                                                disabled={isViewer}
-                                                className="w-full p-2 border border-blue-300 rounded text-center font-bold text-blue-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner bg-white disabled:bg-gray-100 disabled:cursor-not-allowed" placeholder="0" 
-                                            />
-                                        </td>
-                                        <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.selectionCost.toLocaleString()}</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.handRollingCost.toLocaleString()}</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 font-bold text-orange-600 bg-orange-50/10">{row.totalDryerUnits}</td>
-                                        <td className="px-2 py-2 border-r border-gray-200 bg-orange-50/30">
-                                            <input 
-                                                type="number" onWheel={(e) => e.target.blur()} value={row.rPoints || ''} 
-                                                onChange={(e) => handleManualChange(row.type, 'roller', e.target.value.replace(/^0+(?=\d)/, ''))} 
-                                                disabled={isViewer}
-                                                className="w-full p-2 border border-orange-300 rounded text-center font-bold text-orange-800 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner bg-white disabled:bg-gray-100 disabled:cursor-not-allowed" placeholder="0" 
-                                            />
-                                        </td>
-                                        <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.dryerCost.toLocaleString()}</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 font-bold text-gray-700">{row.rollerCost.toLocaleString()}</td>
-                                        <td className="px-3 py-4 font-black text-lg text-red-600 bg-red-50/30">{row.totalElectricityCost.toLocaleString()}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                            
-                            <tfoot className="bg-gray-100/90 border-t-[3px] border-gray-300 font-black text-gray-900 text-center shadow-[inset_0_4px_6px_-4px_rgba(0,0,0,0.1)]">
-                                <tr>
-                                    <td className="px-4 py-5 border-r border-gray-200 text-right uppercase tracking-wider text-sm">Grand Total</td>
-                                    <td className="px-3 py-5 border-r border-gray-200 text-[#1B6A31] text-base">{grandTotals.totalGL.toFixed(2)}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200 text-[#1B6A31] text-base">{grandTotals.totalMT.toFixed(3)}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200 text-blue-800 text-base">{grandTotals.totalSelectionWorkers}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200 text-blue-800 text-base">{grandTotals.hrWorkers}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200">{grandTotals.selectionCost.toLocaleString()}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200">{grandTotals.handRollingCost.toLocaleString()}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200 text-orange-700 text-base">{grandTotals.totalDryerUnits}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200 text-orange-700 text-base">{grandTotals.rPoints}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200">{grandTotals.dryerCost.toLocaleString()}</td>
-                                    <td className="px-3 py-5 border-r border-gray-200">{grandTotals.rollerCost.toLocaleString()}</td>
-                                    <td className="px-3 py-5 text-red-700 text-xl bg-red-100/50">{grandTotals.totalElectricityCost.toLocaleString()}</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                )}
-            </div>
+      {/* Main Table */}
+      <div className={`bg-white rounded-xl shadow-md overflow-hidden mb-12 min-h-[300px] border ${isViewer ? 'border-gray-200 opacity-95' : 'border-gray-200'}`}>
+        <div className="bg-[#1B6A31] p-4 border-b border-gray-200 flex items-center gap-2">
+            <DollarSign className="text-white" size={20}/>
+            <h3 className="text-lg font-bold text-white">Selling Details Board</h3>
         </div>
-    );
+        
+        <div className="overflow-x-auto p-4">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <th className="px-4 py-4 font-extrabold text-xs tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#1a1a1a] bg-[#f9f9f9] text-center">Type of tea</th>
+                <th className="px-4 py-4 font-extrabold text-xs tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#2e6b3b] bg-[#f4f9f4] text-center">Amount (kg)</th>
+                <th className="px-4 py-4 font-extrabold text-xs tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#2858b4] bg-[#f0f5fd] text-center">Number of Packs</th>
+                <th className="px-4 py-4 font-extrabold text-xs tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#d66b2d] bg-[#fdf7f2] text-center">Price per one (USD)</th>
+                <th className="px-4 py-4 font-extrabold text-xs tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#1a1a1a] bg-[#f9f9f9] text-center">Total (USD)</th>
+                <th className="px-4 py-4 font-extrabold text-xs tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#b81d1d] bg-[#fcedec] text-center">Total (LKR)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tableData.map((row) => {
+                const calculatedUsd = (Number(row.packs) || 0) * (Number(row.price) || 0);
+                const calculatedLkr = calculatedUsd * exchangeRate;
+
+                return (
+                  <tr key={row.id}>
+                    <td className="p-3 text-sm font-bold border-b border-r border-gray-200 text-[#2e6b3b] text-left pl-5">{row.type}</td>
+                    <td className="p-3 text-sm font-bold border-b border-r border-gray-200 text-center">
+                      <input 
+                        type="number" 
+                        step="0.001" 
+                        min="0"
+                        onWheel={(e) => e.target.blur()}
+                        value={row.amount} 
+                        onChange={(e) => handleInputChange(row.id, 'amount', e.target.value)} 
+                        disabled={isViewer}
+                        className="w-[80%] p-2 border border-transparent hover:border-green-300 focus:border-green-300 rounded text-center font-bold text-[#1B6A31] outline-none focus:ring-2 focus:ring-green-500 shadow-inner bg-white disabled:bg-transparent disabled:opacity-70 disabled:cursor-not-allowed" 
+                      />
+                    </td>
+                    <td className="p-3 text-sm font-bold border-b border-r border-gray-200 text-center">
+                      <input 
+                        type="number" 
+                        placeholder="0" 
+                        min="0"
+                        onWheel={(e) => e.target.blur()}
+                        value={row.packs} 
+                        onChange={(e) => handleInputChange(row.id, 'packs', e.target.value)} 
+                        disabled={isViewer}
+                        className="w-[80%] p-2 border border-blue-300 rounded text-center font-bold text-blue-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner bg-white disabled:bg-gray-50 disabled:opacity-70 disabled:cursor-not-allowed" 
+                      />
+                    </td>
+                    <td className="p-3 text-sm font-bold border-b border-r border-gray-200 text-center">
+                      <input 
+                        type="number" 
+                        step="0.1" 
+                        min="0"
+                        onWheel={(e) => e.target.blur()}
+                        value={row.price} 
+                        onChange={(e) => handleInputChange(row.id, 'price', e.target.value)} 
+                        disabled={isViewer}
+                        className="w-[80%] p-2 border border-transparent hover:border-orange-300 focus:border-orange-300 rounded text-center font-bold text-orange-600 outline-none focus:ring-2 focus:ring-orange-500 shadow-inner bg-white disabled:bg-transparent disabled:opacity-70 disabled:cursor-not-allowed" 
+                      />
+                    </td>
+                    <td className="p-3 text-sm font-bold border-b border-r border-gray-200 text-center text-[#1a1a1a] bg-gray-50/50">{calculatedUsd > 0 ? calculatedUsd.toFixed(2) : '0'}</td>
+                    <td className="p-3 text-sm font-black border-b border-r border-gray-200 text-center text-[#b81d1d] bg-red-50/30">{calculatedLkr > 0 ? calculatedLkr.toLocaleString() : '0'}</td>
+                  </tr>
+                );
+              })}
+              <tr className="bg-[#fcedec]">
+                <td colSpan="4" className="p-3 text-sm font-bold text-[#1a1a1a] text-right pr-5 border-r border-gray-200">GRAND TOTAL</td>
+                <td className="p-3 text-lg font-bold text-[#1a1a1a] text-center border-r border-gray-200">{totalUsd.toFixed(2)}</td>
+                <td className="p-3 text-lg font-black text-[#b81d1d] text-center border-r border-gray-200">{totalLkr.toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 }

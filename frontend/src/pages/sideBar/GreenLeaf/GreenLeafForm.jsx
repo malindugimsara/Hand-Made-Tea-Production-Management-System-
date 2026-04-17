@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import toast from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { PlusCircle, Trash2, ListChecks, Save, X, CalendarClock, Zap, AlertCircle, Search, Sun, Moon } from "lucide-react";
 
@@ -44,6 +44,7 @@ export default function GreenLeafForm() {
     };
 
     // --- DAY 1 FORM STATE ---
+    // Added rollingType and rollingWorkerCount fields
     const [formData, setFormData] = useState({
         date: getTodayLocalString(),
         totalWeight: '',
@@ -51,7 +52,9 @@ export default function GreenLeafForm() {
         teaType: '',
         madeTeaWeight: '',
         expectedDryerDate: '', 
-        workerCount: ''
+        workerCount: '',
+        rollingType: 'Machine Rolling',
+        rollingWorkerCount: ''
     });
 
     const [existingDates, setExistingDates] = useState([]);
@@ -116,9 +119,7 @@ export default function GreenLeafForm() {
                 const todayStr = getTodayLocalString();
                 const tasksNeedingDryer = prodData.filter(p => {
                     const hasNoDryer = !p.dryerDetails || !p.dryerDetails.dryerName || p.dryerDetails.dryerName === "";
-                    
                     const expectedDateStr = p.expectedDryerDate ? p.expectedDryerDate.substring(0, 10) : null;
-                    
                     const isDue = expectedDateStr && expectedDateStr <= todayStr;
                     return hasNoDryer && isDue;
                 });
@@ -153,7 +154,12 @@ export default function GreenLeafForm() {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setFormData({ ...formData, [name]: value });
+        // Logic to clear worker count if rolling type is changed away from 'Hand Rolling'
+        if (name === 'rollingType' && value !== 'Hand Rolling') {
+            setFormData({ ...formData, [name]: value, rollingWorkerCount: '' });
+        } else {
+            setFormData({ ...formData, [name]: value });
+        }
     };
 
     const playErrorSound = () => {
@@ -211,7 +217,9 @@ export default function GreenLeafForm() {
             teaType: '',
             madeTeaWeight: '',
             expectedDryerDate: '',
-            workerCount: ''
+            workerCount: '',
+            rollingType: 'Machine Rolling',
+            rollingWorkerCount: ''
         });
     };
 
@@ -251,7 +259,12 @@ export default function GreenLeafForm() {
                     expectedDryerDate: record.expectedDryerDate 
                 };
                 
-                const labourPayload = { date: record.date, workerCount: Number(record.workerCount) };
+                const labourPayload = { 
+                    date: record.date, 
+                    workerCount: Number(record.workerCount),
+                    rollingType: record.rollingType,
+                    rollingWorkerCount: record.rollingType === 'Hand Rolling' ? Number(record.rollingWorkerCount) : 0
+                };
 
                 const [glRes, prodRes, labRes] = await Promise.all([
                     fetch(`${BACKEND_URL}/api/green-leaf`, { method: 'POST', headers: authHeaders, body: JSON.stringify(greenLeafPayload) }),
@@ -555,13 +568,54 @@ export default function GreenLeafForm() {
                             </div>
                         </div>
 
-                        {/* 4. LABOUR DETAILS */}
-                        <div className="mb-8 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/50 rounded-xl p-6 transition-colors duration-300">
-                            <h3 className="text-lg font-bold text-blue-700 dark:text-blue-400 mb-4 flex items-center gap-2"><span>👥</span> 4. Labour Details</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* 4. LABOUR DETAILS - Updated with Rolling Type */}
+                        <div className="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
+                            <h3 className="text-lg font-bold text-blue-700 mb-4 flex items-center gap-2"><span>👥</span> 4. Labour & Rolling Details</h3>
+                            
+                            <div className="space-y-6">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">TOTAL WORKER COUNT</label>
-                                    <input type="number" name="workerCount" value={formData.workerCount} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-blue-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100" />
+                                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Selection Worker Count</label>
+                                    <input 
+                                        type="number" 
+                                        name="workerCount" 
+                                        value={formData.workerCount} 
+                                        onChange={handleInputChange} 
+                                        onWheel={(e) => e.target.blur()} 
+                                        required 
+                                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 outline-none" 
+                                    />
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-blue-200">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Rolling Type</label>
+                                        <select 
+                                            name="rollingType" 
+                                            value={formData.rollingType} 
+                                            onChange={handleInputChange} 
+                                            className="w-full p-3 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-blue-400 outline-none"
+                                        >
+                                            <option value="Machine Rolling">Machine Rolling</option>
+                                            <option value="Hand Rolling">Hand Rolling</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className={`block text-xs font-bold mb-1 uppercase ${formData.rollingType === 'Hand Rolling' ? 'text-gray-500' : 'text-gray-400'}`}>
+                                            Hand Rolling Labour Count
+                                        </label>
+                                        <input 
+                                            type="number" 
+                                            name="rollingWorkerCount" 
+                                            value={formData.rollingWorkerCount} 
+                                            onChange={handleInputChange} 
+                                            disabled={formData.rollingType !== 'Hand Rolling'}
+                                            placeholder={formData.rollingType === 'Hand Rolling' ? "Enter count" : "Not Required"}
+                                            required={formData.rollingType === 'Hand Rolling'}
+                                            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed" 
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -628,8 +682,10 @@ export default function GreenLeafForm() {
                                                     </div>
                                                 </div>
 
-                                                <div className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-1">
-                                                    Workers: <span className="font-bold text-blue-600 dark:text-blue-400">{item.workerCount}</span>
+                                                <div className="text-xs text-gray-500 font-medium mt-1">
+                                                    Sel. Workers: <span className="font-bold text-blue-600">{item.workerCount}</span> | 
+                                                    Rolling: <span className="font-bold text-blue-600 ml-1">{item.rollingType}</span>
+                                                    {item.rollingType === 'Hand Rolling' && <span className="font-bold text-blue-600"> ({item.rollingWorkerCount} workers)</span>}
                                                 </div>
                                             </div>
                                         </div>
@@ -638,15 +694,15 @@ export default function GreenLeafForm() {
                             )}
                         </div>
 
-                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800 space-y-3">
-                            <button
+                        <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                            {/* <button
                                 type="button"
                                 onClick={handleCancel}
                                 disabled={isSavingAll}
                                 className="w-full py-3 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl transition-colors disabled:opacity-50"
                             >
-                                Cancel / Go Back
-                            </button>
+                                Cancel
+                            </button> */}
 
                             <button 
                                 onClick={handleSaveAll}

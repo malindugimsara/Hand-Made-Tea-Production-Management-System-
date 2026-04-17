@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
-import { Fan, Zap, Clock, AlertCircle, Calendar, RefreshCw } from "lucide-react";
+import { Fan, Zap, Clock, AlertCircle, Calendar, RefreshCw, Leaf } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
 
 import {
@@ -161,6 +161,15 @@ export default function ViewDehydratorRecords() {
         return tableRows;
     };
 
+    const getCurrentMonthCode = () => {
+        const date = new Date();
+        const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
+        const year = date.getFullYear();
+        return `HT/DM/${month}.${year}`; // Result: HT/DM/APRIL.2026
+    };
+
+    const uniqueCode = getCurrentMonthCode();
+
     return (
         <div className="p-8 max-w-[1200px] mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
             
@@ -176,6 +185,7 @@ export default function ViewDehydratorRecords() {
                         subtitle={`Filters -> Date: ${startDate || 'All'} to ${endDate || 'All'} | Trial: ${trialFilter || 'All'}`}
                         headers={["Date", "Trial", "Start Meter", "End Meter", "Total Pts", "Time (Hrs)"]}
                         data={getPdfData()}
+                        uniqueCode={uniqueCode}
                         fileName={`Dehydrator_Records_${new Date().toISOString().split('T')[0]}.pdf`}
                         orientation="portrait"
                         disabled={loading || filteredRecords.length === 0}

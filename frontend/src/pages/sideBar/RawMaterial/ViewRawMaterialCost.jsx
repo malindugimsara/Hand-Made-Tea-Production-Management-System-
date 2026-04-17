@@ -183,6 +183,15 @@ export default function ViewRawMaterialCost() {
         return tableRows;
     };
 
+    const getCurrentMonthCode = () => {
+        const date = new Date();
+        const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
+        const year = date.getFullYear();
+        return `HT/RMC/${month}.${year}`; // Result: HT/RMC/APRIL.2026
+    };
+
+    const uniqueCode = getCurrentMonthCode();
+
     return (
         <div className="p-8 max-w-[1400px] mx-auto font-sans relative bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
             
@@ -200,6 +209,7 @@ export default function ViewRawMaterialCost() {
                         subtitle={`Filters -> Date: ${filterDate || 'All'} | Material: ${filterMaterial || 'All'}`}
                         headers={["Date", "Material", "Dry Weight (g)", "Meter Start", "Meter End", "Total Pts", "Raw Cost (Rs)", "Elec Cost (Rs)", "Total Cost (Rs)"]}
                         data={getPdfData()}
+                        uniqueCode={uniqueCode}
                         fileName={`Raw_Material_Cost_${new Date().toISOString().split('T')[0]}.pdf`}
                         orientation="landscape"
                         disabled={loading || filteredRecords.length === 0}

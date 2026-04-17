@@ -30,7 +30,7 @@ export default function CostOfProduction() {
     
     // PDF Unsaved Alert States
     const [showUnsavedAlert, setShowUnsavedAlert] = useState(false);
-    const [pendingPdfAction, setPendingPdfAction] = useState(null); // 'single' or 'range'
+    const [pendingPdfAction, setPendingPdfAction] = useState(null); 
 
     // Filters & Rates
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); 
@@ -40,7 +40,6 @@ export default function CostOfProduction() {
     
     const [records, setRecords] = useState([]);
     const [supervisionCosts, setSupervisionCosts] = useState({});
-    const [handRollingWorkers, setHandRollingWorkers] = useState({});
 
     // Range PDF Modal States
     const [showRangeModal, setShowRangeModal] = useState(false);
@@ -52,6 +51,7 @@ export default function CostOfProduction() {
 
     useEffect(() => {
         fetchAndProcessData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedMonth]); 
 
     const fetchAndProcessData = async () => {
@@ -81,9 +81,19 @@ export default function CostOfProduction() {
             const prodData = await prodRes.json();
             const labData = await labRes.json();
 
-            // 1. Check if current month is already saved & AUTO FILL DATA
+            // Fix Mapping Issue: Sort arrays by _id (which contains creation timestamp) to ensure exact 1-to-1 matching
+            const sortById = (a, b) => (a._id < b._id ? -1 : (a._id > b._id ? 1 : 0));
+            glData.sort(sortById);
+            prodData.sort(sortById);
+            labData.sort(sortById);
+
+            let savedMonthData = null;
+            let dbLoadedSup = {};
+            let dbLoadedHr = {};
+
+            // 1. Check if current month is already saved
             if (costRes && costRes.ok) {
-                const savedMonthData = await costRes.json();
+                savedMonthData = await costRes.json();
                 
                 if (savedMonthData && savedMonthData.month === selectedMonth) {
                     setIsSaved(true);
@@ -91,29 +101,21 @@ export default function CostOfProduction() {
                     setLabourRate(savedMonthData.labourRate || 1350);
                     setElectricityRate(savedMonthData.electricityRate || 10);
 
-                    const loadedSup = {};
-                    const loadedHr = {};
                     const dbLabRate = savedMonthData.labourRate || 1350;
 
                     (savedMonthData.teaCosts || []).forEach(tc => {
-                        loadedSup[tc.teaType] = tc.supervisionCost || 0;
-                        loadedHr[tc.teaType] = tc.handRollingCost ? (tc.handRollingCost / dbLabRate) : 0;
+                        dbLoadedSup[tc.teaType] = tc.supervisionCost || 0;
+                        dbLoadedHr[tc.teaType] = tc.handRollingCost ? (tc.handRollingCost / dbLabRate) : 0;
                     });
-
-                    setSupervisionCosts(loadedSup);
-                    setHandRollingWorkers(loadedHr);
                 } else {
                     setIsSaved(false);
-                    setSupervisionCosts({});
-                    setHandRollingWorkers({});
+                    savedMonthData = null;
                 }
             } else {
                 setIsSaved(false);
-                setSupervisionCosts({});
-                setHandRollingWorkers({});
             }
 
-            // 2. Process Production & GL Data
+            // 2. Process Production, GL & Labour Data
             const filteredProd = prodData.filter(p => p.date.startsWith(selectedMonth));
             const summary = {};
             const glUsage = {};
@@ -141,18 +143,38 @@ export default function CostOfProduction() {
                         selectedWeight: 0,
                         madeTeaWeight: 0,
                         selectionWorkers: 0,
+                        hrWorkers: 0, // NEW: Auto Hand Rolling Workers
                         dryerUnits: 0
                     };
                 }
 
                 summary[type].selectedWeight += Number(gl?.selectedWeight || 0);
                 summary[type].madeTeaWeight += Number(prod.madeTeaWeight || 0);
+                
+                // Add Selection Workers
                 summary[type].selectionWorkers += Number(lab?.workerCount || 0);
+                
+                // Add Hand Rolling Workers (Automatic Calculation)
+                if (lab && lab.rollingType === 'Hand Rolling') {
+                    summary[type].hrWorkers += Number(lab.rollingWorkerCount || 0);
+                }
                 
                 const mStart = Number(prod?.dryerDetails?.meterStart) || 0;
                 const mEnd = Number(prod?.dryerDetails?.meterEnd) || 0;
                 summary[type].dryerUnits += (mEnd > mStart ? mEnd - mStart : 0);
             });
+
+            // Apply loaded Supervision costs
+            setSupervisionCosts(savedMonthData ? dbLoadedSup : {});
+
+            // If we have saved data from Cost of Production DB, override auto-calculated HR workers to match saved record
+            if (savedMonthData && savedMonthData.month === selectedMonth) {
+                Object.keys(summary).forEach(type => {
+                    if (dbLoadedHr[type] !== undefined) {
+                        summary[type].hrWorkers = dbLoadedHr[type];
+                    }
+                });
+            }
 
             let recordsArray = Object.values(summary);
             recordsArray.sort((a, b) => {
@@ -179,12 +201,6 @@ export default function CostOfProduction() {
         setIsSaved(false);
     };
 
-    const handleHandRollingChange = (type, value) => {
-        if (Number(value) < 0) return;
-        setHandRollingWorkers(prev => ({ ...prev, [type]: Number(value) || 0 }));
-        setIsSaved(false);
-    };
-
     const handleRateChange = (setter) => (e) => {
         const val = e.target.value.replace(/^0+(?=\d)/, '');
         if (Number(val) < 0) return;
@@ -197,8 +213,7 @@ export default function CostOfProduction() {
         const selectionCost = item.selectionWorkers * labourRate;
         const electricityCost = item.dryerUnits * electricityRate;
         const supCost = supervisionCosts[item.teaType] || 0;
-        const hrWorkers = handRollingWorkers[item.teaType] || 0;
-        const handRollingCost = hrWorkers * labourRate;
+        const handRollingCost = item.hrWorkers * labourRate;
 
         return total + glCost + selectionCost + handRollingCost + electricityCost + supCost;
     }, 0);
@@ -224,8 +239,7 @@ export default function CostOfProduction() {
                 const selectionCost = item.selectionWorkers * labourRate;
                 const electricityCost = item.dryerUnits * electricityRate;
                 const supCost = supervisionCosts[item.teaType] || 0;
-                const hrWorkers = handRollingWorkers[item.teaType] || 0;
-                const handRollingCost = hrWorkers * labourRate;
+                const handRollingCost = item.hrWorkers * labourRate;
                 const totalCost = glCost + selectionCost + handRollingCost + electricityCost + supCost;
 
                 return {
@@ -296,7 +310,7 @@ export default function CostOfProduction() {
     };
 
     // -------------------------------------------------------------
-    // Prepare Data for Single Month PDF (using PDFDownloader)
+    // Prepare Data for Single Month PDF
     // -------------------------------------------------------------
     const getSinglePdfData = () => {
         const rows = [];
@@ -306,8 +320,7 @@ export default function CostOfProduction() {
             const selectionCost = item.selectionWorkers * labourRate;
             const electricityCost = item.dryerUnits * electricityRate;
             const supCost = supervisionCosts[item.teaType] || 0;
-            const hrWorkers = handRollingWorkers[item.teaType] || 0;
-            const handRollingCost = hrWorkers * labourRate;
+            const handRollingCost = item.hrWorkers * labourRate;
             const totalCost = glCost + selectionCost + handRollingCost + electricityCost + supCost;
 
             rows.push([
@@ -325,7 +338,7 @@ export default function CostOfProduction() {
             rows.push([
                 "",
                 "Hand Rolling Cost",
-                `${hrWorkers} workers`,
+                `${item.hrWorkers} workers`,
                 handRollingCost.toLocaleString(undefined, {minimumFractionDigits: 2})
             ]);
             rows.push([
@@ -356,7 +369,7 @@ export default function CostOfProduction() {
     };
 
     // -------------------------------------------------------------
-    // Range Months PDF Generation (Custom jsPDF logic)
+    // Range Months PDF Generation
     // -------------------------------------------------------------
     const generateRangePDF = async (bypassCheck = false) => {
         if (!rangeStartMonth || !rangeEndMonth) {
@@ -369,7 +382,6 @@ export default function CostOfProduction() {
             return;
         }
 
-        // Viewer can bypass the save check, Admin/Officer must save first
         if (!isSaved && !bypassCheck && !isViewer) {
             setPendingPdfAction('range');
             setShowUnsavedAlert(true);
@@ -409,6 +421,11 @@ export default function CostOfProduction() {
             const prodData = await prodRes.json();
             const labData = await labRes.json();
 
+            const sortById = (a, b) => (a._id < b._id ? -1 : (a._id > b._id ? 1 : 0));
+            glData.sort(sortById);
+            prodData.sort(sortById);
+            labData.sort(sortById);
+
             const doc = new jsPDF('landscape');
 
             try {
@@ -424,15 +441,33 @@ export default function CostOfProduction() {
                 }
             } catch (err) {}
 
+            // 1. Generate the Unique Code for the Range
+            const getRangeDocCode = () => {
+                const d1 = new Date(rangeStartMonth);
+                const d2 = new Date(rangeEndMonth);
+                const m1 = d1.toLocaleString('default', { month: 'short' }).toUpperCase();
+                const m2 = d2.toLocaleString('default', { month: 'short' }).toUpperCase();
+                const year = d2.getFullYear(); 
+                return `HT/CPS/${m1}-${m2}.${year}`; 
+            };
+            const uniqueRangeCode = getRangeDocCode();
+
+            // 2. Add Main Titles
             doc.setFontSize(22);
             doc.setTextColor(27, 106, 49); 
-            doc.text("Monthly Cost Summary", 45, 20);
+            doc.text("Monthly Cost of Production Summary", 45, 20);
             
             doc.setFontSize(11);
             doc.setTextColor(100);
             const startName = new Date(rangeStartMonth).toLocaleString('default', { month: 'short', year: 'numeric' });
             const endName = new Date(rangeEndMonth).toLocaleString('default', { month: 'short', year: 'numeric' });
             doc.text(`Period: ${startName} to ${endName}`, 45, 27);
+
+            // 3. Add the Unique Code to the Top Right Corner (Y=12 prevents overlap)
+            doc.setFontSize(10);
+            doc.setTextColor(150); 
+            const pageWidth = doc.internal.pageSize.getWidth();
+            doc.text(`Doc Ref: ${uniqueRangeCode}`, pageWidth - 14, 12, { align: 'right' });
 
             const headRow = ["Type of Cost", ...monthsArray.map(m => new Date(m).toLocaleString('default', { month: 'short', year: '2-digit' }).toUpperCase())];
             
@@ -459,6 +494,7 @@ export default function CostOfProduction() {
                     let m_madeTeaWeight = 0;
                     let m_selectionWorkers = 0;
                     let m_dryerUnits = 0;
+                    let m_hrWorkersCalc = 0;
 
                     const glUsage = {};
                     const labUsage = {};
@@ -481,6 +517,10 @@ export default function CostOfProduction() {
                         m_madeTeaWeight += Number(prod.madeTeaWeight || 0);
                         m_selectionWorkers += Number(lab?.workerCount || 0);
                         
+                        if (lab && lab.rollingType === 'Hand Rolling') {
+                            m_hrWorkersCalc += Number(lab.rollingWorkerCount || 0);
+                        }
+
                         const mStart = Number(prod?.dryerDetails?.meterStart) || 0;
                         const mEnd = Number(prod?.dryerDetails?.meterEnd) || 0;
                         m_dryerUnits += (mEnd > mStart ? mEnd - mStart : 0);
@@ -490,7 +530,8 @@ export default function CostOfProduction() {
                     const m_selectionCost = m_selectionWorkers * labourRate;
                     const m_electricityCost = m_dryerUnits * electricityRate;
                     const m_supCost = supervisionCosts[teaType] || 0; 
-                    const m_hrWorkers = handRollingWorkers[teaType] || 0;
+                    
+                    const m_hrWorkers = m_hrWorkersCalc;
                     const m_handRollingCost = m_hrWorkers * labourRate;
 
                     const m_totalCost = m_glCost + m_selectionCost + m_handRollingCost + m_electricityCost + m_supCost;
@@ -512,7 +553,6 @@ export default function CostOfProduction() {
                 allRows.push(glCostRow, selCostRow, hrCostRow, elecCostRow, supCostRow, totalCostRow, mtRow, costPerKgRow);
             });
 
-            // Grand Total Row
             let grandTotalRow = [{ content: "GRAND TOTAL (All Teas)", styles: { fontStyle: 'bold', fillColor: [27, 106, 49], textColor: 255 } }];
             overallGrandTotal.forEach(total => {
                 grandTotalRow.push({ content: total > 0 ? total.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: { fontStyle: 'bold', fillColor: [27, 106, 49], textColor: 255 } });
@@ -547,10 +587,18 @@ export default function CostOfProduction() {
         }
     };
 
+    const getCurrentMonthCode = () => {
+        const date = new Date();
+        const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
+        const year = date.getFullYear();
+        return `HT/CPS/${month}.${year}`; // Result: HT/CPS/APRIL.2026
+    };
+
+    const uniqueCode = getCurrentMonthCode();
+
     return (
         <div className="p-8 max-w-6xl mx-auto font-sans bg-gray-50 dark:bg-zinc-950 min-h-screen relative transition-colors duration-300">
             
-            {/* Modal for Range PDF */}
             {showRangeModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/80 backdrop-blur-sm transition-colors">
                     <div className="bg-white dark:bg-zinc-900 p-8 rounded-2xl shadow-2xl w-full max-w-md relative border border-gray-200 dark:border-zinc-800">
@@ -582,7 +630,6 @@ export default function CostOfProduction() {
                 </div>
             )}
 
-            {/* Unsaved PDF Alert */}
             <AlertDialog open={showUnsavedAlert} onOpenChange={setShowUnsavedAlert}>
                 <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-md transition-colors">
                     <AlertDialogHeader>
@@ -608,7 +655,7 @@ export default function CostOfProduction() {
                             onClick={handleSaveAndDownload} 
                             className="bg-[#1B6A31] hover:bg-green-800 dark:bg-green-700 dark:hover:bg-green-600 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
                         >
-                            Save and Download
+                            Save & Continue
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -643,7 +690,6 @@ export default function CostOfProduction() {
                             <FileDown size={18} /> Range PDF
                         </button>
 
-                        {/* SINGLE PDF BUTTON - Swaps to PDFDownloader when Saved */}
                         {(!isSaved && !isViewer) ? (
                             <button 
                                 onClick={() => {
@@ -661,6 +707,7 @@ export default function CostOfProduction() {
                                 subtitle={`Month: ${new Date(selectedMonth).toLocaleString('default', { month: 'long', year: 'numeric' })} | Global Rates -> G/L: Rs.${monthlyGlRate} | Labour: Rs.${labourRate} | Electricity: Rs.${electricityRate}`}
                                 headers={["Tea Type", "Cost Category", "Basis", "Cost (LKR)"]}
                                 data={getSinglePdfData()}
+                                uniqueCode={uniqueCode}
                                 fileName={`Cost_Of_Production_${selectedMonth}.pdf`}
                                 orientation="portrait"
                                 disabled={loading || records.length === 0}
@@ -682,7 +729,6 @@ export default function CostOfProduction() {
                 </div>
             </div>
 
-            {/* Viewer Notification Banner */}
             {isViewer && (
                 <div className="mb-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800/50 text-blue-700 dark:text-blue-400 px-4 py-3 rounded-lg flex items-center gap-3 transition-colors">
                     <Info size={20} />
@@ -758,8 +804,7 @@ export default function CostOfProduction() {
                             const selectionCost = item.selectionWorkers * labourRate;
                             const electricityCost = item.dryerUnits * electricityRate;
                             const supCost = supervisionCosts[item.teaType] || 0;
-                            const hrWorkers = handRollingWorkers[item.teaType] || 0;
-                            const handRollingCost = hrWorkers * labourRate;
+                            const handRollingCost = item.hrWorkers * labourRate;
                             const totalCost = glCost + selectionCost + handRollingCost + electricityCost + supCost;
 
                             return (
@@ -787,33 +832,19 @@ export default function CostOfProduction() {
                                                     <td className="py-4 text-right font-bold text-gray-900 dark:text-gray-100">{glCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                                 </tr>
                                                 <tr>
-                                                    <td className="py-4 font-semibold text-gray-700 dark:text-gray-300">G/L Selection Cost</td>
-                                                    <td className="py-4 text-right text-gray-500 dark:text-gray-400">{item.selectionWorkers} Worker days</td>
-                                                    <td className="py-4 text-right font-bold text-gray-900 dark:text-gray-100">{selectionCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                                    <td className="py-4 font-semibold text-gray-700">G/L Selection Cost</td>
+                                                    <td className="py-4 text-right text-gray-500">{item.selectionWorkers > 0 ? `${item.selectionWorkers} Worker days` : '-'}</td>
+                                                    <td className="py-4 text-right font-bold text-gray-900">{selectionCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                                 </tr>
                                                 <tr>
-                                                    <td className="py-4 font-semibold text-gray-700 dark:text-gray-300">Hand Rolling Cost</td>
-                                                    <td className="py-4 text-right">
-                                                        <div className="flex items-center justify-end gap-2">
-                                                            <input 
-                                                                type="number" 
-                                                                min="0"
-                                                                value={handRollingWorkers[item.teaType] === 0 ? '' : (handRollingWorkers[item.teaType] || '')}
-                                                                placeholder="Workers"
-                                                                disabled={isViewer}
-                                                                className="w-24 p-1 border border-gray-300 dark:border-zinc-700 rounded text-right focus:ring-1 focus:ring-green-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed transition-colors"
-                                                                onChange={(e) => handleHandRollingChange(item.teaType, e.target.value)}
-                                                                onWheel={(e) => e.target.blur()}
-                                                            />
-                                                            <span className="text-gray-500 dark:text-gray-400 text-sm">x Rs.{labourRate}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-4 text-right font-bold text-gray-900 dark:text-gray-100">{handRollingCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                                    <td className="py-4 font-semibold text-gray-700">Hand Rolling Cost</td>
+                                                    <td className="py-4 text-right text-gray-500">{item.hrWorkers > 0 ? `${item.hrWorkers} Worker days` : '-'}</td>
+                                                    <td className="py-4 text-right font-bold text-gray-900">{handRollingCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                                 </tr>
                                                 <tr>
-                                                    <td className="py-4 font-semibold text-gray-700 dark:text-gray-300">Electricity Cost</td>
-                                                    <td className="py-4 text-right text-gray-500 dark:text-gray-400">{item.dryerUnits} Units Used</td>
-                                                    <td className="py-4 text-right font-bold text-gray-900 dark:text-gray-100">{electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                                    <td className="py-4 font-semibold text-gray-700">Electricity Cost</td>
+                                                    <td className="py-4 text-right text-gray-500">{item.dryerUnits > 0 ? `${item.dryerUnits} Units Used` : '-'}</td>
+                                                    <td className="py-4 text-right font-bold text-gray-900">{electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                                 </tr>
                                                 <tr>
                                                     <td className="py-4 font-semibold text-gray-700 dark:text-gray-300">Supervision Cost</td>

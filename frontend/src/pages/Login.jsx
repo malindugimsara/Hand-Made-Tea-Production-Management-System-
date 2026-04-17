@@ -81,7 +81,7 @@ export default function Login() {
             >
                 <img src="/logo.png" alt="Logo" className="w-36 md:w-56 drop-shadow-xl" />
                 <div className="text-center">
-                    <h1 className="text-4xl lg:text-6xl font-extrabold tracking-tight text-[#1B6A31]">HAND-MADE TEA</h1>
+                    <h1 className="text-4xl lg:text-6xl font-extrabold tracking-tight text-[#1B6A31]">HANDMADE TEA</h1>
                     <p className="text-sm md:text-base font-bold tracking-[0.25em] uppercase text-[#4A9E46] mt-2">Production System</p>
                 </div>
             </motion.div>
