@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { PlusCircle, Trash2, ListChecks, Save, X, CalendarClock, Zap, AlertCircle, Search, Sun, Moon, ChevronRight, MoreVertical } from "lucide-react";
@@ -46,6 +46,21 @@ export default function GreenLeafForm() {
         setIsDark(!isDark);
     };
 
+    // --- CUSTOM ANIMATED DROPDOWN STATE ---
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsProfileMenuOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [dropdownRef]);
+    
     const [isSavingAll, setIsSavingAll] = useState(false);
     const [pendingRecords, setPendingRecords] = useState([]);
 
@@ -81,7 +96,8 @@ export default function GreenLeafForm() {
     const [dryerFormData, setDryerFormData] = useState({
         dryerName: '',
         meterStart: '',
-        meterEnd: ''
+        meterEnd: '',
+        rollerPoints: '' // <-- NEW FIELD ADDED
     });
 
     useEffect(() => {
@@ -335,11 +351,13 @@ export default function GreenLeafForm() {
 
         try {
             const token = localStorage.getItem('token');
+            // Include rollerPoints in the payload
             const payload = {
                 dryerDetails: {
                     dryerName: dryerFormData.dryerName,
                     meterStart: mStart,
-                    meterEnd: mEnd
+                    meterEnd: mEnd,
+                    rollerPoints: Number(dryerFormData.rollerPoints)
                 }
             };
 
@@ -367,7 +385,8 @@ export default function GreenLeafForm() {
 
             if (activeTaskIndex < pendingDryerTasks.length - 1) {
                 setActiveTaskIndex(prev => prev + 1);
-                setDryerFormData({ dryerName: '', meterStart: '', meterEnd: '' });
+                // Clear the form fields including the new rollerPoints field
+                setDryerFormData({ dryerName: '', meterStart: '', meterEnd: '', rollerPoints: '' });
             } else {
                 setPendingDryerTasks([]); 
                 toast.success("All pending dryer tasks complete!");
@@ -394,10 +413,10 @@ export default function GreenLeafForm() {
         <div className="p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
             <Toaster />
             {/* --- DAY 2 PENDING DRYER MODAL --- */}
+            {/* --- DAY 2 PENDING DRYER MODAL --- */}
             {pendingDryerTasks.length > 0 && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-sm p-4">
-                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-orange-200 dark:border-orange-800">
-                        
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-900/40 dark:bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+                    <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-orange-200 dark:border-orange-900/50 my-auto relative">
                         <div className="bg-gradient-to-r from-orange-500 to-orange-600 dark:from-orange-600 dark:to-orange-700 p-6 text-white relative">
                             <button onClick={() => setPendingDryerTasks([])} className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors">
                                 <X size={24} />
@@ -458,6 +477,18 @@ export default function GreenLeafForm() {
                                         />
                                     </div>
                                 </div>
+                                {/* NEW ROLLER POINTS FIELD */}
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">ROLLER (POINTS)</label>
+                                    <input 
+                                        type="number" 
+                                        value={dryerFormData.rollerPoints} 
+                                        onChange={(e) => setDryerFormData({...dryerFormData, rollerPoints: e.target.value})} 
+                                        onWheel={(e) => e.target.blur()} 
+                                        required 
+                                        className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-orange-400 outline-none" 
+                                    />
+                                </div>
                                 <button 
                                     type="submit" 
                                     disabled={isSubmittingDryer}
@@ -476,6 +507,8 @@ export default function GreenLeafForm() {
                     <h2 className="text-3xl font-bold text-[#1B6A31] dark:text-green-500">Add Daily Production Records</h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-2">Add multiple processing records and save them at once</p>
                 </div>
+                
+                
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
