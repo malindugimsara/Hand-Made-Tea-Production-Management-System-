@@ -45,7 +45,7 @@ export default function App() {
         {/* =========================================
             1. INDEPENDENT ROUTES (No Sidebar)
             ========================================= */}
-        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Login />} />
 
 
         {/* =========================================
@@ -58,7 +58,7 @@ export default function App() {
           <Route path="/" element={<DashboardLayout />}>
             
             {/* Third, load the specific page inside the Layout's Outlet */}
-            <Route index element={<DashboardHome />} />
+            <Route path="dashboard" element={<DashboardHome />} />
             <Route path="manage-users" element={<ManageUsers />} />
             <Route path="create-user" element={<CreateUserForm />} />
             <Route path="green-leaf-form" element={<GreenLeafForm />} />

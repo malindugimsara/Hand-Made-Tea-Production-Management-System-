@@ -1,7 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { PlusCircle, Trash2, ListChecks, Save, X, CalendarClock, Zap, AlertCircle, Search, Sun, Moon } from "lucide-react";
+import { PlusCircle, Trash2, ListChecks, Save, X, CalendarClock, Zap, AlertCircle, Search, Sun, Moon, ChevronRight, MoreVertical } from "lucide-react";
+
+import {
+    DropdownMenu,
+    DropdownMenuTrigger,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuGroup,
+    DropdownMenuItem,
+    DropdownMenuShortcut,
+    DropdownMenuSub,
+    DropdownMenuSubTrigger,
+    DropdownMenuSubContent,
+} from "@/components/ui/dropdown-menu";
 
 export default function GreenLeafForm() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -44,7 +58,6 @@ export default function GreenLeafForm() {
     };
 
     // --- DAY 1 FORM STATE ---
-    // Added rollingType and rollingWorkerCount fields
     const [formData, setFormData] = useState({
         date: getTodayLocalString(),
         totalWeight: '',
@@ -133,7 +146,6 @@ export default function GreenLeafForm() {
         }
     };
 
-    // --- MANUAL LOAD DATE BUTTON LOGIC ---
     const handleLoadDateTasks = () => {
         const tasksForDate = allProductionData.filter(p => {
             const hasNoDryer = !p.dryerDetails || !p.dryerDetails.dryerName || p.dryerDetails.dryerName === "";
@@ -154,7 +166,6 @@ export default function GreenLeafForm() {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        // Logic to clear worker count if rolling type is changed away from 'Hand Rolling'
         if (name === 'rollingType' && value !== 'Hand Rolling') {
             setFormData({ ...formData, [name]: value, rollingWorkerCount: '' });
         } else {
@@ -180,7 +191,6 @@ export default function GreenLeafForm() {
         }
     };
 
-    // --- DAY 1: ADD TO PENDING LIST ---
     const handleAddToList = (e) => {
         e.preventDefault();
 
@@ -228,7 +238,6 @@ export default function GreenLeafForm() {
         setPendingRecords(updatedList);
     };
 
-    // --- DAY 1: SAVE ALL TO DB ---
     const handleSaveAll = async () => {
         if (pendingRecords.length === 0) {
             toast.error("No records in the list to save!");
@@ -300,7 +309,6 @@ export default function GreenLeafForm() {
         }
     };
 
-    // --- DAY 2: MODAL HANDLERS ---
     const handleModalDryerSelect = (e) => {
         const selectedDryer = e.target.value;
         setDryerFormData({ 
@@ -469,14 +477,80 @@ export default function GreenLeafForm() {
                     <p className="text-gray-500 dark:text-gray-400 mt-2">Add multiple processing records and save them at once</p>
                 </div>
                 
-                {/* --- THEME TOGGLE BUTTON --- */}
-                <button 
-                    onClick={toggleTheme}
-                    title="Toggle Dark Mode"
-                    className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors text-gray-600 dark:text-gray-300"
-                >
-                    {isDark ? <Sun size={18} className="text-yellow-500" /> : <Moon size={18} />}
-                </button>
+                <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3">
+                    {/* --- DROPDOWN MENU --- */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors text-gray-600 dark:text-gray-300">
+                                <MoreVertical size={18} />
+                            </button>
+                        </DropdownMenuTrigger>
+
+                        <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuGroup>
+                                <DropdownMenuItem>
+                                    <span>Profile</span>
+                                    <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                    <span>Billing</span>
+                                    <DropdownMenuShortcut>⌘B</DropdownMenuShortcut>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                    <span>Settings</span>
+                                    <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                    <span>Keyboard shortcuts</span>
+                                    <DropdownMenuShortcut>⌘K</DropdownMenuShortcut>
+                                </DropdownMenuItem>
+                            </DropdownMenuGroup>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuGroup>
+                                <DropdownMenuItem>
+                                    <span>Team</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSub>
+                                    <DropdownMenuSubTrigger>
+                                        <span>Invite users</span>
+                                    </DropdownMenuSubTrigger>
+                                    <DropdownMenuSubContent>
+                                        <DropdownMenuItem>
+                                            <span>Email</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem>
+                                            <span>Message</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem>
+                                            <span>More...</span>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuSubContent>
+                                </DropdownMenuSub>
+                                <DropdownMenuItem>
+                                    <span>New Team</span>
+                                    <DropdownMenuShortcut>⌘+T</DropdownMenuShortcut>
+                                </DropdownMenuItem>
+                            </DropdownMenuGroup>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem>
+                                <span>Log out</span>
+                                <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* --- THEME TOGGLE BUTTON --- */}
+                    <button 
+                        onClick={toggleTheme}
+                        title="Toggle Dark Mode"
+                        className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors text-gray-600 dark:text-gray-300"
+                    >
+                        {isDark ? <Sun size={18} className="text-yellow-500" /> : <Moon size={18} />}
+                    </button>
+                </div>
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -569,12 +643,12 @@ export default function GreenLeafForm() {
                         </div>
 
                         {/* 4. LABOUR DETAILS - Updated with Rolling Type */}
-                        <div className="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
-                            <h3 className="text-lg font-bold text-blue-700 mb-4 flex items-center gap-2"><span>👥</span> 4. Labour & Rolling Details</h3>
+                        <div className="mb-8 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/50 rounded-xl p-6 transition-colors duration-300">
+                            <h3 className="text-lg font-bold text-blue-700 dark:text-blue-400 mb-4 flex items-center gap-2"><span>👥</span> 4. Labour & Rolling Details</h3>
                             
                             <div className="space-y-6">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Selection Worker Count</label>
+                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Selection Worker Count</label>
                                     <input 
                                         type="number" 
                                         name="workerCount" 
@@ -582,18 +656,18 @@ export default function GreenLeafForm() {
                                         onChange={handleInputChange} 
                                         onWheel={(e) => e.target.blur()} 
                                         required 
-                                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 outline-none" 
+                                        className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 outline-none" 
                                     />
                                 </div>
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-blue-200">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-blue-200 dark:border-blue-800/50">
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Rolling Type</label>
+                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Rolling Type</label>
                                         <select 
                                             name="rollingType" 
                                             value={formData.rollingType} 
                                             onChange={handleInputChange} 
-                                            className="w-full p-3 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-blue-400 outline-none"
+                                            className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 outline-none"
                                         >
                                             <option value="Machine Rolling">Machine Rolling</option>
                                             <option value="Hand Rolling">Hand Rolling</option>
@@ -602,7 +676,7 @@ export default function GreenLeafForm() {
                                     </div>
 
                                     <div>
-                                        <label className={`block text-xs font-bold mb-1 uppercase ${formData.rollingType === 'Hand Rolling' ? 'text-gray-500' : 'text-gray-400'}`}>
+                                        <label className={`block text-xs font-bold mb-1 uppercase ${formData.rollingType === 'Hand Rolling' ? 'text-gray-500 dark:text-gray-400' : 'text-gray-400 dark:text-gray-600'}`}>
                                             Hand Rolling Labour Count
                                         </label>
                                         <input 
@@ -613,7 +687,7 @@ export default function GreenLeafForm() {
                                             disabled={formData.rollingType !== 'Hand Rolling'}
                                             placeholder={formData.rollingType === 'Hand Rolling' ? "Enter count" : "Not Required"}
                                             required={formData.rollingType === 'Hand Rolling'}
-                                            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed" 
+                                            className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 outline-none disabled:bg-gray-100 disabled:text-gray-400 dark:disabled:bg-zinc-900 dark:disabled:text-zinc-600 disabled:cursor-not-allowed" 
                                         />
                                     </div>
                                 </div>
@@ -682,10 +756,10 @@ export default function GreenLeafForm() {
                                                     </div>
                                                 </div>
 
-                                                <div className="text-xs text-gray-500 font-medium mt-1">
-                                                    Sel. Workers: <span className="font-bold text-blue-600">{item.workerCount}</span> | 
-                                                    Rolling: <span className="font-bold text-blue-600 ml-1">{item.rollingType}</span>
-                                                    {item.rollingType === 'Hand Rolling' && <span className="font-bold text-blue-600"> ({item.rollingWorkerCount} workers)</span>}
+                                                <div className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-1">
+                                                    Sel. Workers: <span className="font-bold text-blue-600 dark:text-blue-400">{item.workerCount}</span> | 
+                                                    Rolling: <span className="font-bold text-blue-600 dark:text-blue-400 ml-1">{item.rollingType}</span>
+                                                    {item.rollingType === 'Hand Rolling' && <span className="font-bold text-blue-600 dark:text-blue-400"> ({item.rollingWorkerCount} workers)</span>}
                                                 </div>
                                             </div>
                                         </div>
@@ -694,7 +768,7 @@ export default function GreenLeafForm() {
                             )}
                         </div>
 
-                        <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800 space-y-3">
                             {/* <button
                                 type="button"
                                 onClick={handleCancel}

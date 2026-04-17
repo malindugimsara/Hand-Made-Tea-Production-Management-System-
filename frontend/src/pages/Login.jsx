@@ -43,7 +43,7 @@ export default function Login() {
                 setIsLoading(false);
                 setIsSuccess(true);
                 
-                setTimeout(() => navigate('/'), 1500);
+                setTimeout(() => navigate('/dashboard'), 1500);
             } else {
                 toast.error(data.message || "Login failed. Please try again.");
                 setPassword("");
