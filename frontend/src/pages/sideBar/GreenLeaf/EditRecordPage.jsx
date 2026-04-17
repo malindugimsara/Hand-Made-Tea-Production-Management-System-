@@ -299,7 +299,7 @@ export default function EditRecordPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="text-sm font-semibold text-gray-700">Selection Worker Count</label>
-                                <input type="number" name="workerCount" value={formData.workerCount} onChange={handleInputChange} onWheel={handleWheel} required className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-400" />
+                                <input type="number" name="workerCount" value={formData.workerCount} onChange={handleInputChange} onWheel={handleWheel}  className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-400" />
                             </div>
                         </div>
 

@@ -392,7 +392,7 @@ export default function GreenLeafForm() {
 
     return (
         <div className="p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
-
+            <Toaster />
             {/* --- DAY 2 PENDING DRYER MODAL --- */}
             {pendingDryerTasks.length > 0 && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-sm p-4">
@@ -476,81 +476,6 @@ export default function GreenLeafForm() {
                     <h2 className="text-3xl font-bold text-[#1B6A31] dark:text-green-500">Add Daily Production Records</h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-2">Add multiple processing records and save them at once</p>
                 </div>
-                
-                <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3">
-                    {/* --- DROPDOWN MENU --- */}
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <button className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors text-gray-600 dark:text-gray-300">
-                                <MoreVertical size={18} />
-                            </button>
-                        </DropdownMenuTrigger>
-
-                        <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuGroup>
-                                <DropdownMenuItem>
-                                    <span>Profile</span>
-                                    <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                    <span>Billing</span>
-                                    <DropdownMenuShortcut>⌘B</DropdownMenuShortcut>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                    <span>Settings</span>
-                                    <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                    <span>Keyboard shortcuts</span>
-                                    <DropdownMenuShortcut>⌘K</DropdownMenuShortcut>
-                                </DropdownMenuItem>
-                            </DropdownMenuGroup>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuGroup>
-                                <DropdownMenuItem>
-                                    <span>Team</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuSub>
-                                    <DropdownMenuSubTrigger>
-                                        <span>Invite users</span>
-                                    </DropdownMenuSubTrigger>
-                                    <DropdownMenuSubContent>
-                                        <DropdownMenuItem>
-                                            <span>Email</span>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem>
-                                            <span>Message</span>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem>
-                                            <span>More...</span>
-                                        </DropdownMenuItem>
-                                    </DropdownMenuSubContent>
-                                </DropdownMenuSub>
-                                <DropdownMenuItem>
-                                    <span>New Team</span>
-                                    <DropdownMenuShortcut>⌘+T</DropdownMenuShortcut>
-                                </DropdownMenuItem>
-                            </DropdownMenuGroup>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem>
-                                <span>Log out</span>
-                                <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    {/* --- THEME TOGGLE BUTTON --- */}
-                    <button 
-                        onClick={toggleTheme}
-                        title="Toggle Dark Mode"
-                        className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors text-gray-600 dark:text-gray-300"
-                    >
-                        {isDark ? <Sun size={18} className="text-yellow-500" /> : <Moon size={18} />}
-                    </button>
-                </div>
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -567,7 +492,7 @@ export default function GreenLeafForm() {
                                 value={formData.date} 
                                 onChange={handleInputChange} 
                                 required 
-                                className="p-2.5 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] outline-none w-full sm:w-auto bg-white dark:bg-zinc-950 dark:text-gray-100" 
+                                className="p-2.5 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] outline-none w-full sm:w-auto bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                             />
                             {/* Load specific date's tasks */}
                             <button 
@@ -585,11 +510,11 @@ export default function GreenLeafForm() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">TOTAL (KG)</label>
-                                    <input type="number" step="0.01" name="totalWeight" value={formData.totalWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] outline-none bg-white dark:bg-zinc-950 dark:text-gray-100" />
+                                    <input type="number" step="0.01" name="totalWeight" value={formData.totalWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">SELECTED (KG)</label>
-                                    <input type="number" step="0.01" name="selectedWeight" value={formData.selectedWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] outline-none bg-white dark:bg-zinc-950 dark:text-gray-100" />
+                                    <input type="number" step="0.01" name="selectedWeight" value={formData.selectedWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
                                 </div>
                             </div>
                             <div className="mt-4 pt-4 border-t border-[#A3D9A5] dark:border-green-800/50 flex justify-between items-center">
@@ -604,7 +529,7 @@ export default function GreenLeafForm() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">TEA TYPE</label>
-                                    <select name="teaType" value={formData.teaType} onChange={handleInputChange} required className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-purple-400 outline-none">
+                                    <select name="teaType" value={formData.teaType} onChange={handleInputChange} required className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-purple-400 outline-none transition-colors">
                                         <option value="">Select Type...</option>
                                         <option value="Purple Tea">Purple Tea</option>
                                         <option value="Pink Tea">Pink Tea</option>
@@ -616,11 +541,12 @@ export default function GreenLeafForm() {
                                         <option value="Golden Tips">Golden Tips</option>
                                         <option value="Flower">Flower</option>
                                         <option value="Chakra">Chakra</option>
+                                        <option value="Other">Other</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">MADE TEA (KG)</label>
-                                    <input type="number" step="0.001" name="madeTeaWeight" value={formData.madeTeaWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-purple-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100" />
+                                    <input type="number" step="0.001" name="madeTeaWeight" value={formData.madeTeaWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-purple-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
                                 </div>
                             </div>
                         </div>
@@ -637,12 +563,12 @@ export default function GreenLeafForm() {
                                     value={formData.expectedDryerDate} 
                                     onChange={handleInputChange} 
                                     required 
-                                    className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-orange-400 outline-none" 
+                                    className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-orange-400 outline-none transition-colors" 
                                 />
                             </div>
                         </div>
 
-                        {/* 4. LABOUR DETAILS - Updated with Rolling Type */}
+                        {/* 4. LABOUR DETAILS */}
                         <div className="mb-8 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/50 rounded-xl p-6 transition-colors duration-300">
                             <h3 className="text-lg font-bold text-blue-700 dark:text-blue-400 mb-4 flex items-center gap-2"><span>👥</span> 4. Labour & Rolling Details</h3>
                             
@@ -656,7 +582,7 @@ export default function GreenLeafForm() {
                                         onChange={handleInputChange} 
                                         onWheel={(e) => e.target.blur()} 
                                         required 
-                                        className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 outline-none" 
+                                        className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 outline-none transition-colors" 
                                     />
                                 </div>
                                 
@@ -667,7 +593,7 @@ export default function GreenLeafForm() {
                                             name="rollingType" 
                                             value={formData.rollingType} 
                                             onChange={handleInputChange} 
-                                            className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 outline-none"
+                                            className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 outline-none transition-colors"
                                         >
                                             <option value="Machine Rolling">Machine Rolling</option>
                                             <option value="Hand Rolling">Hand Rolling</option>
@@ -687,7 +613,7 @@ export default function GreenLeafForm() {
                                             disabled={formData.rollingType !== 'Hand Rolling'}
                                             placeholder={formData.rollingType === 'Hand Rolling' ? "Enter count" : "Not Required"}
                                             required={formData.rollingType === 'Hand Rolling'}
-                                            className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 outline-none disabled:bg-gray-100 disabled:text-gray-400 dark:disabled:bg-zinc-900 dark:disabled:text-zinc-600 disabled:cursor-not-allowed" 
+                                            className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 outline-none disabled:bg-gray-100 disabled:text-gray-400 dark:disabled:bg-zinc-900 dark:disabled:text-zinc-600 disabled:cursor-not-allowed transition-colors" 
                                         />
                                     </div>
                                 </div>
@@ -706,7 +632,7 @@ export default function GreenLeafForm() {
                 {/* --- 2. PENDING LIST (Right Side) --- */}
                 <div className="lg:col-span-2 flex flex-col gap-6">
                     <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-lg border border-blue-100 dark:border-blue-900/50 flex-1 flex flex-col sticky top-8 max-h-[80vh] transition-colors duration-300">
-                        <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-zinc-800 pb-4">
+                        <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-zinc-800 pb-4 transition-colors">
                             <div className="flex items-center gap-2">
                                 <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg text-blue-700 dark:text-blue-400">
                                     <ListChecks size={20} />
@@ -732,25 +658,25 @@ export default function GreenLeafForm() {
                                             
                                             <button 
                                                 onClick={() => handleRemoveFromList(index)}
-                                                className="absolute top-3 right-3 text-gray-400 hover:text-red-500 dark:hover:text-red-400 bg-white dark:bg-zinc-900 p-1.5 rounded-md shadow-sm border border-gray-100 dark:border-zinc-700 transition-colors"
+                                                className="absolute top-3 right-3 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 bg-white dark:bg-zinc-900 p-1.5 rounded-md shadow-sm border border-gray-100 dark:border-zinc-700 transition-colors"
                                                 title="Remove"
                                             >
                                                 <Trash2 size={16} />
                                             </button>
 
                                             <div className="flex flex-col gap-2">
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-2 pr-8">
                                                     <span className="font-black text-gray-800 dark:text-gray-200 text-lg">{item.teaType}</span>
                                                     <span className="text-[10px] bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded font-bold uppercase border border-purple-200 dark:border-purple-800/50">Made: {item.madeTeaWeight}kg</span>
                                                 </div>
                                                 
                                                 <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300 mt-1">
-                                                    <div className="bg-white dark:bg-zinc-900 p-2 rounded border border-gray-100 dark:border-zinc-700/50">
+                                                    <div className="bg-white dark:bg-zinc-900 p-2 rounded border border-gray-100 dark:border-zinc-700/50 transition-colors">
                                                         <span className="block text-gray-400 font-bold mb-0.5 text-[9px] uppercase">Green Leaf</span>
                                                         Sel: <span className="font-bold text-green-700 dark:text-green-500">{item.selectedWeight}kg</span><br/>
                                                         Tot: {item.totalWeight}kg
                                                     </div>
-                                                    <div className="bg-white dark:bg-zinc-900 p-2 rounded border border-gray-100 dark:border-zinc-700/50 flex flex-col justify-center">
+                                                    <div className="bg-white dark:bg-zinc-900 p-2 rounded border border-gray-100 dark:border-zinc-700/50 flex flex-col justify-center transition-colors">
                                                         <span className="block text-gray-400 font-bold mb-0.5 text-[9px] uppercase">Drying Schedule</span>
                                                         <span className="font-bold text-orange-600 dark:text-orange-500 flex items-center gap-1"><CalendarClock size={12}/> {item.expectedDryerDate}</span>
                                                     </div>
@@ -769,15 +695,6 @@ export default function GreenLeafForm() {
                         </div>
 
                         <div className="mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800 space-y-3">
-                            {/* <button
-                                type="button"
-                                onClick={handleCancel}
-                                disabled={isSavingAll}
-                                className="w-full py-3 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl transition-colors disabled:opacity-50"
-                            >
-                                Cancel
-                            </button> */}
-
                             <button 
                                 onClick={handleSaveAll}
                                 disabled={isSavingAll || pendingRecords.length === 0}

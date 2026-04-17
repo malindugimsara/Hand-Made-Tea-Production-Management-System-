@@ -9,12 +9,12 @@ export default function RawMaterialCost() {
     
     const [isSaving, setIsSaving] = useState(false);
 
-    // Pending Records Array (එකවර Save කිරීමට පෙර තබාගන්නා ලැයිස්තුව)
+    // Pending Records Array
     const [pendingRecords, setPendingRecords] = useState([]);
 
-    // Form State
+    // Form State (Changed date to month)
     const [formData, setFormData] = useState({
-        date: new Date().toISOString().split('T')[0],
+        month: new Date().toISOString().slice(0, 7), // Defaults to current YYYY-MM
         materialType: '',
         dryWeight: '',
         meterStart: '',
@@ -38,11 +38,11 @@ export default function RawMaterialCost() {
         setFormData({ ...formData, [name]: value });
     };
 
-    // ස්වයංක්‍රීය ගණනය කිරීම්
+    // Auto Calculations
     const points = (Number(formData.meterEnd) || 0) - (Number(formData.meterStart) || 0);
     const totalCost = (Number(formData.rawMaterialCost) || 0) + (Number(formData.electricityCost) || 0);
 
-    // 1. තාවකාලික ලැයිස්තුවට එකතු කිරීම (Add to List)
+    // 1. Add to List
     const handleAddToList = (e) => {
         e.preventDefault();
 
@@ -52,7 +52,7 @@ export default function RawMaterialCost() {
         }
 
         const newRecord = {
-            date: formData.date,
+            month: formData.month, // Using month instead of date
             materialType: formData.materialType,
             dryWeight: Number(formData.dryWeight),
             meterStart: Number(formData.meterStart),
@@ -66,25 +66,25 @@ export default function RawMaterialCost() {
         setPendingRecords([...pendingRecords, newRecord]);
         toast.success(`${formData.materialType} added to list!`);
 
-        // Form එක හිස් කිරීම (නමුත් ඊළඟ පහසුව සඳහා Date සහ Meter Start එක තබාගැනීම)
+        // Clear form, keep month and meter end
         setFormData({
             ...formData,
             materialType: '',
             dryWeight: '',
-            meterStart: formData.meterEnd, // කලින් එකේ End එක මීළඟ එකේ Start එක වේ
+            meterStart: formData.meterEnd, 
             meterEnd: '',
             rawMaterialCost: '',
             electricityCost: ''
         });
     };
 
-    // 2. ලැයිස්තුවෙන් ඉවත් කිරීම
+    // 2. Remove from List
     const handleRemoveFromList = (indexToRemove) => {
         const updatedList = pendingRecords.filter((_, index) => index !== indexToRemove);
         setPendingRecords(updatedList);
     };
 
-    // 3. සියල්ල එකවර Database එකට Save කිරීම
+    // 3. Save All
     const handleSaveAll = async () => {
         if (pendingRecords.length === 0) {
             toast.error("No records in the list to save!");
@@ -95,7 +95,6 @@ export default function RawMaterialCost() {
         const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
 
         try {
-            // Promise.all හරහා සියලුම records එකවර යැවීම
             const token = localStorage.getItem('token');
             const promises = pendingRecords.map(record => 
                 fetch(`${BACKEND_URL}/api/raw-material-cost`, {
@@ -114,7 +113,6 @@ export default function RawMaterialCost() {
             await Promise.all(promises);
             toast.success("All records saved successfully!", { id: toastId });
             
-            // Save වූ පසු ලැයිස්තුව හිස් කිරීම
             setPendingRecords([]);
             
             setTimeout(() => {
@@ -139,7 +137,6 @@ export default function RawMaterialCost() {
         }
     };
 
-    // Pending ලැයිස්තුවේ මුළු පිරිවැය
     const grandTotalPending = pendingRecords.reduce((sum, item) => sum + item.totalCost, 0);
 
     return (
@@ -157,11 +154,11 @@ export default function RawMaterialCost() {
                     <form onSubmit={handleAddToList} className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-lg border border-gray-200 dark:border-zinc-800 transition-colors duration-300">
                         
                         <div className="mb-8 pb-6 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-4">
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Select Date:</label>
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Select Month:</label>
                             <input 
-                                type="date" 
-                                name="date" 
-                                value={formData.date} 
+                                type="month" 
+                                name="month" 
+                                value={formData.month} 
                                 onChange={handleInputChange} 
                                 required 
                                 className="p-2.5 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
@@ -327,7 +324,7 @@ export default function RawMaterialCost() {
                                             <div className="flex flex-col gap-2">
                                                 <div className="flex items-center gap-2 pr-8">
                                                     <span className="font-black text-gray-800 dark:text-gray-200 text-lg">{item.materialType}</span>
-                                                    <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded font-bold uppercase border border-green-200 dark:border-green-800/50">{item.dryWeight}g</span>
+                                                    <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded font-bold uppercase border border-green-200 dark:border-green-800/50">{item.month}</span>
                                                 </div>
                                                 
                                                 <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300 mt-1">
