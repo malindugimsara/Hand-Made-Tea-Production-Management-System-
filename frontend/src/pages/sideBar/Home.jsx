@@ -185,11 +185,11 @@ export default function Home() {
     };
 
     return (
-        <div className="p-6 md:p-8 max-w-[1500px] mx-auto h-full flex flex-col space-y-8 bg-gray-50 min-h-screen">
+        <div className="p-6 md:p-8 max-w-[1500px] mx-auto h-full flex flex-col space-y-8 bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
             
             {/* 1. HERO WELCOME BANNER */}
             <div className="bg-gradient-to-r from-[#1B6A31] to-[#4A9E46] rounded-2xl p-8 md:p-10 text-white shadow-xl relative overflow-hidden flex flex-col justify-center min-h-[160px]">
-                <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-white opacity-10 rounded-full blur-2xl pointer-events-none"></div>
+                <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-white opacity-10 dark:opacity-5 rounded-full blur-2xl pointer-events-none"></div>
                 <div className="relative">
                     <p className="text-sm font-medium text-[#EBFFF4] mb-2">{today}</p>
                     <h2 className="text-3xl md:text-4xl font-bold mb-3 tracking-tight">
@@ -205,43 +205,43 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
                 {/* Stat Card 1 - Green Leaf */}
-                <div className="bg-white p-6 md:p-8 rounded-2xl shadow-md hover:shadow-xl border border-gray-100 relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group flex items-center gap-5">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-[#8CC63F]"></div>
-                    <div className="w-16 h-16 bg-[#8CC63F]/10 rounded-2xl flex items-center justify-center text-[#4A9E46] group-hover:scale-110 transition-transform duration-300">
+                <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-md hover:shadow-xl border border-gray-100 dark:border-zinc-800 relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group flex items-center gap-5">
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-[#8CC63F] dark:bg-green-500"></div>
+                    <div className="w-16 h-16 bg-[#8CC63F]/10 dark:bg-green-500/10 rounded-2xl flex items-center justify-center text-[#4A9E46] dark:text-green-500 group-hover:scale-110 transition-transform duration-300">
                         <Leaf size={32} />
                     </div>
                     <div>
-                        <p className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-1">Yesterday's Green Leaf</p>
-                        <p className="text-4xl font-black text-[#1B6A31]">
-                            {isLoading ? '...' : glYesterday.toFixed(2)} <span className="text-lg text-gray-400 font-semibold lowercase">kg</span>
+                        <p className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Yesterday's Green Leaf</p>
+                        <p className="text-4xl font-black text-[#1B6A31] dark:text-green-400">
+                            {isLoading ? '...' : glYesterday.toFixed(2)} <span className="text-lg text-gray-400 dark:text-gray-500 font-semibold lowercase">kg</span>
                         </p>
                     </div>
                 </div>
 
                 {/* Stat Card 2 - Made Tea */}
-                <div className="bg-white p-6 md:p-8 rounded-2xl shadow-md hover:shadow-xl border border-gray-100 relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group flex items-center gap-5">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-[#4A9E46]"></div>
-                    <div className="w-16 h-16 bg-[#4A9E46]/10 rounded-2xl flex items-center justify-center text-[#1B6A31] group-hover:scale-110 transition-transform duration-300">
+                <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-md hover:shadow-xl border border-gray-100 dark:border-zinc-800 relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group flex items-center gap-5">
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-[#4A9E46] dark:bg-green-600"></div>
+                    <div className="w-16 h-16 bg-[#4A9E46]/10 dark:bg-green-600/10 rounded-2xl flex items-center justify-center text-[#1B6A31] dark:text-green-500 group-hover:scale-110 transition-transform duration-300">
                         <Package size={32} />
                     </div>
                     <div>
-                        <p className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-1">Yesterday's Made Tea</p>
-                        <p className="text-4xl font-black text-[#1B6A31]">
-                            {isLoading ? '...' : mtYesterday.toFixed(3)} <span className="text-lg text-gray-400 font-semibold lowercase">kg</span>
+                        <p className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Yesterday's Made Tea</p>
+                        <p className="text-4xl font-black text-[#1B6A31] dark:text-green-400">
+                            {isLoading ? '...' : mtYesterday.toFixed(3)} <span className="text-lg text-gray-400 dark:text-gray-500 font-semibold lowercase">kg</span>
                         </p>
                     </div>
                 </div>
 
                 {/* Stat Card 3 - Sales */}
-                <div className="bg-white p-6 md:p-8 rounded-2xl shadow-md hover:shadow-xl border border-gray-100 relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group flex items-center gap-5">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-[#1B6A31]"></div>
-                    <div className="w-16 h-16 bg-[#1B6A31]/10 rounded-2xl flex items-center justify-center text-[#1B6A31] group-hover:scale-110 transition-transform duration-300">
+                <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-md hover:shadow-xl border border-gray-100 dark:border-zinc-800 relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group flex items-center gap-5">
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-[#1B6A31] dark:bg-green-700"></div>
+                    <div className="w-16 h-16 bg-[#1B6A31]/10 dark:bg-green-700/10 rounded-2xl flex items-center justify-center text-[#1B6A31] dark:text-green-500 group-hover:scale-110 transition-transform duration-300">
                         <DollarSign size={32} />
                     </div>
                     <div>
-                        <p className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-1">Sales (Last Month)</p>
-                        <p className="text-4xl font-black text-[#1B6A31] flex items-baseline gap-1">
-                            <span className="text-xl font-bold text-gray-400 mb-1">Rs.</span> 
+                        <p className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Sales (Last Month)</p>
+                        <p className="text-4xl font-black text-[#1B6A31] dark:text-green-400 flex items-baseline gap-1">
+                            <span className="text-xl font-bold text-gray-400 dark:text-gray-500 mb-1">Rs.</span> 
                             {isLoading ? '...' : salesLastMonth.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </p>
                     </div>
@@ -256,15 +256,15 @@ export default function Home() {
                 <div className="lg:col-span-2 space-y-8">
                     
                     {/* Chart 1: Production Trend */}
-                    <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg hover:shadow-2xl border border-gray-100 hover:border-green-200 transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-3xl shadow-lg hover:shadow-2xl border border-gray-100 dark:border-zinc-800 hover:border-green-200 dark:hover:border-green-800 transition-all duration-300 transform hover:-translate-y-1 text-gray-800 dark:text-gray-200">
                         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
                             <div>
-                                <h3 className="text-xl font-extrabold text-gray-800 flex items-center gap-2">
-                                    <BarChart2 className="text-[#8CC63F]" size={26}/> Production Trend
+                                <h3 className="text-xl font-extrabold flex items-center gap-2">
+                                    <BarChart2 className="text-[#8CC63F] dark:text-green-500" size={26}/> Production Trend
                                 </h3>
-                                <p className="text-sm text-gray-500 mt-1 font-medium">Comparison of Green Leaf vs Made Tea</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-medium">Comparison of Green Leaf vs Made Tea</p>
                             </div>
-                            <div className="bg-green-50 text-green-700 px-4 py-1.5 rounded-full text-xs font-bold border border-green-100">
+                            <div className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-4 py-1.5 rounded-full text-xs font-bold border border-green-100 dark:border-green-800/50">
                                 Last 7 Days
                             </div>
                         </div>
@@ -275,12 +275,12 @@ export default function Home() {
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={prodChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barSize={35}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" strokeOpacity={0.1} />
                                         <XAxis dataKey="name" tick={{fontSize: 12, fontWeight: 500, fill: '#6b7280'}} axisLine={false} tickLine={false} dy={10} />
                                         <YAxis tick={{fontSize: 12, fontWeight: 500, fill: '#6b7280'}} axisLine={false} tickLine={false} />
                                         <Tooltip 
-                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                                            cursor={{fill: '#f8fafc'}}
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', color: 'black' }}
+                                            cursor={{fill: 'currentColor', opacity: 0.05}}
                                         />
                                         <Bar dataKey="GreenLeaf" name="Green Leaf (kg)" fill="#A3D9A5" radius={[6, 6, 0, 0]} />
                                         <Bar dataKey="MadeTea" name="Made Tea (kg)" fill="#1B6A31" radius={[6, 6, 0, 0]} />
@@ -291,15 +291,15 @@ export default function Home() {
                     </div>
 
                     {/* Chart 2: Sales Revenue */}
-                    <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg hover:shadow-2xl border border-gray-100 hover:border-green-200 transition-all duration-300 transform hover:-translate-y-1">
+                    <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-3xl shadow-lg hover:shadow-2xl border border-gray-100 dark:border-zinc-800 hover:border-green-200 dark:hover:border-green-800 transition-all duration-300 transform hover:-translate-y-1 text-gray-800 dark:text-gray-200">
                         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
                             <div>
-                                <h3 className="text-xl font-extrabold text-gray-800 flex items-center gap-2">
-                                    <TrendingUp className="text-[#1B6A31]" size={26}/> Sales Revenue
+                                <h3 className="text-xl font-extrabold flex items-center gap-2">
+                                    <TrendingUp className="text-[#1B6A31] dark:text-green-500" size={26}/> Sales Revenue
                                 </h3>
-                                <p className="text-sm text-gray-500 mt-1 font-medium">Estimated LKR Revenue trend</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-medium">Estimated LKR Revenue trend</p>
                             </div>
-                            <div className="bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-xs font-bold border border-blue-100">
+                            <div className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-4 py-1.5 rounded-full text-xs font-bold border border-blue-100 dark:border-blue-800/50">
                                 Last 6 Months
                             </div>
                         </div>
@@ -316,12 +316,12 @@ export default function Home() {
                                                 <stop offset="95%" stopColor="#4A9E46" stopOpacity={0}/>
                                             </linearGradient>
                                         </defs>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" strokeOpacity={0.1} />
                                         <XAxis dataKey="name" tick={{fontSize: 12, fontWeight: 500, fill: '#6b7280'}} axisLine={false} tickLine={false} dy={10} />
                                         <YAxis tick={{fontSize: 12, fontWeight: 500, fill: '#6b7280'}} axisLine={false} tickLine={false} tickFormatter={(val) => `Rs ${val/1000}k`} />
                                         <Tooltip 
                                             formatter={(value) => [`Rs. ${value.toLocaleString()}`, 'Revenue']}
-                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', color: 'black' }}
                                         />
                                         <Area type="monotone" dataKey="Revenue" stroke="#1B6A31" strokeWidth={4} fillOpacity={1} fill="url(#colorRev)" />
                                     </AreaChart>
@@ -334,14 +334,14 @@ export default function Home() {
 
                 {/* --- Right Column: System Alerts --- */}
                 <div className="lg:col-span-1">
-                    <div className="bg-white p-6 md:p-8 rounded-3xl shadow-lg border border-gray-100 h-full">
-                        <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-5">
-                            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                    <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-3xl shadow-lg border border-gray-100 dark:border-zinc-800 h-full transition-colors duration-300">
+                        <div className="flex items-center gap-3 mb-6 border-b border-gray-100 dark:border-zinc-800 pb-5">
+                            <div className="p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
                                 <Bell size={24} />
                             </div>
                             <div>
-                                <h3 className="text-xl font-extrabold text-gray-800">Smart Alerts</h3>
-                                <p className="text-xs text-gray-500 font-medium">System generated notifications</p>
+                                <h3 className="text-xl font-extrabold text-gray-800 dark:text-gray-100">Smart Alerts</h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">System generated notifications</p>
                             </div>
                         </div>
 
@@ -351,10 +351,10 @@ export default function Home() {
                             ) : (
                                 alerts.map((alert) => (
                                     <div key={alert.id} className={`p-4 rounded-2xl border flex gap-4 transition-all hover:-translate-y-0.5 ${
-                                        alert.type === 'warning' ? 'bg-yellow-50/80 border-yellow-200 text-yellow-800' :
-                                        alert.type === 'danger' ? 'bg-red-50/80 border-red-200 text-red-800' :
-                                        alert.type === 'electric' ? 'bg-orange-50/80 border-orange-200 text-orange-800' :
-                                        'bg-green-50/80 border-green-200 text-green-800'
+                                        alert.type === 'warning' ? 'bg-yellow-50/80 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-400' :
+                                        alert.type === 'danger' ? 'bg-red-50/80 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-400' :
+                                        alert.type === 'electric' ? 'bg-orange-50/80 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 text-orange-800 dark:text-orange-400' :
+                                        'bg-green-50/80 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-400'
                                     }`}>
                                         <div className="mt-0.5 opacity-80">
                                             {alert.icon}
@@ -369,9 +369,9 @@ export default function Home() {
                         </div>
                         
                         {!isLoading && alerts.length > 0 && (
-                             <div className="mt-8 bg-gray-50 p-4 rounded-2xl flex gap-3 items-start border border-gray-200">
-                                 <Info size={18} className="text-gray-400 shrink-0 mt-0.5"/>
-                                 <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                             <div className="mt-8 bg-gray-50 dark:bg-zinc-800/50 p-4 rounded-2xl flex gap-3 items-start border border-gray-200 dark:border-zinc-700">
+                                 <Info size={18} className="text-gray-400 dark:text-gray-500 shrink-0 mt-0.5"/>
+                                 <p className="text-xs text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
                                      Alerts are automatically generated based on the data entered over the last 7 days.
                                  </p>
                              </div>

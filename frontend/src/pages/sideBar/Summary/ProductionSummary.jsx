@@ -326,7 +326,7 @@ export default function ProductionSummary() {
     return (
         <div className="p-8 max-w-[1400px] mx-auto font-sans relative">
             <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
-                <AlertDialogContent className="bg-white rounded-2xl border-gray-100 shadow-xl max-w-md">
+                <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-md transition-colors">
                     <AlertDialogHeader>
                         <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mb-4 border border-orange-200"><AlertTriangle className="w-6 h-6 text-orange-600" /></div>
                         <AlertDialogTitle className="text-xl font-bold text-gray-900">Save Before Downloading</AlertDialogTitle>
