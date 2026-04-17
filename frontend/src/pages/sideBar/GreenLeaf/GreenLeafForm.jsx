@@ -542,6 +542,7 @@ export default function GreenLeafForm() {
                                         <option value="Golden Tips">Golden Tips</option>
                                         <option value="Flower">Flower</option>
                                         <option value="Chakra">Chakra</option>
+                                        <option value="Other">Other</option>
                                     </select>
                                 </div>
                                 <div>
@@ -580,8 +581,7 @@ export default function GreenLeafForm() {
                                         name="workerCount" 
                                         value={formData.workerCount} 
                                         onChange={handleInputChange} 
-                                        onWheel={(e) => e.target.blur()} 
-                                        required 
+                                        onWheel={(e) => e.target.blur()}  
                                         className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 outline-none" 
                                     />
                                 </div>

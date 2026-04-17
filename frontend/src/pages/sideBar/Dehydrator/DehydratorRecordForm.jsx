@@ -56,6 +56,14 @@ export default function DehydratorRecordForm() {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
+
+        // ඍණ අගයන් (-) ඇතුළත් කිරීම වැළැක්වීම
+        if (name === 'meterStart' || name === 'meterEnd' || name === 'timePeriod') {
+            if (value !== '' && (Number(value) < 0 || value.includes('-'))) {
+                return; // ඍණ අගයක් නම් update වීම නතර කරයි
+            }
+        }
+
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
@@ -222,6 +230,7 @@ export default function DehydratorRecordForm() {
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Start Reading</label>
                                     <input 
                                         type="number" 
+                                        min="0"
                                         name="meterStart" 
                                         value={formData.meterStart} 
                                         onChange={handleInputChange} 
@@ -234,6 +243,7 @@ export default function DehydratorRecordForm() {
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">End Reading</label>
                                     <input 
                                         type="number" 
+                                        min="0"
                                         name="meterEnd" 
                                         value={formData.meterEnd} 
                                         onChange={handleInputChange} 
@@ -261,6 +271,7 @@ export default function DehydratorRecordForm() {
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Time Period (Hours)</label>
                                     <input 
                                         type="number" 
+                                        min="0"
                                         step="0.1"
                                         name="timePeriod" 
                                         value={formData.timePeriod} 

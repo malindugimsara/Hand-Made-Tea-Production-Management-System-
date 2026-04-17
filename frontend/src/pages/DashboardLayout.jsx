@@ -18,8 +18,7 @@ import {
   ChevronRight,
   Shield, 
   Sun,
-  Moon
-  Shield,
+  Moon,
   Sprout, 
 } from 'lucide-react';
 
