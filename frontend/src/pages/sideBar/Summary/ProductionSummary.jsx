@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast'; 
-import { Calculator, Calendar, Leaf, Zap, Users, Settings2, RefreshCw, CheckSquare, Square, Save, AlertTriangle, Filter, Info, Eye, FileDown } from "lucide-react";
+import { Calculator, Calendar, Leaf, Zap, Users, Settings2, RefreshCw, CheckSquare, Square, Save, AlertTriangle, Filter, Info, Eye, FileDown, Sun, Moon } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader'; 
 
 import {
@@ -40,12 +40,38 @@ export default function ProductionSummary() {
         "Flower", "Chakra"
     ];
 
+    // --- THEME STATE LOGIC ---
+    const [isDark, setIsDark] = useState(false);
+
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            document.documentElement.classList.add('dark');
+            setIsDark(true);
+        }
+    }, []);
+
+    const toggleTheme = () => {
+        const root = window.document.documentElement;
+        if (isDark) {
+            root.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        } else {
+            root.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        }
+        setIsDark(!isDark);
+    };
+
     useEffect(() => {
         setIsSaved(false);
     }, [manualInputs, labourRate, electricityRate, selectedTeaTypes]);
 
     useEffect(() => {
         fetchAllData(true); 
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filterMonth]); 
 
     const fetchAllData = async (isSilent = false) => {
@@ -318,139 +344,150 @@ export default function ProductionSummary() {
         const date = new Date();
         const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
         const year = date.getFullYear();
-        return `HT/PS/${month}.${year}`; // Result: HT/PS/APRIL.2026
+        return `HT/PS/${month}.${year}`; 
     };
 
     const uniqueCode = getCurrentMonthCode();
     
     return (
-        <div className="p-8 max-w-[1400px] mx-auto font-sans relative">
-            <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
-                <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-md transition-colors">
-                    <AlertDialogHeader>
-                        <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mb-4 border border-orange-200"><AlertTriangle className="w-6 h-6 text-orange-600" /></div>
-                        <AlertDialogTitle className="text-xl font-bold text-gray-900">Save Before Downloading</AlertDialogTitle>
-                        <AlertDialogDescription className="text-gray-500 text-base">Unsaved changes detected. Please save to database before generating the PDF.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter className="mt-6">
-                        <AlertDialogCancel className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg font-semibold mt-0">Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={async () => { if(await handleSaveToDatabase()) setShowUnsavedDialog(false); }} className="bg-[#1B6A31] hover:bg-green-800 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors">Save & Download</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+        <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
+            <div className="p-8 max-w-[1400px] mx-auto font-sans relative">
+                <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
+                    <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-md transition-colors">
+                        <AlertDialogHeader>
+                            <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mb-4 border border-orange-200 dark:border-orange-800/50"><AlertTriangle className="w-6 h-6 text-orange-600 dark:text-orange-400" /></div>
+                            <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-white">Save Before Downloading</AlertDialogTitle>
+                            <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-base">Unsaved changes detected. Please save to database before generating the PDF.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="mt-6">
+                            <AlertDialogCancel className="border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 rounded-lg font-semibold mt-0">Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={async () => { if(await handleSaveToDatabase()) setShowUnsavedDialog(false); }} className="bg-[#1B6A31] hover:bg-green-800 dark:bg-green-700 dark:hover:bg-green-600 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors">Save & Download</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
 
-            {/* STICKY HEADER */}
-            <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md -mt-8 -mx-8 pt-8 pb-4 px-8 mb-8 border-b border-gray-100 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h2 className="text-3xl font-bold text-[#1B6A31] flex items-center gap-2"><Calculator size={28} /> Production Summary</h2>
-                    <p className="text-gray-500 mt-1 font-medium">Monthly analysis and cost calculations</p>
-                </div>
-                
-                <div className="flex flex-wrap gap-3 justify-center sm:justify-end">
-                    <button onClick={() => fetchAllData(false)} disabled={loading} className="px-5 py-2.5 bg-white text-[#1B6A31] border border-[#8CC63F] rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 hover:bg-[#F8FAF8]"><RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Sync Data</button>
-                    <button onClick={handleSaveToDatabase} disabled={isSaving || isSaved || tableData.length === 0 || isViewer} className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${(isSaved || tableData.length === 0 || isViewer) ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'}`}>{isViewer ? <Eye size={18}/> : <Save size={18} />} {isViewer ? "View Only" : isSaving ? "Saving..." : (isSaved && tableData.length > 0) ? "Saved" : "Save to DB"}</button>
-                    {(!isSaved && !isViewer) ? (
-                        <button onClick={() => setShowUnsavedDialog(true)} disabled={tableData.length === 0} className="px-5 py-2.5 text-white bg-blue-600 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-blue-700 transition-all duration-300"><FileDown size={18} /> Download PDF</button>
-                    ) : (
-                        <PDFDownloader title="Production Summary" subtitle={`Month: ${filterMonth} | Selected Types: ${selectedTeaTypes.join(', ')}`} headers={pdfHeaders} data={getPdfData()} uniqueCode={uniqueCode} fileName={`Production_Summary_${filterMonth}.pdf`} orientation="landscape" disabled={tableData.length === 0} className="bg-blue-600 hover:bg-blue-700 text-white" />
-                    )}
-                </div>
-            </div>
+                {/* STICKY HEADER */}
+                <div className="sticky top-0 z-40 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md -mt-8 -mx-8 pt-8 pb-4 px-8 mb-8 border-b border-gray-100 dark:border-zinc-800 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors duration-300">
+                    <div>
+                        <h2 className="text-3xl font-bold text-[#1B6A31] dark:text-[#8CC63F] flex items-center gap-2"><Calculator size={28} /> Production Summary</h2>
+                        <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium">Monthly analysis and cost calculations</p>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-3 justify-center sm:justify-end items-center">
+                        {/* --- THEME TOGGLE BUTTON --- */}
+                        <button 
+                            onClick={toggleTheme}
+                            title="Toggle Dark Mode"
+                            className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors text-gray-600 dark:text-gray-300"
+                        >
+                            {isDark ? <Sun size={18} className="text-yellow-500" /> : <Moon size={18} />}
+                        </button>
 
-            {isViewer && (<div className="mb-6 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg flex items-center gap-3"><Info size={20} /><p className="text-sm font-medium">Viewer Mode: You can only view and export reports.</p></div>)}
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                <div className="bg-gradient-to-br from-blue-50/50 to-white p-6 rounded-xl border border-blue-200 shadow-lg relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
-                    <label className="text-xs font-bold text-gray-500 mb-1 block uppercase tracking-wider">Select Report Month</label>
-                    <div className="flex gap-3 mt-2"><input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-full border border-gray-300 rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-400 bg-white shadow-sm" /><button onClick={handleLoadMonthDataClick} className="whitespace-nowrap px-5 py-3 bg-blue-600 text-white rounded-md text-sm font-bold hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"><Filter size={16} /> Load</button></div>
-                </div>
-
-                <div className="bg-gradient-to-br from-orange-50/50 to-white p-6 rounded-xl border border-orange-200 shadow-lg relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
-                    <h3 className="text-sm font-extrabold text-orange-700 flex items-center gap-2 uppercase mb-4 tracking-wider"><Settings2 size={18}/> Global Rates (LKR)</h3>
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-gray-500 uppercase">Labour Rate</label><div className="relative"><span className="absolute left-3 top-3 text-gray-400 text-sm font-bold">Rs.</span><input type="number" onWheel={(e) => e.target.blur()} value={labourRate} onChange={handleLabourRateChange} disabled={isViewer} className="w-full border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 disabled:bg-gray-100" /></div></div>
-                        <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-gray-500 uppercase">Elec. Rate</label><div className="relative"><span className="absolute left-3 top-3 text-gray-400 text-sm font-bold">Rs.</span><input type="number" onWheel={(e) => e.target.blur()} value={electricityRate} onChange={handleElectricityRateChange} disabled={isViewer} className="w-full border border-gray-300 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 disabled:bg-gray-100" /></div></div>
+                        <button onClick={() => fetchAllData(false)} disabled={loading} className="px-5 py-2.5 bg-white dark:bg-zinc-900 text-[#1B6A31] dark:text-[#8CC63F] border border-[#8CC63F] rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 hover:bg-[#F8FAF8] dark:hover:bg-zinc-800"><RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Sync Data</button>
+                        <button onClick={handleSaveToDatabase} disabled={isSaving || isSaved || tableData.length === 0 || isViewer} className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${(isSaved || tableData.length === 0 || isViewer) ? 'bg-gray-400 dark:bg-zinc-700 dark:text-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'}`}>{isViewer ? <Eye size={18}/> : <Save size={18} />} {isViewer ? "View Only" : isSaving ? "Saving..." : (isSaved && tableData.length > 0) ? "Saved" : "Save to DB"}</button>
+                        {(!isSaved && !isViewer) ? (
+                            <button onClick={() => setShowUnsavedDialog(true)} disabled={tableData.length === 0} className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${tableData.length === 0 ? 'bg-gray-400 dark:bg-zinc-700 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}><FileDown size={18} /> Download PDF</button>
+                        ) : (
+                            <PDFDownloader title="Production Summary" subtitle={`Month: ${filterMonth} | Selected Types: ${selectedTeaTypes.join(', ')}`} headers={pdfHeaders} data={getPdfData()} uniqueCode={uniqueCode} fileName={`Production_Summary_${filterMonth}.pdf`} orientation="landscape" disabled={tableData.length === 0} className="bg-blue-600 hover:bg-blue-700 text-white" />
+                        )}
                     </div>
                 </div>
-            </div>
 
-            <div className="bg-gradient-to-br from-green-50/50 to-white p-6 rounded-xl border border-green-200 shadow-lg mb-8 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-[#1B6A31]"></div>
-                <div className='flex justify-between items-center mb-4'><h3 className="text-sm font-extrabold text-[#1B6A31] flex items-center gap-2 uppercase tracking-wider"><Leaf size={18}/> Filter Tea Types</h3><button onClick={handleSelectAll} className="text-xs font-bold flex items-center gap-1.5 px-3 py-1.5 bg-white border border-green-200 text-[#1B6A31] rounded-lg hover:bg-green-50 transition-all shadow-sm">{selectedTeaTypes.length === teaOptions.length ? <CheckSquare size={16}/> : <Square size={16}/>} Select All</button></div>
-                <div className="flex flex-wrap gap-2">{teaOptions.map(type => (<button key={type} onClick={() => toggleTeaType(type)} className={`px-4 py-2 text-xs font-bold rounded-xl border-2 transition-all duration-200 ${selectedTeaTypes.includes(type) ? 'bg-[#1B6A31] border-[#1B6A31] text-white shadow-md' : 'bg-white border-gray-200 text-gray-500 hover:border-[#8CC63F] hover:text-[#1B6A31]'}`}>{type}</button>))}</div>
-            </div>
+                {isViewer && (<div className="mb-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800/50 text-blue-700 dark:text-blue-300 px-4 py-3 rounded-lg flex items-center gap-3 transition-colors"><Info size={20} /><p className="text-sm font-medium">Viewer Mode: You can only view and export reports.</p></div>)}
 
-            {/* SELLING DETAILS STYLE TABLE */}
-            <div className={`bg-white rounded-xl shadow-md overflow-hidden mb-12 min-h-[300px] border ${isViewer ? 'border-gray-200 opacity-95' : 'border-gray-200'}`}>
-                <div className="bg-[#1B6A31] p-4 border-b border-gray-200 flex items-center gap-2">
-                    <Calculator className="text-white" size={20}/>
-                    <h3 className="text-lg font-bold text-white">Production Summary Board</h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div className="bg-gradient-to-br from-blue-50/50 to-white dark:from-blue-900/20 dark:to-zinc-900 p-6 rounded-xl border border-blue-200 dark:border-blue-900/50 shadow-lg relative overflow-hidden transition-colors">
+                        <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 block uppercase tracking-wider">Select Report Month</label>
+                        <div className="flex gap-3 mt-2"><input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-full border border-gray-300 dark:border-zinc-700 rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-400 bg-white dark:bg-zinc-950 dark:text-white shadow-sm transition-colors" /><button onClick={handleLoadMonthDataClick} className="whitespace-nowrap px-5 py-3 bg-blue-600 text-white rounded-md text-sm font-bold hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"><Filter size={16} /> Load</button></div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-orange-50/50 to-white dark:from-orange-900/20 dark:to-zinc-900 p-6 rounded-xl border border-orange-200 dark:border-orange-900/50 shadow-lg relative overflow-hidden transition-colors">
+                        <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
+                        <h3 className="text-sm font-extrabold text-orange-700 dark:text-orange-500 flex items-center gap-2 uppercase mb-4 tracking-wider"><Settings2 size={18}/> Global Rates (LKR)</h3>
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Labour Rate</label><div className="relative"><span className="absolute left-3 top-3 text-gray-400 dark:text-gray-500 text-sm font-bold">Rs.</span><input type="number" onWheel={(e) => e.target.blur()} value={labourRate} onChange={handleLabourRateChange} disabled={isViewer} className="w-full border border-gray-300 dark:border-zinc-700 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 dark:text-white bg-white dark:bg-zinc-950 disabled:bg-gray-100 dark:disabled:bg-zinc-800 transition-colors" /></div></div>
+                            <div className="flex flex-col gap-1.5"><label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Elec. Rate</label><div className="relative"><span className="absolute left-3 top-3 text-gray-400 dark:text-gray-500 text-sm font-bold">Rs.</span><input type="number" onWheel={(e) => e.target.blur()} value={electricityRate} onChange={handleElectricityRateChange} disabled={isViewer} className="w-full border border-gray-300 dark:border-zinc-700 rounded-md p-3 pl-10 text-sm font-bold text-gray-800 dark:text-white bg-white dark:bg-zinc-950 disabled:bg-gray-100 dark:disabled:bg-zinc-800 transition-colors" /></div></div>
+                        </div>
+                    </div>
                 </div>
-                
-                <div className="overflow-x-auto p-4">
-                    <table className="w-full border-collapse">
-                        <thead>
-                            <tr>
-                                <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#1a1a1a] bg-[#f9f9f9] text-center">Tea Type</th>
-                                <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#2e6b3b] bg-[#f4f9f4] text-center">G/L (kg)</th>
-                                <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#2e6b3b] bg-[#f4f9f4] text-center">M/T (kg)</th>
-                                <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#2858b4] bg-[#f0f5fd] text-center">Sel. Lab</th>
-                                <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#2858b4] bg-[#f0f5fd] text-center">H/R Lab</th>
-                                <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#2858b4] bg-[#f0f5fd] text-center">Sel. Cost</th>
-                                <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#2858b4] bg-[#f0f5fd] text-center">H/R Cost</th>
-                                <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#d66b2d] bg-[#fdf7f2] text-center">Dry. Units</th>
-                                <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#d66b2d] bg-[#fdf7f2] text-center">Rol. Units</th>
-                                <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#d66b2d] bg-[#fdf7f2] text-center">Dry. Cost</th>
-                                <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#d66b2d] bg-[#fdf7f2] text-center">Rol. Cost</th>
-                                <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 border-r text-[#b81d1d] bg-[#fcedec] text-center">Total Elec</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {tableData.length > 0 ? (
-                                tableData.map((row, idx) => (
-                                    <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                                        <td className="p-2 text-xs font-bold border-b border-r border-gray-200 text-[#2e6b3b] text-left pl-4">{row.type}</td>
-                                        <td className="p-2 text-xs font-bold border-b border-r border-gray-200 text-center text-gray-700 bg-green-50/20">{row.totalGL.toFixed(2)}</td>
-                                        <td className="p-2 text-xs font-bold border-b border-r border-gray-200 text-center text-gray-700 bg-green-50/20">{row.totalMT.toFixed(3)}</td>
-                                        <td className="p-2 text-xs font-bold border-b border-r border-gray-200 text-center text-blue-700 bg-blue-50/20">{row.totalSelectionWorkers}</td>
-                                        <td className="p-2 text-xs font-bold border-b border-r border-gray-200 text-center bg-[#f0f5fd]">
-                                            <input type="number" onWheel={(e) => e.target.blur()} value={row.hrWorkers || ''} onChange={(e) => handleManualChange(row.type, 'handRolling', e.target.value)} disabled={isViewer} className="w-full p-1 border border-blue-300 rounded text-center font-bold text-blue-800 outline-none focus:ring-1 focus:ring-blue-500 shadow-inner bg-white disabled:bg-gray-50" placeholder="0" />
-                                        </td>
-                                        <td className="p-2 text-[11px] font-bold border-b border-r border-gray-200 text-center text-gray-600">{row.selectionCost.toLocaleString()}</td>
-                                        <td className="p-2 text-[11px] font-bold border-b border-r border-gray-200 text-center text-gray-600">{row.handRollingCost.toLocaleString()}</td>
-                                        <td className="p-2 text-xs font-bold border-b border-r border-gray-200 text-center text-orange-600 bg-orange-50/20">{row.totalDryerUnits}</td>
-                                        <td className="p-2 text-xs font-bold border-b border-r border-gray-200 text-center bg-[#fdf7f2]">
-                                            <input type="number" onWheel={(e) => e.target.blur()} value={row.rPoints || ''} onChange={(e) => handleManualChange(row.type, 'roller', e.target.value)} disabled={isViewer} className="w-full p-1 border border-orange-300 rounded text-center font-bold text-orange-800 outline-none focus:ring-1 focus:ring-orange-500 shadow-inner bg-white disabled:bg-gray-50" placeholder="0" />
-                                        </td>
-                                        <td className="p-2 text-[11px] font-bold border-b border-r border-gray-200 text-center text-gray-600">{row.dryerCost.toLocaleString()}</td>
-                                        <td className="p-2 text-[11px] font-bold border-b border-r border-gray-200 text-center text-gray-600">{row.rollerCost.toLocaleString()}</td>
-                                        <td className="p-2 text-xs font-black border-b border-r border-gray-200 text-center text-[#b81d1d] bg-red-50/30">{row.totalElectricityCost.toLocaleString()}</td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr><td colSpan="12" className="p-10 text-center text-gray-400 font-bold italic">No types selected for calculation</td></tr>
-                            )}
-                            {/* GRAND TOTAL ROW */}
-                            {tableData.length > 0 && (
-                                <tr className="bg-[#fcedec]">
-                                    <td className="p-3 text-xs font-bold text-[#1a1a1a] text-right pr-4 border-r border-gray-200">GRAND TOTAL</td>
-                                    <td className="p-3 text-xs font-bold text-gray-800 text-center border-r border-gray-200">{grandTotals.totalGL.toFixed(2)}</td>
-                                    <td className="p-3 text-xs font-bold text-gray-800 text-center border-r border-gray-200">{grandTotals.totalMT.toFixed(3)}</td>
-                                    <td className="p-3 text-xs font-bold text-blue-800 text-center border-r border-gray-200">{grandTotals.totalSelectionWorkers}</td>
-                                    <td className="p-3 text-xs font-bold text-blue-800 text-center border-r border-gray-200">{grandTotals.hrWorkers}</td>
-                                    <td className="p-3 text-[11px] font-bold text-gray-800 text-center border-r border-gray-200">{grandTotals.selectionCost.toLocaleString()}</td>
-                                    <td className="p-3 text-[11px] font-bold text-gray-800 text-center border-r border-gray-200">{grandTotals.handRollingCost.toLocaleString()}</td>
-                                    <td className="p-3 text-xs font-bold text-orange-700 text-center border-r border-gray-200">{grandTotals.totalDryerUnits}</td>
-                                    <td className="p-3 text-xs font-bold text-orange-700 text-center border-r border-gray-200">{grandTotals.rPoints}</td>
-                                    <td className="p-3 text-[11px] font-bold text-gray-800 text-center border-r border-gray-200">{grandTotals.dryerCost.toLocaleString()}</td>
-                                    <td className="p-3 text-[11px] font-bold text-gray-800 text-center border-r border-gray-200">{grandTotals.rollerCost.toLocaleString()}</td>
-                                    <td className="p-3 text-sm font-black text-[#b81d1d] text-center border-r border-gray-200">{grandTotals.totalElectricityCost.toLocaleString()}</td>
+
+                <div className="bg-gradient-to-br from-green-50/50 to-white dark:from-green-900/20 dark:to-zinc-900 p-6 rounded-xl border border-green-200 dark:border-green-900/50 shadow-lg mb-8 relative overflow-hidden transition-colors">
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-[#1B6A31]"></div>
+                    <div className='flex justify-between items-center mb-4'><h3 className="text-sm font-extrabold text-[#1B6A31] dark:text-[#8CC63F] flex items-center gap-2 uppercase tracking-wider"><Leaf size={18}/> Filter Tea Types</h3><button onClick={handleSelectAll} className="text-xs font-bold flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-800 border border-green-200 dark:border-green-800/50 text-[#1B6A31] dark:text-[#8CC63F] rounded-lg hover:bg-green-50 dark:hover:bg-zinc-700 transition-all shadow-sm">{selectedTeaTypes.length === teaOptions.length ? <CheckSquare size={16}/> : <Square size={16}/>} Select All</button></div>
+                    <div className="flex flex-wrap gap-2">{teaOptions.map(type => (<button key={type} onClick={() => toggleTeaType(type)} className={`px-4 py-2 text-xs font-bold rounded-xl border-2 transition-all duration-200 ${selectedTeaTypes.includes(type) ? 'bg-[#1B6A31] dark:bg-[#8CC63F] border-[#1B6A31] dark:border-[#8CC63F] text-white dark:text-zinc-900 shadow-md' : 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-gray-400 hover:border-[#8CC63F] hover:text-[#1B6A31] dark:hover:text-[#8CC63F]'}`}>{type}</button>))}</div>
+                </div>
+
+                {/* SELLING DETAILS STYLE TABLE */}
+                <div className={`bg-white dark:bg-zinc-900 rounded-xl shadow-md overflow-hidden mb-12 min-h-[300px] border transition-colors ${isViewer ? 'border-gray-200 dark:border-zinc-800 opacity-95' : 'border-gray-200 dark:border-zinc-800'}`}>
+                    <div className="bg-[#1B6A31] dark:bg-[#1B6A31]/80 p-4 border-b border-gray-200 dark:border-zinc-700 flex items-center gap-2 transition-colors">
+                        <Calculator className="text-white" size={20}/>
+                        <h3 className="text-lg font-bold text-white">Production Summary Board</h3>
+                    </div>
+                    
+                    <div className="overflow-x-auto p-4">
+                        <table className="w-full border-collapse">
+                            <thead>
+                                <tr>
+                                    <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 dark:border-zinc-700 border-r text-[#1a1a1a] dark:text-gray-200 bg-[#f9f9f9] dark:bg-zinc-800 text-center transition-colors">Tea Type</th>
+                                    <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 dark:border-zinc-700 border-r text-[#2e6b3b] dark:text-green-400 bg-[#f4f9f4] dark:bg-green-900/20 text-center transition-colors">G/L (kg)</th>
+                                    <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 dark:border-zinc-700 border-r text-[#2e6b3b] dark:text-green-400 bg-[#f4f9f4] dark:bg-green-900/20 text-center transition-colors">M/T (kg)</th>
+                                    <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 dark:border-zinc-700 border-r text-[#2858b4] dark:text-blue-400 bg-[#f0f5fd] dark:bg-blue-900/20 text-center transition-colors">Sel. Lab</th>
+                                    <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 dark:border-zinc-700 border-r text-[#2858b4] dark:text-blue-400 bg-[#f0f5fd] dark:bg-blue-900/20 text-center transition-colors">H/R Lab</th>
+                                    <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 dark:border-zinc-700 border-r text-[#2858b4] dark:text-blue-400 bg-[#f0f5fd] dark:bg-blue-900/20 text-center transition-colors">Sel. Cost</th>
+                                    <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 dark:border-zinc-700 border-r text-[#2858b4] dark:text-blue-400 bg-[#f0f5fd] dark:bg-blue-900/20 text-center transition-colors">H/R Cost</th>
+                                    <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 dark:border-zinc-700 border-r text-[#d66b2d] dark:text-orange-400 bg-[#fdf7f2] dark:bg-orange-900/20 text-center transition-colors">Dry. Units</th>
+                                    <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 dark:border-zinc-700 border-r text-[#d66b2d] dark:text-orange-400 bg-[#fdf7f2] dark:bg-orange-900/20 text-center transition-colors">Rol. Units</th>
+                                    <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 dark:border-zinc-700 border-r text-[#d66b2d] dark:text-orange-400 bg-[#fdf7f2] dark:bg-orange-900/20 text-center transition-colors">Dry. Cost</th>
+                                    <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 dark:border-zinc-700 border-r text-[#d66b2d] dark:text-orange-400 bg-[#fdf7f2] dark:bg-orange-900/20 text-center transition-colors">Rol. Cost</th>
+                                    <th className="px-3 py-4 font-extrabold text-[10px] tracking-wider uppercase border-b-2 border-gray-200 dark:border-zinc-700 border-r text-[#b81d1d] dark:text-red-400 bg-[#fcedec] dark:bg-red-900/20 text-center transition-colors">Total Elec</th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {tableData.length > 0 ? (
+                                    tableData.map((row, idx) => (
+                                        <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                            <td className="p-2 text-xs font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-[#2e6b3b] dark:text-green-400 text-left pl-4 transition-colors">{row.type}</td>
+                                            <td className="p-2 text-xs font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-gray-700 dark:text-gray-300 bg-green-50/20 dark:bg-green-900/10 transition-colors">{row.totalGL.toFixed(2)}</td>
+                                            <td className="p-2 text-xs font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-gray-700 dark:text-gray-300 bg-green-50/20 dark:bg-green-900/10 transition-colors">{row.totalMT.toFixed(3)}</td>
+                                            <td className="p-2 text-xs font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-blue-700 dark:text-blue-400 bg-blue-50/20 dark:bg-blue-900/10 transition-colors">{row.totalSelectionWorkers}</td>
+                                            <td className="p-2 text-xs font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center bg-[#f0f5fd] dark:bg-blue-900/10 transition-colors">
+                                                <input type="number" onWheel={(e) => e.target.blur()} value={row.hrWorkers || ''} onChange={(e) => handleManualChange(row.type, 'handRolling', e.target.value)} disabled={isViewer} className="w-full p-1 border border-blue-300 dark:border-zinc-600 rounded text-center font-bold text-blue-800 dark:text-blue-300 outline-none focus:ring-1 focus:ring-blue-500 shadow-inner bg-white dark:bg-zinc-950 disabled:bg-gray-50 dark:disabled:bg-zinc-900 transition-colors" placeholder="0" />
+                                            </td>
+                                            <td className="p-2 text-[11px] font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-gray-600 dark:text-gray-400 transition-colors">{row.selectionCost.toLocaleString()}</td>
+                                            <td className="p-2 text-[11px] font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-gray-600 dark:text-gray-400 transition-colors">{row.handRollingCost.toLocaleString()}</td>
+                                            <td className="p-2 text-xs font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-orange-600 dark:text-orange-400 bg-orange-50/20 dark:bg-orange-900/10 transition-colors">{row.totalDryerUnits}</td>
+                                            <td className="p-2 text-xs font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center bg-[#fdf7f2] dark:bg-orange-900/10 transition-colors">
+                                                <input type="number" onWheel={(e) => e.target.blur()} value={row.rPoints || ''} onChange={(e) => handleManualChange(row.type, 'roller', e.target.value)} disabled={isViewer} className="w-full p-1 border border-orange-300 dark:border-zinc-600 rounded text-center font-bold text-orange-800 dark:text-orange-300 outline-none focus:ring-1 focus:ring-orange-500 shadow-inner bg-white dark:bg-zinc-950 disabled:bg-gray-50 dark:disabled:bg-zinc-900 transition-colors" placeholder="0" />
+                                            </td>
+                                            <td className="p-2 text-[11px] font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-gray-600 dark:text-gray-400 transition-colors">{row.dryerCost.toLocaleString()}</td>
+                                            <td className="p-2 text-[11px] font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-gray-600 dark:text-gray-400 transition-colors">{row.rollerCost.toLocaleString()}</td>
+                                            <td className="p-2 text-xs font-black border-b border-r border-gray-200 dark:border-zinc-700 text-center text-[#b81d1d] dark:text-red-400 bg-red-50/30 dark:bg-red-900/20 transition-colors">{row.totalElectricityCost.toLocaleString()}</td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr><td colSpan="12" className="p-10 text-center text-gray-400 dark:text-gray-600 font-bold italic">No types selected for calculation</td></tr>
+                                )}
+                                {/* GRAND TOTAL ROW */}
+                                {tableData.length > 0 && (
+                                    <tr className="bg-[#fcedec] dark:bg-zinc-800 transition-colors border-t-2 border-gray-300 dark:border-zinc-600">
+                                        <td className="p-3 text-xs font-bold text-[#1a1a1a] dark:text-gray-200 text-right pr-4 border-r border-gray-200 dark:border-zinc-700">GRAND TOTAL</td>
+                                        <td className="p-3 text-xs font-bold text-gray-800 dark:text-gray-200 text-center border-r border-gray-200 dark:border-zinc-700">{grandTotals.totalGL.toFixed(2)}</td>
+                                        <td className="p-3 text-xs font-bold text-gray-800 dark:text-gray-200 text-center border-r border-gray-200 dark:border-zinc-700">{grandTotals.totalMT.toFixed(3)}</td>
+                                        <td className="p-3 text-xs font-bold text-blue-800 dark:text-blue-400 text-center border-r border-gray-200 dark:border-zinc-700">{grandTotals.totalSelectionWorkers}</td>
+                                        <td className="p-3 text-xs font-bold text-blue-800 dark:text-blue-400 text-center border-r border-gray-200 dark:border-zinc-700">{grandTotals.hrWorkers}</td>
+                                        <td className="p-3 text-[11px] font-bold text-gray-800 dark:text-gray-200 text-center border-r border-gray-200 dark:border-zinc-700">{grandTotals.selectionCost.toLocaleString()}</td>
+                                        <td className="p-3 text-[11px] font-bold text-gray-800 dark:text-gray-200 text-center border-r border-gray-200 dark:border-zinc-700">{grandTotals.handRollingCost.toLocaleString()}</td>
+                                        <td className="p-3 text-xs font-bold text-orange-700 dark:text-orange-400 text-center border-r border-gray-200 dark:border-zinc-700">{grandTotals.totalDryerUnits}</td>
+                                        <td className="p-3 text-xs font-bold text-orange-700 dark:text-orange-400 text-center border-r border-gray-200 dark:border-zinc-700">{grandTotals.rPoints}</td>
+                                        <td className="p-3 text-[11px] font-bold text-gray-800 dark:text-gray-200 text-center border-r border-gray-200 dark:border-zinc-700">{grandTotals.dryerCost.toLocaleString()}</td>
+                                        <td className="p-3 text-[11px] font-bold text-gray-800 dark:text-gray-200 text-center border-r border-gray-200 dark:border-zinc-700">{grandTotals.rollerCost.toLocaleString()}</td>
+                                        <td className="p-3 text-sm font-black text-[#b81d1d] dark:text-red-400 text-center border-r border-gray-200 dark:border-zinc-700">{grandTotals.totalElectricityCost.toLocaleString()}</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
