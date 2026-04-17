@@ -75,7 +75,7 @@ const DATA = {
     logo: () => <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain" />,
   },
   quickLinks: [
-    { name: 'Dashboard Home', url: '/', icon: LayoutDashboard },
+    { name: 'Dashboard Home', url: '/dashboard', icon: LayoutDashboard },
   ],
   navMain: [
     {
@@ -161,7 +161,7 @@ export default function DashboardLayout() {
     localStorage.removeItem('userRole'); 
     localStorage.removeItem('username');
     localStorage.removeItem('role'); 
-    navigate('/login', { replace: true });
+    navigate('/', { replace: true });
   };
 
   const getBreadcrumbTitle = () => {
