@@ -3,7 +3,21 @@ import { Dehydrator } from '../models/Dehydrator.js';
 // Create new Dehydrator record
 export const createDehydrator = async (req, res) => {
     try {
-        const { date, trial, meterStart, meterEnd, timePeriodHours } = req.body;
+        const { 
+            date, 
+            trial, 
+            meterStart, 
+            meterEnd, 
+            timePeriodHours,
+            startWeight,
+            endWeight,
+            moisturePercentage,
+            labourHours,
+            labourCostPer8Hours,
+            totalLabourCost, 
+            electricityRate,       // --- NEW ---
+            totalElectricityCost   // --- NEW ---
+        } = req.body;
         
         // Logic: totalUnits = meterEnd - meterStart
         const totalUnits = meterEnd - meterStart;
@@ -14,7 +28,15 @@ export const createDehydrator = async (req, res) => {
             meterStart,
             meterEnd,
             totalUnits,
-            timePeriodHours
+            timePeriodHours,
+            startWeight,
+            endWeight,
+            moisturePercentage,
+            labourHours,
+            labourCostPer8Hours,
+            totalLabourCost,
+            electricityRate,       // --- NEW ---
+            totalElectricityCost   // --- NEW ---
         });
         
         await newRecord.save();
@@ -43,6 +65,16 @@ export const updateDehydrator = async (req, res) => {
         // Recalculate totalUnits if meter readings are updated
         if (updatedData.meterStart !== undefined && updatedData.meterEnd !== undefined) {
             updatedData.totalUnits = updatedData.meterEnd - updatedData.meterStart;
+            
+            // Auto-recalculate electricity cost if meter readings change
+            if (updatedData.electricityRate !== undefined) {
+                updatedData.totalElectricityCost = updatedData.totalUnits * updatedData.electricityRate;
+            }
+        }
+
+        // Recalculate totalLabourCost if labour details are updated
+        if (updatedData.labourHours !== undefined && updatedData.labourCostPer8Hours !== undefined) {
+            updatedData.totalLabourCost = (updatedData.labourCostPer8Hours / 8) * updatedData.labourHours;
         }
 
         const record = await Dehydrator.findByIdAndUpdate(id, updatedData, { new: true });

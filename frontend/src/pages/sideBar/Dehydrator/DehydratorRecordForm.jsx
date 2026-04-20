@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast'; 
-import { Fan, Zap, Clock, PlusCircle, Trash2, ListChecks, Save, X } from "lucide-react"; 
+import { Fan, Zap, Clock, PlusCircle, Trash2, ListChecks, Save, Scale, Droplets, Users, Banknote } from "lucide-react"; 
 import { useNavigate } from 'react-router-dom';
 
 export default function DehydratorRecordForm() {
@@ -14,7 +14,13 @@ export default function DehydratorRecordForm() {
         trial: '',
         meterStart: '',
         meterEnd: '',
-        timePeriod: ''
+        timePeriod: '',
+        startWeight: '',
+        endWeight: '',
+        labourHours: '',
+        labourCostPer8Hours: '',
+        moisturePercentage: '',
+        electricityRate: '' // Added explicitly
     });
     const navigate = useNavigate();
 
@@ -51,23 +57,31 @@ export default function DehydratorRecordForm() {
         }
     };
 
-    // Auto-calculate Total Electricity Units
+    // Auto-Calculations
     const totalUnits = (Number(formData.meterEnd) || 0) - (Number(formData.meterStart) || 0);
+    
+    const calculatedLabourCost = formData.labourCostPer8Hours && formData.labourHours
+        ? (Number(formData.labourCostPer8Hours) / 8) * Number(formData.labourHours)
+        : 0;
+
+    // Calculate actual electricity cost
+    const calculatedElectricityCost = formData.electricityRate && totalUnits > 0
+        ? totalUnits * Number(formData.electricityRate)
+        : 0;
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
 
-        // ඍණ අගයන් (-) ඇතුළත් කිරීම වැළැක්වීම
-        if (name === 'meterStart' || name === 'meterEnd' || name === 'timePeriod') {
+        const numericFields = ['meterStart', 'meterEnd', 'timePeriod', 'startWeight', 'endWeight', 'labourHours', 'labourCostPer8Hours', 'moisturePercentage', 'electricityRate'];
+        if (numericFields.includes(name)) {
             if (value !== '' && (Number(value) < 0 || value.includes('-'))) {
-                return; // ඍණ අගයක් නම් update වීම නතර කරයි
+                return; 
             }
         }
 
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    // 1. Add to Pending List
     const handleAddToList = (e) => {
         e.preventDefault();
 
@@ -75,38 +89,39 @@ export default function DehydratorRecordForm() {
         const mEnd = Number(formData.meterEnd);
         const time = Number(formData.timePeriod);
 
-        // Validations
         if (mEnd < mStart) {
             toast.error("End Reading must be greater than Start Reading!");
             return;
         }
-
         if (time <= 0) {
             toast.error("Time period must be greater than 0!");
             return;
         }
 
-        const newRecord = { ...formData, totalUnits };
+        const newRecord = { ...formData, totalUnits, calculatedLabourCost, calculatedElectricityCost };
         setPendingRecords([...pendingRecords, newRecord]);
         toast.success(`${formData.trial} added to list!`);
 
-        // Prepare form for the next entry
         setFormData(prev => ({
             ...prev,
             trial: '',
-            meterStart: prev.meterEnd, // Auto-update meter start
+            meterStart: prev.meterEnd,
             meterEnd: '',
-            timePeriod: ''
+            timePeriod: '',
+            startWeight: '',
+            endWeight: '',
+            labourHours: '',
+            labourCostPer8Hours: prev.labourCostPer8Hours, 
+            moisturePercentage: '',
+            electricityRate: prev.electricityRate // Keep rate persistent
         }));
     };
 
-    // 2. Remove from List
     const handleRemoveFromList = (indexToRemove) => {
         const updatedList = pendingRecords.filter((_, index) => index !== indexToRemove);
         setPendingRecords(updatedList);
     };
 
-    // 3. Save All Records
     const handleSaveAll = async () => {
         if (pendingRecords.length === 0) {
             toast.error("No records in the list to save!");
@@ -125,7 +140,15 @@ export default function DehydratorRecordForm() {
                     meterStart: Number(record.meterStart),
                     meterEnd: Number(record.meterEnd),
                     totalUnits: record.totalUnits,
-                    timePeriodHours: Number(record.timePeriod)
+                    timePeriodHours: Number(record.timePeriod),
+                    startWeight: Number(record.startWeight),
+                    endWeight: Number(record.endWeight),
+                    labourHours: Number(record.labourHours),
+                    labourCostPer8Hours: Number(record.labourCostPer8Hours), 
+                    totalLabourCost: record.calculatedLabourCost,            
+                    moisturePercentage: Number(record.moisturePercentage),
+                    electricityRate: Number(record.electricityRate),          // API Payload updated
+                    totalElectricityCost: record.calculatedElectricityCost    // API Payload updated
                 };
 
                 return fetch(`${BACKEND_URL}/api/dehydrator`, {
@@ -185,11 +208,9 @@ export default function DehydratorRecordForm() {
             
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
                 
-                {/* --- 1. DATA ENTRY FORM (Left Side) --- */}
                 <div className="lg:col-span-3">
                     <form onSubmit={handleAddToList} className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-lg border border-gray-200 dark:border-zinc-800 transition-colors duration-300">
                         
-                        {/* General Info Section */}
                         <div className="mb-8 pb-6 border-b border-gray-100 dark:border-zinc-800">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
@@ -220,59 +241,138 @@ export default function DehydratorRecordForm() {
                             </div>
                         </div>
 
-                        {/* Electricity Section */}
-                        <div className="mb-8 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800/50 rounded-lg p-6 transition-colors duration-300">
-                            <h3 className="text-lg font-bold text-orange-600 dark:text-orange-500 mb-4 flex items-center gap-2">
-                                <Zap size={20} /> Electricity Meter Reading
+                        <div className="mb-8 bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-800/50 rounded-lg p-6 transition-colors duration-300">
+                            <h3 className="text-lg font-bold text-teal-700 dark:text-teal-500 mb-4 flex items-center gap-2">
+                                <Scale size={20} /> Weight & Moisture Details
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Start Reading</label>
+                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Start Weight (kg)</label>
+                                    <input 
+                                        type="number" 
+                                        step="any"
+                                        min="0"
+                                        name="startWeight" 
+                                        value={formData.startWeight} 
+                                        onChange={handleInputChange} 
+                                        onWheel={(e) => e.target.blur()} 
+                                        required 
+                                        placeholder="e.g., 50.5"
+                                        className="w-full p-3 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-teal-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">End Weight (kg)</label>
+                                    <input 
+                                        type="number" 
+                                        step="any"
+                                        min="0"
+                                        name="endWeight" 
+                                        value={formData.endWeight} 
+                                        onChange={handleInputChange} 
+                                        onWheel={(e) => e.target.blur()} 
+                                        required 
+                                        placeholder="e.g., 12.2"
+                                        className="w-full p-3 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-teal-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
+                                        Moisture <Droplets size={12} className="text-teal-600 dark:text-teal-400"/> (%)
+                                    </label>
+                                    <input 
+                                        type="number" 
+                                        step="any"
+                                        min="0"
+                                        max="100"
+                                        name="moisturePercentage" 
+                                        value={formData.moisturePercentage} 
+                                        onChange={handleInputChange} 
+                                        onWheel={(e) => e.target.blur()} 
+                                        required 
+                                        placeholder="e.g., 4.5"
+                                        className="w-full p-3 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-teal-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mb-8 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800/50 rounded-lg p-6 transition-colors duration-300">
+                            <h3 className="text-lg font-bold text-orange-600 dark:text-orange-500 mb-4 flex items-center gap-2">
+                                <Zap size={20} /> Electricity Meter & Cost
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                <div className="md:col-span-1">
+                                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Start Reading</label>
                                     <input 
                                         type="number" 
                                         min="0"
+                                        step="any"
                                         name="meterStart" 
                                         value={formData.meterStart} 
                                         onChange={handleInputChange} 
                                         onWheel={(e) => e.target.blur()} 
                                         required 
-                                        className="w-full p-3 border border-orange-200 dark:border-orange-800/50 rounded-md focus:ring-2 focus:ring-orange-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                        className="w-full p-2 border border-orange-200 dark:border-orange-800/50 rounded-md focus:ring-2 focus:ring-orange-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">End Reading</label>
+                                <div className="md:col-span-1">
+                                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">End Reading</label>
                                     <input 
                                         type="number" 
                                         min="0"
+                                        step="any"
                                         name="meterEnd" 
                                         value={formData.meterEnd} 
                                         onChange={handleInputChange} 
                                         onWheel={(e) => e.target.blur()} 
                                         required 
-                                        className="w-full p-3 border border-orange-200 dark:border-orange-800/50 rounded-md focus:ring-2 focus:ring-orange-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                        className="w-full p-2 border border-orange-200 dark:border-orange-800/50 rounded-md focus:ring-2 focus:ring-orange-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Total Consumed</label>
-                                    <div className="w-full p-3 border border-orange-300 dark:border-orange-700/50 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400 font-bold rounded-md text-center transition-colors">
-                                        {totalUnits > 0 ? totalUnits : 0}
+                                <div className="md:col-span-1">
+                                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Units Used</label>
+                                    <div className="w-full p-2 border border-orange-300 dark:border-orange-700/50 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400 font-bold rounded-md text-center transition-colors">
+                                        {totalUnits > 0 ? totalUnits.toFixed(2) : 0}
+                                    </div>
+                                </div>
+                                {/* NEW ELECTRICITY RATE FIELD */}
+                                <div className="md:col-span-1">
+                                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">Rate <Banknote size={10} className="text-orange-600 dark:text-orange-400"/></label>
+                                    <input 
+                                        type="number" 
+                                        min="0"
+                                        step="any"
+                                        name="electricityRate" 
+                                        value={formData.electricityRate} 
+                                        onChange={handleInputChange} 
+                                        onWheel={(e) => e.target.blur()} 
+                                        required 
+                                        placeholder="e.g. 50"
+                                        className="w-full p-2 border border-orange-200 dark:border-orange-800/50 rounded-md focus:ring-2 focus:ring-orange-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                    />
+                                </div>
+                                <div className="md:col-span-1">
+                                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Elec Cost</label>
+                                    <div className="w-full p-2 border border-orange-400 dark:border-orange-600/50 bg-orange-200 dark:bg-orange-800/40 text-orange-900 dark:text-orange-300 font-bold rounded-md text-center transition-colors">
+                                        {calculatedElectricityCost > 0 ? calculatedElectricityCost.toFixed(2) : "0.00"}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Time Section */}
                         <div className="mb-8 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/50 rounded-lg p-6 transition-colors duration-300">
                             <h3 className="text-lg font-bold text-blue-700 dark:text-blue-400 mb-4 flex items-center gap-2">
-                                <Clock size={20} /> Processing Time
+                                <Clock size={20} /> Time & Labour Details
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Time Period (Hours)</label>
                                     <input 
                                         type="number" 
                                         min="0"
-                                        step="0.1"
+                                        step="any"
                                         name="timePeriod" 
                                         value={formData.timePeriod} 
                                         onChange={handleInputChange} 
@@ -281,6 +381,47 @@ export default function DehydratorRecordForm() {
                                         placeholder="e.g., 3.5"
                                         className="w-full p-3 border border-blue-200 dark:border-blue-800/50 rounded-md focus:ring-2 focus:ring-blue-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                                     />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
+                                        Labour Hours Worked <Users size={12} className="text-blue-600 dark:text-blue-400"/>
+                                    </label>
+                                    <input 
+                                        type="number" 
+                                        min="0"
+                                        step="any"
+                                        name="labourHours" 
+                                        value={formData.labourHours} 
+                                        onChange={handleInputChange} 
+                                        onWheel={(e) => e.target.blur()} 
+                                        required 
+                                        placeholder="e.g., 4"
+                                        className="w-full p-3 border border-blue-200 dark:border-blue-800/50 rounded-md focus:ring-2 focus:ring-blue-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
+                                        Labour Rate (Per 8 Hours) <Banknote size={12} className="text-blue-600 dark:text-blue-400"/>
+                                    </label>
+                                    <input 
+                                        type="number" 
+                                        min="0"
+                                        step="any"
+                                        name="labourCostPer8Hours" 
+                                        value={formData.labourCostPer8Hours} 
+                                        onChange={handleInputChange} 
+                                        onWheel={(e) => e.target.blur()} 
+                                        required 
+                                        placeholder="e.g., 2000"
+                                        className="w-full p-3 border border-blue-200 dark:border-blue-800/50 rounded-md focus:ring-2 focus:ring-blue-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Calculated Labour Cost</label>
+                                    <div className="w-full p-3 border border-blue-300 dark:border-blue-700/50 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 font-bold rounded-md text-center transition-colors">
+                                        {calculatedLabourCost > 0 ? calculatedLabourCost.toFixed(2) : "0.00"}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -294,7 +435,6 @@ export default function DehydratorRecordForm() {
                     </form>
                 </div>
 
-                {/* --- 2. PENDING LIST (Right Side) --- */}
                 <div className="lg:col-span-2 flex flex-col gap-6">
                     <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-lg border border-blue-100 dark:border-blue-900/50 flex-1 flex flex-col sticky top-8 max-h-[80vh] transition-colors duration-300">
                         <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-zinc-800 pb-4">
@@ -329,16 +469,40 @@ export default function DehydratorRecordForm() {
                                                 <Trash2 size={16} />
                                             </button>
 
-                                            <div className="flex flex-col gap-2">
-                                                <div className="flex items-center gap-2">
+                                            <div className="flex flex-col gap-2 pr-8">
+                                                <div className="flex flex-wrap items-center gap-2">
                                                     <span className="font-black text-gray-800 dark:text-gray-200 text-lg">{item.trial}</span>
                                                     <span className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded font-bold uppercase border border-blue-200 dark:border-blue-800/50">{item.timePeriod} Hrs</span>
                                                 </div>
                                                 
-                                                <div className="bg-white dark:bg-zinc-900 p-2 rounded border border-gray-100 dark:border-zinc-700/50 text-xs text-gray-600 dark:text-gray-300 mt-1 transition-colors">
-                                                    <span className="block text-gray-400 dark:text-gray-500 font-bold mb-0.5 text-[9px] uppercase">Electricity</span>
-                                                    Units: <span className="font-bold text-orange-600 dark:text-orange-500">{item.totalUnits}</span>
-                                                    <span className="ml-2 text-gray-400 dark:text-gray-500">({item.meterStart} - {item.meterEnd})</span>
+                                                <div className="bg-white dark:bg-zinc-900 p-2.5 rounded border border-gray-100 dark:border-zinc-700/50 text-xs text-gray-600 dark:text-gray-300 mt-1 transition-colors grid grid-cols-2 gap-2">
+                                                    
+                                                    <div>
+                                                        <span className="block text-gray-400 dark:text-gray-500 font-bold mb-0.5 text-[9px] uppercase">Yield</span>
+                                                        <div className="flex items-center gap-1 font-medium">
+                                                            <span className="text-teal-600 dark:text-teal-400">{item.startWeight}kg</span>
+                                                            <span className="text-gray-400">→</span>
+                                                            <span className="text-teal-600 dark:text-teal-400">{item.endWeight}kg</span>
+                                                        </div>
+                                                        <div className="text-[10px] text-gray-500 mt-0.5">Moisture: <span className="font-bold">{item.moisturePercentage}%</span></div>
+                                                    </div>
+
+                                                    <div>
+                                                        <span className="block text-gray-400 dark:text-gray-500 font-bold mb-0.5 text-[9px] uppercase">Electricity</span>
+                                                        <div className="font-medium">
+                                                            Cost: <span className="font-bold text-orange-600 dark:text-orange-500">{item.calculatedElectricityCost.toFixed(2)}</span>
+                                                        </div>
+                                                        <div className="text-[10px] text-gray-500 mt-0.5">Units: <span className="font-bold">{item.totalUnits.toFixed(2)}</span></div>
+                                                    </div>
+
+                                                    <div>
+                                                        <span className="block text-gray-400 dark:text-gray-500 font-bold mb-0.5 text-[9px] uppercase">Labour</span>
+                                                        <div className="font-medium">
+                                                            Cost: <span className="font-bold text-purple-600 dark:text-purple-400">{item.calculatedLabourCost.toFixed(2)}</span>
+                                                        </div>
+                                                        <div className="text-[10px] text-gray-500 mt-0.5">Hours: <span className="font-bold">{item.labourHours}</span></div>
+                                                    </div>
+
                                                 </div>
                                             </div>
                                         </div>
