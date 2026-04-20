@@ -209,7 +209,8 @@ export default function DashboardLayout() {
     <SidebarProvider open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
       <Sidebar 
         collapsible="icon" 
-        className="border-none bg-[#F4F7F5] dark:bg-zinc-950"
+        // Add the transition classes here:
+        className="border-none bg-[#F4F7F5] dark:bg-zinc-950 transition-[width] duration-300 ease-in-out"
         onMouseEnter={handleSidebarMouseEnter}
         onMouseLeave={handleSidebarMouseLeave}
       >
