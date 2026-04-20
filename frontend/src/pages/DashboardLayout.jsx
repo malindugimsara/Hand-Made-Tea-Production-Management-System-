@@ -8,13 +8,9 @@ import {
   LayoutDashboard,
   Leaf,
   Factory,
-  Calculator,
   LineChart,
   ChevronsUpDown,
   LogOut,
-  Settings2,
-  Bell,
-  BadgeCheck,
   ChevronRight,
   Shield, 
   Sun,
@@ -23,7 +19,7 @@ import {
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import {
   Breadcrumb,
@@ -36,7 +32,6 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -126,6 +121,32 @@ export default function DashboardLayout() {
   const location = useLocation();
   const isMobile = useIsMobile();
 
+  // --- SIDEBAR HOVER & DELAY LOGIC ---
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
+  const sidebarTimeoutRef = React.useRef(null);
+
+  const handleSidebarMouseEnter = () => {
+    // Clear the timer if the user brings the mouse back before 5 seconds
+    if (sidebarTimeoutRef.current) {
+      clearTimeout(sidebarTimeoutRef.current);
+    }
+    setIsSidebarOpen(true);
+  };
+
+  const handleSidebarMouseLeave = () => {
+    // Start a 5-second countdown to close the sidebar
+    sidebarTimeoutRef.current = setTimeout(() => {
+      setIsSidebarOpen(false);
+    }, 500); 
+  };
+
+  // Cleanup timer on unmount to prevent memory leaks
+  React.useEffect(() => {
+    return () => {
+      if (sidebarTimeoutRef.current) clearTimeout(sidebarTimeoutRef.current);
+    };
+  }, []);
+
   // --- THEME STATE LOGIC ---
   const [isDark, setIsDark] = React.useState(false);
 
@@ -171,10 +192,8 @@ export default function DashboardLayout() {
       case '/view-green-leaf': return 'View Green Leaf Records';
       case '/dehydrator-record-form': return 'Dehydrator Record Entry';
       case '/view-dehydrator-records': return 'Dehydrator Records';
-      case '/selling-details-table': return 'Selling Details'; 
       case '/raw-material-cost': return 'Raw Material Cost Entry';
       case '/view-raw-material-cost': return 'View Raw Material Costs';
-      case '/cost-of-production': return 'Cost Calculations';
       case '/production-summary': return 'Production Summary';
       case '/manage-users': return 'User Management'; 
       case '/create-user': return 'Create User'; 
@@ -186,8 +205,14 @@ export default function DashboardLayout() {
 
   return (
     <TooltipProvider delayDuration={0}>
-    <SidebarProvider>
-      <Sidebar collapsible="icon" className="border-none bg-[#F4F7F5] dark:bg-zinc-950">
+    {/* SidebarProvider is now controlled via state */}
+    <SidebarProvider open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+      <Sidebar 
+        collapsible="icon" 
+        className="border-none bg-[#F4F7F5] dark:bg-zinc-950"
+        onMouseEnter={handleSidebarMouseEnter}
+        onMouseLeave={handleSidebarMouseLeave}
+      >
         
         <SidebarHeader className="pt-6 pb-2 px-4">
           <SidebarMenu>
@@ -381,7 +406,7 @@ export default function DashboardLayout() {
             </Breadcrumb>
           </div>
 
-          {/* --- THEME TOGGLER PLACED HERE --- */}
+          {/* --- THEME TOGGLER --- */}
           <div className="flex items-center gap-2 mr-2">
              <button 
                 onClick={toggleTheme}
@@ -395,7 +420,7 @@ export default function DashboardLayout() {
         </header>
 
         <div className="flex-1 mt-16 bg-white dark:bg-zinc-900 rounded-[2rem] shadow-[0_0_40px_rgb(0,0,0,0.02)] border border-gray-100 dark:border-zinc-800 overflow-hidden relative flex flex-col transition-colors duration-300">
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-zinc-700 hover:scrollbar-thumb-gray-300 dark:hover:scrollbar-thumb-zinc-600">
             <motion.div
               key={location.pathname}
               initial={{ opacity: 0, y: 15, scale: 0.98, filter: 'blur(8px)' }}
