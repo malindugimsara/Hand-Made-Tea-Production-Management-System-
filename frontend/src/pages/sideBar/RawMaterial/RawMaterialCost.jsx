@@ -211,6 +211,7 @@ export default function RawMaterialCost() {
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">START READING</label>
                                     <input 
                                         type="number" 
+                                        min="0" 
                                         name="meterStart"
                                         required
                                         onWheel={(e) => e.target.blur()}
@@ -223,6 +224,7 @@ export default function RawMaterialCost() {
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">END READING</label>
                                     <input 
                                         type="number" 
+                                        min="0" 
                                         name="meterEnd"
                                         required
                                         onWheel={(e) => e.target.blur()}
@@ -248,7 +250,8 @@ export default function RawMaterialCost() {
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">RAW MAT. COST (Rs)</label>
                                     <input 
                                         type="number" 
-                                        name="rawMaterialCost"
+                                        step="0.01"
+                                        name="rnumberawMaterialCost"
                                         required
                                         min="0"
                                         onWheel={(e) => e.target.blur()}
@@ -261,6 +264,7 @@ export default function RawMaterialCost() {
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">ELECTRICITY COST (Rs)</label>
                                     <input 
                                         type="number" 
+                                        step="0.1"
                                         name="electricityCost"
                                         required
                                         min="0"

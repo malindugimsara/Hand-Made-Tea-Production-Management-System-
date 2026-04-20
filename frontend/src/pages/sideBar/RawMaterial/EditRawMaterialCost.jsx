@@ -244,6 +244,7 @@ export default function EditRawMaterialCost() {
                             <label className="text-xs font-bold text-gray-500 dark:text-gray-400 block mb-1">ELECTRICITY COST (Rs)</label>
                             <input 
                                 type="number" 
+                                step="0.01"
                                 name="electricityCost"
                                 required
                                 min="0"

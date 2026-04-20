@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import toast from 'react-hot-toast'; 
+import toast, { Toaster } from 'react-hot-toast'; 
 import { Calculator, Calendar, Leaf, Zap, Users, Settings2, RefreshCw, CheckSquare, Square, Save, AlertTriangle, Filter, Info, Eye, FileDown, Sun, Moon } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader'; 
 
@@ -31,8 +31,6 @@ export default function ProductionSummary() {
 
     const [labourRate, setLabourRate] = useState(1350);
     const [electricityRate, setElectricityRate] = useState(10);
-
-    const [manualInputs, setManualInputs] = useState({});
 
     const teaOptions = [
         "Purple Tea", "Pink Tea", "White Tea", "Silver Tips", 
@@ -67,7 +65,7 @@ export default function ProductionSummary() {
 
     useEffect(() => {
         setIsSaved(false);
-    }, [manualInputs, labourRate, electricityRate, selectedTeaTypes]);
+    }, [labourRate, electricityRate, selectedTeaTypes]);
 
     useEffect(() => {
         fetchAllData(true); 
@@ -117,6 +115,7 @@ export default function ProductionSummary() {
                 const mStart = Number(prod?.dryerDetails?.meterStart) || 0;
                 const mEnd = Number(prod?.dryerDetails?.meterEnd) || 0;
                 const calculatedUnits = mEnd > mStart ? (mEnd - mStart) : 0;
+                const rPoints = Number(prod?.dryerDetails?.rollerPoints) || 0; // Get Roller Points
 
                 return {
                     date: dateStr,
@@ -124,9 +123,11 @@ export default function ProductionSummary() {
                     madeTeaWeight: prod.madeTeaWeight || 0,
                     selectedWeight: gl ? gl.selectedWeight : 0,
                     workerCount: lab ? lab.workerCount : 0,
+                    rollingWorkerCount: lab && lab.rollingType === 'Hand Rolling' ? lab.rollingWorkerCount : 0, // Get Hand Rolling Count
                     meterStart: mStart, 
                     meterEnd: mEnd,     
-                    dryerUnits: calculatedUnits
+                    dryerUnits: calculatedUnits,
+                    rollerPoints: rPoints
                 };
             });
 
@@ -160,19 +161,9 @@ export default function ProductionSummary() {
                     setLabourRate(savedSummary.labourRate);
                     setElectricityRate(savedSummary.electricityRate);
 
-                    const newManualInputs = {};
-                    const activeTypes = [];
-
-                    savedSummary.teaSummaries.forEach(tea => {
-                        activeTypes.push(tea.type);
-                        newManualInputs[tea.type] = {
-                            handRolling: tea.hrWorkers,
-                            roller: tea.rPoints
-                        };
-                    });
+                    const activeTypes = savedSummary.teaSummaries.map(tea => tea.type);
 
                     setSelectedTeaTypes(activeTypes);
-                    setManualInputs(newManualInputs);
                     setTimeout(() => setIsSaved(true), 100); 
                     
                     if (!isSilent) toast.success(`Loaded saved summary for ${month}!`, { id: toastId });
@@ -208,7 +199,6 @@ export default function ProductionSummary() {
 
         const activeTypes = Object.keys(glTotals).filter(type => glTotals[type] > 0);
         setSelectedTeaTypes(activeTypes.length > 0 ? activeTypes : [...teaOptions]);
-        setManualInputs({}); 
         setTimeout(() => setIsSaved(false), 100); 
     };
 
@@ -226,14 +216,6 @@ export default function ProductionSummary() {
         setIsSaved(false);
     };
 
-    const handleManualChange = (type, field, value) => {
-        setManualInputs(prev => ({
-            ...prev,
-            [type]: { ...prev[type], [field]: Number(value) || 0 }
-        }));
-        setIsSaved(false);
-    };
-
     const handleLabourRateChange = (e) => {
         setLabourRate(e.target.value.replace(/^0+(?=\d)/, ''));
         setIsSaved(false);
@@ -244,6 +226,7 @@ export default function ProductionSummary() {
         setIsSaved(false);
     };
 
+    // Calculate Table Data dynamically based on Backend Records
     const generateTableData = () => {
         if (selectedTeaTypes.length === 0) return []; 
 
@@ -254,16 +237,18 @@ export default function ProductionSummary() {
             const totalGL = relevantRecords.reduce((sum, r) => sum + Number(r.selectedWeight || 0), 0);
             const totalSelectionWorkers = relevantRecords.reduce((sum, r) => sum + Number(r.workerCount || 0), 0);
             const totalMT = relevantRecords.reduce((sum, r) => sum + Number(r.madeTeaWeight || 0), 0);
+            
+            // Calculate Hand Rolling Workers & Roller Points from DB records directly
+            const hrWorkers = relevantRecords.reduce((sum, r) => sum + Number(r.rollingWorkerCount || 0), 0);
+            const rPoints = relevantRecords.reduce((sum, r) => sum + Number(r.rollerPoints || 0), 0);
 
+            // Calculate Unique Dryer Units to avoid overlapping duplication
             const uniqueDryerRecords = [];
             relevantRecords.forEach(r => {
                 const isDuplicate = uniqueDryerRecords.some(ud => ud.date === r.date && ud.meterStart === r.meterStart && ud.meterEnd === r.meterEnd);
                 if (!isDuplicate) uniqueDryerRecords.push(r);
             });
             const totalDryerUnits = uniqueDryerRecords.reduce((sum, r) => sum + Number(r.dryerUnits || 0), 0);
-
-            const hrWorkers = manualInputs[type]?.handRolling || 0;
-            const rPoints = manualInputs[type]?.roller || 0;
 
             const selectionCost = totalSelectionWorkers * labourRate;
             const handRollingCost = hrWorkers * labourRate;
@@ -351,6 +336,7 @@ export default function ProductionSummary() {
     
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
+            <Toaster />
             <div className="p-8 max-w-[1400px] mx-auto font-sans relative">
                 <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
                     <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-md transition-colors">
@@ -451,15 +437,11 @@ export default function ProductionSummary() {
                                             <td className="p-2 text-xs font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-gray-700 dark:text-gray-300 bg-green-50/20 dark:bg-green-900/10 transition-colors">{row.totalGL.toFixed(2)}</td>
                                             <td className="p-2 text-xs font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-gray-700 dark:text-gray-300 bg-green-50/20 dark:bg-green-900/10 transition-colors">{row.totalMT.toFixed(3)}</td>
                                             <td className="p-2 text-xs font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-blue-700 dark:text-blue-400 bg-blue-50/20 dark:bg-blue-900/10 transition-colors">{row.totalSelectionWorkers}</td>
-                                            <td className="p-2 text-xs font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center bg-[#f0f5fd] dark:bg-blue-900/10 transition-colors">
-                                                <input type="number" onWheel={(e) => e.target.blur()} value={row.hrWorkers || ''} onChange={(e) => handleManualChange(row.type, 'handRolling', e.target.value)} disabled={isViewer} className="w-full p-1 border border-blue-300 dark:border-zinc-600 rounded text-center font-bold text-blue-800 dark:text-blue-300 outline-none focus:ring-1 focus:ring-blue-500 shadow-inner bg-white dark:bg-zinc-950 disabled:bg-gray-50 dark:disabled:bg-zinc-900 transition-colors" placeholder="0" />
-                                            </td>
+                                            <td className="p-2 text-xs font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-blue-700 dark:text-blue-400 bg-[#f0f5fd] dark:bg-blue-900/10 transition-colors">{row.hrWorkers}</td>
                                             <td className="p-2 text-[11px] font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-gray-600 dark:text-gray-400 transition-colors">{row.selectionCost.toLocaleString()}</td>
                                             <td className="p-2 text-[11px] font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-gray-600 dark:text-gray-400 transition-colors">{row.handRollingCost.toLocaleString()}</td>
                                             <td className="p-2 text-xs font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-orange-600 dark:text-orange-400 bg-orange-50/20 dark:bg-orange-900/10 transition-colors">{row.totalDryerUnits}</td>
-                                            <td className="p-2 text-xs font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center bg-[#fdf7f2] dark:bg-orange-900/10 transition-colors">
-                                                <input type="number" onWheel={(e) => e.target.blur()} value={row.rPoints || ''} onChange={(e) => handleManualChange(row.type, 'roller', e.target.value)} disabled={isViewer} className="w-full p-1 border border-orange-300 dark:border-zinc-600 rounded text-center font-bold text-orange-800 dark:text-orange-300 outline-none focus:ring-1 focus:ring-orange-500 shadow-inner bg-white dark:bg-zinc-950 disabled:bg-gray-50 dark:disabled:bg-zinc-900 transition-colors" placeholder="0" />
-                                            </td>
+                                            <td className="p-2 text-xs font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-orange-600 dark:text-orange-400 bg-[#fdf7f2] dark:bg-orange-900/10 transition-colors">{row.rPoints}</td>
                                             <td className="p-2 text-[11px] font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-gray-600 dark:text-gray-400 transition-colors">{row.dryerCost.toLocaleString()}</td>
                                             <td className="p-2 text-[11px] font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center text-gray-600 dark:text-gray-400 transition-colors">{row.rollerCost.toLocaleString()}</td>
                                             <td className="p-2 text-xs font-black border-b border-r border-gray-200 dark:border-zinc-700 text-center text-[#b81d1d] dark:text-red-400 bg-red-50/30 dark:bg-red-900/20 transition-colors">{row.totalElectricityCost.toLocaleString()}</td>
@@ -493,3 +475,4 @@ export default function ProductionSummary() {
         </div>
     );
 }
+

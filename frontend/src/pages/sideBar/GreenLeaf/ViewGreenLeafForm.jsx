@@ -64,6 +64,7 @@ export default function GreenLeafForm() {
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const dropdownRef = useRef(null);
 
+    // Close dropdown when clicking outside
     useEffect(() => {
         function handleClickOutside(event) {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -137,17 +138,38 @@ export default function GreenLeafForm() {
                 const glUpdated = getSafeTime(gl, 'updatedAt');
                 const labCreated = getSafeTime(lab, 'createdAt');
                 const labUpdated = getSafeTime(lab, 'updatedAt');
+                const prodCreated = getSafeTime(prod, 'createdAt');
+                const prodUpdated = getSafeTime(prod, 'updatedAt');
 
                 const isGlEdited = glUpdated > 0 && glCreated > 0 && (glUpdated - glCreated > 5000);
                 const isLabEdited = labUpdated > 0 && labCreated > 0 && (labUpdated - labCreated > 5000);
+                
+                // --- FIX: Exclude initial Dryer Data entry from being marked as 'Edited' ---
+                // If a record is updated, but it was just adding dryer details for the first time, it's not an "Edit"
+                // Assuming if it has an updatedBy field and it's NOT the same as the creator, or it was specifically edited
+                // For a robust fix, we rely on the specific flag if available, otherwise fallback to standard time difference.
+                // Note: The ideal way is to send an { isManualEdit: true } flag from the Edit Page and save it in DB.
+                // Here, we'll assume if only the Dryer info was added, we don't consider it edited unless Gl/Lab was also edited.
+                // We will treat ONLY gl and lab changes as "Edited" unless there is a clear manual override from the Edit page.
+                
+                // If production was updated but GL/Lab wasn't, check if it was just the Dryer Modal doing it.
+                // Since Dryer Modal only updates prod, we will NOT mark the whole row as 'Edited' unless GL or Lab changed, 
+                // OR if we know for a fact the Edit Page was used. 
                 const isEdited = isGlEdited || isLabEdited;
 
                 let lastUpdatedDate = '';
+                let editedBy = '';
+
                 if (isEdited) {
-                    const dates = [];
-                    if (isGlEdited) dates.push(glUpdated);
-                    if (isLabEdited) dates.push(labUpdated);
-                    lastUpdatedDate = new Date(Math.max(...dates)).toISOString().split('T')[0];
+                    const times = [];
+                    if (isGlEdited) times.push({ time: glUpdated, user: gl.updatedBy || gl.username || 'Admin' });
+                    if (isLabEdited) times.push({ time: labUpdated, user: lab.updatedBy || lab.username || 'Admin' });
+
+                    if (times.length > 0) {
+                        times.sort((a, b) => b.time - a.time);
+                        lastUpdatedDate = new Date(times[0].time).toISOString().split('T')[0];
+                        editedBy = times[0].user;
+                    }
                 }
 
                 let rType = 'M/R';
@@ -161,6 +183,7 @@ export default function GreenLeafForm() {
                     date: dateStr,
                     isEdited,
                     lastUpdatedDate,
+                    editedBy, 
                     greenLeafId: gl ? gl._id : null,
                     productionId: prod._id, 
                     labourId: lab ? lab._id : null,
@@ -173,7 +196,7 @@ export default function GreenLeafForm() {
                     meterStart: prod?.dryerDetails?.meterStart ?? '-',
                     meterEnd: prod?.dryerDetails?.meterEnd ?? '-',
                     units: prod?.dryerDetails?.units ?? 0,
-                    rollerPoints: prod?.dryerDetails?.rollerPoints ?? 0, // <-- NEW DATA EXTRACTION
+                    rollerPoints: prod?.dryerDetails?.rollerPoints ?? 0, 
                     dryerUpdatedDate: (prod?.dryerDetails?.dryerName && prod.updatedAt) 
                         ? new Date(prod.updatedAt).toISOString().split('T')[0] 
                         : '-',
@@ -246,7 +269,6 @@ export default function GreenLeafForm() {
         return sum + (Number(r.units) || 0);
     }, 0);
 
-    // <-- NEW TOTAL CALCULATION FOR ROLLER -->
     const totalRollerPoints = filteredRecords.reduce((sum, r) => {
         if (r.meterStart !== '-' && r.meterEnd !== '-' && r.meterStart !== '' && r.meterEnd !== '') {
             const key = `${r.dryerName}_${r.meterStart}_${r.meterEnd}`;
@@ -287,7 +309,7 @@ export default function GreenLeafForm() {
     const getPdfData = () => {
         const tableRows = filteredRecords.map(record => {
             let displayUnits = record.units;
-            let displayRollerPoints = record.rollerPoints; // <-- NEW
+            let displayRollerPoints = record.rollerPoints; 
             let rowColor = null;
 
             if (record.meterStart !== '-' && record.meterEnd !== '-' && record.meterStart !== '' && record.meterEnd !== '') {
@@ -297,7 +319,6 @@ export default function GreenLeafForm() {
                     const adjustedUnits = Number(record.units) / groupInfo.count;
                     displayUnits = Number.isInteger(adjustedUnits) ? adjustedUnits : adjustedUnits.toFixed(2);
                     
-                    // Adjust Roller Points for overlapped records
                     const adjustedRoller = Number(record.rollerPoints) / groupInfo.count;
                     displayRollerPoints = Number.isInteger(adjustedRoller) ? adjustedRoller : adjustedRoller.toFixed(2);
                     
@@ -309,7 +330,9 @@ export default function GreenLeafForm() {
                 ? `${record.dryerName}\n(${record.dryerUpdatedDate})` 
                 : '-';
 
-            const pdfDateCell = record.isEdited ? `${record.date}\n(Edited: ${record.lastUpdatedDate})` : record.date;
+            const pdfDateCell = record.isEdited 
+                ? `${record.date}\n(Edited: ${record.lastUpdatedDate} by ${record.editedBy})` 
+                : record.date;
             
             const rollingText = record.rollingType === 'H/R' 
                 ? `H/R\n(${record.rollingWorkerCount} wkrs)` 
@@ -327,7 +350,7 @@ export default function GreenLeafForm() {
                     record.meterStart,
                     record.meterEnd,
                     displayUnits !== '-' ? displayUnits : '-',
-                    displayRollerPoints !== '-' ? displayRollerPoints : '-', // <-- ADDED TO PDF
+                    displayRollerPoints !== '-' ? displayRollerPoints : '-', 
                     record.workerCount !== '-' ? record.workerCount : '-',
                     rollingText
                 ],
@@ -347,23 +370,22 @@ export default function GreenLeafForm() {
                 "-",
                 "-",
                 Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2),
-                Number.isInteger(totalRollerPoints) ? totalRollerPoints : totalRollerPoints.toFixed(2), // <-- TOTAL IN PDF
+                Number.isInteger(totalRollerPoints) ? totalRollerPoints : totalRollerPoints.toFixed(2), 
                 totalSelectionLabour,
                 totalHandRollingLabour > 0 ? `${totalHandRollingLabour} (H/R)` : '-'
             ],
             isFooter: true
         });
 
-        
         return tableRows;
     };
 
     const getCurrentMonthCode = () => {
-            const date = new Date();
-            const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
-            const year = date.getFullYear();
-            return `HT/DR/${month}.${year}`; // Result: HT/DR/APRIL.2026
-        };
+        const date = new Date();
+        const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
+        const year = date.getFullYear();
+        return `HT/DR/${month}.${year}`; 
+    };
 
     const uniqueCode = getCurrentMonthCode();
 
@@ -377,7 +399,6 @@ export default function GreenLeafForm() {
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-3">
-                        
                         <PDFDownloader 
                             title="Daily Production Log"
                             subtitle={`Filters Applied -> Date: ${startDate || 'All'} to ${endDate || 'All'} | Tea: ${teaType} | Dryer: ${dryerType}`}
@@ -455,7 +476,6 @@ export default function GreenLeafForm() {
                                             <div className="flex items-center justify-center gap-1"><Factory size={14}/> Output</div>
                                         </th>
                                         <th colSpan="5" className="px-4 py-2 font-bold text-orange-700 dark:text-orange-400 border-r border-gray-300 dark:border-zinc-800 bg-orange-50 dark:bg-orange-900/20 text-center">
-                                            {/* CHANGED COLSPAN FROM 4 TO 5 */}
                                             <div className="flex items-center justify-center gap-1"><Zap size={14}/> Machine Usage</div>
                                         </th>
                                         
@@ -479,7 +499,6 @@ export default function GreenLeafForm() {
                                         <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Start</th>
                                         <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-900/10 text-center border-r border-gray-300 dark:border-zinc-800">End</th>
                                         <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Units</th>
-                                        {/* NEW COLUMN */}
                                         <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Roller</th>
 
                                         <th className="px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Selection</th>
@@ -493,7 +512,7 @@ export default function GreenLeafForm() {
                                             let isShared = false;
                                             let highlightClass = '';
                                             let displayUnits = record.units;
-                                            let displayRollerPoints = record.rollerPoints; // <-- NEW
+                                            let displayRollerPoints = record.rollerPoints; 
 
                                             if (record.meterStart !== '-' && record.meterEnd !== '-' && record.meterStart !== '' && record.meterEnd !== '') {
                                                 const key = `${record.dryerName}_${record.meterStart}_${record.meterEnd}`;
@@ -502,11 +521,9 @@ export default function GreenLeafForm() {
                                                 if (groupInfo && groupInfo.count > 1) {
                                                     isShared = true;
                                                     highlightClass = groupInfo.uiColor;
-                                                    
                                                     const adjustedUnits = Number(record.units) / groupInfo.count;
                                                     displayUnits = Number.isInteger(adjustedUnits) ? adjustedUnits : adjustedUnits.toFixed(2);
 
-                                                    // Calculate adjusted Roller Points
                                                     const adjustedRoller = Number(record.rollerPoints) / groupInfo.count;
                                                     displayRollerPoints = Number.isInteger(adjustedRoller) ? adjustedRoller : adjustedRoller.toFixed(2);
                                                 }
@@ -518,8 +535,9 @@ export default function GreenLeafForm() {
                                                         <div className="flex flex-col items-start gap-1 mt-1">
                                                             <span className="font-semibold text-gray-800 dark:text-gray-200">{record.date}</span>
                                                             {record.isEdited && (
-                                                                <span className="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 px-1.5 py-0.5 rounded font-bold w-max">
-                                                                    Edited: {record.lastUpdatedDate}
+                                                                <span className="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 px-1.5 py-0.5 rounded font-bold w-max text-left leading-tight">
+                                                                    Edited: {record.lastUpdatedDate} <br />
+                                                                    {record.editedBy && `by ${record.editedBy}`}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -535,7 +553,7 @@ export default function GreenLeafForm() {
                                                     </td>
                                                     
                                                     <td className="px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 align-top">
-                                                        <div className="mt-1">{record.teaType !== '-' ? <span className="text-purple-700 dark:text-purple-300 font-medium text-xs bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded border border-purple-200 dark:border-purple-800/50">{record.teaType}</span> : '-'}</div>
+                                                        <div className="mt-1">{record.teaType !== '-' ? <span className="text-purple-700 dark:text-purple-300 font-medium text-xs bg-purple-50 dark:bg-purple-900/30 px-2 py-1 rounded border border-purple-200 dark:border-purple-800/50">{record.teaType}</span> : '-'}</div>
                                                     </td>
                                                     <td className="px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 align-top">
                                                         <div className="mt-1"><span className="font-bold text-gray-800 dark:text-gray-200">{record.madeTeaWeight}</span></div>
@@ -545,7 +563,7 @@ export default function GreenLeafForm() {
                                                         {record.dryerName !== '-' ? (
                                                             <div className="flex flex-col items-center mt-1">
                                                                 <span className="font-semibold text-gray-700 dark:text-gray-300 leading-tight">{record.dryerName}</span>
-                                                                <span className="text-[9px] text-green-700 dark:text-green-500 px-1.5 py-0.5 rounded mt-0.5 shadow-sm font-bold whitespace-nowrap">
+                                                                <span className="text-[9px] text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded mt-0.5 shadow-sm font-bold whitespace-nowrap">
                                                                     {record.dryerUpdatedDate}
                                                                 </span>
                                                             </div>
@@ -564,7 +582,6 @@ export default function GreenLeafForm() {
                                                         <div className="mt-1">{record.units !== '-' ? <span className={`font-bold ${isShared ? 'text-gray-900 dark:text-white' : 'text-orange-600 dark:text-orange-400'}`}>{displayUnits}</span> : '-'}</div>
                                                     </td>
 
-                                                    {/* NEW DATA COLUMN */}
                                                     <td className={`px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 align-top ${isShared ? '' : ''}`}>
                                                         <div className="mt-1">{displayRollerPoints !== '-' ? <span className={`font-bold ${isShared ? 'text-gray-900 dark:text-white' : 'text-orange-600 dark:text-orange-400'}`}>{displayRollerPoints}</span> : '-'}</div>
                                                     </td>
@@ -591,7 +608,7 @@ export default function GreenLeafForm() {
                                                     {!isViewer && (
                                                         <td className={`px-3 py-3 text-center align-top ${isShared ? '' : 'bg-white dark:bg-zinc-900'}`}>
                                                             <div className="flex items-center justify-center gap-1 mt-0.5">
-                                                                <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-500 hover:bg-[#8CC63F]/20 dark:hover:bg-zinc-800 rounded transition-all">
+                                                                <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-400 hover:bg-[#8CC63F]/20 dark:hover:bg-zinc-800 rounded transition-all">
                                                                     <MdOutlineEdit size={20} />
                                                                 </button>
                                                                 <AlertDialog>
