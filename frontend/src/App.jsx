@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 
 // Import your Layout and Pages
 import DashboardLayout from './pages/DashboardLayout';
-import DashboardHome from './pages/sideBar/home';
+import DashboardHome from './pages/sideBar/Home';
 import GreenLeafForm from './pages/sideBar/GreenLeaf/GreenLeafForm';
 import ViewGreenLeafForm from './pages/sideBar/GreenLeaf/ViewGreenLeafForm';
 import EditRecordPage from './pages/sideBar/GreenLeaf/EditRecordPage';
