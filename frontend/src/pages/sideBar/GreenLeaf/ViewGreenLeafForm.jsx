@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import toast from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+import { PlusCircle, Trash2, ListChecks, Save, X, CalendarClock, Zap, AlertCircle, Search, Sun, Moon, ChevronRight, MoreVertical, Leaf, Factory, Users, RefreshCw } from "lucide-react";
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
-import { Leaf, Factory, Users, Zap, AlertCircle, RefreshCw, Sun, Moon, ChevronRight, MoreVertical } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
 
 import {
@@ -30,23 +31,9 @@ import {
     DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 
-import { useNavigate } from 'react-router-dom';
-
-export default function ViewGreenLeafForm() {
+export default function GreenLeafForm() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-    const [records, setRecords] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [recordToDelete, setRecordToDelete] = useState(null);
-
-    const userRole = localStorage.getItem('userRole') || ''; 
-    const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
-
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
-    const [teaType, setTeaType] = useState('All');
-    const [dryerType, setDryerType] = useState('All');
-
-    const navigate = useNavigate(); 
+    const navigation = useNavigate();
 
     // --- THEME STATE LOGIC ---
     const [isDark, setIsDark] = useState(false);
@@ -77,7 +64,6 @@ export default function ViewGreenLeafForm() {
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const dropdownRef = useRef(null);
 
-    // Close dropdown when clicking outside
     useEffect(() => {
         function handleClickOutside(event) {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -88,6 +74,18 @@ export default function ViewGreenLeafForm() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [dropdownRef]);
     
+    const [records, setRecords] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [recordToDelete, setRecordToDelete] = useState(null);
+
+    const userRole = localStorage.getItem('userRole') || ''; 
+    const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
+
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [teaType, setTeaType] = useState('All');
+    const [dryerType, setDryerType] = useState('All');
+
     useEffect(() => {
         fetchMergedRecords();
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,7 +132,6 @@ export default function ViewGreenLeafForm() {
                 glUsage[dateStr]++;
                 labUsage[dateStr]++;
 
-                // --- Edited Logic Fix ---
                 const getSafeTime = (item, field) => item && item[field] ? new Date(item[field]).getTime() : 0;
                 const glCreated = getSafeTime(gl, 'createdAt');
                 const glUpdated = getSafeTime(gl, 'updatedAt');
@@ -153,7 +150,6 @@ export default function ViewGreenLeafForm() {
                     lastUpdatedDate = new Date(Math.max(...dates)).toISOString().split('T')[0];
                 }
 
-                // --- Format Rolling Type ---
                 let rType = 'M/R';
                 if (lab && lab.rollingType) {
                     if (lab.rollingType === 'Machine Rolling') rType = 'M/R';
@@ -177,6 +173,7 @@ export default function ViewGreenLeafForm() {
                     meterStart: prod?.dryerDetails?.meterStart ?? '-',
                     meterEnd: prod?.dryerDetails?.meterEnd ?? '-',
                     units: prod?.dryerDetails?.units ?? 0,
+                    rollerPoints: prod?.dryerDetails?.rollerPoints ?? 0, // <-- NEW DATA EXTRACTION
                     dryerUpdatedDate: (prod?.dryerDetails?.dryerName && prod.updatedAt) 
                         ? new Date(prod.updatedAt).toISOString().split('T')[0] 
                         : '-',
@@ -203,7 +200,6 @@ export default function ViewGreenLeafForm() {
         return dateMatch && typeMatch && dryerMatch;
     });
 
-    // Grouping Overlapped Dryer Records
     const groupMap = {};
     filteredRecords.forEach(r => {
         if (r.meterStart !== '-' && r.meterEnd !== '-' && r.meterStart !== '' && r.meterEnd !== '') {
@@ -215,7 +211,6 @@ export default function ViewGreenLeafForm() {
         }
     });
 
-    // Hex codes for jsPDF support, Tailwind classes for UI
     const highlightColors = [
         { ui: 'bg-green-200/80 dark:bg-green-900/40', pdf: '#bbf7d0' },
         { ui: 'bg-yellow-200/80 dark:bg-yellow-900/40', pdf: '#fef08a' },
@@ -235,7 +230,6 @@ export default function ViewGreenLeafForm() {
         }
     });
 
-    // ACCURATE TOTAL CALCULATION
     const totalGL = filteredRecords.reduce((sum, r) => sum + (Number(r.totalWeight) || 0), 0);
     const totalSelectedGL = filteredRecords.reduce((sum, r) => sum + (Number(r.selectedWeight) || 0), 0);
     const totalReturnedGL = filteredRecords.reduce((sum, r) => sum + (Number(r.returnedWeight) || 0), 0);
@@ -252,8 +246,18 @@ export default function ViewGreenLeafForm() {
         return sum + (Number(r.units) || 0);
     }, 0);
 
+    // <-- NEW TOTAL CALCULATION FOR ROLLER -->
+    const totalRollerPoints = filteredRecords.reduce((sum, r) => {
+        if (r.meterStart !== '-' && r.meterEnd !== '-' && r.meterStart !== '' && r.meterEnd !== '') {
+            const key = `${r.dryerName}_${r.meterStart}_${r.meterEnd}`;
+            const count = groupMap[key]?.count || 1;
+            return sum + ((Number(r.rollerPoints) || 0) / count);
+        }
+        return sum + (Number(r.rollerPoints) || 0);
+    }, 0);
+
     const handleEditClick = (record) => {
-        navigate('/edit-record', { state: { recordData: record } });
+        navigation('/edit-record', { state: { recordData: record } });
     };
 
     const handleConfirmDelete = async () => {
@@ -280,12 +284,10 @@ export default function ViewGreenLeafForm() {
         }
     };
 
-    // -------------------------------------------------------------
-    // PREPARE PDF DATA
-    // -------------------------------------------------------------
     const getPdfData = () => {
         const tableRows = filteredRecords.map(record => {
             let displayUnits = record.units;
+            let displayRollerPoints = record.rollerPoints; // <-- NEW
             let rowColor = null;
 
             if (record.meterStart !== '-' && record.meterEnd !== '-' && record.meterStart !== '' && record.meterEnd !== '') {
@@ -294,6 +296,11 @@ export default function ViewGreenLeafForm() {
                 if (groupInfo && groupInfo.count > 1) {
                     const adjustedUnits = Number(record.units) / groupInfo.count;
                     displayUnits = Number.isInteger(adjustedUnits) ? adjustedUnits : adjustedUnits.toFixed(2);
+                    
+                    // Adjust Roller Points for overlapped records
+                    const adjustedRoller = Number(record.rollerPoints) / groupInfo.count;
+                    displayRollerPoints = Number.isInteger(adjustedRoller) ? adjustedRoller : adjustedRoller.toFixed(2);
+                    
                     rowColor = groupInfo.pdfColor; 
                 }
             }
@@ -320,6 +327,7 @@ export default function ViewGreenLeafForm() {
                     record.meterStart,
                     record.meterEnd,
                     displayUnits !== '-' ? displayUnits : '-',
+                    displayRollerPoints !== '-' ? displayRollerPoints : '-', // <-- ADDED TO PDF
                     record.workerCount !== '-' ? record.workerCount : '-',
                     rollingText
                 ],
@@ -339,6 +347,7 @@ export default function ViewGreenLeafForm() {
                 "-",
                 "-",
                 Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2),
+                Number.isInteger(totalRollerPoints) ? totalRollerPoints : totalRollerPoints.toFixed(2), // <-- TOTAL IN PDF
                 totalSelectionLabour,
                 totalHandRollingLabour > 0 ? `${totalHandRollingLabour} (H/R)` : '-'
             ],
@@ -350,7 +359,8 @@ export default function ViewGreenLeafForm() {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
-            <div className="p-8 max-w-[1500px] mx-auto font-sans relative">
+            <div className="p-8 max-w-[1600px] mx-auto font-sans relative">
+                <Toaster />
                 
                 <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
@@ -359,10 +369,11 @@ export default function ViewGreenLeafForm() {
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-3">
+                        
                         <PDFDownloader 
                             title="Daily Production Log"
                             subtitle={`Filters Applied -> Date: ${startDate || 'All'} to ${endDate || 'All'} | Tea: ${teaType} | Dryer: ${dryerType}`}
-                            headers={["Date", "Received GL", "Selected GL", "Return GL", "Tea Type", "Made Tea", "Dryer", "Start Meter", "End Meter", "Units", "Sel. Lab", "Rolling"]}
+                            headers={["Date", "Received GL", "Selected GL", "Return GL", "Tea Type", "Made Tea", "Dryer", "Start", "End", "Units", "Roller", "Sel. Lab", "Rolling"]}
                             data={getPdfData()} 
                             fileName={`Production_Log_${new Date().toISOString().split('T')[0]}.pdf`}
                             orientation="landscape"
@@ -434,7 +445,8 @@ export default function ViewGreenLeafForm() {
                                         <th colSpan="2" className="px-4 py-2 font-bold text-purple-700 dark:text-purple-400 border-r border-gray-300 dark:border-zinc-800 bg-purple-50 dark:bg-purple-900/20 text-center">
                                             <div className="flex items-center justify-center gap-1"><Factory size={14}/> Output</div>
                                         </th>
-                                        <th colSpan="4" className="px-4 py-2 font-bold text-orange-700 dark:text-orange-400 border-r border-gray-300 dark:border-zinc-800 bg-orange-50 dark:bg-orange-900/20 text-center">
+                                        <th colSpan="5" className="px-4 py-2 font-bold text-orange-700 dark:text-orange-400 border-r border-gray-300 dark:border-zinc-800 bg-orange-50 dark:bg-orange-900/20 text-center">
+                                            {/* CHANGED COLSPAN FROM 4 TO 5 */}
                                             <div className="flex items-center justify-center gap-1"><Zap size={14}/> Machine Usage</div>
                                         </th>
                                         
@@ -458,6 +470,8 @@ export default function ViewGreenLeafForm() {
                                         <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Start</th>
                                         <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-900/10 text-center border-r border-gray-300 dark:border-zinc-800">End</th>
                                         <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Units</th>
+                                        {/* NEW COLUMN */}
+                                        <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Roller</th>
 
                                         <th className="px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Selection</th>
                                         <th className="px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Rolling</th>
@@ -470,6 +484,7 @@ export default function ViewGreenLeafForm() {
                                             let isShared = false;
                                             let highlightClass = '';
                                             let displayUnits = record.units;
+                                            let displayRollerPoints = record.rollerPoints; // <-- NEW
 
                                             if (record.meterStart !== '-' && record.meterEnd !== '-' && record.meterStart !== '' && record.meterEnd !== '') {
                                                 const key = `${record.dryerName}_${record.meterStart}_${record.meterEnd}`;
@@ -478,8 +493,13 @@ export default function ViewGreenLeafForm() {
                                                 if (groupInfo && groupInfo.count > 1) {
                                                     isShared = true;
                                                     highlightClass = groupInfo.uiColor;
+                                                    
                                                     const adjustedUnits = Number(record.units) / groupInfo.count;
                                                     displayUnits = Number.isInteger(adjustedUnits) ? adjustedUnits : adjustedUnits.toFixed(2);
+
+                                                    // Calculate adjusted Roller Points
+                                                    const adjustedRoller = Number(record.rollerPoints) / groupInfo.count;
+                                                    displayRollerPoints = Number.isInteger(adjustedRoller) ? adjustedRoller : adjustedRoller.toFixed(2);
                                                 }
                                             }
 
@@ -506,7 +526,7 @@ export default function ViewGreenLeafForm() {
                                                     </td>
                                                     
                                                     <td className="px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 align-top">
-                                                        <div className="mt-1">{record.teaType !== '-' ? <span className="text-purple-700 dark:text-purple-300 font-medium text-xs bg-purple-50 dark:bg-purple-900/30 px-2 py-1 rounded border border-purple-200 dark:border-purple-800/50">{record.teaType}</span> : '-'}</div>
+                                                        <div className="mt-1">{record.teaType !== '-' ? <span className="text-purple-700 dark:text-purple-300 font-medium text-xs bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded border border-purple-200 dark:border-purple-800/50">{record.teaType}</span> : '-'}</div>
                                                     </td>
                                                     <td className="px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 align-top">
                                                         <div className="mt-1"><span className="font-bold text-gray-800 dark:text-gray-200">{record.madeTeaWeight}</span></div>
@@ -516,7 +536,7 @@ export default function ViewGreenLeafForm() {
                                                         {record.dryerName !== '-' ? (
                                                             <div className="flex flex-col items-center mt-1">
                                                                 <span className="font-semibold text-gray-700 dark:text-gray-300 leading-tight">{record.dryerName}</span>
-                                                                <span className="text-[9px] text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded mt-0.5 shadow-sm font-bold whitespace-nowrap">
+                                                                <span className="text-[9px] text-green-700 dark:text-green-500 px-1.5 py-0.5 rounded mt-0.5 shadow-sm font-bold whitespace-nowrap">
                                                                     {record.dryerUpdatedDate}
                                                                 </span>
                                                             </div>
@@ -533,6 +553,11 @@ export default function ViewGreenLeafForm() {
                                                     </td>
                                                     <td className={`px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 align-top ${isShared ? '' : ''}`}>
                                                         <div className="mt-1">{record.units !== '-' ? <span className={`font-bold ${isShared ? 'text-gray-900 dark:text-white' : 'text-orange-600 dark:text-orange-400'}`}>{displayUnits}</span> : '-'}</div>
+                                                    </td>
+
+                                                    {/* NEW DATA COLUMN */}
+                                                    <td className={`px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 align-top ${isShared ? '' : ''}`}>
+                                                        <div className="mt-1">{displayRollerPoints !== '-' ? <span className={`font-bold ${isShared ? 'text-gray-900 dark:text-white' : 'text-orange-600 dark:text-orange-400'}`}>{displayRollerPoints}</span> : '-'}</div>
                                                     </td>
 
                                                     <td className="px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 bg-blue-50/10 dark:bg-blue-900/10 align-top">
@@ -557,7 +582,7 @@ export default function ViewGreenLeafForm() {
                                                     {!isViewer && (
                                                         <td className={`px-3 py-3 text-center align-top ${isShared ? '' : 'bg-white dark:bg-zinc-900'}`}>
                                                             <div className="flex items-center justify-center gap-1 mt-0.5">
-                                                                <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-400 hover:bg-[#8CC63F]/20 dark:hover:bg-zinc-800 rounded transition-all">
+                                                                <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-500 hover:bg-[#8CC63F]/20 dark:hover:bg-zinc-800 rounded transition-all">
                                                                     <MdOutlineEdit size={20} />
                                                                 </button>
                                                                 <AlertDialog>
@@ -590,7 +615,7 @@ export default function ViewGreenLeafForm() {
                                         })
                                     ) : (
                                         <tr>
-                                            <td colSpan={isViewer ? "12" : "13"} className="p-16 text-center text-gray-400 dark:text-gray-500">
+                                            <td colSpan={isViewer ? "13" : "14"} className="p-16 text-center text-gray-400 dark:text-gray-500">
                                                 <AlertCircle size={40} className="mx-auto mb-3 opacity-20" />
                                                 <p className="text-lg font-medium">No records found matching filters</p>
                                             </td>
@@ -614,6 +639,10 @@ export default function ViewGreenLeafForm() {
                                             
                                             <td className="px-3 py-4 border-r border-gray-300 dark:border-zinc-800 text-orange-600 dark:text-orange-500 text-base">
                                                 {Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2)}
+                                            </td>
+
+                                            <td className="px-3 py-4 border-r border-gray-300 dark:border-zinc-800 text-orange-600 dark:text-orange-500 text-base">
+                                                {Number.isInteger(totalRollerPoints) ? totalRollerPoints : totalRollerPoints.toFixed(2)}
                                             </td>
                                             
                                             <td className="px-3 py-4 border-r border-gray-300 dark:border-zinc-800 text-blue-700 dark:text-blue-500 text-base">{totalSelectionLabour}</td>

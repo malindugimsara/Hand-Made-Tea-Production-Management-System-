@@ -13,7 +13,7 @@ export default function EditRecordPage() {
     // State to hold the latest meter readings for auto-filling
     const [lastReadings, setLastReadings] = useState({ 'Dryer 1': '', 'Dryer 2': '' });
 
-    // 2. Form State Management
+    // 2. Form State Management (Added rollerPoints)
     const [formData, setFormData] = useState({
         greenLeafId: '',
         productionId: '',
@@ -26,6 +26,7 @@ export default function EditRecordPage() {
         dryerName: '',
         meterStart: '',
         meterEnd: '',
+        rollerPoints: '', // <-- NEW FIELD
         workerCount: '',
         rollingType: 'Machine Rolling',
         rollingWorkerCount: ''
@@ -44,9 +45,10 @@ export default function EditRecordPage() {
                 selectedWeight: data.selectedWeight || '',
                 teaType: data.teaType || '',
                 madeTeaWeight: data.madeTeaWeight || '',
-                dryerName: data.dryerName || '',
-                meterStart: data.meterStart || '',
-                meterEnd: data.meterEnd || '',
+                dryerName: data.dryerName !== '-' ? data.dryerName : '',
+                meterStart: data.meterStart !== '-' ? data.meterStart : '',
+                meterEnd: data.meterEnd !== '-' ? data.meterEnd : '',
+                rollerPoints: data.rollerPoints !== undefined && data.rollerPoints !== '-' ? data.rollerPoints : '', // <-- LOAD EXISTING
                 workerCount: data.workerCount || '',
                 rollingType: data.rollingType && data.rollingType !== '-' ? data.rollingType : 'Machine Rolling',
                 rollingWorkerCount: data.rollingWorkerCount || ''
@@ -96,7 +98,6 @@ export default function EditRecordPage() {
 
     // 4. Derived State (Calculations)
     const returnedWeight = (Number(formData.totalWeight) || 0) - (Number(formData.selectedWeight) || 0);
-    const dryerUnits = (Number(formData.meterEnd) || 0) - (Number(formData.meterStart) || 0);
 
     // 5. Event Handlers
     const handleInputChange = (e) => {
@@ -141,6 +142,7 @@ export default function EditRecordPage() {
         const made = Number(formData.madeTeaWeight);
         const mStart = Number(formData.meterStart);
         const mEnd = Number(formData.meterEnd);
+        const rPoints = Number(formData.rollerPoints); // <-- Parse Roller Points
 
         if (selected > total) {
             playErrorSound(); toast.error("Selected weight must be less than Total!");
@@ -181,7 +183,12 @@ export default function EditRecordPage() {
                     body: JSON.stringify({
                         teaType: formData.teaType,
                         madeTeaWeight: made,
-                        dryerDetails: { dryerName: formData.dryerName, meterStart: mStart, meterEnd: mEnd }
+                        dryerDetails: { 
+                            dryerName: formData.dryerName, 
+                            meterStart: mStart, 
+                            meterEnd: mEnd,
+                            rollerPoints: rPoints // <-- PASS TO BACKEND
+                        }
                     })
                 }));
             }
@@ -262,6 +269,10 @@ export default function EditRecordPage() {
                                 <option value="White Tea">White Tea</option>
                                 <option value="Silver Green">Silver Green</option>
                                 <option value="Golden Tips">Golden Tips</option>
+                                {/* In case the selected record has a type not in the short list above */}
+                                {!['Purple Tea', 'Pink Tea', 'White Tea', 'Silver Green', 'Golden Tips'].includes(formData.teaType) && formData.teaType && (
+                                    <option value={formData.teaType}>{formData.teaType}</option>
+                                )}
                             </select>
                         </div>
                         <div>
@@ -273,22 +284,27 @@ export default function EditRecordPage() {
 
                 <div className="mb-8 bg-orange-50 border border-orange-200 rounded-lg p-6">
                     <h3 className="text-lg font-bold text-orange-600 mb-4">3. Dryer Meter Readings</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
                             <label className="text-sm font-semibold text-gray-700">Dryer Unit</label>
-                            <select name="dryerName" value={formData.dryerName} onChange={handleInputChange} required className="w-full p-3 border rounded-md bg-white focus:ring-2 focus:ring-orange-400">
-                                <option value="">Select Dryer</option>
+                            <select name="dryerName" value={formData.dryerName} onChange={handleInputChange} className="w-full p-3 border rounded-md bg-white focus:ring-2 focus:ring-orange-400">
+                                <option value="">Select Dryer (Optional)</option>
                                 <option value="Dryer 1">Dryer 1</option>
                                 <option value="Dryer 2">Dryer 2</option>
                             </select>
                         </div>
                         <div>
                             <label className="text-sm font-semibold text-gray-700">Start Reading</label>
-                            <input type="number" name="meterStart" value={formData.meterStart} onChange={handleInputChange} onWheel={handleWheel} required className="w-full p-3 border rounded-md focus:ring-2 focus:ring-orange-400" />
+                            <input type="number" name="meterStart" value={formData.meterStart} onChange={handleInputChange} onWheel={handleWheel} className="w-full p-3 border rounded-md focus:ring-2 focus:ring-orange-400" />
                         </div>
                         <div>
                             <label className="text-sm font-semibold text-gray-700">End Reading</label>
-                            <input type="number" name="meterEnd" value={formData.meterEnd} onChange={handleInputChange} onWheel={handleWheel} required className="w-full p-3 border rounded-md focus:ring-2 focus:ring-orange-400" />
+                            <input type="number" name="meterEnd" value={formData.meterEnd} onChange={handleInputChange} onWheel={handleWheel} className="w-full p-3 border rounded-md focus:ring-2 focus:ring-orange-400" />
+                        </div>
+                        {/* NEW ROLLER POINTS FIELD */}
+                        <div className="md:col-span-2 mt-2">
+                            <label className="text-sm font-semibold text-gray-700">Roller (Points)</label>
+                            <input type="number" name="rollerPoints" value={formData.rollerPoints} onChange={handleInputChange} onWheel={handleWheel} className="w-full p-3 border rounded-md focus:ring-2 focus:ring-orange-400" placeholder="Optional" />
                         </div>
                     </div>
                 </div>

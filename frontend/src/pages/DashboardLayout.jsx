@@ -70,8 +70,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 // --- ROLE-BASED DATA CONFIGURATION ---
 const DATA = {
   factory: {
-    name: 'Athukorala Factory',
-    plan: 'Hand-Made Tea',
+    name: 'Athukorala Group',
+    plan: 'HandMade Tea',
     logo: () => <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain" />,
   },
   quickLinks: [

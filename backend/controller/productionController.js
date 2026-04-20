@@ -1,15 +1,15 @@
-import { Production } from '../models/production.js'; // Adjust path if needed
+import { Production } from '../models/Production.js'; // Adjust path if needed
 
 export const createProduction = async (req, res) => {
     try {
-        // Added expectedDryerDate to the destructured body
         const { date, teaType, madeTeaWeight, expectedDryerDate, dryerDetails } = req.body;
         
         let processedDryerDetails = dryerDetails;
 
         // Safely auto-calculate dryer units ONLY IF dryer details are actually provided
         if (dryerDetails && dryerDetails.meterStart !== undefined && dryerDetails.meterEnd !== undefined) {
-            const units = dryerDetails.meterEnd - dryerDetails.meterStart;
+            const units = Number(dryerDetails.meterEnd) - Number(dryerDetails.meterStart);
+            // rollerPoints will automatically be included via spread operator
             processedDryerDetails = { ...dryerDetails, units };
         }
         
@@ -17,7 +17,7 @@ export const createProduction = async (req, res) => {
             date,
             teaType,
             madeTeaWeight,
-            expectedDryerDate, // Save the new date
+            expectedDryerDate, 
             dryerDetails: processedDryerDetails
         });
 
@@ -58,8 +58,10 @@ export const updateProduction = async (req, res) => {
             updatedData.dryerDetails.meterEnd !== undefined && 
             updatedData.dryerDetails.meterStart !== undefined) {
             
-            updatedData.dryerDetails.units = updatedData.dryerDetails.meterEnd - updatedData.dryerDetails.meterStart;
+            updatedData.dryerDetails.units = Number(updatedData.dryerDetails.meterEnd) - Number(updatedData.dryerDetails.meterStart);
         }
+        
+        // Note: updatedData.dryerDetails.rollerPoints is automatically passed from the frontend payload
 
         const record = await Production.findByIdAndUpdate(id, updatedData, { new: true });
         

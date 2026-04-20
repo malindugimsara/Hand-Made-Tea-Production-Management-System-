@@ -12,7 +12,8 @@ const productionSchema = new mongoose.Schema({
         dryerName: { type: String }, // --- REMOVED required: true ---
         meterStart: Number,
         meterEnd: Number,
-        units: Number
+        units: Number,
+        rollerPoints: { type: Number, default: 0 }
     }
 }, { timestamps: true });
 
