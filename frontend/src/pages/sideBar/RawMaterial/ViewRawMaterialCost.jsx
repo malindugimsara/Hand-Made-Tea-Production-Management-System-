@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import toast from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
 import { Calendar, Trash2, Search, Leaf, Edit, AlertCircle, FilterX, Zap, DollarSign, RefreshCw } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
@@ -29,8 +29,9 @@ export default function ViewRawMaterialCost() {
     const [loading, setLoading] = useState(false);
     const [records, setRecords] = useState([]);
     
-    // Filter States
-    const [filterDate, setFilterDate] = useState('');
+    // Filter States (Updated to Date Range)
+    const [filterStartDate, setFilterStartDate] = useState('');
+    const [filterEndDate, setFilterEndDate] = useState('');
     const [filterMaterial, setFilterMaterial] = useState('');
 
     // Delete Confirmation
@@ -66,10 +67,14 @@ export default function ViewRawMaterialCost() {
                     const isEdited = createdTime > 0 && updatedTime > 0 && (updatedTime - createdTime) > 5000;
                     const lastUpdatedDate = isEdited ? new Date(rec.updatedAt).toISOString().split('T')[0] : '';
                     
+                    // Extract editor's name if available
+                    const editedBy = rec.updatedBy || rec.username || 'Admin';
+
                     return {
                         ...rec,
                         isEdited,
-                        lastUpdatedDate
+                        lastUpdatedDate,
+                        editedBy
                     };
                 });
 
@@ -124,18 +129,25 @@ export default function ViewRawMaterialCost() {
     };
 
     const clearFilters = () => {
-        setFilterDate('');
+        setFilterStartDate('');
+        setFilterEndDate('');
         setFilterMaterial('');
     };
 
     // -------------------------------------------------------------
-    // Filtering Logic
+    // Filtering Logic (Date Range)
     // -------------------------------------------------------------
     const filteredRecords = records.filter(rec => {
         const recDate = new Date(rec.date).toISOString().split('T')[0];
-        const matchDate = filterDate ? recDate === filterDate : true;
+        
+        // Check Date Range
+        const matchStartDate = filterStartDate ? recDate >= filterStartDate : true;
+        const matchEndDate = filterEndDate ? recDate <= filterEndDate : true;
+        const matchDateRange = matchStartDate && matchEndDate;
+
         const matchMaterial = filterMaterial ? rec.materialType === filterMaterial : true;
-        return matchDate && matchMaterial;
+        
+        return matchDateRange && matchMaterial;
     });
 
     // -------------------------------------------------------------
@@ -153,7 +165,11 @@ export default function ViewRawMaterialCost() {
     const getPdfData = () => {
         const tableRows = filteredRecords.map(rec => {
             const baseDate = new Date(rec.date).toISOString().split('T')[0];
-            const pdfDateCell = rec.isEdited ? `${baseDate}\n(Edited: ${rec.lastUpdatedDate})` : baseDate;
+            
+            // Format PDF cell to include edited status and editor's name
+            const pdfDateCell = rec.isEdited 
+                ? `${baseDate}\n(Edited: ${rec.lastUpdatedDate} by ${rec.editedBy})` 
+                : baseDate;
 
             return [
                 pdfDateCell,
@@ -192,8 +208,17 @@ export default function ViewRawMaterialCost() {
 
     const uniqueCode = getCurrentMonthCode();
 
+    // Ensure To Date is not earlier than From Date
+    const handleStartDateChange = (e) => {
+        setFilterStartDate(e.target.value);
+        if (filterEndDate && e.target.value > filterEndDate) {
+            setFilterEndDate(''); // Reset End Date if it becomes invalid
+        }
+    };
+
     return (
         <div className="p-8 max-w-[1400px] mx-auto font-sans relative bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
+            <Toaster />
             
             <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
@@ -206,7 +231,7 @@ export default function ViewRawMaterialCost() {
                 <div className="flex items-center gap-3">
                     <PDFDownloader 
                         title="Raw Material Cost Records"
-                        subtitle={`Filters -> Date: ${filterDate || 'All'} | Material: ${filterMaterial || 'All'}`}
+                        subtitle={`Filters -> Date: ${filterStartDate || 'Any'} to ${filterEndDate || 'Any'} | Material: ${filterMaterial || 'All'}`}
                         headers={["Date", "Material", "Dry Weight (g)", "Meter Start", "Meter End", "Total Pts", "Raw Cost (Rs)", "Elec Cost (Rs)", "Total Cost (Rs)"]}
                         data={getPdfData()}
                         uniqueCode={uniqueCode}
@@ -226,15 +251,26 @@ export default function ViewRawMaterialCost() {
                 </div>
             </div>
 
-            {/* --- FILTER SECTION --- */}
-            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-colors duration-300">
+            {/* --- FILTER SECTION (Date Range Added) --- */}
+            <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-colors duration-300">
                 <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Filter by Date</label>
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">From Date</label>
                     <input 
                         type="date" 
-                        value={filterDate} 
-                        onChange={(e) => setFilterDate(e.target.value)} 
+                        value={filterStartDate} 
+                        onChange={handleStartDateChange} 
                         className="border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-green-400 dark:focus:ring-green-600 transition-colors" 
+                    />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">To Date</label>
+                    <input 
+                        type="date" 
+                        min={filterStartDate} // Prevent selecting a date earlier than Start Date
+                        value={filterEndDate} 
+                        onChange={(e) => setFilterEndDate(e.target.value)} 
+                        disabled={!filterStartDate} // Optional: force selecting Start Date first
+                        className="border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-green-400 dark:focus:ring-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
                     />
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -253,9 +289,9 @@ export default function ViewRawMaterialCost() {
                 <div className="flex items-end">
                     <button 
                         onClick={clearFilters}
-                        disabled={!filterDate && !filterMaterial}
-                        className={`px-4 py-2.5 text-sm font-bold rounded-md transition-colors flex items-center gap-2 ${
-                            filterDate || filterMaterial 
+                        disabled={!filterStartDate && !filterEndDate && !filterMaterial}
+                        className={`px-4 py-2.5 text-sm font-bold rounded-md transition-colors flex items-center justify-center gap-2 w-full lg:w-auto ${
+                            filterStartDate || filterEndDate || filterMaterial 
                             ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-200 dark:border-red-800/50' 
                             : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500 cursor-not-allowed'
                         }`}
@@ -284,7 +320,7 @@ export default function ViewRawMaterialCost() {
                     ) : filteredRecords.length > 0 ? (
                         <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
                             <thead>
-                                <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-800 transition-colors duration-300">
+                                <tr className="bg-gray-50 dark:bg-zinc-800/80 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-700 transition-colors duration-300">
                                     <th rowSpan="2" className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-800 align-bottom w-28">Date</th>
                                     <th rowSpan="2" className="px-4 py-3 font-bold text-[#1B6A31] dark:text-green-500 border-r border-gray-200 dark:border-zinc-800 bg-[#8CC63F]/10 dark:bg-green-900/20 align-bottom w-32">Material</th>
                                     <th rowSpan="2" className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-800 align-bottom text-right">Dry (g)</th>
@@ -322,8 +358,9 @@ export default function ViewRawMaterialCost() {
                                                     {new Date(rec.date).toISOString().split('T')[0]}
                                                 </span>
                                                 {rec.isEdited && (
-                                                    <span className="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 px-1.5 py-0.5 rounded font-bold w-max">
-                                                        Edited: {rec.lastUpdatedDate}
+                                                    <span className="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 px-1.5 py-0.5 rounded font-bold w-max text-left leading-tight">
+                                                        Edited: {rec.lastUpdatedDate} <br />
+                                                        {rec.editedBy && `by ${rec.editedBy}`}
                                                     </span>
                                                 )}
                                             </div>

@@ -1,7 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { PlusCircle, Trash2, ListChecks, Save, X, CalendarClock, Zap, AlertCircle, Search, Sun, Moon, ChevronRight, MoreVertical, Leaf, Factory, Users } from "lucide-react";
+import { PlusCircle, Trash2, ListChecks, Save, X, CalendarClock, Zap, AlertCircle, Search, Sun, Moon, ChevronRight, MoreVertical, Leaf, Factory, Users, RefreshCw } from "lucide-react";
+import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
+import PDFDownloader from '@/components/PDFDownloader';
+
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 import {
     DropdownMenu,
@@ -60,6 +74,316 @@ export default function GreenLeafForm() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [dropdownRef]);
     
+    const [records, setRecords] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [recordToDelete, setRecordToDelete] = useState(null);
+
+    const userRole = localStorage.getItem('userRole') || ''; 
+    const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
+
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [teaType, setTeaType] = useState('All');
+    const [dryerType, setDryerType] = useState('All');
+
+    useEffect(() => {
+        fetchMergedRecords();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const fetchMergedRecords = async () => {
+        setLoading(true); 
+        try {
+            const token = localStorage.getItem('token');
+            const authHeaders = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+
+            const [greenLeafRes, productionRes, labourRes] = await Promise.all([
+                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders })
+            ]);
+
+            if (!greenLeafRes.ok || !productionRes.ok || !labourRes.ok) {
+                throw new Error("Failed to fetch data. Check your login token.");
+            }
+
+            const greenLeafData = await greenLeafRes.json();
+            const productionData = await productionRes.json();
+            const labourData = await labourRes.json();
+
+            const glUsage = {};
+            const labUsage = {};
+
+            const mergedData = productionData.map(prod => {
+                const dateStr = new Date(prod.date).toISOString().split('T')[0];
+                
+                const glsForDate = greenLeafData.filter(g => new Date(g.date).toISOString().split('T')[0] === dateStr);
+                const labsForDate = labourData.filter(l => new Date(l.date).toISOString().split('T')[0] === dateStr);
+
+                if (glUsage[dateStr] === undefined) glUsage[dateStr] = 0;
+                if (labUsage[dateStr] === undefined) labUsage[dateStr] = 0;
+
+                const gl = glsForDate[glUsage[dateStr]] || null;
+                const lab = labsForDate[labUsage[dateStr]] || null;
+
+                glUsage[dateStr]++;
+                labUsage[dateStr]++;
+
+                const getSafeTime = (item, field) => item && item[field] ? new Date(item[field]).getTime() : 0;
+                const glCreated = getSafeTime(gl, 'createdAt');
+                const glUpdated = getSafeTime(gl, 'updatedAt');
+                const labCreated = getSafeTime(lab, 'createdAt');
+                const labUpdated = getSafeTime(lab, 'updatedAt');
+                const prodCreated = getSafeTime(prod, 'createdAt');
+                const prodUpdated = getSafeTime(prod, 'updatedAt');
+
+                const isGlEdited = glUpdated > 0 && glCreated > 0 && (glUpdated - glCreated > 5000);
+                const isLabEdited = labUpdated > 0 && labCreated > 0 && (labUpdated - labCreated > 5000);
+                const isProdEdited = prodUpdated > 0 && prodCreated > 0 && (prodUpdated - prodCreated > 5000);
+                
+                const isEdited = isGlEdited || isLabEdited || isProdEdited;
+
+                let lastUpdatedDate = '';
+                let editedBy = '';
+
+                if (isEdited) {
+                    const times = [];
+                    if (isGlEdited) times.push({ time: glUpdated, user: gl.updatedBy || gl.username || 'Admin' });
+                    if (isLabEdited) times.push({ time: labUpdated, user: lab.updatedBy || lab.username || 'Admin' });
+                    if (isProdEdited) times.push({ time: prodUpdated, user: prod.updatedBy || prod.username || 'Admin' });
+
+                    if (times.length > 0) {
+                        times.sort((a, b) => b.time - a.time);
+                        lastUpdatedDate = new Date(times[0].time).toISOString().split('T')[0];
+                        editedBy = times[0].user;
+                    }
+                }
+
+                let rType = 'M/R';
+                if (lab && lab.rollingType) {
+                    if (lab.rollingType === 'Machine Rolling') rType = 'M/R';
+                    else if (lab.rollingType === 'Hand Rolling') rType = 'H/R';
+                    else rType = lab.rollingType;
+                }
+                
+                return {
+                    date: dateStr,
+                    isEdited,
+                    lastUpdatedDate,
+                    editedBy, 
+                    greenLeafId: gl ? gl._id : null,
+                    productionId: prod._id, 
+                    labourId: lab ? lab._id : null,
+                    totalWeight: gl ? gl.totalWeight : 0,
+                    selectedWeight: gl ? gl.selectedWeight : 0,
+                    returnedWeight: gl ? gl.returnedWeight : 0,
+                    teaType: prod.teaType || '-',
+                    madeTeaWeight: prod.madeTeaWeight || 0,
+                    dryerName: prod?.dryerDetails?.dryerName || '-',
+                    meterStart: prod?.dryerDetails?.meterStart ?? '-',
+                    meterEnd: prod?.dryerDetails?.meterEnd ?? '-',
+                    units: prod?.dryerDetails?.units ?? 0,
+                    rollerPoints: prod?.dryerDetails?.rollerPoints ?? 0, 
+                    dryerUpdatedDate: (prod?.dryerDetails?.dryerName && prod.updatedAt) 
+                        ? new Date(prod.updatedAt).toISOString().split('T')[0] 
+                        : '-',
+                    workerCount: lab ? lab.workerCount : 0,
+                    rollingType: rType,
+                    rollingWorkerCount: (lab && lab.rollingType === 'Hand Rolling') ? lab.rollingWorkerCount : 0
+                };
+            });
+
+            mergedData.sort((a, b) => new Date(b.date) - new Date(a.date));
+            setRecords(mergedData);
+        } catch (error) {
+            console.error("Fetch Error:", error);
+            toast.error(error.message || "Could not load data from server.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const filteredRecords = records.filter(record => {
+        const dateMatch = (!startDate || record.date >= startDate) && (!endDate || record.date <= endDate);
+        const typeMatch = teaType === 'All' || record.teaType === teaType;
+        const dryerMatch = dryerType === 'All' || record.dryerName === dryerType;
+        return dateMatch && typeMatch && dryerMatch;
+    });
+
+    const groupMap = {};
+    filteredRecords.forEach(r => {
+        if (r.meterStart !== '-' && r.meterEnd !== '-' && r.meterStart !== '' && r.meterEnd !== '') {
+            const key = `${r.dryerName}_${r.meterStart}_${r.meterEnd}`;
+            if (!groupMap[key]) {
+                groupMap[key] = { count: 0, uiColor: '', pdfColor: [] };
+            }
+            groupMap[key].count += 1;
+        }
+    });
+
+    const highlightColors = [
+        { ui: 'bg-green-200/80 dark:bg-green-900/40', pdf: '#bbf7d0' },
+        { ui: 'bg-yellow-200/80 dark:bg-yellow-900/40', pdf: '#fef08a' },
+        { ui: 'bg-purple-200/80 dark:bg-purple-900/40', pdf: '#e9d5ff' },
+        { ui: 'bg-blue-200/80 dark:bg-blue-900/40', pdf: '#bfdbfe' },
+        { ui: 'bg-pink-200/80 dark:bg-pink-900/40', pdf: '#fbcfe8' },
+        { ui: 'bg-orange-200/80 dark:bg-orange-900/40', pdf: '#fed7aa' }
+    ];
+    let colorIndex = 0;
+
+    Object.keys(groupMap).forEach(key => {
+        if (groupMap[key].count > 1) {
+            const colorObj = highlightColors[colorIndex % highlightColors.length];
+            groupMap[key].uiColor = colorObj.ui;
+            groupMap[key].pdfColor = colorObj.pdf;
+            colorIndex++;
+        }
+    });
+
+    const totalGL = filteredRecords.reduce((sum, r) => sum + (Number(r.totalWeight) || 0), 0);
+    const totalSelectedGL = filteredRecords.reduce((sum, r) => sum + (Number(r.selectedWeight) || 0), 0);
+    const totalReturnedGL = filteredRecords.reduce((sum, r) => sum + (Number(r.returnedWeight) || 0), 0);
+    const totalMadeTea = filteredRecords.reduce((sum, r) => sum + (Number(r.madeTeaWeight) || 0), 0);
+    const totalSelectionLabour = filteredRecords.reduce((sum, r) => sum + (Number(r.workerCount) || 0), 0);
+    const totalHandRollingLabour = filteredRecords.reduce((sum, r) => sum + (Number(r.rollingWorkerCount) || 0), 0);
+
+    const totalUnits = filteredRecords.reduce((sum, r) => {
+        if (r.meterStart !== '-' && r.meterEnd !== '-' && r.meterStart !== '' && r.meterEnd !== '') {
+            const key = `${r.dryerName}_${r.meterStart}_${r.meterEnd}`;
+            const count = groupMap[key]?.count || 1;
+            return sum + ((Number(r.units) || 0) / count);
+        }
+        return sum + (Number(r.units) || 0);
+    }, 0);
+
+    const totalRollerPoints = filteredRecords.reduce((sum, r) => {
+        if (r.meterStart !== '-' && r.meterEnd !== '-' && r.meterStart !== '' && r.meterEnd !== '') {
+            const key = `${r.dryerName}_${r.meterStart}_${r.meterEnd}`;
+            const count = groupMap[key]?.count || 1;
+            return sum + ((Number(r.rollerPoints) || 0) / count);
+        }
+        return sum + (Number(r.rollerPoints) || 0);
+    }, 0);
+
+    const handleEditClick = (record) => {
+        navigation('/edit-record', { state: { recordData: record } });
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!recordToDelete) return;
+        const { greenLeafId, productionId, labourId } = recordToDelete;
+        const toastId = toast.loading('Deleting record...');
+        try {
+            const token = localStorage.getItem('token');
+            const authHeaders = { 'Authorization': `Bearer ${token}` };
+
+            const promises = [];
+            if (greenLeafId) promises.push(fetch(`${BACKEND_URL}/api/green-leaf/${greenLeafId}`, { method: 'DELETE', headers: authHeaders }));
+            if (productionId) promises.push(fetch(`${BACKEND_URL}/api/production/${productionId}`, { method: 'DELETE', headers: authHeaders }));
+            if (labourId) promises.push(fetch(`${BACKEND_URL}/api/labour/${labourId}`, { method: 'DELETE', headers: authHeaders }));
+
+            await Promise.all(promises);
+            toast.success("Record deleted successfully!", { id: toastId });
+            fetchMergedRecords(); 
+        } catch (error) {
+            console.error("Delete Error:", error);
+            toast.error("Failed to delete record.", { id: toastId });
+        } finally {
+            setRecordToDelete(null);
+        }
+    };
+
+    const getPdfData = () => {
+        const tableRows = filteredRecords.map(record => {
+            let displayUnits = record.units;
+            let displayRollerPoints = record.rollerPoints; 
+            let rowColor = null;
+
+            if (record.meterStart !== '-' && record.meterEnd !== '-' && record.meterStart !== '' && record.meterEnd !== '') {
+                const key = `${record.dryerName}_${record.meterStart}_${record.meterEnd}`;
+                const groupInfo = groupMap[key];
+                if (groupInfo && groupInfo.count > 1) {
+                    const adjustedUnits = Number(record.units) / groupInfo.count;
+                    displayUnits = Number.isInteger(adjustedUnits) ? adjustedUnits : adjustedUnits.toFixed(2);
+                    
+                    const adjustedRoller = Number(record.rollerPoints) / groupInfo.count;
+                    displayRollerPoints = Number.isInteger(adjustedRoller) ? adjustedRoller : adjustedRoller.toFixed(2);
+                    
+                    rowColor = groupInfo.pdfColor; 
+                }
+            }
+
+            const pdfDryerName = record.dryerName !== '-' 
+                ? `${record.dryerName}\n(${record.dryerUpdatedDate})` 
+                : '-';
+
+            const pdfTitle = teaType === 'All' ? 'All Tea Types' : teaType;
+
+            const pdfDateCell = record.isEdited 
+                ? `${record.date}\n(Edited: ${record.lastUpdatedDate} by ${record.editedBy})` 
+                : record.date;
+            
+            const rollingText = record.rollingType === 'H/R' 
+                ? `H/R\n(${record.rollingWorkerCount} wkrs)` 
+                : record.rollingType;
+
+            return {
+                data: [
+                    pdfDateCell,
+                    record.totalWeight,
+                    record.selectedWeight,
+                    record.returnedWeight > 0 ? record.returnedWeight : '-',
+                    record.teaType,
+                    record.madeTeaWeight,
+                    pdfDryerName,
+                    record.meterStart,
+                    record.meterEnd,
+                    displayUnits !== '-' ? displayUnits : '-',
+                    displayRollerPoints !== '-' ? displayRollerPoints : '-', 
+                    record.workerCount !== '-' ? record.workerCount : '-',
+                    rollingText
+                ],
+                fillColor: rowColor 
+            };
+        });
+
+        tableRows.push({
+            data: [
+                "GRAND TOTAL",
+                totalGL.toFixed(2),
+                totalSelectedGL.toFixed(2),
+                totalReturnedGL.toFixed(2),
+                "-",
+                totalMadeTea.toFixed(3),
+                "-",
+                "-",
+                "-",
+                Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2),
+                Number.isInteger(totalRollerPoints) ? totalRollerPoints : totalRollerPoints.toFixed(2), 
+                totalSelectionLabour,
+                totalHandRollingLabour > 0 ? `${totalHandRollingLabour} (H/R)` : '-'
+            ],
+            isFooter: true
+        });
+
+        return tableRows;
+    };
+
+    const getCurrentMonthCode = () => {
+        const date = new Date();
+        const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
+        const year = date.getFullYear();
+        return `HT/DR/${month}.${year}`; 
+    };
+
+    const uniqueCode = getCurrentMonthCode();
+
+    // ==========================================
+    // ADD NEW RECORD FORM STATES (DAY 1)
+    // ==========================================
     const [isSavingAll, setIsSavingAll] = useState(false);
     const [pendingRecords, setPendingRecords] = useState([]);
 
@@ -70,12 +394,11 @@ export default function GreenLeafForm() {
                String(today.getDate()).padStart(2, '0');
     };
 
-    // --- DAY 1 FORM STATE (UPDATED FOR MULTIPLE TEA TYPES) ---
     const [formData, setFormData] = useState({
         date: getTodayLocalString(),
         totalWeight: '',
         selectedWeight: '',
-        outputs: [{ teaType: '', madeTeaWeight: '' }], // Array for multiple outputs
+        outputs: [{ teaType: '', madeTeaWeight: '' }], 
         expectedDryerDate: '', 
         workerCount: '',
         rollingType: 'Machine Rolling',
@@ -86,16 +409,18 @@ export default function GreenLeafForm() {
     const [lastReadings, setLastReadings] = useState({ 'Dryer 1': '', 'Dryer 2': '' });
     const [allProductionData, setAllProductionData] = useState([]); 
 
-    // --- DAY 2 MODAL STATES ---
+    // ==========================================
+    // DRYER POPUP STATES (DAY 2) - UPDATED FOR MULTIPLE
+    // ==========================================
     const [pendingDryerTasks, setPendingDryerTasks] = useState([]);
     const [activeTaskIndex, setActiveTaskIndex] = useState(0);
     const [isSubmittingDryer, setIsSubmittingDryer] = useState(false);
-    const [dryerFormData, setDryerFormData] = useState({
+    const [dryerOutputs, setDryerOutputs] = useState([{
         dryerName: '',
         meterStart: '',
         meterEnd: '',
         rollerPoints: '' 
-    });
+    }]);
 
     useEffect(() => {
         fetchInitialData();
@@ -119,9 +444,6 @@ export default function GreenLeafForm() {
                 const glData = await glRes.json();
                 const dates = glData.map(record => record.date ? record.date.substring(0, 10) : '');
                 setExistingDates(dates);
-            } else if (glRes.status === 401 || glRes.status === 403) {
-                toast.error("Session expired. Please log in again.");
-                return;
             }
 
             if (prodRes.ok) {
@@ -167,6 +489,7 @@ export default function GreenLeafForm() {
         if (tasksForDate.length > 0) {
             setPendingDryerTasks(tasksForDate);
             setActiveTaskIndex(0);
+            setDryerOutputs([{ dryerName: '', meterStart: '', meterEnd: '', rollerPoints: '' }]);
             toast.success(`Found ${tasksForDate.length} pending task(s) expected to be dried on this date!`);
         } else {
             toast.success("No pending dryer tasks scheduled for this date.");
@@ -184,7 +507,6 @@ export default function GreenLeafForm() {
         }
     };
 
-    // --- Output Array Handlers ---
     const handleOutputChange = (index, field, value) => {
         const newOutputs = [...formData.outputs];
         newOutputs[index][field] = value;
@@ -198,6 +520,25 @@ export default function GreenLeafForm() {
     const removeOutput = (index) => {
         const newOutputs = formData.outputs.filter((_, i) => i !== index);
         setFormData({ ...formData, outputs: newOutputs });
+    };
+
+    // --- DRYER MODAL HANDLERS ---
+    const handleDryerOutputChange = (index, field, value) => {
+        const newDryers = [...dryerOutputs];
+        newDryers[index][field] = value;
+
+        if (field === 'dryerName') {
+            newDryers[index].meterStart = lastReadings[value] !== undefined ? String(lastReadings[value]) : '';
+        }
+        setDryerOutputs(newDryers);
+    };
+
+    const addDryerOutput = () => {
+        setDryerOutputs([...dryerOutputs, { dryerName: '', meterStart: '', meterEnd: '', rollerPoints: '' }]);
+    };
+
+    const removeDryerOutput = (index) => {
+        setDryerOutputs(dryerOutputs.filter((_, i) => i !== index));
     };
 
     const playErrorSound = () => {
@@ -222,7 +563,6 @@ export default function GreenLeafForm() {
         const total = Number(formData.totalWeight);
         const selected = Number(formData.selectedWeight);
         
-        // Validate outputs
         let totalMade = 0;
         for (let out of formData.outputs) {
             if (!out.teaType || !out.madeTeaWeight) {
@@ -246,7 +586,6 @@ export default function GreenLeafForm() {
         setPendingRecords([...pendingRecords, newRecord]);
         toast.success("Added to list!");
 
-        // Reset form but keep basic defaults
         setFormData({
             ...formData,
             totalWeight: '', 
@@ -286,7 +625,6 @@ export default function GreenLeafForm() {
                     rollingWorkerCount: record.rollingType === 'Hand Rolling' ? Number(record.rollingWorkerCount) : 0
                 };
 
-                // Save GL and Labour first
                 const [glRes, labRes] = await Promise.all([
                     fetch(`${BACKEND_URL}/api/green-leaf`, { method: 'POST', headers: authHeaders, body: JSON.stringify(greenLeafPayload) }),
                     fetch(`${BACKEND_URL}/api/labour`, { method: 'POST', headers: authHeaders, body: JSON.stringify(labourPayload) })
@@ -297,7 +635,6 @@ export default function GreenLeafForm() {
                     throw new Error('Failed to save GL or Labour record');
                 }
 
-                // Loop through outputs and save each Production record individually
                 const prodPromises = record.outputs.map(out => {
                     const productionPayload = { 
                         date: record.date, 
@@ -322,7 +659,10 @@ export default function GreenLeafForm() {
             setExistingDates([...existingDates, ...pendingRecords.map(r => r.date)]);
             setPendingRecords([]); 
             
-            setTimeout(() => { navigation('/view-green-leaf'); }, 1000);
+            setTimeout(() => { 
+                fetchInitialData();
+                fetchMergedRecords();
+            }, 1000);
 
         } catch (error) {
             playErrorSound();
@@ -333,22 +673,19 @@ export default function GreenLeafForm() {
         }
     };
 
-    const handleModalDryerSelect = (e) => {
-        const selectedDryer = e.target.value;
-        setDryerFormData({ 
-            ...dryerFormData, 
-            dryerName: selectedDryer,
-            meterStart: lastReadings[selectedDryer] !== undefined ? String(lastReadings[selectedDryer]) : '' 
-        });
-    };
-
     const handleModalSubmit = async (e) => {
         e.preventDefault();
-        const mStart = Number(dryerFormData.meterStart);
-        const mEnd = Number(dryerFormData.meterEnd);
-
-        if (mEnd < mStart) {
-            playErrorSound(); toast.error("End Reading must be greater than Start Reading!"); return;
+        
+        for (let dryer of dryerOutputs) {
+            if (!dryer.dryerName || !dryer.meterStart || !dryer.meterEnd) {
+                toast.error("Please fill all dryer details completely!");
+                return;
+            }
+            if (Number(dryer.meterEnd) < Number(dryer.meterStart)) {
+                playErrorSound(); 
+                toast.error("End Reading must be greater than Start Reading!"); 
+                return;
+            }
         }
 
         setIsSubmittingDryer(true);
@@ -357,28 +694,63 @@ export default function GreenLeafForm() {
 
         try {
             const token = localStorage.getItem('token');
+            const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+
+            // For multiple dryers, we need to save the first one to the current Task,
+            // and if there are more, we need to create duplicate Production records for the SAME date/teaType but with different dryer details.
+            
+            const firstDryer = dryerOutputs[0];
             const payload = {
                 dryerDetails: {
-                    dryerName: dryerFormData.dryerName, meterStart: mStart, meterEnd: mEnd, rollerPoints: Number(dryerFormData.rollerPoints)
+                    dryerName: firstDryer.dryerName, 
+                    meterStart: Number(firstDryer.meterStart), 
+                    meterEnd: Number(firstDryer.meterEnd), 
+                    rollerPoints: Number(firstDryer.rollerPoints || 0)
                 }
             };
 
             const res = await fetch(`${BACKEND_URL}/api/production/${currentTask._id}`, {
-                method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload)
+                method: 'PUT', headers: authHeaders, body: JSON.stringify(payload)
             });
 
             if (!res.ok) throw new Error("Failed to update record");
 
+            // Update local state for last readings
+            setLastReadings(prev => {
+                const newReadings = { ...prev };
+                dryerOutputs.forEach(d => { newReadings[d.dryerName] = Number(d.meterEnd); });
+                return newReadings;
+            });
+
+            // If there are additional dryers used for this same Task, create new identical records just for the extra dryers
+            if (dryerOutputs.length > 1) {
+                const extraPromises = dryerOutputs.slice(1).map(extraDryer => {
+                    const extraPayload = {
+                        date: currentTask.date,
+                        teaType: currentTask.teaType,
+                        madeTeaWeight: 0, // Set to 0 so we don't duplicate the yield weight in reports
+                        expectedDryerDate: currentTask.expectedDryerDate,
+                        dryerDetails: {
+                            dryerName: extraDryer.dryerName,
+                            meterStart: Number(extraDryer.meterStart),
+                            meterEnd: Number(extraDryer.meterEnd),
+                            rollerPoints: Number(extraDryer.rollerPoints || 0)
+                        }
+                    };
+                    return fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(extraPayload) });
+                });
+                await Promise.all(extraPromises);
+            }
+
             toast.success("Dryer details saved!", { id: toastId });
-            setLastReadings(prev => ({ ...prev, [dryerFormData.dryerName]: mEnd }));
-            setAllProductionData(prev => prev.map(p => p._id === currentTask._id ? { ...p, dryerDetails: payload.dryerDetails } : p));
 
             if (activeTaskIndex < pendingDryerTasks.length - 1) {
                 setActiveTaskIndex(prev => prev + 1);
-                setDryerFormData({ dryerName: '', meterStart: '', meterEnd: '', rollerPoints: '' });
+                setDryerOutputs([{ dryerName: '', meterStart: '', meterEnd: '', rollerPoints: '' }]);
             } else {
                 setPendingDryerTasks([]); 
                 toast.success("All pending dryer tasks complete!");
+                fetchMergedRecords();
             }
         } catch (error) {
             toast.error("Error saving dryer readings.", { id: toastId });
@@ -387,12 +759,22 @@ export default function GreenLeafForm() {
         }
     };
 
+    const handleCancel = () => {
+        if (pendingRecords.length > 0) {
+            if (window.confirm("You have unsaved records in the list. Are you sure you want to leave?")) {
+                navigation(-1);
+            }
+        } else {
+            navigation(-1);
+        }
+    };
+
     const inputStyles = "w-full p-3.5 border border-gray-200 dark:border-zinc-800 rounded-xl bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-4 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all disabled:bg-gray-100 disabled:text-gray-400 dark:disabled:bg-zinc-800/50 dark:disabled:text-zinc-600 disabled:cursor-not-allowed";
     const labelStyles = "block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider";
 
     return (
         <div className="min-h-screen bg-gray-50/50 dark:bg-zinc-950 transition-colors duration-300 pb-20">
-    
+            
             {/* --- TOP HEADER NAVIGATION --- */}
             <div className="sticky top-0 z-40 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl border-b border-gray-200 dark:border-zinc-800 shadow-sm px-8 py-4 mb-8 flex justify-between items-center transition-colors duration-300">
                 <div>
@@ -401,53 +783,26 @@ export default function GreenLeafForm() {
                     </h2>
                     <p className="text-sm text-gray-500 dark:text-zinc-400 mt-0.5 font-medium">Record Green Leaf, Production, and Labour data</p>
                 </div>
-                
-                <div className="flex items-center gap-3">
-                    <button onClick={toggleTheme} className="p-2.5 rounded-xl bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-800 text-gray-600 dark:text-gray-300 transition-all">
-                        {isDark ? <Sun size={18} className="text-yellow-500" /> : <Moon size={18} />}
-                    </button>
-
-                    <div className="relative" ref={dropdownRef}>
-                        <button onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} className="p-2.5 rounded-xl bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-800 text-gray-600 dark:text-gray-300 transition-all">
-                            <MoreVertical size={18} />
-                        </button>
-                        <div className={`absolute right-0 mt-3 w-56 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-xl z-50 transform origin-top-right transition-all duration-200 ease-out ${isProfileMenuOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0 pointer-events-none'}`}>
-                            <div className="p-2">
-                                <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-400">My Account</div>
-                                <button className="w-full text-left px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-800 rounded-lg flex justify-between items-center transition-colors">
-                                    <span>Profile</span><span className="text-xs text-gray-400">⇧⌘P</span>
-                                </button>
-                                <button className="w-full text-left px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-800 rounded-lg flex justify-between items-center transition-colors">
-                                    <span>Settings</span><span className="text-xs text-gray-400">⌘S</span>
-                                </button>
-                                <div className="h-px bg-gray-100 dark:bg-zinc-800 my-1"></div>
-                                <button className="w-full text-left px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg flex justify-between items-center transition-colors">
-                                    <span>Log out</span><span className="text-xs opacity-60">⇧⌘Q</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <div className="px-8 max-w-[1600px] mx-auto relative">
 
-                {/* --- DAY 2 PENDING DRYER MODAL --- */}
+                {/* --- DAY 2 PENDING DRYER MODAL (UPDATED FOR MULTIPLE DRYERS) --- */}
                 {pendingDryerTasks.length > 0 && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-900/40 dark:bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-                        <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-orange-200 dark:border-orange-900/50 my-auto relative">
-                            <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-6 text-white relative">
-                                <button onClick={() => setPendingDryerTasks([])} className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 p-1.5 rounded-full transition-colors">
+                        <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border  dark:border-green-800 my-auto relative">
+                            <div className="bg-green-700 dark:bg-green-700 p-6 text-white relative">
+                                <button onClick={() => setPendingDryerTasks([])} className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 p-1.5 rounded-full transition-colors focus:outline-none">
                                     <X size={20} />
                                 </button>
                                 <div className="flex items-center gap-3 mb-1">
                                     <AlertCircle size={28} className="opacity-90" />
-                                    <h2 className="text-2xl font-black m-0">Pending Dryers</h2>
+                                    <h2 className="text-2xl font-black m-0 leading-none">Pending Dryers</h2>
                                 </div>
-                                <p className="text-orange-100 font-medium m-0 ml-10">Task {activeTaskIndex + 1} of {pendingDryerTasks.length}</p>
+                                <p className="text-orange-100 font-medium m-0 mt-2 ml-10">Task {activeTaskIndex + 1} of {pendingDryerTasks.length}</p>
                             </div>
 
-                            <div className="p-6">
+                            <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
                                 <div className="bg-orange-50/50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 p-4 rounded-2xl mb-6">
                                     <p className="text-[10px] font-black uppercase tracking-wider text-orange-500 dark:text-orange-400 mb-3">Record Details</p>
                                     <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
@@ -466,31 +821,50 @@ export default function GreenLeafForm() {
                                     </div>
                                 </div>
 
-                                <form onSubmit={handleModalSubmit} className="space-y-5">
-                                    <div>
-                                        <label className={labelStyles}>Select Dryer</label>
-                                        <select name="dryerName" value={dryerFormData.dryerName} onChange={handleModalDryerSelect} required className={inputStyles}>
-                                            <option value="">Choose...</option>
-                                            <option value="Dryer 1">Dryer 1</option>
-                                            <option value="Dryer 2">Dryer 2</option>
-                                        </select>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className={labelStyles}>Start Reading</label>
-                                            <input type="number" value={dryerFormData.meterStart} onChange={(e) => setDryerFormData({...dryerFormData, meterStart: e.target.value})} onWheel={(e) => e.target.blur()} required className={inputStyles} />
-                                        </div>
-                                        <div>
-                                            <label className={labelStyles}>End Reading</label>
-                                            <input type="number" value={dryerFormData.meterEnd} onChange={(e) => setDryerFormData({...dryerFormData, meterEnd: e.target.value})} onWheel={(e) => e.target.blur()} required className={inputStyles} />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className={labelStyles}>Roller (Points)</label>
-                                        <input type="number" value={dryerFormData.rollerPoints} onChange={(e) => setDryerFormData({...dryerFormData, rollerPoints: e.target.value})} onWheel={(e) => e.target.blur()}  className={inputStyles} />
+                                <form onSubmit={handleModalSubmit} className="space-y-6">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h3 className="font-bold text-gray-800 dark:text-gray-200">Dryer Readings</h3>
+                                        <button type="button" onClick={addDryerOutput} className="text-xs font-bold text-orange-600 dark:text-orange-400 flex items-center gap-1 bg-orange-50 dark:bg-orange-900/30 px-3 py-1.5 rounded-lg hover:bg-orange-100 transition-colors">
+                                            <PlusCircle size={14} /> Add Dryer
+                                        </button>
                                     </div>
 
-                                    <button type="submit" disabled={isSubmittingDryer} className="w-full py-4 mt-4 bg-orange-500 hover:bg-orange-600 text-white font-black rounded-xl transition-all shadow-lg shadow-orange-500/20 disabled:opacity-50">
+                                    {dryerOutputs.map((dryer, index) => (
+                                        <div key={index} className="p-5 border border-orange-100 dark:border-orange-900/30 rounded-2xl bg-orange-50/30 dark:bg-orange-900/5 relative shadow-sm">
+                                            {dryerOutputs.length > 1 && (
+                                                <button type="button" onClick={() => removeDryerOutput(index)} className="absolute -top-3 -right-3 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 p-1.5 rounded-full hover:bg-red-200 transition-colors shadow-sm">
+                                                    <X size={14} />
+                                                </button>
+                                            )}
+                                            
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <label className={labelStyles}>Select Dryer</label>
+                                                    <select name="dryerName" value={dryer.dryerName} onChange={(e) => handleDryerOutputChange(index, 'dryerName', e.target.value)} required className={inputStyles}>
+                                                        <option value="">Choose...</option>
+                                                        <option value="Dryer 1">Dryer 1</option>
+                                                        <option value="Dryer 2">Dryer 2</option>
+                                                    </select>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className={labelStyles}>Start Reading</label>
+                                                        <input type="number" min="0" value={dryer.meterStart} onChange={(e) => handleDryerOutputChange(index, 'meterStart', e.target.value)} onWheel={(e) => e.target.blur()} required className={inputStyles} />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelStyles}>End Reading</label>
+                                                        <input type="number" min="0" value={dryer.meterEnd} onChange={(e) => handleDryerOutputChange(index, 'meterEnd', e.target.value)} onWheel={(e) => e.target.blur()} required className={inputStyles} />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className={labelStyles}>Roller (Points)</label>
+                                                    <input type="number" min="0" value={dryer.rollerPoints} onChange={(e) => handleDryerOutputChange(index, 'rollerPoints', e.target.value)} onWheel={(e) => e.target.blur()} className={inputStyles} placeholder="Optional" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    <button type="submit" disabled={isSubmittingDryer} className="w-full py-4 mt-4 bg-green-700 hover:bg-green-800 text-white font-black rounded-xl transition-all shadow-lg shadow-green-500/20 disabled:opacity-50">
                                         {isSubmittingDryer ? "Saving..." : activeTaskIndex < pendingDryerTasks.length - 1 ? "Save & Next" : "Save & Complete"}
                                     </button>
                                 </form>
@@ -504,7 +878,6 @@ export default function GreenLeafForm() {
                     {/* --- LEFT SIDE: FORM --- */}
                     <div className="lg:col-span-8 space-y-6">
                         
-                        {/* Top Control Bar */}
                         <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div className="flex-1 flex items-center gap-4">
                                 <div className="w-full sm:w-1/2">
@@ -521,7 +894,7 @@ export default function GreenLeafForm() {
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* 1. GREEN LEAF */}
-                                <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
+                                <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden h-fit">
                                     <div className="bg-green-50/50 dark:bg-green-500/5 p-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-3">
                                         <div className="p-2 bg-green-100 dark:bg-green-500/20 rounded-lg text-green-700 dark:text-green-400"><Leaf size={18}/></div>
                                         <h3 className="font-bold text-gray-800 dark:text-gray-200">Green Leaf Details</h3>
@@ -529,11 +902,11 @@ export default function GreenLeafForm() {
                                     <div className="p-5 space-y-5">
                                         <div>
                                             <label className={labelStyles}>Total Received (kg)</label>
-                                            <input type="number" step="0.01" name="totalWeight" value={formData.totalWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className={inputStyles} />
+                                            <input type="number" step="0.01" min="0" name="totalWeight" value={formData.totalWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }} required className={inputStyles} />
                                         </div>
                                         <div>
                                             <label className={labelStyles}>Selected for Handmade (kg)</label>
-                                            <input type="number" step="0.01" name="selectedWeight" value={formData.selectedWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className={inputStyles} />
+                                            <input type="number" step="0.01" min="0" name="selectedWeight" value={formData.selectedWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }} required className={inputStyles} />
                                         </div>
                                         <div className="pt-4 border-t border-gray-100 dark:border-zinc-800 flex justify-between items-center">
                                             <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Return Weight</span>
@@ -597,7 +970,7 @@ export default function GreenLeafForm() {
                                             </div>
                                             <div>
                                                 <label className={labelStyles}>Made Tea (kg)</label>
-                                                <input type="number" step="0.001" value={out.madeTeaWeight} onChange={(e) => handleOutputChange(index, 'madeTeaWeight', e.target.value)} onWheel={(e) => e.target.blur()} required className={inputStyles} />
+                                                <input type="number" step="0.001" min="0" value={out.madeTeaWeight} onChange={(e) => handleOutputChange(index, 'madeTeaWeight', e.target.value)} onWheel={(e) => e.target.blur()} onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }} required className={inputStyles} />
                                             </div>
                                         </div>
                                     ))}
@@ -614,7 +987,7 @@ export default function GreenLeafForm() {
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                         <div>
                                             <label className={labelStyles}>Selection Workers</label>
-                                            <input type="number" name="workerCount" value={formData.workerCount} onChange={handleInputChange} onWheel={(e) => e.target.blur()} className={inputStyles} />
+                                            <input type="number" min="0" name="workerCount" value={formData.workerCount} onChange={handleInputChange} onWheel={(e) => e.target.blur()} onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }} required className={inputStyles} />
                                         </div>
                                         <div>
                                             <label className={labelStyles}>Rolling Method</label>
@@ -629,11 +1002,13 @@ export default function GreenLeafForm() {
                                             <input 
                                                 type="number" 
                                                 name="rollingWorkerCount" 
+                                                min="0" 
                                                 value={formData.rollingWorkerCount} 
                                                 onChange={handleInputChange} 
                                                 disabled={formData.rollingType !== 'Hand Rolling'}
                                                 placeholder={formData.rollingType === 'Hand Rolling' ? "Enter count" : "N/A"}
                                                 required={formData.rollingType === 'Hand Rolling'}
+                                                onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }}
                                                 className={inputStyles} 
                                             />
                                         </div>
@@ -649,9 +1024,9 @@ export default function GreenLeafForm() {
 
                     {/* --- RIGHT SIDE: PENDING QUEUE --- */}
                     <div className="lg:col-span-4 flex flex-col h-full max-h-[85vh]">
-                        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 flex-1 flex flex-col overflow-hidden sticky top-24">
+                        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 flex-1 flex flex-col overflow-hidden sticky top-24 transition-colors duration-300">
                             
-                            <div className="bg-gray-50/80 dark:bg-zinc-950/50 p-5 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between">
+                            <div className="bg-gray-50/80 dark:bg-zinc-950/50 p-5 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between transition-colors">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-white dark:bg-zinc-800 shadow-sm border border-gray-100 dark:border-zinc-700 rounded-lg text-gray-700 dark:text-gray-300">
                                         <ListChecks size={18} />
@@ -670,14 +1045,18 @@ export default function GreenLeafForm() {
                                             <ListChecks size={32} className="opacity-50" />
                                         </div>
                                         <p className="text-sm font-bold text-gray-500 dark:text-zinc-400">Queue is empty</p>
-                                        <p className="text-xs mt-1">Fill the form and add records here.</p>
+                                        <p className="text-xs mt-1 text-gray-400 dark:text-gray-500">Fill the form and add records here.</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
                                         {pendingRecords.map((item, index) => (
                                             <div key={index} className="bg-white dark:bg-zinc-900 p-4 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm relative group hover:border-green-300 dark:hover:border-green-700/50 transition-colors">
                                                 
-                                                <button onClick={() => handleRemoveFromList(index)} className="absolute top-3 right-3 text-gray-400 hover:text-red-500 bg-gray-50 dark:bg-zinc-950 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-xl transition-colors">
+                                                <button 
+                                                    onClick={() => handleRemoveFromList(index)}
+                                                    className="absolute top-3 right-3 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 bg-white dark:bg-zinc-900 p-1.5 rounded-md shadow-sm border border-gray-100 dark:border-zinc-700 transition-colors"
+                                                    title="Remove"
+                                                >
                                                     <Trash2 size={16} />
                                                 </button>
 
@@ -695,16 +1074,20 @@ export default function GreenLeafForm() {
                                                     </div>
                                                     
                                                     <div className="grid grid-cols-2 gap-2 text-xs font-medium text-gray-600 dark:text-gray-400">
-                                                        <div className="bg-gray-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800">
+                                                        <div className="bg-gray-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 transition-colors">
                                                             <span className="block text-[10px] uppercase text-gray-400 font-bold mb-1">Leaf</span>
                                                             <span className="text-green-600 dark:text-green-400 font-black">{item.selectedWeight}kg</span> / {item.totalWeight}kg
                                                         </div>
-                                                        <div className="bg-gray-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800">
+                                                        <div className="bg-gray-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 transition-colors">
                                                             <span className="block text-[10px] uppercase text-gray-400 font-bold mb-1">Total Output</span>
                                                             <span className="text-purple-600 dark:text-purple-400 font-black">
                                                                 {item.outputs.reduce((sum, out) => sum + Number(out.madeTeaWeight), 0).toFixed(3)}kg
                                                             </span>
                                                         </div>
+                                                    </div>
+                                                    <div className="flex justify-between items-center pt-2 border-t border-gray-100 dark:border-zinc-800">
+                                                        <span className="text-[10px] uppercase text-gray-400 font-bold flex items-center gap-1"><CalendarClock size={10}/> Dryer Date</span>
+                                                        <span className="font-bold text-orange-600 dark:text-orange-400 text-xs">{item.expectedDryerDate}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -713,8 +1096,16 @@ export default function GreenLeafForm() {
                                 )}
                             </div>
 
-                            <div className="p-5 border-t border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-3">
-                                <button onClick={handleSaveAll} disabled={isSavingAll || pendingRecords.length === 0} className={`w-full py-4 rounded-2xl text-white font-black flex justify-center items-center gap-2 transition-all ${isSavingAll || pendingRecords.length === 0 ? 'bg-gray-300 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 hover:-translate-y-0.5'}`}>
+                            <div className="p-5 border-t border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-3 transition-colors">
+                                <button 
+                                    onClick={handleSaveAll}
+                                    disabled={isSavingAll || pendingRecords.length === 0}
+                                    className={`w-full py-4 rounded-2xl text-white font-black flex justify-center items-center gap-2 transition-all ${
+                                        isSavingAll || pendingRecords.length === 0 
+                                        ? 'bg-gray-300 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500 cursor-not-allowed' 
+                                        : 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 hover:-translate-y-0.5'
+                                    }`}
+                                >
                                     <Save size={18} /> {isSavingAll ? "Saving..." : `Save to Database (${pendingRecords.length})`}
                                 </button>
                             </div>

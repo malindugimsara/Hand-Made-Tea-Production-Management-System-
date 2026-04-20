@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { Bell, AlertTriangle, TrendingDown, TrendingUp, BarChart2, Zap, CheckCircle, Info, Leaf, Package, DollarSign } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
+import { Bell, AlertTriangle, TrendingDown, TrendingUp, BarChart2, Zap, CheckCircle, Info, Leaf, Package, DollarSign, Filter } from 'lucide-react';
 
 export default function Home() {
     const navigate = useNavigate();
@@ -18,12 +18,20 @@ export default function Home() {
     const [alerts, setAlerts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const today = new Date().toLocaleDateString('en-US', { 
+    // Filter States
+    const [selectedTeaType, setSelectedTeaType] = useState('All');
+
+    // Store raw data to re-calculate chart when filter changes
+    const [rawGlData, setRawGlData] = useState([]);
+    const [rawProdData, setRawProdData] = useState([]);
+
+    const todayDateObj = new Date();
+    const today = todayDateObj.toLocaleDateString('en-US', { 
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
     });
 
     const getGreeting = () => {
-        const hour = new Date().getHours();
+        const hour = todayDateObj.getHours();
         if (hour < 12) return "Good Morning";
         if (hour < 18) return "Good Afternoon";
         return "Good Evening";
@@ -33,6 +41,54 @@ export default function Home() {
         fetchDashboardStats();
     }, []);
 
+    // Re-calculate Production Chart Data when Filter changes
+    useEffect(() => {
+        if (rawGlData.length > 0 || rawProdData.length > 0) {
+            generateProductionChartData(rawGlData, rawProdData, selectedTeaType);
+        }
+    }, [selectedTeaType, rawGlData, rawProdData]);
+
+    const generateProductionChartData = (glData, prodData, teaTypeFilter) => {
+        // Generate array of dates from 1st of current month to TODAY
+        const currentYear = todayDateObj.getFullYear();
+        const currentMonth = todayDateObj.getMonth();
+        const currentDay = todayDateObj.getDate();
+        
+        const currentMonthDays = [];
+        for (let i = 1; i <= currentDay; i++) {
+            const d = new Date(currentYear, currentMonth, i);
+            currentMonthDays.push(d.toISOString().split('T')[0]); // YYYY-MM-DD
+        }
+
+        const pChartData = currentMonthDays.map(date => {
+            // Green Leaf is usually a single daily total, but if we need to filter by tea type, 
+            // GL data doesn't typically have 'teaType'. If it does, we filter it. 
+            // Usually, GL is total received. We will show Total GL unless you want to hide it when filtering.
+            let glSum = 0;
+            if (teaTypeFilter === 'All') {
+                glSum = glData.filter(g => g.date && g.date.startsWith(date)).reduce((sum, g) => sum + (Number(g.selectedWeight) || 0), 0);
+            }
+
+            // Filter Production (Made Tea) by Tea Type
+            const filteredProd = prodData.filter(p => {
+                const dateMatch = p.date && p.date.startsWith(date);
+                const typeMatch = teaTypeFilter === 'All' || p.teaType === teaTypeFilter;
+                return dateMatch && typeMatch;
+            });
+
+            const mtSum = filteredProd.reduce((sum, p) => sum + (Number(p.madeTeaWeight) || 0), 0);
+            
+            return { 
+                name: date.slice(8, 10), // Show only DD (Day) on X axis for cleaner look
+                fullDate: date,
+                GreenLeaf: glSum, 
+                MadeTea: mtSum 
+            };
+        });
+
+        setProdChartData(pChartData);
+    };
+
     const fetchDashboardStats = async () => {
         try {
             const token = localStorage.getItem('token');
@@ -41,7 +97,6 @@ export default function Home() {
                 'Authorization': `Bearer ${token}`
             };
 
-            // 1. Sales Chart එකට අවශ්‍ය මාස 6 හදාගැනීම (YYYY-MM format)
             const last6MonthsInfo = [...Array(6)].map((_, i) => {
                 const d = new Date();
                 d.setMonth(d.getMonth() - i);
@@ -51,14 +106,12 @@ export default function Home() {
                 };
             });
 
-            // Sales API 6කට කතා කරන්න Promises හදාගැනීම
             const salesPromises = last6MonthsInfo.map(info => 
                 fetch(`${BACKEND_URL}/api/selling-details?month=${info.monthStr}`, { headers: authHeaders })
                     .then(res => res.ok ? res.json() : { records: [] })
                     .then(data => ({ ...data, ...info })) 
             );
 
-            // 2. අනිත් API ටිකයි Sales මාස 6 යි එකවර Fetch කිරීම
             const [glRes, prodRes, labRes, ...salesResults] = await Promise.all([
                 fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
                 fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
@@ -70,19 +123,19 @@ export default function Home() {
             const prodData = prodRes.ok ? await prodRes.json() : [];
             const labourData = labRes.ok ? await labRes.json() : [];
 
-            // --- Get Yesterday's Date String (YYYY-MM-DD) ---
+            setRawGlData(glData);
+            setRawProdData(prodData);
+
             const yesterdayDate = new Date();
             yesterdayDate.setDate(yesterdayDate.getDate() - 1);
             const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
 
-            // 3. Calculate Yesterday's Green Leaf & Made Tea
             const yesterdayGL = glData.filter(item => item.date && item.date.startsWith(yesterdayStr));
             setGlYesterday(yesterdayGL.reduce((sum, item) => sum + (Number(item.selectedWeight) || 0), 0));
 
             const yesterdayProd = prodData.filter(item => item.date && item.date.startsWith(yesterdayStr));
             setMtYesterday(yesterdayProd.reduce((sum, item) => sum + (Number(item.madeTeaWeight) || 0), 0));
 
-            // 4. Calculate Last Month's Sales (Card එකට)
             const lastMonthData = salesResults[1]; 
             if (lastMonthData && lastMonthData.records) {
                 const rate = lastMonthData.exchangeRate || 300;
@@ -92,29 +145,9 @@ export default function Home() {
                 setSalesLastMonth(0);
             }
 
-            // ==========================================
-            // CHART DATA PREPARATION
-            // ==========================================
-            
-            // A. Production Chart (Last 7 Days)
-            const last7Days = [...Array(7)].map((_, i) => {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
-                return d.toISOString().split('T')[0];
-            }).reverse();
+            // Generate initial chart data (All types)
+            generateProductionChartData(glData, prodData, 'All');
 
-            const pChartData = last7Days.map(date => {
-                const glSum = glData.filter(g => g.date && g.date.startsWith(date)).reduce((sum, g) => sum + (Number(g.selectedWeight) || 0), 0);
-                const mtSum = prodData.filter(p => p.date && p.date.startsWith(date)).reduce((sum, p) => sum + (Number(p.madeTeaWeight) || 0), 0);
-                return { 
-                    name: date.slice(5), 
-                    GreenLeaf: glSum, 
-                    MadeTea: mtSum 
-                };
-            });
-            setProdChartData(pChartData);
-
-            // B. Sales Chart (Last 6 Months)
             const sChartData = salesResults.map(saleMonth => {
                 const rate = saleMonth.exchangeRate || 300;
                 const usd = (saleMonth.records || []).reduce((sum, r) => sum + (Number(r.packs || 0) * Number(r.price || 0)), 0);
@@ -139,17 +172,25 @@ export default function Home() {
                 });
             }
 
-            const weekGL = pChartData.reduce((s, c) => s + c.GreenLeaf, 0);
-            const weekMT = pChartData.reduce((s, c) => s + c.MadeTea, 0);
-            if (weekGL > 0 && (weekMT / weekGL) < 0.15) {
+            // Use last 7 days for alerts calculation
+            const last7DaysStr = [...Array(7)].map((_, i) => {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                return d.toISOString().split('T')[0];
+            });
+
+            const weekGLSum = glData.filter(g => last7DaysStr.includes(g.date?.substring(0,10))).reduce((s, g) => s + (Number(g.selectedWeight)||0), 0);
+            const weekMTSum = prodData.filter(p => last7DaysStr.includes(p.date?.substring(0,10))).reduce((s, p) => s + (Number(p.madeTeaWeight)||0), 0);
+            
+            if (weekGLSum > 0 && (weekMTSum / weekGLSum) < 0.15) {
                 newAlerts.push({
                     id: 2, type: 'danger', icon: <TrendingDown size={20}/>,
                     title: 'Low Yield Alert',
-                    message: `Made Tea percentage is unusually low (${((weekMT/weekGL)*100).toFixed(1)}%) over the last 7 days.`
+                    message: `Made Tea percentage is unusually low (${((weekMTSum/weekGLSum)*100).toFixed(1)}%) over the last 7 days.`
                 });
             }
 
-            const unitsPerDay = last7Days.map(date => {
+            const unitsPerDay = last7DaysStr.map(date => {
                 return prodData.filter(p => p.date && p.date.startsWith(date))
                     .reduce((sum, p) => {
                         const pts = p.dryerDetails?.units || ((Number(p.dryerDetails?.meterEnd)||0) - (Number(p.dryerDetails?.meterStart)||0));
@@ -157,7 +198,7 @@ export default function Home() {
                     }, 0);
             });
             const avgUnits = (unitsPerDay.reduce((a,b)=>a+b,0) / 7) || 0;
-            const yesterdayUnits = unitsPerDay[5]; 
+            const yesterdayUnits = unitsPerDay[1]; // Index 1 is yesterday in reversed array
             
             if (yesterdayUnits > 0 && avgUnits > 0 && yesterdayUnits > (avgUnits * 1.4)) {
                 newAlerts.push({
@@ -183,6 +224,8 @@ export default function Home() {
             setIsLoading(false);
         }
     };
+
+    const currentMonthName = todayDateObj.toLocaleString('default', { month: 'long' });
 
     return (
         <div className="p-6 md:p-8 max-w-[1500px] mx-auto h-full flex flex-col space-y-8 bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
@@ -257,33 +300,60 @@ export default function Home() {
                     
                     {/* Chart 1: Production Trend */}
                     <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-3xl shadow-lg hover:shadow-2xl border border-gray-100 dark:border-zinc-800 hover:border-green-200 dark:hover:border-green-800 transition-all duration-300 transform hover:-translate-y-1 text-gray-800 dark:text-gray-200">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                        <div className="flex flex-col md:flex-row md:items-start justify-between mb-6 gap-4">
                             <div>
                                 <h3 className="text-xl font-extrabold flex items-center gap-2">
                                     <BarChart2 className="text-[#8CC63F] dark:text-green-500" size={26}/> Production Trend
                                 </h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-medium">Comparison of Green Leaf vs Made Tea</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-medium">Daily comparison for {currentMonthName}</p>
                             </div>
-                            <div className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-4 py-1.5 rounded-full text-xs font-bold border border-green-100 dark:border-green-800/50">
-                                Last 7 Days
+                            
+                            <div className="flex flex-col sm:flex-row items-center gap-3">
+                                <div className="relative">
+                                    <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <select 
+                                        value={selectedTeaType} 
+                                        onChange={(e) => setSelectedTeaType(e.target.value)}
+                                        className="pl-9 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-[#8CC63F] cursor-pointer"
+                                    >
+                                        <option value="All">All Tea Types</option>
+                                        <option value="Purple Tea">Purple Tea</option>
+                                        <option value="Pink Tea">Pink Tea</option>
+                                        <option value="White Tea">White Tea</option>
+                                        <option value="Silver Tips">Silver Tips</option>
+                                        <option value="Silver Green">Silver Green</option>
+                                        <option value="VitaGlow Tea">VitaGlow Tea</option>
+                                        <option value="Slim Beauty">Slim Beauty</option>
+                                        <option value="Golden Tips">Golden Tips</option>
+                                        <option value="Flower">Flower</option>
+                                        <option value="Chakra">Chakra</option>
+                                    </select>
+                                </div>
+                                <div className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-4 py-2 rounded-xl text-xs font-bold border border-green-100 dark:border-green-800/50">
+                                    1st - {todayDateObj.getDate()} {currentMonthName}
+                                </div>
                             </div>
                         </div>
                         
-                        <div className="h-[300px] w-full">
+                        <div className="h-[320px] w-full">
                             {isLoading ? (
                                 <div className="h-full flex items-center justify-center text-gray-400">Loading chart...</div>
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={prodChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barSize={35}>
+                                    <BarChart data={prodChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barSize={15}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" strokeOpacity={0.1} />
                                         <XAxis dataKey="name" tick={{fontSize: 12, fontWeight: 500, fill: '#6b7280'}} axisLine={false} tickLine={false} dy={10} />
                                         <YAxis tick={{fontSize: 12, fontWeight: 500, fill: '#6b7280'}} axisLine={false} tickLine={false} />
                                         <Tooltip 
+                                            labelFormatter={(label) => `${currentMonthName} ${label}`}
                                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', color: 'black' }}
                                             cursor={{fill: 'currentColor', opacity: 0.05}}
                                         />
-                                        <Bar dataKey="GreenLeaf" name="Green Leaf (kg)" fill="#A3D9A5" radius={[6, 6, 0, 0]} />
-                                        <Bar dataKey="MadeTea" name="Made Tea (kg)" fill="#1B6A31" radius={[6, 6, 0, 0]} />
+                                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                                        {selectedTeaType === 'All' && (
+                                            <Bar dataKey="GreenLeaf" name="Total Green Leaf (kg)" fill="#A3D9A5" radius={[4, 4, 0, 0]} />
+                                        )}
+                                        <Bar dataKey="MadeTea" name={`Made Tea (${selectedTeaType}) (kg)`} fill="#1B6A31" radius={[4, 4, 0, 0]} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             )}
