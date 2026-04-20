@@ -1,4 +1,4 @@
-import { GreenLeaf } from '../models/greenLeaf.js';
+import { GreenLeaf } from '../models/GreenLeaf.js';
 
 // Create new Green Leaf record
 export const createGreenLeaf = async (req, res) => {
