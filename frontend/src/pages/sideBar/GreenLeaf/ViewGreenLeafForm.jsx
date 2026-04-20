@@ -354,14 +354,22 @@ export default function GreenLeafForm() {
             isFooter: true
         });
 
+        
         return tableRows;
     };
+
+    const getCurrentMonthCode = () => {
+            const date = new Date();
+            const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
+            const year = date.getFullYear();
+            return `HT/DR/${month}.${year}`; // Result: HT/DR/APRIL.2026
+        };
+
+    const uniqueCode = getCurrentMonthCode();
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
             <div className="p-8 max-w-[1600px] mx-auto font-sans relative">
-                <Toaster />
-                
                 <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h2 className="text-2xl font-bold text-[#1B6A31] dark:text-green-500 flex items-center gap-2"> <Leaf size={28} /> Daily Production Log</h2>
@@ -375,6 +383,7 @@ export default function GreenLeafForm() {
                             subtitle={`Filters Applied -> Date: ${startDate || 'All'} to ${endDate || 'All'} | Tea: ${teaType} | Dryer: ${dryerType}`}
                             headers={["Date", "Received GL", "Selected GL", "Return GL", "Tea Type", "Made Tea", "Dryer", "Start", "End", "Units", "Roller", "Sel. Lab", "Rolling"]}
                             data={getPdfData()} 
+                            uniqueCode={uniqueCode}
                             fileName={`Production_Log_${new Date().toISOString().split('T')[0]}.pdf`}
                             orientation="landscape"
                             disabled={loading || filteredRecords.length === 0}

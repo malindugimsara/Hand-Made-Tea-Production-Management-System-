@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { PlusCircle, Trash2, ListChecks, Save, X, CalendarClock, Zap, AlertCircle, Search, Sun, Moon, ChevronRight, MoreVertical } from "lucide-react";
+import { PlusCircle, Trash2, ListChecks, Save, X, CalendarClock, Zap, AlertCircle, Search, Sun, Moon, ChevronRight, MoreVertical, Leaf, Factory, Users } from "lucide-react";
 
 import {
     DropdownMenu,
@@ -50,7 +50,6 @@ export default function GreenLeafForm() {
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const dropdownRef = useRef(null);
 
-    // Close dropdown when clicking outside
     useEffect(() => {
         function handleClickOutside(event) {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -64,7 +63,6 @@ export default function GreenLeafForm() {
     const [isSavingAll, setIsSavingAll] = useState(false);
     const [pendingRecords, setPendingRecords] = useState([]);
 
-    // Safely get today's date in local YYYY-MM-DD format
     const getTodayLocalString = () => {
         const today = new Date();
         return today.getFullYear() + '-' + 
@@ -72,13 +70,12 @@ export default function GreenLeafForm() {
                String(today.getDate()).padStart(2, '0');
     };
 
-    // --- DAY 1 FORM STATE ---
+    // --- DAY 1 FORM STATE (UPDATED FOR MULTIPLE TEA TYPES) ---
     const [formData, setFormData] = useState({
         date: getTodayLocalString(),
         totalWeight: '',
         selectedWeight: '',
-        teaType: '',
-        madeTeaWeight: '',
+        outputs: [{ teaType: '', madeTeaWeight: '' }], // Array for multiple outputs
         expectedDryerDate: '', 
         workerCount: '',
         rollingType: 'Machine Rolling',
@@ -97,7 +94,7 @@ export default function GreenLeafForm() {
         dryerName: '',
         meterStart: '',
         meterEnd: '',
-        rollerPoints: '' // <-- NEW FIELD ADDED
+        rollerPoints: '' 
     });
 
     useEffect(() => {
@@ -130,7 +127,6 @@ export default function GreenLeafForm() {
             if (prodRes.ok) {
                 const prodData = await prodRes.json();
                 prodData.sort((a, b) => new Date(b.date) - new Date(a.date)); 
-                
                 setAllProductionData(prodData); 
 
                 let d1Last = '';
@@ -144,7 +140,6 @@ export default function GreenLeafForm() {
 
                 setLastReadings({ 'Dryer 1': d1Last, 'Dryer 2': d2Last });
 
-                // --- AUTO-POPUP LOGIC ---
                 const todayStr = getTodayLocalString();
                 const tasksNeedingDryer = prodData.filter(p => {
                     const hasNoDryer = !p.dryerDetails || !p.dryerDetails.dryerName || p.dryerDetails.dryerName === "";
@@ -189,6 +184,22 @@ export default function GreenLeafForm() {
         }
     };
 
+    // --- Output Array Handlers ---
+    const handleOutputChange = (index, field, value) => {
+        const newOutputs = [...formData.outputs];
+        newOutputs[index][field] = value;
+        setFormData({ ...formData, outputs: newOutputs });
+    };
+
+    const addOutput = () => {
+        setFormData({ ...formData, outputs: [...formData.outputs, { teaType: '', madeTeaWeight: '' }] });
+    };
+
+    const removeOutput = (index) => {
+        const newOutputs = formData.outputs.filter((_, i) => i !== index);
+        setFormData({ ...formData, outputs: newOutputs });
+    };
+
     const playErrorSound = () => {
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -198,10 +209,8 @@ export default function GreenLeafForm() {
             osc.frequency.setValueAtTime(150, ctx.currentTime); 
             gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-            osc.connect(gainNode);
-            gainNode.connect(ctx.destination);
-            osc.start();
-            osc.stop(ctx.currentTime + 0.3);
+            osc.connect(gainNode); gainNode.connect(ctx.destination);
+            osc.start(); osc.stop(ctx.currentTime + 0.3);
         } catch (e) {
             console.log("Audio not supported");
         }
@@ -212,39 +221,40 @@ export default function GreenLeafForm() {
 
         const total = Number(formData.totalWeight);
         const selected = Number(formData.selectedWeight);
-        const made = Number(formData.madeTeaWeight);
+        
+        // Validate outputs
+        let totalMade = 0;
+        for (let out of formData.outputs) {
+            if (!out.teaType || !out.madeTeaWeight) {
+                toast.error("Please fill all tea types and weights!");
+                return;
+            }
+            totalMade += Number(out.madeTeaWeight);
+        }
 
         if (selected > total) {
-            playErrorSound();
-            toast.error("Selected weight must be less than Total weight!");
-            return;
+            playErrorSound(); toast.error("Selected weight must be less than Total weight!"); return;
         }
-
-        if (made > selected) {
-            playErrorSound();
-            toast.error("Made tea weight must be less than Selected weight!");
-            return;
+        if (totalMade > selected) {
+            playErrorSound(); toast.error("Total Made tea weight must be less than Selected weight!"); return;
         }
-
         if (formData.expectedDryerDate < formData.date) {
-            playErrorSound();
-            toast.error("Expected Dryer Date cannot be before the collection date!");
-            return;
+            playErrorSound(); toast.error("Expected Dryer Date cannot be before the collection date!"); return;
         }
 
         const newRecord = { ...formData, returnedWeight };
         setPendingRecords([...pendingRecords, newRecord]);
         toast.success("Added to list!");
 
+        // Reset form but keep basic defaults
         setFormData({
             ...formData,
-            totalWeight: '',
-            selectedWeight: '',
-            teaType: '',
-            madeTeaWeight: '',
-            expectedDryerDate: '',
-            workerCount: '',
-            rollingType: 'Machine Rolling',
+            totalWeight: '', 
+            selectedWeight: '', 
+            outputs: [{ teaType: '', madeTeaWeight: '' }],
+            expectedDryerDate: '', 
+            workerCount: '', 
+            rollingType: 'Machine Rolling', 
             rollingWorkerCount: ''
         });
     };
@@ -256,8 +266,7 @@ export default function GreenLeafForm() {
 
     const handleSaveAll = async () => {
         if (pendingRecords.length === 0) {
-            toast.error("No records in the list to save!");
-            return;
+            toast.error("No records in the list to save!"); return;
         }
 
         setIsSavingAll(true);
@@ -265,61 +274,60 @@ export default function GreenLeafForm() {
 
         try {
             const token = localStorage.getItem('token');
-            const authHeaders = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            };
+            const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
             const promises = pendingRecords.map(async (record) => {
                 const total = Number(record.totalWeight);
                 const selected = Number(record.selectedWeight);
-                const made = Number(record.madeTeaWeight);
 
                 const greenLeafPayload = { date: record.date, totalWeight: total, selectedWeight: selected };
-                
-                const productionPayload = { 
-                    date: record.date, 
-                    teaType: record.teaType, 
-                    madeTeaWeight: made,
-                    expectedDryerDate: record.expectedDryerDate 
-                };
-                
                 const labourPayload = { 
-                    date: record.date, 
-                    workerCount: Number(record.workerCount),
-                    rollingType: record.rollingType,
+                    date: record.date, workerCount: Number(record.workerCount), rollingType: record.rollingType,
                     rollingWorkerCount: record.rollingType === 'Hand Rolling' ? Number(record.rollingWorkerCount) : 0
                 };
 
-                const [glRes, prodRes, labRes] = await Promise.all([
+                // Save GL and Labour first
+                const [glRes, labRes] = await Promise.all([
                     fetch(`${BACKEND_URL}/api/green-leaf`, { method: 'POST', headers: authHeaders, body: JSON.stringify(greenLeafPayload) }),
-                    fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(productionPayload) }),
                     fetch(`${BACKEND_URL}/api/labour`, { method: 'POST', headers: authHeaders, body: JSON.stringify(labourPayload) })
                 ]);
 
-                if (!glRes.ok || !prodRes.ok || !labRes.ok) {
-                    if (glRes.status === 403 || prodRes.status === 403 || labRes.status === 403) throw new Error('Access Denied');
-                    throw new Error('Failed to save a record');
+                if (!glRes.ok || !labRes.ok) {
+                    if (glRes.status === 403 || labRes.status === 403) throw new Error('Access Denied');
+                    throw new Error('Failed to save GL or Labour record');
+                }
+
+                // Loop through outputs and save each Production record individually
+                const prodPromises = record.outputs.map(out => {
+                    const productionPayload = { 
+                        date: record.date, 
+                        teaType: out.teaType, 
+                        madeTeaWeight: Number(out.madeTeaWeight), 
+                        expectedDryerDate: record.expectedDryerDate 
+                    };
+                    return fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(productionPayload) });
+                });
+
+                const prodResults = await Promise.all(prodPromises);
+                for (let res of prodResults) {
+                    if (!res.ok) {
+                        if (res.status === 403) throw new Error('Access Denied');
+                        throw new Error('Failed to save a Production record');
+                    }
                 }
             });
 
             await Promise.all(promises);
-            
             toast.success("All records saved successfully!", { id: toastId });
             setExistingDates([...existingDates, ...pendingRecords.map(r => r.date)]);
             setPendingRecords([]); 
             
-            setTimeout(() => {
-                navigation('/view-green-leaf');
-            }, 1000);
+            setTimeout(() => { navigation('/view-green-leaf'); }, 1000);
 
         } catch (error) {
             playErrorSound();
-            if (error.message === 'Access Denied') {
-                toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
-            } else {
-                toast.error("Error saving some records. Please check.", { id: toastId });
-            }
+            if (error.message === 'Access Denied') toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
+            else toast.error("Error saving some records. Please check.", { id: toastId });
         } finally {
             setIsSavingAll(false);
         }
@@ -340,9 +348,7 @@ export default function GreenLeafForm() {
         const mEnd = Number(dryerFormData.meterEnd);
 
         if (mEnd < mStart) {
-            playErrorSound();
-            toast.error("End Reading must be greater than Start Reading!");
-            return;
+            playErrorSound(); toast.error("End Reading must be greater than Start Reading!"); return;
         }
 
         setIsSubmittingDryer(true);
@@ -351,47 +357,29 @@ export default function GreenLeafForm() {
 
         try {
             const token = localStorage.getItem('token');
-            // Include rollerPoints in the payload
             const payload = {
                 dryerDetails: {
-                    dryerName: dryerFormData.dryerName,
-                    meterStart: mStart,
-                    meterEnd: mEnd,
-                    rollerPoints: Number(dryerFormData.rollerPoints)
+                    dryerName: dryerFormData.dryerName, meterStart: mStart, meterEnd: mEnd, rollerPoints: Number(dryerFormData.rollerPoints)
                 }
             };
 
             const res = await fetch(`${BACKEND_URL}/api/production/${currentTask._id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
+                method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload)
             });
 
             if (!res.ok) throw new Error("Failed to update record");
 
             toast.success("Dryer details saved!", { id: toastId });
-
-            setLastReadings(prev => ({
-                ...prev,
-                [dryerFormData.dryerName]: mEnd
-            }));
-
-            setAllProductionData(prev => prev.map(p => 
-                p._id === currentTask._id ? { ...p, dryerDetails: payload.dryerDetails } : p
-            ));
+            setLastReadings(prev => ({ ...prev, [dryerFormData.dryerName]: mEnd }));
+            setAllProductionData(prev => prev.map(p => p._id === currentTask._id ? { ...p, dryerDetails: payload.dryerDetails } : p));
 
             if (activeTaskIndex < pendingDryerTasks.length - 1) {
                 setActiveTaskIndex(prev => prev + 1);
-                // Clear the form fields including the new rollerPoints field
                 setDryerFormData({ dryerName: '', meterStart: '', meterEnd: '', rollerPoints: '' });
             } else {
                 setPendingDryerTasks([]); 
                 toast.success("All pending dryer tasks complete!");
             }
-
         } catch (error) {
             toast.error("Error saving dryer readings.", { id: toastId });
         } finally {
@@ -399,350 +387,341 @@ export default function GreenLeafForm() {
         }
     };
 
-    const handleCancel = () => {
-        if (pendingRecords.length > 0) {
-            if (window.confirm("You have unsaved records in the list. Are you sure you want to leave?")) {
-                navigation(-1);
-            }
-        } else {
-            navigation(-1);
-        }
-    };
+    const inputStyles = "w-full p-3.5 border border-gray-200 dark:border-zinc-800 rounded-xl bg-gray-50 dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-4 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all disabled:bg-gray-100 disabled:text-gray-400 dark:disabled:bg-zinc-800/50 dark:disabled:text-zinc-600 disabled:cursor-not-allowed";
+    const labelStyles = "block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider";
 
     return (
-        <div className="p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
-            <Toaster />
-            {/* --- DAY 2 PENDING DRYER MODAL --- */}
-            {/* --- DAY 2 PENDING DRYER MODAL --- */}
-            {pendingDryerTasks.length > 0 && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-900/40 dark:bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-                    <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-orange-200 dark:border-orange-900/50 my-auto relative">
-                        <div className="bg-gradient-to-r from-orange-500 to-orange-600 dark:from-orange-600 dark:to-orange-700 p-6 text-white relative">
-                            <button onClick={() => setPendingDryerTasks([])} className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors">
-                                <X size={24} />
-                            </button>
-                            <div className="flex items-center gap-3 mb-2">
-                                <AlertCircle size={28} />
-                                <h2 className="text-2xl font-bold">Pending Dryer Readings</h2>
-                            </div>
-                            <p className="text-orange-100 font-medium">
-                                Task {activeTaskIndex + 1} of {pendingDryerTasks.length}
-                            </p>
-                        </div>
+        <div className="min-h-screen bg-gray-50/50 dark:bg-zinc-950 transition-colors duration-300 pb-20">
+    
+            {/* --- TOP HEADER NAVIGATION --- */}
+            <div className="sticky top-0 z-40 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl border-b border-gray-200 dark:border-zinc-800 shadow-sm px-8 py-4 mb-8 flex justify-between items-center transition-colors duration-300">
+                <div>
+                    <h2 className="text-2xl font-black text-[#1B6A31] dark:text-green-500 flex items-center gap-2">
+                        <Leaf size={24} /> New Production Entry
+                    </h2>
+                    <p className="text-sm text-gray-500 dark:text-zinc-400 mt-0.5 font-medium">Record Green Leaf, Production, and Labour data</p>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                    <button onClick={toggleTheme} className="p-2.5 rounded-xl bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-800 text-gray-600 dark:text-gray-300 transition-all">
+                        {isDark ? <Sun size={18} className="text-yellow-500" /> : <Moon size={18} />}
+                    </button>
 
-                        <div className="p-6">
-                            <div className="bg-orange-50 dark:bg-orange-950/30 text-orange-800 dark:text-orange-300 p-4 rounded-xl mb-6 border border-orange-100 dark:border-orange-800/50">
-                                <p className="text-sm font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400 mb-1">Record Details</p>
-                                <p className="font-medium"><strong>Date Collected:</strong> {new Date(pendingDryerTasks[activeTaskIndex].date).toISOString().split('T')[0]}</p>
-                                <p className="font-medium"><strong>Tea Type:</strong> {pendingDryerTasks[activeTaskIndex].teaType}</p>
-                                <p className="font-medium"><strong>Made Tea Output:</strong> {pendingDryerTasks[activeTaskIndex].madeTeaWeight} kg</p>
-                            </div>
-
-                            <form onSubmit={handleModalSubmit} className="space-y-5">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">SELECT DRYER</label>
-                                    <select 
-                                        name="dryerName" 
-                                        value={dryerFormData.dryerName} 
-                                        onChange={handleModalDryerSelect} 
-                                        required 
-                                        className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-orange-400 outline-none"
-                                    >
-                                        <option value="">Select Dryer...</option>
-                                        <option value="Dryer 1">Dryer 1</option>
-                                        <option value="Dryer 2">Dryer 2</option>
-                                    </select>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">START READING</label>
-                                        <input 
-                                            type="number" 
-                                            value={dryerFormData.meterStart} 
-                                            onChange={(e) => setDryerFormData({...dryerFormData, meterStart: e.target.value})} 
-                                            onWheel={(e) => e.target.blur()} 
-                                            required 
-                                            className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-orange-400 outline-none" 
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">END READING</label>
-                                        <input 
-                                            type="number" 
-                                            value={dryerFormData.meterEnd} 
-                                            onChange={(e) => setDryerFormData({...dryerFormData, meterEnd: e.target.value})} 
-                                            onWheel={(e) => e.target.blur()} 
-                                            required 
-                                            className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-orange-400 outline-none" 
-                                        />
-                                    </div>
-                                </div>
-                                {/* NEW ROLLER POINTS FIELD */}
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">ROLLER (POINTS)</label>
-                                    <input 
-                                        type="number" 
-                                        value={dryerFormData.rollerPoints} 
-                                        onChange={(e) => setDryerFormData({...dryerFormData, rollerPoints: e.target.value})} 
-                                        onWheel={(e) => e.target.blur()} 
-                                        required 
-                                        className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-orange-400 outline-none" 
-                                    />
-                                </div>
-                                <button 
-                                    type="submit" 
-                                    disabled={isSubmittingDryer}
-                                    className="w-full py-4 mt-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl transition-colors shadow-md disabled:bg-orange-400 dark:disabled:bg-orange-800"
-                                >
-                                    {isSubmittingDryer ? "Saving..." : activeTaskIndex < pendingDryerTasks.length - 1 ? "Save & Next" : "Save & Complete"}
+                    <div className="relative" ref={dropdownRef}>
+                        <button onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} className="p-2.5 rounded-xl bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-800 text-gray-600 dark:text-gray-300 transition-all">
+                            <MoreVertical size={18} />
+                        </button>
+                        <div className={`absolute right-0 mt-3 w-56 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-xl z-50 transform origin-top-right transition-all duration-200 ease-out ${isProfileMenuOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0 pointer-events-none'}`}>
+                            <div className="p-2">
+                                <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-400">My Account</div>
+                                <button className="w-full text-left px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-800 rounded-lg flex justify-between items-center transition-colors">
+                                    <span>Profile</span><span className="text-xs text-gray-400">⇧⌘P</span>
                                 </button>
-                            </form>
+                                <button className="w-full text-left px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-800 rounded-lg flex justify-between items-center transition-colors">
+                                    <span>Settings</span><span className="text-xs text-gray-400">⌘S</span>
+                                </button>
+                                <div className="h-px bg-gray-100 dark:bg-zinc-800 my-1"></div>
+                                <button className="w-full text-left px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg flex justify-between items-center transition-colors">
+                                    <span>Log out</span><span className="text-xs opacity-60">⇧⌘Q</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            )}
-            
-            <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="text-center sm:text-left">
-                    <h2 className="text-3xl font-bold text-[#1B6A31] dark:text-green-500">Add Daily Production Records</h2>
-                    <p className="text-gray-500 dark:text-gray-400 mt-2">Add multiple processing records and save them at once</p>
-                </div>
-                
-                
             </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+
+            <div className="px-8 max-w-[1600px] mx-auto relative">
+
+                {/* --- DAY 2 PENDING DRYER MODAL --- */}
+                {pendingDryerTasks.length > 0 && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-900/40 dark:bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+                        <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-orange-200 dark:border-orange-900/50 my-auto relative">
+                            <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-6 text-white relative">
+                                <button onClick={() => setPendingDryerTasks([])} className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 p-1.5 rounded-full transition-colors">
+                                    <X size={20} />
+                                </button>
+                                <div className="flex items-center gap-3 mb-1">
+                                    <AlertCircle size={28} className="opacity-90" />
+                                    <h2 className="text-2xl font-black m-0">Pending Dryers</h2>
+                                </div>
+                                <p className="text-orange-100 font-medium m-0 ml-10">Task {activeTaskIndex + 1} of {pendingDryerTasks.length}</p>
+                            </div>
+
+                            <div className="p-6">
+                                <div className="bg-orange-50/50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 p-4 rounded-2xl mb-6">
+                                    <p className="text-[10px] font-black uppercase tracking-wider text-orange-500 dark:text-orange-400 mb-3">Record Details</p>
+                                    <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                                        <div className="flex justify-between border-b border-orange-100 dark:border-orange-900/30 pb-2">
+                                            <span className="text-gray-500 dark:text-gray-400">Date Collected</span>
+                                            <span className="font-bold">{new Date(pendingDryerTasks[activeTaskIndex].date).toISOString().split('T')[0]}</span>
+                                        </div>
+                                        <div className="flex justify-between border-b border-orange-100 dark:border-orange-900/30 pb-2">
+                                            <span className="text-gray-500 dark:text-gray-400">Tea Type</span>
+                                            <span className="font-bold text-purple-600 dark:text-purple-400">{pendingDryerTasks[activeTaskIndex].teaType}</span>
+                                        </div>
+                                        <div className="flex justify-between pt-1">
+                                            <span className="text-gray-500 dark:text-gray-400">Made Tea Output</span>
+                                            <span className="font-black text-gray-900 dark:text-white">{pendingDryerTasks[activeTaskIndex].madeTeaWeight} kg</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <form onSubmit={handleModalSubmit} className="space-y-5">
+                                    <div>
+                                        <label className={labelStyles}>Select Dryer</label>
+                                        <select name="dryerName" value={dryerFormData.dryerName} onChange={handleModalDryerSelect} required className={inputStyles}>
+                                            <option value="">Choose...</option>
+                                            <option value="Dryer 1">Dryer 1</option>
+                                            <option value="Dryer 2">Dryer 2</option>
+                                        </select>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className={labelStyles}>Start Reading</label>
+                                            <input type="number" value={dryerFormData.meterStart} onChange={(e) => setDryerFormData({...dryerFormData, meterStart: e.target.value})} onWheel={(e) => e.target.blur()} required className={inputStyles} />
+                                        </div>
+                                        <div>
+                                            <label className={labelStyles}>End Reading</label>
+                                            <input type="number" value={dryerFormData.meterEnd} onChange={(e) => setDryerFormData({...dryerFormData, meterEnd: e.target.value})} onWheel={(e) => e.target.blur()} required className={inputStyles} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className={labelStyles}>Roller (Points)</label>
+                                        <input type="number" value={dryerFormData.rollerPoints} onChange={(e) => setDryerFormData({...dryerFormData, rollerPoints: e.target.value})} onWheel={(e) => e.target.blur()}  className={inputStyles} />
+                                    </div>
+
+                                    <button type="submit" disabled={isSubmittingDryer} className="w-full py-4 mt-4 bg-orange-500 hover:bg-orange-600 text-white font-black rounded-xl transition-all shadow-lg shadow-orange-500/20 disabled:opacity-50">
+                                        {isSubmittingDryer ? "Saving..." : activeTaskIndex < pendingDryerTasks.length - 1 ? "Save & Next" : "Save & Complete"}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 
-                {/* --- 1. DATA ENTRY FORM (Left Side) --- */}
-                <div className="lg:col-span-3">
-                    <form onSubmit={handleAddToList} className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-lg border border-gray-200 dark:border-zinc-800 transition-colors duration-300">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    
+                    {/* --- LEFT SIDE: FORM --- */}
+                    <div className="lg:col-span-8 space-y-6">
                         
-                        <div className="mb-8 pb-6 border-b border-gray-100 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center gap-4">
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">Select Date:</label>
-                            <input 
-                                type="date" 
-                                name="date" 
-                                value={formData.date} 
-                                onChange={handleInputChange} 
-                                required 
-                                className="p-2.5 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] outline-none w-full sm:w-auto bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
-                            />
-                            {/* Load specific date's tasks */}
-                            <button 
-                                type="button" 
-                                onClick={handleLoadDateTasks}
-                                className="px-4 py-2.5 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 font-bold rounded-md transition-colors flex items-center gap-2"
-                            >
-                                <Search size={18} /> Load Pending Tasks
+                        {/* Top Control Bar */}
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex-1 flex items-center gap-4">
+                                <div className="w-full sm:w-1/2">
+                                    <label className={labelStyles}>Date of Collection</label>
+                                    <input type="date" name="date" value={formData.date} onChange={handleInputChange} required className={inputStyles} />
+                                </div>
+                            </div>
+                            <button type="button" onClick={handleLoadDateTasks} className="w-full sm:w-auto px-5 py-3.5 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold rounded-xl transition-colors flex items-center justify-center gap-2 border border-blue-100 dark:border-blue-500/20">
+                                <Search size={18} /> Load Tasks for Date
                             </button>
                         </div>
 
-                        {/* 1. GREEN LEAF */}
-                        <div className="mb-8 bg-[#F8FAF8] dark:bg-green-950/20 border border-[#A3D9A5] dark:border-green-800/50 rounded-xl p-6 transition-colors duration-300">
-                            <h3 className="text-lg font-bold text-[#1B6A31] dark:text-green-500 mb-4 flex items-center gap-2"><span>🌱</span> 1. Received Green Leaf</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">TOTAL (KG)</label>
-                                    <input type="number" step="0.01" name="totalWeight" value={formData.totalWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">SELECTED (KG)</label>
-                                    <input type="number" step="0.01" name="selectedWeight" value={formData.selectedWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
-                                </div>
-                            </div>
-                            <div className="mt-4 pt-4 border-t border-[#A3D9A5] dark:border-green-800/50 flex justify-between items-center">
-                                <span className="text-sm font-bold text-gray-600 dark:text-gray-400">Calculated Returned Weight:</span>
-                                <span className="text-xl font-black text-[#1B6A31] dark:text-green-500">{returnedWeight > 0 ? returnedWeight.toFixed(2) : 0} kg</span>
-                            </div>
-                        </div>
-
-                        {/* 2. MADE TEA */}
-                        <div className="mb-8 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/50 rounded-xl p-6 transition-colors duration-300">
-                            <h3 className="text-lg font-bold text-purple-700 dark:text-purple-400 mb-4 flex items-center gap-2"><span>🫖</span> 2. Made Tea Production</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">TEA TYPE</label>
-                                    <select name="teaType" value={formData.teaType} onChange={handleInputChange} required className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-purple-400 outline-none transition-colors">
-                                        <option value="">Select Type...</option>
-                                        <option value="Purple Tea">Purple Tea</option>
-                                        <option value="Pink Tea">Pink Tea</option>
-                                        <option value="White Tea">White Tea</option>
-                                        <option value="Silver Tips">Silver Tips</option>
-                                        <option value="Silver Green">Silver Green</option>
-                                        <option value="VitaGlow Tea">VitaGlow Tea</option>
-                                        <option value="Slim Beauty">Slim Beauty</option>
-                                        <option value="Golden Tips">Golden Tips</option>
-                                        <option value="Flower">Flower</option>
-                                        <option value="Chakra">Chakra</option>
-                                        <option value="Other">Other</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">MADE TEA (KG)</label>
-                                    <input type="number" step="0.001" name="madeTeaWeight" value={formData.madeTeaWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-purple-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 3. EXPECTED DRYER DATE */}
-                        <div className="mb-8 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800/50 rounded-xl p-6 transition-colors duration-300">
-                            <h3 className="text-lg font-bold text-orange-600 dark:text-orange-500 mb-4 flex items-center gap-2"><span>🗓️</span> 3. Expected Dryer Schedule</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Select the date this batch is scheduled to enter the dryer. You will be prompted to enter the meter readings on that day.</p>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">EXPECTED DRYER DATE</label>
-                                <input 
-                                    type="date" 
-                                    name="expectedDryerDate" 
-                                    value={formData.expectedDryerDate} 
-                                    onChange={handleInputChange} 
-                                    required 
-                                    className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-orange-400 outline-none transition-colors" 
-                                />
-                            </div>
-                        </div>
-
-                        {/* 4. LABOUR DETAILS */}
-                        <div className="mb-8 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/50 rounded-xl p-6 transition-colors duration-300">
-                            <h3 className="text-lg font-bold text-blue-700 dark:text-blue-400 mb-4 flex items-center gap-2"><span>👥</span> 4. Labour & Rolling Details</h3>
+                        <form onSubmit={handleAddToList} className="space-y-6">
                             
-                            <div className="space-y-6">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Selection Worker Count</label>
-                                    <input 
-                                        type="number" 
-                                        name="workerCount" 
-                                        value={formData.workerCount} 
-                                        onChange={handleInputChange} 
-                                        onWheel={(e) => e.target.blur()} 
-                                        required 
-                                        className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 outline-none transition-colors" 
-                                    />
-                                </div>
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-blue-200 dark:border-blue-800/50">
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Rolling Type</label>
-                                        <select 
-                                            name="rollingType" 
-                                            value={formData.rollingType} 
-                                            onChange={handleInputChange} 
-                                            className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 outline-none transition-colors"
-                                        >
-                                            <option value="Machine Rolling">Machine Rolling</option>
-                                            <option value="Hand Rolling">Hand Rolling</option>
-                                            <option value="Other">Other</option>
-                                        </select>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* 1. GREEN LEAF */}
+                                <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
+                                    <div className="bg-green-50/50 dark:bg-green-500/5 p-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-3">
+                                        <div className="p-2 bg-green-100 dark:bg-green-500/20 rounded-lg text-green-700 dark:text-green-400"><Leaf size={18}/></div>
+                                        <h3 className="font-bold text-gray-800 dark:text-gray-200">Green Leaf Details</h3>
                                     </div>
+                                    <div className="p-5 space-y-5">
+                                        <div>
+                                            <label className={labelStyles}>Total Received (kg)</label>
+                                            <input type="number" step="0.01" name="totalWeight" value={formData.totalWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className={inputStyles} />
+                                        </div>
+                                        <div>
+                                            <label className={labelStyles}>Selected for Handmade (kg)</label>
+                                            <input type="number" step="0.01" name="selectedWeight" value={formData.selectedWeight} onChange={handleInputChange} onWheel={(e) => e.target.blur()} required className={inputStyles} />
+                                        </div>
+                                        <div className="pt-4 border-t border-gray-100 dark:border-zinc-800 flex justify-between items-center">
+                                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Return Weight</span>
+                                            <span className="text-lg font-black text-green-600 dark:text-green-500 bg-green-50 dark:bg-green-500/10 px-3 py-1 rounded-lg border border-green-100 dark:border-green-500/20">
+                                                {returnedWeight > 0 ? returnedWeight.toFixed(2) : 0} kg
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
 
-                                    <div>
-                                        <label className={`block text-xs font-bold mb-1 uppercase ${formData.rollingType === 'Hand Rolling' ? 'text-gray-500 dark:text-gray-400' : 'text-gray-400 dark:text-gray-600'}`}>
-                                            Hand Rolling Labour Count
-                                        </label>
-                                        <input 
-                                            type="number" 
-                                            name="rollingWorkerCount" 
-                                            value={formData.rollingWorkerCount} 
-                                            onChange={handleInputChange} 
-                                            disabled={formData.rollingType !== 'Hand Rolling'}
-                                            placeholder={formData.rollingType === 'Hand Rolling' ? "Enter count" : "Not Required"}
-                                            required={formData.rollingType === 'Hand Rolling'}
-                                            className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 focus:ring-2 focus:ring-blue-400 outline-none disabled:bg-gray-100 disabled:text-gray-400 dark:disabled:bg-zinc-900 dark:disabled:text-zinc-600 disabled:cursor-not-allowed transition-colors" 
-                                        />
+                                {/* 2. DRYER SCHEDULE */}
+                                <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden h-fit">
+                                    <div className="bg-orange-50/50 dark:bg-orange-500/5 p-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-3">
+                                        <div className="p-2 bg-orange-100 dark:bg-orange-500/20 rounded-lg text-orange-600 dark:text-orange-400"><CalendarClock size={18}/></div>
+                                        <h3 className="font-bold text-gray-800 dark:text-gray-200">Dryer Schedule</h3>
+                                    </div>
+                                    <div className="p-5">
+                                        <label className={labelStyles}>Expected Dryer Date</label>
+                                        <input type="date" name="expectedDryerDate" value={formData.expectedDryerDate} onChange={handleInputChange} required className={inputStyles} />
+                                        <p className="text-[11px] text-gray-400 dark:text-zinc-500 mt-2 leading-relaxed">Selecting a date here will trigger a popup on that day to enter meter readings for all tea types added below.</p>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <button 
-                            type="submit" 
-                            className="w-full py-4 rounded-xl text-[#1B6A31] dark:text-green-400 bg-[#F8FAF8] dark:bg-green-900/30 border border-[#8CC63F] dark:border-green-700 font-bold flex justify-center items-center gap-2 hover:bg-[#eaf5e5] dark:hover:bg-green-900/50 transition-all"
-                        >
-                            <PlusCircle size={20} /> Add Record to List
-                        </button>
-                    </form>
-                </div>
-
-                {/* --- 2. PENDING LIST (Right Side) --- */}
-                <div className="lg:col-span-2 flex flex-col gap-6">
-                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-lg border border-blue-100 dark:border-blue-900/50 flex-1 flex flex-col sticky top-8 max-h-[80vh] transition-colors duration-300">
-                        <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-zinc-800 pb-4 transition-colors">
-                            <div className="flex items-center gap-2">
-                                <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg text-blue-700 dark:text-blue-400">
-                                    <ListChecks size={20} />
+                            {/* 3. MULTIPLE MADE TEA PRODUCTION OUTPUTS */}
+                            <div className="bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/50 rounded-2xl p-6 transition-colors duration-300 shadow-sm">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h3 className="text-lg font-bold text-purple-700 dark:text-purple-400 flex items-center gap-2">
+                                        <div className="p-2 bg-purple-100 dark:bg-purple-500/20 rounded-lg text-purple-700 dark:text-purple-400"><Factory size={18}/></div>
+                                        Production Output
+                                    </h3>
+                                    <button type="button" onClick={addOutput} className="text-sm font-bold text-purple-600 hover:text-purple-800 dark:text-purple-400 flex items-center gap-1 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 px-3 py-1.5 rounded-lg transition-colors">
+                                        <PlusCircle size={16} /> Add Type
+                                    </button>
                                 </div>
-                                <h3 className="font-bold text-gray-800 dark:text-gray-200 text-lg">Pending Records</h3>
-                            </div>
-                            <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-400 text-xs font-bold px-3 py-1 rounded-full">
-                                {pendingRecords.length} Items
-                            </span>
-                        </div>
 
-                        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                            {pendingRecords.length === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 py-16">
-                                    <ListChecks size={48} className="mb-4 opacity-20" />
-                                    <p className="text-sm font-medium">List is empty.</p>
-                                    <p className="text-xs mt-1 text-gray-400 dark:text-gray-500">Fill the form and click 'Add to List'</p>
-                                </div>
-                            ) : (
                                 <div className="space-y-4">
-                                    {pendingRecords.map((item, index) => (
-                                        <div key={index} className="p-4 border border-gray-200 dark:border-zinc-700 rounded-xl bg-gray-50 dark:bg-zinc-800/50 relative group hover:border-blue-300 dark:hover:border-blue-800 transition-colors">
-                                            
-                                            <button 
-                                                onClick={() => handleRemoveFromList(index)}
-                                                className="absolute top-3 right-3 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 bg-white dark:bg-zinc-900 p-1.5 rounded-md shadow-sm border border-gray-100 dark:border-zinc-700 transition-colors"
-                                                title="Remove"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-
-                                            <div className="flex flex-col gap-2">
-                                                <div className="flex items-center gap-2 pr-8">
-                                                    <span className="font-black text-gray-800 dark:text-gray-200 text-lg">{item.teaType}</span>
-                                                    <span className="text-[10px] bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded font-bold uppercase border border-purple-200 dark:border-purple-800/50">Made: {item.madeTeaWeight}kg</span>
-                                                </div>
-                                                
-                                                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300 mt-1">
-                                                    <div className="bg-white dark:bg-zinc-900 p-2 rounded border border-gray-100 dark:border-zinc-700/50 transition-colors">
-                                                        <span className="block text-gray-400 font-bold mb-0.5 text-[9px] uppercase">Green Leaf</span>
-                                                        Sel: <span className="font-bold text-green-700 dark:text-green-500">{item.selectedWeight}kg</span><br/>
-                                                        Tot: {item.totalWeight}kg
-                                                    </div>
-                                                    <div className="bg-white dark:bg-zinc-900 p-2 rounded border border-gray-100 dark:border-zinc-700/50 flex flex-col justify-center transition-colors">
-                                                        <span className="block text-gray-400 font-bold mb-0.5 text-[9px] uppercase">Drying Schedule</span>
-                                                        <span className="font-bold text-orange-600 dark:text-orange-500 flex items-center gap-1"><CalendarClock size={12}/> {item.expectedDryerDate}</span>
-                                                    </div>
-                                                </div>
-
-                                                <div className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-1">
-                                                    Sel. Workers: <span className="font-bold text-blue-600 dark:text-blue-400">{item.workerCount}</span> | 
-                                                    Rolling: <span className="font-bold text-blue-600 dark:text-blue-400 ml-1">{item.rollingType}</span>
-                                                    {item.rollingType === 'Hand Rolling' && <span className="font-bold text-blue-600 dark:text-blue-400"> ({item.rollingWorkerCount} workers)</span>}
-                                                </div>
+                                    {formData.outputs.map((out, index) => (
+                                        <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-purple-100 dark:border-purple-900/30 relative shadow-sm">
+                                            {formData.outputs.length > 1 && (
+                                                <button type="button" onClick={() => removeOutput(index)} className="absolute -top-2 -right-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 p-1.5 rounded-full hover:bg-red-200 transition-colors shadow-sm border border-red-200 dark:border-red-800/50">
+                                                    <X size={14} />
+                                                </button>
+                                            )}
+                                            <div>
+                                                <label className={labelStyles}>Tea Type</label>
+                                                <select value={out.teaType} onChange={(e) => handleOutputChange(index, 'teaType', e.target.value)} required className={inputStyles}>
+                                                    <option value="">Select Type...</option>
+                                                    <option value="Purple Tea">Purple Tea</option>
+                                                    <option value="Pink Tea">Pink Tea</option>
+                                                    <option value="White Tea">White Tea</option>
+                                                    <option value="Silver Tips">Silver Tips</option>
+                                                    <option value="Silver Green">Silver Green</option>
+                                                    <option value="VitaGlow Tea">VitaGlow Tea</option>
+                                                    <option value="Slim Beauty">Slim Beauty</option>
+                                                    <option value="Golden Tips">Golden Tips</option>
+                                                    <option value="Flower">Flower</option>
+                                                    <option value="Chakra">Chakra</option>
+                                                    <option value="Other">Other</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className={labelStyles}>Made Tea (kg)</label>
+                                                <input type="number" step="0.001" value={out.madeTeaWeight} onChange={(e) => handleOutputChange(index, 'madeTeaWeight', e.target.value)} onWheel={(e) => e.target.blur()} required className={inputStyles} />
                                             </div>
                                         </div>
                                     ))}
                                 </div>
-                            )}
-                        </div>
+                            </div>
 
-                        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800 space-y-3">
-                            <button 
-                                onClick={handleSaveAll}
-                                disabled={isSavingAll || pendingRecords.length === 0}
-                                className={`w-full py-4 rounded-xl text-white text-lg font-bold flex justify-center items-center gap-2 shadow-lg transition-all ${
-                                    isSavingAll || pendingRecords.length === 0 
-                                    ? 'bg-gray-400 dark:bg-zinc-700 cursor-not-allowed' 
-                                    : 'bg-[#1B6A31] dark:bg-green-700 hover:bg-green-800 dark:hover:bg-green-600 hover:-translate-y-1'
-                                }`}
-                            >
-                                <Save size={20} /> {isSavingAll ? "Saving All..." : `Save All ${pendingRecords.length} Records`}
+                            {/* 4. LABOUR DETAILS */}
+                            <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
+                                <div className="bg-blue-50/50 dark:bg-blue-500/5 p-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-3">
+                                    <div className="p-2 bg-blue-100 dark:bg-blue-500/20 rounded-lg text-blue-700 dark:text-blue-400"><Users size={18}/></div>
+                                    <h3 className="font-bold text-gray-800 dark:text-gray-200">Labour & Workforce</h3>
+                                </div>
+                                <div className="p-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <div>
+                                            <label className={labelStyles}>Selection Workers</label>
+                                            <input type="number" name="workerCount" value={formData.workerCount} onChange={handleInputChange} onWheel={(e) => e.target.blur()} className={inputStyles} />
+                                        </div>
+                                        <div>
+                                            <label className={labelStyles}>Rolling Method</label>
+                                            <select name="rollingType" value={formData.rollingType} onChange={handleInputChange} className={inputStyles}>
+                                                <option value="Machine Rolling">Machine</option>
+                                                <option value="Hand Rolling">Hand Rolled</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className={labelStyles}>Rolling Workers</label>
+                                            <input 
+                                                type="number" 
+                                                name="rollingWorkerCount" 
+                                                value={formData.rollingWorkerCount} 
+                                                onChange={handleInputChange} 
+                                                disabled={formData.rollingType !== 'Hand Rolling'}
+                                                placeholder={formData.rollingType === 'Hand Rolling' ? "Enter count" : "N/A"}
+                                                required={formData.rollingType === 'Hand Rolling'}
+                                                className={inputStyles} 
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" className="w-full py-4 rounded-2xl text-white bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-500 font-black text-lg flex justify-center items-center gap-2 shadow-lg shadow-green-600/20 transition-all hover:-translate-y-0.5">
+                                <PlusCircle size={22} /> Add to Pending Queue
                             </button>
+                        </form>
+                    </div>
+
+                    {/* --- RIGHT SIDE: PENDING QUEUE --- */}
+                    <div className="lg:col-span-4 flex flex-col h-full max-h-[85vh]">
+                        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 flex-1 flex flex-col overflow-hidden sticky top-24">
+                            
+                            <div className="bg-gray-50/80 dark:bg-zinc-950/50 p-5 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-white dark:bg-zinc-800 shadow-sm border border-gray-100 dark:border-zinc-700 rounded-lg text-gray-700 dark:text-gray-300">
+                                        <ListChecks size={18} />
+                                    </div>
+                                    <h3 className="font-bold text-gray-800 dark:text-gray-200">Pending Queue</h3>
+                                </div>
+                                <span className="bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 text-xs font-black px-3 py-1 rounded-full">
+                                    {pendingRecords.length}
+                                </span>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-gray-50/30 dark:bg-zinc-950/20">
+                                {pendingRecords.length === 0 ? (
+                                    <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-zinc-600 py-10">
+                                        <div className="p-6 bg-gray-50 dark:bg-zinc-900 rounded-full mb-4 border border-gray-100 dark:border-zinc-800">
+                                            <ListChecks size={32} className="opacity-50" />
+                                        </div>
+                                        <p className="text-sm font-bold text-gray-500 dark:text-zinc-400">Queue is empty</p>
+                                        <p className="text-xs mt-1">Fill the form and add records here.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {pendingRecords.map((item, index) => (
+                                            <div key={index} className="bg-white dark:bg-zinc-900 p-4 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm relative group hover:border-green-300 dark:hover:border-green-700/50 transition-colors">
+                                                
+                                                <button onClick={() => handleRemoveFromList(index)} className="absolute top-3 right-3 text-gray-400 hover:text-red-500 bg-gray-50 dark:bg-zinc-950 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-xl transition-colors">
+                                                    <Trash2 size={16} />
+                                                </button>
+
+                                                <div className="flex flex-col gap-3 pr-10">
+                                                    <div>
+                                                        <span className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">{item.date}</span>
+                                                        <div className="mt-2 space-y-2">
+                                                            {item.outputs.map((out, idx) => (
+                                                                <div key={idx} className="flex justify-between items-center bg-purple-50 dark:bg-purple-900/10 p-2 rounded-lg border border-purple-100 dark:border-purple-800/30">
+                                                                    <span className="font-bold text-purple-900 dark:text-purple-300 text-sm">{out.teaType}</span>
+                                                                    <span className="text-[10px] bg-purple-200 dark:bg-purple-800/50 text-purple-800 dark:text-purple-200 px-2 py-0.5 rounded font-bold">Made: {out.madeTeaWeight}kg</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="grid grid-cols-2 gap-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+                                                        <div className="bg-gray-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800">
+                                                            <span className="block text-[10px] uppercase text-gray-400 font-bold mb-1">Leaf</span>
+                                                            <span className="text-green-600 dark:text-green-400 font-black">{item.selectedWeight}kg</span> / {item.totalWeight}kg
+                                                        </div>
+                                                        <div className="bg-gray-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800">
+                                                            <span className="block text-[10px] uppercase text-gray-400 font-bold mb-1">Total Output</span>
+                                                            <span className="text-purple-600 dark:text-purple-400 font-black">
+                                                                {item.outputs.reduce((sum, out) => sum + Number(out.madeTeaWeight), 0).toFixed(3)}kg
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-5 border-t border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-3">
+                                <button onClick={handleSaveAll} disabled={isSavingAll || pendingRecords.length === 0} className={`w-full py-4 rounded-2xl text-white font-black flex justify-center items-center gap-2 transition-all ${isSavingAll || pendingRecords.length === 0 ? 'bg-gray-300 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 hover:-translate-y-0.5'}`}>
+                                    <Save size={18} /> {isSavingAll ? "Saving..." : `Save to Database (${pendingRecords.length})`}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
 
+                </div>
             </div>
         </div>
     );
