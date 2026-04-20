@@ -137,7 +137,7 @@ export default function DashboardLayout() {
     // Start a 5-second countdown to close the sidebar
     sidebarTimeoutRef.current = setTimeout(() => {
       setIsSidebarOpen(false);
-    }, 500); 
+    }, 100); 
   };
 
   // Cleanup timer on unmount to prevent memory leaks
