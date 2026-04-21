@@ -9,9 +9,9 @@ import {
   Leaf,
   Factory,
   LineChart,
-  ChevronsUpDown,
   LogOut,
   ChevronRight,
+  ChevronDown, // Added for the top nav dropdown
   Shield, 
   Sun,
   Moon,
@@ -49,7 +49,6 @@ import {
   Sidebar,
   SidebarHeader,
   SidebarContent,
-  SidebarFooter,
   SidebarRail,
   SidebarGroup,
   SidebarGroupLabel,
@@ -209,7 +208,6 @@ export default function DashboardLayout() {
     <SidebarProvider open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
       <Sidebar 
         collapsible="icon" 
-        // Add the transition classes here:
         className="border-none bg-[#F4F7F5] dark:bg-zinc-950 transition-[width] duration-300 ease-in-out"
         onMouseEnter={handleSidebarMouseEnter}
         onMouseLeave={handleSidebarMouseLeave}
@@ -326,60 +324,6 @@ export default function DashboardLayout() {
 
         </SidebarContent>
 
-        <SidebarFooter className="p-4">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <SidebarMenuButton
-                    size="lg"
-                    className="data-[state=open]:bg-white dark:data-[state=open]:bg-zinc-900 data-[state=open]:shadow-sm hover:bg-white/60 dark:hover:bg-zinc-900/60 rounded-2xl transition-all duration-300 p-2"
-                  >
-                    <Avatar className="h-10 w-10 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm">
-                      <AvatarFallback className="rounded-xl bg-[#8CC63F]/20 text-[#1B6A31] dark:text-green-400 font-bold">
-                        {currentUsername.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="grid flex-1 text-left text-sm leading-tight ml-1">
-                      <span className="truncate font-bold text-gray-800 dark:text-gray-200">{currentUsername}</span>
-                      <span className="truncate text-xs font-medium text-gray-500 dark:text-gray-400">{currentUserRole}</span>
-                    </div>
-                    <ChevronsUpDown className="ml-auto size-4 text-gray-400" />
-                  </SidebarMenuButton>
-                </DropdownMenuTrigger>
-                
-                <DropdownMenuContent
-                  className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-2xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border-gray-100 dark:border-zinc-800 shadow-xl p-2"
-                  side={isMobile ? 'bottom' : 'right'}
-                  align="end"
-                  sideOffset={8}
-                >
-                  <DropdownMenuLabel className="p-0 font-normal">
-                    <div className="flex items-center gap-3 px-2 py-2 text-left text-sm">
-                      <Avatar className="h-10 w-10 rounded-xl">
-                        <AvatarFallback className="rounded-xl bg-[#8CC63F]/20 text-[#1B6A31] dark:text-green-400 font-bold">
-                          {currentUsername.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-bold dark:text-gray-200">{currentUsername}</span>
-                        <span className="truncate text-xs font-medium text-gray-500 dark:text-gray-400">{currentUserRole}</span>
-                      </div>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-gray-100 dark:bg-zinc-800 my-2" />
-                  
-                  <DropdownMenuItem 
-                    onClick={handleLogout}
-                    className="cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 hover:text-red-700 dark:hover:text-red-300 rounded-xl py-2.5 font-medium"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" /> Log out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
         <SidebarRail />
       </Sidebar>
 
@@ -407,15 +351,64 @@ export default function DashboardLayout() {
             </Breadcrumb>
           </div>
 
-          {/* --- THEME TOGGLER --- */}
-          <div className="flex items-center gap-2 mr-2">
-             <button 
-                onClick={toggleTheme}
-                title="Toggle Dark Mode"
-                className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors text-gray-600 dark:text-gray-400"
-             >
-                {isDark ? <Sun size={18} className="text-yellow-500" /> : <Moon size={18} />}
-             </button>
+          {/* --- TOP RIGHT CONTROLS (Theme + Profile/Logout) --- */}
+          <div className="flex items-center gap-2 sm:gap-4 mr-2">
+            
+            {/* Theme Toggle */}
+            <button 
+              onClick={toggleTheme}
+              title="Toggle Dark Mode"
+              className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors text-gray-600 dark:text-gray-400 focus:outline-none"
+            >
+              {isDark ? <Sun size={18} className="text-yellow-500" /> : <Moon size={18} />}
+            </button>
+
+            <Separator orientation="vertical" className="h-6 bg-gray-200 dark:bg-zinc-700 hidden sm:block" />
+
+            {/* User Profile Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-2 focus:outline-none group">
+                <Avatar className="h-9 w-9 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-transform group-hover:scale-105">
+                  <AvatarFallback className="rounded-xl bg-[#8CC63F]/20 text-[#1B6A31] dark:text-green-400 font-bold text-sm">
+                    {currentUsername.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                {/* Hide text on very small screens, show on medium and up */}
+                <div className="hidden md:grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-bold text-gray-800 dark:text-gray-200 mb-0.5">{currentUsername}</span>
+                  <span className="truncate text-[10px] font-bold tracking-wider text-gray-500 dark:text-gray-400 uppercase leading-none">{currentUserRole}</span>
+                </div>
+                <ChevronDown className="size-4 text-gray-400 hidden md:block transition-transform group-data-[state=open]:rotate-180" />
+              </DropdownMenuTrigger>
+              
+              <DropdownMenuContent
+                className="w-56 rounded-2xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-gray-100 dark:border-zinc-800 shadow-xl p-2 mt-2"
+                align="end"
+              >
+                <DropdownMenuLabel className="p-0 font-normal">
+                  <div className="flex items-center gap-3 px-2 py-3 text-left text-sm">
+                    <Avatar className="h-10 w-10 rounded-xl">
+                      <AvatarFallback className="rounded-xl bg-[#8CC63F]/20 text-[#1B6A31] dark:text-green-400 font-bold">
+                        {currentUsername.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-bold text-gray-900 dark:text-gray-100">{currentUsername}</span>
+                      <span className="truncate text-[10px] font-bold tracking-wider uppercase text-gray-500 dark:text-gray-400 mt-0.5">{currentUserRole}</span>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-gray-100 dark:bg-zinc-800 my-1" />
+                
+                <DropdownMenuItem 
+                  onClick={handleLogout}
+                  className="cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 hover:text-red-700 dark:hover:text-red-300 rounded-xl py-3 font-medium flex items-center mt-1 focus:bg-red-50 dark:focus:bg-red-900/20 focus:text-red-700 dark:focus:text-red-300"
+                >
+                  <LogOut className="mr-3 h-4 w-4" /> Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
           </div>
 
         </header>
