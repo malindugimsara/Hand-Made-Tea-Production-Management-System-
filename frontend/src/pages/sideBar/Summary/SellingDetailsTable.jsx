@@ -31,6 +31,7 @@ const defaultTeaData = [
   { id: 12, type: 'Golden tips', amount: 0.002, packs: '', price: 14 },
   { id: 13, type: 'Golden tips', amount: 0.004, packs: '', price: 25 },
   { id: 14, type: 'Golden tips', amount: 0.005, packs: '', price: 35 },
+  { id: 15, type: 'Silver Green', amount: 0.05, packs: '', price: 14 },
 ];
 
 export default function SellingDetailsTable() {
