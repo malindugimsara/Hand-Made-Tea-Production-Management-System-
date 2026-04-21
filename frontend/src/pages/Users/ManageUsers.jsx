@@ -107,7 +107,7 @@ export default function ManageUsers() {
 
     return (
         <div className="p-8 max-w-5xl mx-auto font-sans relative min-h-screen bg-transparent transition-colors duration-300 border border-gray-200 dark:border-zinc-800 rounded-xl">
-            {/* <Toaster /> Removed because it's in App.jsx */}
+
             
             <div className="flex justify-between items-end mb-8 border-b border-gray-200 dark:border-zinc-800 pb-4 transition-colors">
                 <div>

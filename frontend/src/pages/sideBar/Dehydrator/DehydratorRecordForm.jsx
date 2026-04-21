@@ -17,7 +17,7 @@ export default function DehydratorRecordForm() {
         timePeriod: '',
         labourHours: '',
         labourCostPer8Hours: '',
-        electricityRate: '' 
+        electricityRate: '20' 
     });
 
     // --- NEW: Dynamic State for Multiple Trials & Moisture Details ---

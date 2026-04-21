@@ -147,7 +147,7 @@ export default function EditDehydratorRecord() {
 
     return (
         <div className="p-8 max-w-4xl mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
-            <Toaster position="top-center" />
+  
             
             {/* Back Button */}
             <button 

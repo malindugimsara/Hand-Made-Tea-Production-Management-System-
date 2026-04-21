@@ -333,7 +333,7 @@ export default function EditRecordPage() {
 
     return (
         <div className="p-8 max-w-4xl mx-auto font-sans bg-gray-50 dark:bg-zinc-950 min-h-screen transition-colors">
-            <Toaster position="top-center" />    
+           
             
             <div className="mb-8 flex items-center gap-4">
                 <button onClick={() => navigate(-1)} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-zinc-700 rounded font-bold transition-colors">
