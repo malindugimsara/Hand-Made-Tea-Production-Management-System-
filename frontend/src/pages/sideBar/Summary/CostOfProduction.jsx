@@ -36,7 +36,7 @@ export default function CostOfProduction() {
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); 
     const [monthlyGlRate, setMonthlyGlRate] = useState(0); 
     const [labourRate, setLabourRate] = useState(1350); 
-    const [electricityRate, setElectricityRate] = useState(10);
+    const [electricityRate, setElectricityRate] = useState(20);
     
     const [records, setRecords] = useState([]);
     const [supervisionCosts, setSupervisionCosts] = useState({});
@@ -99,7 +99,7 @@ export default function CostOfProduction() {
                     setIsSaved(true);
                     setMonthlyGlRate(savedMonthData.monthlyGlRate || 0);
                     setLabourRate(savedMonthData.labourRate || 1350);
-                    setElectricityRate(savedMonthData.electricityRate || 10);
+                    // setElectricityRate(savedMonthData.electricityRate || 20);
 
                     const dbLabRate = savedMonthData.labourRate || 1350;
 

@@ -29,7 +29,8 @@ export default function ViewRawMaterialCost() {
     const [loading, setLoading] = useState(false);
     const [records, setRecords] = useState([]);
     
-    // Filter States (Updated to Date Range)
+    // --- FILTER STATES ---
+    const [filterMonth, setFilterMonth] = useState(''); // NEW MONTH FILTER
     const [filterStartDate, setFilterStartDate] = useState('');
     const [filterEndDate, setFilterEndDate] = useState('');
     const [filterMaterial, setFilterMaterial] = useState('');
@@ -67,7 +68,7 @@ export default function ViewRawMaterialCost() {
                     const isEdited = createdTime > 0 && updatedTime > 0 && (updatedTime - createdTime) > 5000;
                     const lastUpdatedDate = isEdited ? new Date(rec.updatedAt).toISOString().split('T')[0] : '';
                     
-                    // Extract editor's name if available
+                    // Extract exact editor username
                     const editedBy = rec.updatedBy || rec.username || 'Admin';
 
                     return {
@@ -129,25 +130,30 @@ export default function ViewRawMaterialCost() {
     };
 
     const clearFilters = () => {
+        setFilterMonth('');
         setFilterStartDate('');
         setFilterEndDate('');
         setFilterMaterial('');
     };
 
     // -------------------------------------------------------------
-    // Filtering Logic (Date Range)
+    // Filtering Logic 
     // -------------------------------------------------------------
     const filteredRecords = records.filter(rec => {
         const recDate = new Date(rec.date).toISOString().split('T')[0];
         
+        // Check Month
+        const matchMonth = filterMonth ? recDate.startsWith(filterMonth) : true;
+
         // Check Date Range
         const matchStartDate = filterStartDate ? recDate >= filterStartDate : true;
         const matchEndDate = filterEndDate ? recDate <= filterEndDate : true;
         const matchDateRange = matchStartDate && matchEndDate;
 
+        // Check Material
         const matchMaterial = filterMaterial ? rec.materialType === filterMaterial : true;
         
-        return matchDateRange && matchMaterial;
+        return matchMonth && matchDateRange && matchMaterial;
     });
 
     // -------------------------------------------------------------
@@ -163,10 +169,13 @@ export default function ViewRawMaterialCost() {
     // PREPARE PDF DATA
     // -------------------------------------------------------------
     const getPdfData = () => {
-        const tableRows = filteredRecords.map(rec => {
+        // Sort chronologically (Oldest to Newest) for the PDF
+        const pdfSortedRecords = [...filteredRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        const tableRows = pdfSortedRecords.map(rec => {
             const baseDate = new Date(rec.date).toISOString().split('T')[0];
             
-            // Format PDF cell to include edited status and editor's name
+            // Format PDF cell to include edited status and exact editor's name
             const pdfDateCell = rec.isEdited 
                 ? `${baseDate}\n(Edited: ${rec.lastUpdatedDate} by ${rec.editedBy})` 
                 : baseDate;
@@ -203,7 +212,7 @@ export default function ViewRawMaterialCost() {
         const date = new Date();
         const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
         const year = date.getFullYear();
-        return `HT/RMC/${month}.${year}`; // Result: HT/RMC/APRIL.2026
+        return `HT/RMC/${month}.${year}`; 
     };
 
     const uniqueCode = getCurrentMonthCode();
@@ -212,12 +221,13 @@ export default function ViewRawMaterialCost() {
     const handleStartDateChange = (e) => {
         setFilterStartDate(e.target.value);
         if (filterEndDate && e.target.value > filterEndDate) {
-            setFilterEndDate(''); // Reset End Date if it becomes invalid
+            setFilterEndDate(''); 
         }
     };
 
     return (
         <div className="p-8 max-w-[1400px] mx-auto font-sans relative bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
+            
             <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-[#1B6A31] dark:text-green-500 flex items-center gap-2">
@@ -229,7 +239,7 @@ export default function ViewRawMaterialCost() {
                 <div className="flex items-center gap-3">
                     <PDFDownloader 
                         title="Raw Material Cost Records"
-                        subtitle={`Filters -> Date: ${filterStartDate || 'Any'} to ${filterEndDate || 'Any'} | Material: ${filterMaterial || 'All'}`}
+                        subtitle={`Filters -> Month: ${filterMonth || 'All'} | Date: ${filterStartDate || 'Any'} to ${filterEndDate || 'Any'} | Material: ${filterMaterial || 'All'}`}
                         headers={["Date", "Material", "Dry Weight (g)", "Meter Start", "Meter End", "Total Pts", "Raw Cost (Rs)", "Elec Cost (Rs)", "Total Cost (Rs)"]}
                         data={getPdfData()}
                         uniqueCode={uniqueCode}
@@ -249,8 +259,17 @@ export default function ViewRawMaterialCost() {
                 </div>
             </div>
 
-            {/* --- FILTER SECTION (Date Range Added) --- */}
-            <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-colors duration-300">
+            {/* --- FILTER SECTION (5 Columns) --- */}
+            <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-colors duration-300">
+                <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Month</label>
+                    <input 
+                        type="month" 
+                        value={filterMonth} 
+                        onChange={(e) => setFilterMonth(e.target.value)} 
+                        className="border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-green-400 dark:focus:ring-green-600 transition-colors" 
+                    />
+                </div>
                 <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">From Date</label>
                     <input 
@@ -264,10 +283,10 @@ export default function ViewRawMaterialCost() {
                     <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">To Date</label>
                     <input 
                         type="date" 
-                        min={filterStartDate} // Prevent selecting a date earlier than Start Date
+                        min={filterStartDate} 
                         value={filterEndDate} 
                         onChange={(e) => setFilterEndDate(e.target.value)} 
-                        disabled={!filterStartDate} // Optional: force selecting Start Date first
+                        disabled={!filterStartDate} 
                         className="border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-green-400 dark:focus:ring-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
                     />
                 </div>
@@ -287,9 +306,9 @@ export default function ViewRawMaterialCost() {
                 <div className="flex items-end">
                     <button 
                         onClick={clearFilters}
-                        disabled={!filterStartDate && !filterEndDate && !filterMaterial}
+                        disabled={!filterMonth && !filterStartDate && !filterEndDate && !filterMaterial}
                         className={`px-4 py-2.5 text-sm font-bold rounded-md transition-colors flex items-center justify-center gap-2 w-full lg:w-auto ${
-                            filterStartDate || filterEndDate || filterMaterial 
+                            filterMonth || filterStartDate || filterEndDate || filterMaterial 
                             ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-200 dark:border-red-800/50' 
                             : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500 cursor-not-allowed'
                         }`}

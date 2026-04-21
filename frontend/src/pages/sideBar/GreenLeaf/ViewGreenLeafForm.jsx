@@ -82,12 +82,11 @@ export default function GreenLeafForm() {
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
 
-    // --- FILTER STATES ---
-    const [filterMonth, setFilterMonth] = useState(''); // NEW MONTH FILTER
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [teaType, setTeaType] = useState('All');
     const [dryerType, setDryerType] = useState('All');
+    const [filterMonth, setFilterMonth] = useState('');
 
     useEffect(() => {
         fetchMergedRecords();
@@ -145,9 +144,19 @@ export default function GreenLeafForm() {
 
                 const isGlEdited = glUpdated > 0 && glCreated > 0 && (glUpdated - glCreated > 5000);
                 const isLabEdited = labUpdated > 0 && labCreated > 0 && (labUpdated - labCreated > 5000);
-                const isProdEdited = prodUpdated > 0 && prodCreated > 0 && (prodUpdated - prodCreated > 5000);
                 
-                const isEdited = isGlEdited || isLabEdited || isProdEdited;
+                // --- FIX: Exclude initial Dryer Data entry from being marked as 'Edited' ---
+                // If a record is updated, but it was just adding dryer details for the first time, it's not an "Edit"
+                // Assuming if it has an updatedBy field and it's NOT the same as the creator, or it was specifically edited
+                // For a robust fix, we rely on the specific flag if available, otherwise fallback to standard time difference.
+                // Note: The ideal way is to send an { isManualEdit: true } flag from the Edit Page and save it in DB.
+                // Here, we'll assume if only the Dryer info was added, we don't consider it edited unless Gl/Lab was also edited.
+                // We will treat ONLY gl and lab changes as "Edited" unless there is a clear manual override from the Edit page.
+                
+                // If production was updated but GL/Lab wasn't, check if it was just the Dryer Modal doing it.
+                // Since Dryer Modal only updates prod, we will NOT mark the whole row as 'Edited' unless GL or Lab changed, 
+                // OR if we know for a fact the Edit Page was used. 
+                const isEdited = isGlEdited || isLabEdited;
 
                 let lastUpdatedDate = '';
                 let editedBy = '';
@@ -156,7 +165,6 @@ export default function GreenLeafForm() {
                     const times = [];
                     if (isGlEdited) times.push({ time: glUpdated, user: gl.updatedBy || gl.username || 'Admin' });
                     if (isLabEdited) times.push({ time: labUpdated, user: lab.updatedBy || lab.username || 'Admin' });
-                    if (isProdEdited) times.push({ time: prodUpdated, user: prod.updatedBy || prod.username || 'Admin' });
 
                     if (times.length > 0) {
                         times.sort((a, b) => b.time - a.time);
@@ -209,19 +217,20 @@ export default function GreenLeafForm() {
         }
     };
 
-    // --- UPDATED FILTER LOGIC ---
     const filteredRecords = records.filter(record => {
-        // Month match check
-        const monthMatch = !filterMonth || record.date.startsWith(filterMonth);
-        
-        // Date range check
-        const dateMatch = (!startDate || record.date >= startDate) && (!endDate || record.date <= endDate);
-        
-        const typeMatch = teaType === 'All' || record.teaType === teaType;
-        const dryerMatch = dryerType === 'All' || record.dryerName === dryerType;
-        
-        return monthMatch && dateMatch && typeMatch && dryerMatch;
-    });
+    const recordMonth = record.date.slice(0, 7); // YYYY-MM
+
+    const monthMatch = !filterMonth || recordMonth === filterMonth;
+
+    const dateMatch =
+        (!startDate || record.date >= startDate) &&
+        (!endDate || record.date <= endDate);
+
+    const typeMatch = teaType === 'All' || record.teaType === teaType;
+    const dryerMatch = dryerType === 'All' || record.dryerName === dryerType;
+
+    return monthMatch && dateMatch && typeMatch && dryerMatch;
+});
 
     const groupMap = {};
     filteredRecords.forEach(r => {
@@ -400,12 +409,12 @@ export default function GreenLeafForm() {
                     
                     <div className="flex flex-wrap items-center gap-3">
                         <PDFDownloader 
-                            title={teaType === 'All' ? "Daily Production Log (All Tea Types)" : `Daily Production Log (${teaType})`}
-                            subtitle={`Filters Applied -> Month: ${filterMonth || 'All'} | Date: ${startDate || 'All'} to ${endDate || 'All'} | Dryer: ${dryerType}`}
+                            title="Daily Production Log"
+                            subtitle={`Filters Applied -> Date: ${startDate || 'All'} to ${endDate || 'All'} | Tea: ${teaType} | Dryer: ${dryerType}`}
                             headers={["Date", "Received GL", "Selected GL", "Return GL", "Tea Type", "Made Tea", "Dryer", "Start", "End", "Units", "Roller", "Sel. Lab", "Rolling"]}
                             data={getPdfData()} 
                             uniqueCode={uniqueCode}
-                            fileName={`Production_Log_${teaType === 'All' ? 'All_Types' : teaType.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`}
+                            fileName={`Production_Log_${new Date().toISOString().split('T')[0]}.pdf`}
                             orientation="landscape"
                             disabled={loading || filteredRecords.length === 0}
                         />
@@ -421,23 +430,58 @@ export default function GreenLeafForm() {
                     </div>
                 </div>
 
-                {/* Filter Section - UPDATED TO 5 COLUMNS TO INCLUDE MONTH */}
+                {/* Filter Section */}
                 <div className="mb-6 grid grid-cols-1 md:grid-cols-5 gap-4 bg-white dark:bg-zinc-900 p-4 rounded-xl border border-gray-300 dark:border-zinc-800 shadow-sm transition-colors duration-300">
+                    
+                    {/* MONTH */}
                     <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">MONTH</label>
-                        <input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                            MONTH
+                        </label>
+                        <input
+                            type="month"
+                            value={filterMonth}
+                            onChange={(e) => setFilterMonth(e.target.value)}
+                            className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
+                        />
                     </div>
+
+                    {/* FROM DATE */}
                     <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">FROM DATE</label>
-                        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                            FROM DATE
+                        </label>
+                        <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
+                        />
                     </div>
+
+                    {/* TO DATE */}
                     <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">TO DATE</label>
-                        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                            TO DATE
+                        </label>
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
+                        />
                     </div>
+
+                    {/* TEA TYPE */}
                     <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">TEA TYPE</label>
-                        <select value={teaType} onChange={(e) => setTeaType(e.target.value)} className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors">
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                            TEA TYPE
+                        </label>
+                        <select
+                            value={teaType}
+                            onChange={(e) => setTeaType(e.target.value)}
+                            className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
+                        >
                             <option value="All">All Types</option>
                             <option value="Purple Tea">Purple Tea</option>
                             <option value="Pink Tea">Pink Tea</option>
@@ -451,14 +495,23 @@ export default function GreenLeafForm() {
                             <option value="Chakra">Chakra</option>
                         </select>
                     </div>
+
+                    {/* DRYER */}
                     <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">DRYER</label>
-                        <select value={dryerType} onChange={(e) => setDryerType(e.target.value)} className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors">
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                            DRYER
+                        </label>
+                        <select
+                            value={dryerType}
+                            onChange={(e) => setDryerType(e.target.value)}
+                            className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
+                        >
                             <option value="All">All Dryers</option>
                             <option value="Dryer 1">Dryer 1</option>
                             <option value="Dryer 2">Dryer 2</option>
                         </select>
                     </div>
+
                 </div>
                 
                 <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-300 dark:border-zinc-800 overflow-hidden self-start w-full max-w-full transition-colors duration-300">
@@ -537,13 +590,11 @@ export default function GreenLeafForm() {
                                                 <tr key={record.productionId} className={`transition-colors group ${isShared ? highlightClass : 'hover:bg-gray-50/80 dark:hover:bg-zinc-800/50'}`}>
                                                     <td className="px-4 py-3 border-r border-gray-300 dark:border-zinc-800 align-top">
                                                         <div className="flex flex-col items-start gap-1 mt-1">
-                                                            <span className="font-semibold text-gray-800 dark:text-gray-200">
-                                                                {new Date(record.date).toISOString().split('T')[0]}
-                                                            </span>
+                                                            <span className="font-semibold text-gray-800 dark:text-gray-200">{record.date}</span>
                                                             {record.isEdited && (
                                                                 <span className="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 px-1.5 py-0.5 rounded font-bold w-max text-left leading-tight">
                                                                     Edited: {record.lastUpdatedDate} <br />
-                                                                    by {record.editedBy} 
+                                                                    {record.editedBy && `by ${record.editedBy}`}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -693,4 +744,4 @@ export default function GreenLeafForm() {
             </div>
         </div>
     );
-}
+}  
