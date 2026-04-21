@@ -5,18 +5,15 @@ export const createDehydrator = async (req, res) => {
     try {
         const { 
             date, 
-            trial, 
+            trialsData,            // --- NEW: Array replacing trial, weights, and moisture ---
             meterStart, 
             meterEnd, 
             timePeriodHours,
-            startWeight,
-            endWeight,
-            moisturePercentage,
             labourHours,
             labourCostPer8Hours,
             totalLabourCost, 
-            electricityRate,       // --- NEW ---
-            totalElectricityCost   // --- NEW ---
+            electricityRate,       
+            totalElectricityCost   
         } = req.body;
         
         // Logic: totalUnits = meterEnd - meterStart
@@ -24,19 +21,16 @@ export const createDehydrator = async (req, res) => {
         
         const newRecord = new Dehydrator({
             date,
-            trial,
+            trialsData,            // --- NEW ---
             meterStart,
             meterEnd,
             totalUnits,
             timePeriodHours,
-            startWeight,
-            endWeight,
-            moisturePercentage,
             labourHours,
             labourCostPer8Hours,
             totalLabourCost,
-            electricityRate,       // --- NEW ---
-            totalElectricityCost   // --- NEW ---
+            electricityRate,       
+            totalElectricityCost   
         });
         
         await newRecord.save();
@@ -60,19 +54,19 @@ export const getAllDehydrator = async (req, res) => {
 export const updateDehydrator = async (req, res) => {
     try {
         const { id } = req.params;
-        const updatedData = req.body;
+        const updatedData = { ...req.body }; // Clone the body
         
-        // Recalculate totalUnits if meter readings are updated
+        // 1. Recalculate totalUnits if meter readings are updated
         if (updatedData.meterStart !== undefined && updatedData.meterEnd !== undefined) {
             updatedData.totalUnits = updatedData.meterEnd - updatedData.meterStart;
-            
-            // Auto-recalculate electricity cost if meter readings change
-            if (updatedData.electricityRate !== undefined) {
-                updatedData.totalElectricityCost = updatedData.totalUnits * updatedData.electricityRate;
-            }
         }
 
-        // Recalculate totalLabourCost if labour details are updated
+        // 2. Auto-recalculate electricity cost if needed
+        if (updatedData.totalUnits !== undefined && updatedData.electricityRate !== undefined) {
+            updatedData.totalElectricityCost = updatedData.totalUnits * updatedData.electricityRate;
+        }
+
+        // 3. Recalculate totalLabourCost if labour details are updated
         if (updatedData.labourHours !== undefined && updatedData.labourCostPer8Hours !== undefined) {
             updatedData.totalLabourCost = (updatedData.labourCostPer8Hours / 8) * updatedData.labourHours;
         }
