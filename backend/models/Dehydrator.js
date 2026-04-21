@@ -5,10 +5,15 @@ const dehydratorSchema = new mongoose.Schema({
         type: String, // 'YYYY-MM-DD' format
         required: true
     },
-    trial: {
-        type: String, // e.g., Mango, Kiwi
-        required: true
-    },
+    // --- NEW: Array to hold multiple items and their moisture details ---
+    trialsData: [{
+        trialName: { type: String, required: true },
+        startWeight: { type: Number, required: true },
+        endWeight: { type: Number, required: true },
+        moisturePercentage: { type: Number, required: true }
+    }],
+    
+    // --- Electricity ---
     meterStart: {
         type: Number,
         required: true
@@ -21,26 +26,20 @@ const dehydratorSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
-    timePeriodHours: {
+    electricityRate: {
         type: Number,
         required: true
     },
-    
-    // --- Yield & Moisture ---
-    startWeight: {
-        type: Number,
-        required: true
-    },
-    endWeight: {
-        type: Number,
-        required: true
-    },
-    moisturePercentage: {
+    totalElectricityCost: {
         type: Number,
         required: true
     },
 
-    // --- Labour ---
+    // --- Time & Labour ---
+    timePeriodHours: {
+        type: Number,
+        required: true
+    },
     labourHours: {
         type: Number,
         required: true
@@ -54,16 +53,7 @@ const dehydratorSchema = new mongoose.Schema({
         required: true
     },
 
-    // --- NEW: Electricity Costs ---
-    electricityRate: {
-        type: Number,
-        required: true
-    },
-    totalElectricityCost: {
-        type: Number,
-        required: true
-    }
-    ,
+    // --- Meta ---
     updatedBy: {
         type: String,
         default: null

@@ -57,8 +57,39 @@ export default function ViewDehydratorRecords() {
                 const updatedTime = rec.updatedAt ? new Date(rec.updatedAt).getTime() : 0;
                 const isEdited = createdTime > 0 && updatedTime > 0 && (updatedTime - createdTime) > 5000;
                 const lastUpdatedDate = isEdited ? new Date(rec.updatedAt).toISOString().split('T')[0] : '';
+                
+                // Format array for multi-item cycles
+                const trialsArray = rec.trialsData && rec.trialsData.length > 0 
+                    ? rec.trialsData 
+                    : (rec.trial ? [{ 
+                        trialName: rec.trial, 
+                        startWeight: rec.startWeight, 
+                        endWeight: rec.endWeight, 
+                        moisturePercentage: rec.moisturePercentage 
+                      }] : []);
+
+                // For Search filtering
+                const searchString = trialsArray.map(t => t.trialName).join(' ');
+                
+                // For PDF: use newline characters for all stacked data
+                const trialNamesPDF = trialsArray.map(t => t.trialName).join('\n');
+                const moisturesPDF = trialsArray.map(t => `${t.moisturePercentage}%`).join('\n');
+                const startWeightsPDF = trialsArray.map(t => `${t.startWeight} kg`).join('\n');
+                const endWeightsPDF = trialsArray.map(t => `${t.endWeight} kg`).join('\n');
+
+                const totalStartWt = trialsArray.reduce((sum, t) => sum + (Number(t.startWeight) || 0), 0);
+                const totalEndWt = trialsArray.reduce((sum, t) => sum + (Number(t.endWeight) || 0), 0);
+
                 return {
                     ...rec,
+                    trialsArray,
+                    searchString,
+                    trialNamesPDF,
+                    moisturesPDF,
+                    startWeightsPDF,
+                    endWeightsPDF,
+                    totalStartWt,
+                    totalEndWt,
                     isEdited,
                     lastUpdatedDate,
                     editedBy: rec.updatedBy || rec.editorName || 'Unknown User' 
@@ -82,15 +113,14 @@ export default function ViewDehydratorRecords() {
 
     const filteredRecords = records.filter(record => {
         const dateMatch = (!startDate || record.date >= startDate) && (!endDate || record.date <= endDate);
-        const trialMatch = !trialFilter || record.trial.toLowerCase().includes(trialFilter.toLowerCase());
+        const trialMatch = !trialFilter || record.searchString.toLowerCase().includes(trialFilter.toLowerCase());
         return dateMatch && trialMatch;
     });
 
-    // Grand Totals Calculation
     const totalHours = filteredRecords.reduce((sum, record) => sum + (Number(record.timePeriodHours) || 0), 0);
     const totalUnits = filteredRecords.reduce((sum, record) => sum + (Number(record.totalUnits) || 0), 0);
-    const totalStartWeight = filteredRecords.reduce((sum, record) => sum + (Number(record.startWeight) || 0), 0);
-    const totalEndWeight = filteredRecords.reduce((sum, record) => sum + (Number(record.endWeight) || 0), 0);
+    const totalStartWeight = filteredRecords.reduce((sum, record) => sum + (Number(record.totalStartWt) || 0), 0);
+    const totalEndWeight = filteredRecords.reduce((sum, record) => sum + (Number(record.totalEndWt) || 0), 0);
     const totalLabourHours = filteredRecords.reduce((sum, record) => sum + (Number(record.labourHours) || 0), 0);
     const totalLabourCost = filteredRecords.reduce((sum, record) => sum + (Number(record.totalLabourCost) || 0), 0);
     const totalElecCost = filteredRecords.reduce((sum, record) => sum + (Number(record.totalElectricityCost) || 0), 0);
@@ -129,14 +159,14 @@ export default function ViewDehydratorRecords() {
 
             return [
                 pdfDateCell,
-                record.trial,
-                `${record.startWeight || 0} kg`,
-                `${record.endWeight || 0} kg`,
-                `${record.moisturePercentage || 0}%`,
+                record.trialNamesPDF, 
+                record.startWeightsPDF, // Updated to show line-by-line
+                record.endWeightsPDF,   // Updated to show line-by-line
+                record.moisturesPDF, 
                 record.meterStart,
                 record.meterEnd,
                 record.totalUnits?.toFixed(2) || 0,
-                record.totalElectricityCost?.toFixed(2) || 0, // NEW
+                record.totalElectricityCost?.toFixed(2) || 0, 
                 `${record.timePeriodHours} Hrs`,
                 `${record.labourHours || 0} Hrs`,
                 record.totalLabourCost?.toFixed(2) || 0
@@ -152,7 +182,7 @@ export default function ViewDehydratorRecords() {
             "-",
             "-",
             `${totalUnits.toFixed(2)} Pts`,
-            totalElecCost.toFixed(2), // NEW
+            totalElecCost.toFixed(2), 
             `${totalHours.toFixed(1)} Hrs`,
             `${totalLabourHours.toFixed(1)} Hrs`,
             totalLabourCost.toFixed(2)
@@ -174,7 +204,7 @@ export default function ViewDehydratorRecords() {
                     <PDFDownloader 
                         title="Dehydrator Machine Records"
                         subtitle={`Filters -> Date: ${startDate || 'All'} to ${endDate || 'All'} | Trial: ${trialFilter || 'All'}`}
-                        headers={["Date", "Trial", "RM-Weight", "Dried-Weight", "Moisture", "Elec Start", "Elec End", "Units", "Elec Cost", "Time (Hrs)", "Lab Hrs", "Lab Cost"]}
+                        headers={["Date", "Trial(s)", "RM-Wt", "Dried-Wt", "Moisture", "Elec Start", "Elec End", "Units", "Elec Cost", "Time (Hrs)", "Lab Hrs", "Lab Cost"]}
                         data={getPdfData()}
                         uniqueCode={uniqueCode}
                         fileName={`Dehydrator_Records_${new Date().toISOString().split('T')[0]}.pdf`}
@@ -214,26 +244,22 @@ export default function ViewDehydratorRecords() {
                             <thead>
                                 <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-800 transition-colors">
                                     <th rowSpan="2" className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-800 align-bottom min-w-[140px]"><div className="flex items-center gap-1"><Calendar size={14}/> Date</div></th>
-                                    <th rowSpan="2" className="px-4 py-3 font-bold text-[#1B6A31] dark:text-green-500 border-r border-gray-200 dark:border-zinc-800 bg-[#8CC63F]/10 dark:bg-green-900/20 align-bottom w-32"><div className="flex items-center gap-1"><Fan size={14}/> Trial</div></th>
-                                    <th colSpan="3" className="px-4 py-2 font-bold text-teal-700 dark:text-teal-500 border-r border-gray-200 dark:border-zinc-800 bg-teal-50 dark:bg-teal-950/30 text-center"><div className="flex items-center justify-center gap-1"><Scale size={14}/> Yield</div></th>
+                                    <th rowSpan="2" className="px-4 py-3 font-bold text-[#1B6A31] dark:text-green-500 border-r border-gray-200 dark:border-zinc-800 bg-[#8CC63F]/10 dark:bg-green-900/20 align-bottom max-w-[200px]"><div className="flex items-center gap-1"><Fan size={14}/> Trial(s)</div></th>
                                     
-                                    {/* Updated Electricity Header colSpan to 4 */}
+                                    <th colSpan="3" className="px-4 py-2 font-bold text-teal-700 dark:text-teal-500 border-r border-gray-200 dark:border-zinc-800 bg-teal-50 dark:bg-teal-950/30 text-center"><div className="flex items-center justify-center gap-1"><Scale size={14}/> Yield Details</div></th>
                                     <th colSpan="4" className="px-4 py-2 font-bold text-orange-700 dark:text-orange-500 border-r border-gray-200 dark:border-zinc-800 bg-orange-50 dark:bg-orange-950/30 text-center"><div className="flex items-center justify-center gap-1"><Zap size={14}/> Electricity</div></th>
-                                    
                                     <th colSpan="3" className="px-4 py-2 font-bold text-blue-700 dark:text-blue-400 border-r border-gray-200 dark:border-zinc-800 bg-blue-50 dark:bg-blue-950/30 text-center"><div className="flex items-center justify-center gap-1"><Clock size={14}/> Time & Labour</div></th>
+                                    
                                     {!isViewer && <th rowSpan="2" className="px-4 py-3 font-semibold align-bottom text-center bg-gray-50 dark:bg-zinc-950/50">Action</th>}
                                 </tr>
                                 <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 text-xs border-b border-gray-200 dark:border-zinc-800 transition-colors">
-                                    <th className="px-3 py-2 font-medium bg-teal-50/50 dark:bg-teal-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">RM-Weight</th>
-                                    <th className="px-3 py-2 font-medium bg-teal-50/50 dark:bg-teal-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">Dried-Weight</th>
+                                    <th className="px-3 py-2 font-medium bg-teal-50/50 dark:bg-teal-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">RM Wt</th>
+                                    <th className="px-3 py-2 font-medium bg-teal-50/50 dark:bg-teal-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">Dried Wt</th>
                                     <th className="px-3 py-2 font-medium bg-teal-50/50 dark:bg-teal-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800"><Droplets size={12} className="inline mr-1"/>Moisture</th>
                                     <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">Start</th>
                                     <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">End</th>
                                     <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">Total Pts</th>
-                                    
-                                    {/* New Electricity Cost Column */}
                                     <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200 dark:border-zinc-800"><Banknote size={12} className="inline mr-1"/>Cost</th>
-                                    
                                     <th className="px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">Mach. Hrs</th>
                                     <th className="px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800"><Users size={12} className="inline mr-1"/>Lab. Hrs</th>
                                     <th className="px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-950/20 text-center border-r border-gray-200 dark:border-zinc-800"><Banknote size={12} className="inline mr-1"/>Cost</th>
@@ -248,27 +274,68 @@ export default function ViewDehydratorRecords() {
                                                     <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
                                                     {record.isEdited && (
                                                         <span className="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 px-1.5 py-0.5 rounded font-medium w-max">
-                                                            Edited : {record.lastUpdatedDate}<br/><span className="text-[10px] opacity-80"> by {record.editedBy}</span>
+                                                            <span className="font-bold">Edited by {record.editedBy}</span><br/><span className="text-[9px] opacity-80">{record.lastUpdatedDate}</span>
                                                         </span>
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3 border-r border-gray-100 dark:border-zinc-800 font-medium text-[#1B6A31] dark:text-green-400">{record.trial}</td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-teal-700 dark:text-teal-400 font-medium">{record.startWeight || 0} kg</td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-teal-700 dark:text-teal-400 font-medium">{record.endWeight || 0} kg</td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300">{record.moisturePercentage || 0}%</td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300">{record.meterStart}</td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300">{record.meterEnd}</td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800"><span className="font-bold text-orange-600 dark:text-orange-400">{record.totalUnits?.toFixed(2) || 0}</span></td>
                                             
-                                            {/* New Electricity Cost Data */}
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800"><span className="font-bold text-orange-700 dark:text-orange-300">{record.totalElectricityCost?.toFixed(2) || '0.00'}</span></td>
+                                            {/* Stacked Trial Names */}
+                                            <td className="px-4 py-3 border-r border-gray-100 dark:border-zinc-800 font-medium text-[#1B6A31] dark:text-green-400 whitespace-normal max-w-[200px] align-top">
+                                                <div className="flex flex-col gap-1.5 mt-1">
+                                                    {record.trialsArray.map((t, i) => (
+                                                        <span key={i} className="block whitespace-nowrap">{t.trialName}</span>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            
+                                            {/* Stacked Start Weights */}
+                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-teal-700 dark:text-teal-400 font-medium align-top">
+                                                <div className="flex flex-col gap-1.5 mt-1">
+                                                    {record.trialsArray.map((t, i) => (
+                                                        <span key={i} className="block whitespace-nowrap">{t.startWeight} kg</span>
+                                                    ))}
+                                                </div>
+                                                {record.trialsArray.length > 1 && (
+                                                    <div className="mt-2 pt-1 border-t border-teal-100 dark:border-teal-900/50 text-xs font-bold text-teal-800 dark:text-teal-300" title="Batch Total RM Weight">
+                                                        {record.totalStartWt.toFixed(2)} kg
+                                                    </div>
+                                                )}
+                                            </td>
 
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800"><span className="font-bold text-blue-700 dark:text-blue-400">{record.timePeriodHours}</span></td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300 font-medium">{record.labourHours || 0}</td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800"><span className="font-bold text-purple-600 dark:text-purple-400">{record.totalLabourCost?.toFixed(2) || '0.00'}</span></td>
+                                            {/* Stacked End Weights */}
+                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-teal-700 dark:text-teal-400 font-medium align-top">
+                                                <div className="flex flex-col gap-1.5 mt-1">
+                                                    {record.trialsArray.map((t, i) => (
+                                                        <span key={i} className="block whitespace-nowrap">{t.endWeight} kg</span>
+                                                    ))}
+                                                </div>
+                                                {record.trialsArray.length > 1 && (
+                                                    <div className="mt-2 pt-1 border-t border-teal-100 dark:border-teal-900/50 text-xs font-bold text-teal-800 dark:text-teal-300" title="Batch Total Dried Weight">
+                                                        {record.totalEndWt.toFixed(2)} kg
+                                                    </div>
+                                                )}
+                                            </td>
+                                            
+                                            {/* Stacked Moistures */}
+                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300 whitespace-normal max-w-[120px] align-top">
+                                                <div className="flex flex-col gap-1.5 mt-1">
+                                                    {record.trialsArray.map((t, i) => (
+                                                        <span key={i} className="block whitespace-nowrap">{t.moisturePercentage}%</span>
+                                                    ))}
+                                                </div>
+                                            </td>
+
+                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300 align-top pt-4">{record.meterStart}</td>
+                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300 align-top pt-4">{record.meterEnd}</td>
+                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 align-top pt-4"><span className="font-bold text-orange-600 dark:text-orange-400">{record.totalUnits?.toFixed(2) || 0}</span></td>
+                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 align-top pt-4"><span className="font-bold text-orange-700 dark:text-orange-300">{record.totalElectricityCost?.toFixed(2) || '0.00'}</span></td>
+                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 align-top pt-4"><span className="font-bold text-blue-700 dark:text-blue-400">{record.timePeriodHours}</span></td>
+                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300 font-medium align-top pt-4">{record.labourHours || 0}</td>
+                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 align-top pt-4"><span className="font-bold text-purple-600 dark:text-purple-400">{record.totalLabourCost?.toFixed(2) || '0.00'}</span></td>
+                                            
                                             {!isViewer && (
-                                                <td className="px-3 py-3 text-center">
+                                                <td className="px-3 py-3 text-center align-top pt-3">
                                                     <div className="flex items-center justify-center gap-1">
                                                         <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-400 hover:bg-[#8CC63F]/20 dark:hover:bg-zinc-800 rounded transition-all"><MdOutlineEdit size={20} /></button>
                                                         <AlertDialog>
@@ -277,7 +344,7 @@ export default function ViewDehydratorRecords() {
                                                                 <AlertDialogHeader>
                                                                     <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4 border border-red-200 dark:border-red-800"><AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" /></div>
                                                                     <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-white">Delete Record</AlertDialogTitle>
-                                                                    <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-base">Are you sure you want to delete this record?</AlertDialogDescription>
+                                                                    <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-base">Are you sure you want to delete this batch record?</AlertDialogDescription>
                                                                 </AlertDialogHeader>
                                                                 <AlertDialogFooter className="mt-6">
                                                                     <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
@@ -304,7 +371,7 @@ export default function ViewDehydratorRecords() {
                                         <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800 text-center text-gray-500 font-bold">-</td>
                                         <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800 text-center text-gray-500 font-bold">-</td>
                                         <td className="px-3 py-4 text-center font-black text-orange-700 dark:text-orange-500 text-lg border-r border-gray-200 dark:border-zinc-800">{totalUnits.toFixed(2)} Pts</td>
-                                        <td className="px-3 py-4 text-center font-black text-orange-800 dark:text-orange-400 text-lg border-r border-gray-200 dark:border-zinc-800">{totalElecCost.toFixed(2)}</td> {/* NEW */}
+                                        <td className="px-3 py-4 text-center font-black text-orange-800 dark:text-orange-400 text-lg border-r border-gray-200 dark:border-zinc-800">{totalElecCost.toFixed(2)}</td>
                                         <td className="px-3 py-4 text-center font-black text-blue-700 dark:text-blue-400 border-r border-gray-200 dark:border-zinc-800">{totalHours.toFixed(1)} Hrs</td>
                                         <td className="px-3 py-4 text-center font-black text-blue-700 dark:text-blue-400 border-r border-gray-200 dark:border-zinc-800">{totalLabourHours.toFixed(1)} Hrs</td>
                                         <td className="px-3 py-4 text-center font-black text-purple-700 dark:text-purple-400 border-r border-gray-200 dark:border-zinc-800">{totalLabourCost.toFixed(2)}</td>
