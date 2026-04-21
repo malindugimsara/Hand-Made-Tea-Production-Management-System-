@@ -34,9 +34,9 @@ export default function CostOfProduction() {
 
     // Filters & Rates
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); 
-    const [monthlyGlRate, setMonthlyGlRate] = useState(0); 
-    const [labourRate, setLabourRate] = useState(1350); 
-    const [electricityRate, setElectricityRate] = useState(10);
+    const [monthlyGlRate, setMonthlyGlRate] = useState(''); 
+    const [labourRate, setLabourRate] = useState(''); 
+    const [electricityRate, setElectricityRate] = useState(''); 
     
     const [records, setRecords] = useState([]);
     const [supervisionCosts, setSupervisionCosts] = useState({});
@@ -81,7 +81,6 @@ export default function CostOfProduction() {
             const prodData = await prodRes.json();
             const labData = await labRes.json();
 
-            // Fix Mapping Issue: Sort arrays by _id (which contains creation timestamp) to ensure exact 1-to-1 matching
             const sortById = (a, b) => (a._id < b._id ? -1 : (a._id > b._id ? 1 : 0));
             glData.sort(sortById);
             prodData.sort(sortById);
@@ -91,7 +90,6 @@ export default function CostOfProduction() {
             let dbLoadedSup = {};
             let dbLoadedHr = {};
 
-            // 1. Check if current month is already saved
             if (costRes && costRes.ok) {
                 savedMonthData = await costRes.json();
                 
@@ -99,7 +97,7 @@ export default function CostOfProduction() {
                     setIsSaved(true);
                     setMonthlyGlRate(savedMonthData.monthlyGlRate || 0);
                     setLabourRate(savedMonthData.labourRate || 1350);
-                    setElectricityRate(savedMonthData.electricityRate || 10);
+                    setElectricityRate(savedMonthData.electricityRate || 20);
 
                     const dbLabRate = savedMonthData.labourRate || 1350;
 
@@ -110,12 +108,17 @@ export default function CostOfProduction() {
                 } else {
                     setIsSaved(false);
                     savedMonthData = null;
+                    setMonthlyGlRate(0);
+                    setLabourRate(1350);
+                    setElectricityRate(20);
                 }
             } else {
                 setIsSaved(false);
+                setMonthlyGlRate(0);
+                setLabourRate(1350);
+                setElectricityRate(20);
             }
 
-            // 2. Process Production, GL & Labour Data
             const filteredProd = prodData.filter(p => p.date.startsWith(selectedMonth));
             const summary = {};
             const glUsage = {};
@@ -143,7 +146,7 @@ export default function CostOfProduction() {
                         selectedWeight: 0,
                         madeTeaWeight: 0,
                         selectionWorkers: 0,
-                        hrWorkers: 0, // NEW: Auto Hand Rolling Workers
+                        hrWorkers: 0, 
                         dryerUnits: 0
                     };
                 }
@@ -151,10 +154,8 @@ export default function CostOfProduction() {
                 summary[type].selectedWeight += Number(gl?.selectedWeight || 0);
                 summary[type].madeTeaWeight += Number(prod.madeTeaWeight || 0);
                 
-                // Add Selection Workers
                 summary[type].selectionWorkers += Number(lab?.workerCount || 0);
                 
-                // Add Hand Rolling Workers (Automatic Calculation)
                 if (lab && lab.rollingType === 'Hand Rolling') {
                     summary[type].hrWorkers += Number(lab.rollingWorkerCount || 0);
                 }
@@ -164,10 +165,8 @@ export default function CostOfProduction() {
                 summary[type].dryerUnits += (mEnd > mStart ? mEnd - mStart : 0);
             });
 
-            // Apply loaded Supervision costs
             setSupervisionCosts(savedMonthData ? dbLoadedSup : {});
 
-            // If we have saved data from Cost of Production DB, override auto-calculated HR workers to match saved record
             if (savedMonthData && savedMonthData.month === selectedMonth) {
                 Object.keys(summary).forEach(type => {
                     if (dbLoadedHr[type] !== undefined) {
@@ -194,7 +193,6 @@ export default function CostOfProduction() {
         }
     };
 
-    // Manual input Change Handlers
     const handleSupervisionChange = (type, value) => {
         if (Number(value) < 0) return;
         setSupervisionCosts(prev => ({ ...prev, [type]: Number(value) || 0 }));
@@ -209,16 +207,15 @@ export default function CostOfProduction() {
     };
 
     const grandTotalAllTeas = records.reduce((total, item) => {
-        const glCost = item.selectedWeight * monthlyGlRate;
-        const selectionCost = item.selectionWorkers * labourRate;
-        const electricityCost = item.dryerUnits * electricityRate;
+        const glCost = item.selectedWeight * Number(monthlyGlRate || 0);
+        const selectionCost = item.selectionWorkers * Number(labourRate || 0);
+        const electricityCost = item.dryerUnits * Number(electricityRate || 0);
         const supCost = supervisionCosts[item.teaType] || 0;
-        const handRollingCost = item.hrWorkers * labourRate;
+        const handRollingCost = item.hrWorkers * Number(labourRate || 0);
 
         return total + glCost + selectionCost + handRollingCost + electricityCost + supCost;
     }, 0);
 
-    // Save to Database Logic
     const handleSaveToDatabase = async () => {
         if (isViewer) {
             toast.error("Viewers are not allowed to save data.");
@@ -235,11 +232,11 @@ export default function CostOfProduction() {
 
         try {
             const teaCostsPayload = records.map(item => {
-                const glCost = item.selectedWeight * monthlyGlRate;
-                const selectionCost = item.selectionWorkers * labourRate;
-                const electricityCost = item.dryerUnits * electricityRate;
+                const glCost = item.selectedWeight * Number(monthlyGlRate || 0);
+                const selectionCost = item.selectionWorkers * Number(labourRate || 0);
+                const electricityCost = item.dryerUnits * Number(electricityRate || 0);
                 const supCost = supervisionCosts[item.teaType] || 0;
-                const handRollingCost = item.hrWorkers * labourRate;
+                const handRollingCost = item.hrWorkers * Number(labourRate || 0);
                 const totalCost = glCost + selectionCost + handRollingCost + electricityCost + supCost;
 
                 return {
@@ -257,9 +254,9 @@ export default function CostOfProduction() {
 
             const payload = {
                 month: selectedMonth,
-                monthlyGlRate: Number(monthlyGlRate),
-                labourRate: Number(labourRate),
-                electricityRate: Number(electricityRate),
+                monthlyGlRate: Number(monthlyGlRate || 0),
+                labourRate: Number(labourRate || 0),
+                electricityRate: Number(electricityRate || 0),
                 teaCosts: teaCostsPayload,
                 grandTotal: grandTotalAllTeas
             };
@@ -314,55 +311,58 @@ export default function CostOfProduction() {
     // -------------------------------------------------------------
     const getSinglePdfData = () => {
         const rows = [];
+        let isShaded = false; // Toggle for shading
 
         records.forEach((item) => {
-            const glCost = item.selectedWeight * monthlyGlRate;
-            const selectionCost = item.selectionWorkers * labourRate;
-            const electricityCost = item.dryerUnits * electricityRate;
+            const glCost = item.selectedWeight * Number(monthlyGlRate || 0);
+            const selectionCost = item.selectionWorkers * Number(labourRate || 0);
+            const electricityCost = item.dryerUnits * Number(electricityRate || 0);
             const supCost = supervisionCosts[item.teaType] || 0;
-            const handRollingCost = item.hrWorkers * labourRate;
+            const handRollingCost = item.hrWorkers * Number(labourRate || 0);
             const totalCost = glCost + selectionCost + handRollingCost + electricityCost + supCost;
 
+            // Apply a shaded background array to rows if 'isShaded' is true
+            const rowStyle = isShaded ? { fillColor: [245, 245, 245] } : {};
+            const boldStyle = isShaded ? { fillColor: [230, 230, 230], fontStyle: 'bold' } : { fontStyle: 'bold' };
+
             rows.push([
-                item.teaType,
-                "Green Leaf (G/L) Cost",
-                `${item.selectedWeight.toFixed(2)} kg @ Rs.${monthlyGlRate}`,
-                glCost.toLocaleString(undefined, {minimumFractionDigits: 2})
+                { content: item.teaType, rowSpan: 6, styles: { ...rowStyle, fontStyle: 'bold', valign: 'middle' } },
+                { content: "Green Leaf (G/L) Cost", styles: rowStyle },
+                { content: `${item.selectedWeight.toFixed(2)} kg @ Rs.${monthlyGlRate}`, styles: rowStyle },
+                { content: glCost.toLocaleString(undefined, {minimumFractionDigits: 2}), styles: rowStyle }
             ]);
             rows.push([
-                "",
-                "G/L Selection Cost",
-                `${item.selectionWorkers} workers`,
-                selectionCost.toLocaleString(undefined, {minimumFractionDigits: 2})
+                { content: "G/L Selection Cost", styles: rowStyle },
+                { content: `${item.selectionWorkers} workers`, styles: rowStyle },
+                { content: selectionCost.toLocaleString(undefined, {minimumFractionDigits: 2}), styles: rowStyle }
             ]);
             rows.push([
-                "",
-                "Hand Rolling Cost",
-                `${item.hrWorkers} workers`,
-                handRollingCost.toLocaleString(undefined, {minimumFractionDigits: 2})
+                { content: "Hand Rolling Cost", styles: rowStyle },
+                { content: `${item.hrWorkers} workers`, styles: rowStyle },
+                { content: handRollingCost.toLocaleString(undefined, {minimumFractionDigits: 2}), styles: rowStyle }
             ]);
             rows.push([
-                "",
-                "Electricity Cost",
-                `${item.dryerUnits} units`,
-                electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2})
+                { content: "Electricity Cost", styles: rowStyle },
+                { content: `${item.dryerUnits} units`, styles: rowStyle },
+                { content: electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2}), styles: rowStyle }
             ]);
             rows.push([
-                "",
-                "Supervision Cost",
-                "Manual Input",
-                supCost.toLocaleString(undefined, {minimumFractionDigits: 2})
+                { content: "Supervision Cost", styles: rowStyle },
+                { content: "Manual Input", styles: rowStyle },
+                { content: supCost.toLocaleString(undefined, {minimumFractionDigits: 2}), styles: rowStyle }
             ]);
             rows.push([
-                "",
-                "TOTAL COST",
-                `Made Tea: ${item.madeTeaWeight.toFixed(3)} kg`,
-                totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})
+                { content: "TOTAL COST", styles: boldStyle },
+                { content: `Made Tea: ${item.madeTeaWeight.toFixed(3)} kg`, styles: boldStyle },
+                { content: totalCost.toLocaleString(undefined, {minimumFractionDigits: 2}), styles: boldStyle }
             ]);
+
+            isShaded = !isShaded; // Flip shading for the next tea type
         });
 
         rows.push([
-            "GRAND TOTAL (ALL TEAS)", "-", "-", grandTotalAllTeas.toLocaleString(undefined, {minimumFractionDigits: 2})
+            { content: "GRAND TOTAL (ALL TEAS)", colSpan: 3, styles: { fontStyle: 'bold', fillColor: [27, 106, 49], textColor: 255, halign: 'right' } }, 
+            { content: grandTotalAllTeas.toLocaleString(undefined, {minimumFractionDigits: 2}), styles: { fontStyle: 'bold', fillColor: [27, 106, 49], textColor: 255 } }
         ]);
 
         return rows;
@@ -441,7 +441,6 @@ export default function CostOfProduction() {
                 }
             } catch (err) {}
 
-            // 1. Generate the Unique Code for the Range
             const getRangeDocCode = () => {
                 const d1 = new Date(rangeStartMonth);
                 const d2 = new Date(rangeEndMonth);
@@ -452,7 +451,6 @@ export default function CostOfProduction() {
             };
             const uniqueRangeCode = getRangeDocCode();
 
-            // 2. Add Main Titles
             doc.setFontSize(22);
             doc.setTextColor(27, 106, 49); 
             doc.text("Monthly Cost of Production Summary", 45, 20);
@@ -463,7 +461,6 @@ export default function CostOfProduction() {
             const endName = new Date(rangeEndMonth).toLocaleString('default', { month: 'short', year: 'numeric' });
             doc.text(`Period: ${startName} to ${endName}`, 45, 27);
 
-            // 3. Add the Unique Code to the Top Right Corner (Y=12 prevents overlap)
             doc.setFontSize(10);
             doc.setTextColor(150); 
             const pageWidth = doc.internal.pageSize.getWidth();
@@ -473,19 +470,23 @@ export default function CostOfProduction() {
             
             let allRows = [];
             let overallGrandTotal = new Array(monthsArray.length).fill(0);
+            let isShaded = false; // Shading toggle
 
             preferredOrder.forEach((teaType) => {
+                const rowStyle = isShaded ? { fillColor: [245, 245, 245] } : {};
+                const boldStyle = isShaded ? { fillColor: [230, 230, 230], fontStyle: 'bold' } : { fontStyle: 'bold' };
+
                 let typeRow = [{ content: teaType, colSpan: monthsArray.length + 1, styles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' } }];
                 allRows.push(typeRow);
 
-                let glCostRow = ["G/L Cost"];
-                let selCostRow = ["G/L Selection Cost"];
-                let hrCostRow = ["Hand Rolling Cost"];
-                let elecCostRow = ["Electricity Cost"];
-                let supCostRow = ["Supervision Cost"];
-                let mtRow = ["MADE TEA (KG)"];
-                let costPerKgRow = ["COST PER 1 KG (Rs.)"];
-                let totalCostRow = [{ content: "Total Cost", styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }];
+                let glCostRow = [{content: "G/L Cost", styles: rowStyle}];
+                let selCostRow = [{content: "G/L Selection Cost", styles: rowStyle}];
+                let hrCostRow = [{content: "Hand Rolling Cost", styles: rowStyle}];
+                let elecCostRow = [{content: "Electricity Cost", styles: rowStyle}];
+                let supCostRow = [{content: "Supervision Cost", styles: rowStyle}];
+                let mtRow = [{content: "MADE TEA (KG)", styles: rowStyle}];
+                let costPerKgRow = [{content: "COST PER 1 KG (Rs.)", styles: rowStyle}];
+                let totalCostRow = [{ content: "Total Cost", styles: boldStyle }];
 
                 monthsArray.forEach((month, index) => {
                     const filteredProd = prodData.filter(p => p.date.startsWith(month) && p.teaType === teaType);
@@ -526,31 +527,36 @@ export default function CostOfProduction() {
                         m_dryerUnits += (mEnd > mStart ? mEnd - mStart : 0);
                     });
 
-                    const m_glCost = m_selectedWeight * monthlyGlRate;
-                    const m_selectionCost = m_selectionWorkers * labourRate;
-                    const m_electricityCost = m_dryerUnits * electricityRate;
+                    const m_glRate = Number(monthlyGlRate || 0);
+                    const m_labRate = Number(labourRate || 0);
+                    const m_elecRate = Number(electricityRate || 0);
+
+                    const m_glCost = m_selectedWeight * m_glRate;
+                    const m_selectionCost = m_selectionWorkers * m_labRate;
+                    const m_electricityCost = m_dryerUnits * m_elecRate;
                     const m_supCost = supervisionCosts[teaType] || 0; 
                     
                     const m_hrWorkers = m_hrWorkersCalc;
-                    const m_handRollingCost = m_hrWorkers * labourRate;
+                    const m_handRollingCost = m_hrWorkers * m_labRate;
 
                     const m_totalCost = m_glCost + m_selectionCost + m_handRollingCost + m_electricityCost + m_supCost;
                     const m_costPerKg = m_madeTeaWeight > 0 ? (m_totalCost / m_madeTeaWeight) : 0;
 
-                    glCostRow.push(m_glCost > 0 ? m_glCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-");
-                    selCostRow.push(m_selectionCost > 0 ? m_selectionCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-");
-                    hrCostRow.push(m_handRollingCost > 0 ? m_handRollingCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-");
-                    elecCostRow.push(m_electricityCost > 0 ? m_electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-");
-                    supCostRow.push(m_supCost > 0 ? m_supCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-");
-                    totalCostRow.push({ content: m_totalCost > 0 ? m_totalCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } });
+                    glCostRow.push({content: m_glCost > 0 ? m_glCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: rowStyle});
+                    selCostRow.push({content: m_selectionCost > 0 ? m_selectionCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: rowStyle});
+                    hrCostRow.push({content: m_handRollingCost > 0 ? m_handRollingCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: rowStyle});
+                    elecCostRow.push({content: m_electricityCost > 0 ? m_electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: rowStyle});
+                    supCostRow.push({content: m_supCost > 0 ? m_supCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: rowStyle});
+                    totalCostRow.push({ content: m_totalCost > 0 ? m_totalCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: boldStyle });
                     
-                    mtRow.push(m_madeTeaWeight > 0 ? m_madeTeaWeight.toFixed(3) : "-");
+                    mtRow.push({content: m_madeTeaWeight > 0 ? m_madeTeaWeight.toFixed(3) : "-", styles: rowStyle});
                     costPerKgRow.push({ content: m_costPerKg > 0 ? m_costPerKg.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: { fontStyle: 'bold', fillColor: [210, 230, 210] } });
 
                     overallGrandTotal[index] += m_totalCost;
                 });
 
                 allRows.push(glCostRow, selCostRow, hrCostRow, elecCostRow, supCostRow, totalCostRow, mtRow, costPerKgRow);
+                isShaded = !isShaded; // Flip shading for the next tea type
             });
 
             let grandTotalRow = [{ content: "GRAND TOTAL (All Teas)", styles: { fontStyle: 'bold', fillColor: [27, 106, 49], textColor: 255 } }];
@@ -575,7 +581,6 @@ export default function CostOfProduction() {
                 }
             });
 
-            // Footer
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
@@ -605,7 +610,7 @@ export default function CostOfProduction() {
         const date = new Date();
         const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
         const year = date.getFullYear();
-        return `HT/CPS/${month}.${year}`; // Result: HT/CPS/APRIL.2026
+        return `HT/CPS/${month}.${year}`; 
     };
 
     const uniqueCode = getCurrentMonthCode();
@@ -750,75 +755,75 @@ export default function CostOfProduction() {
                 </div>
             )}
 
-            <div className={`bg-white dark:bg-zinc-900 p-6 rounded-xl border shadow-sm mb-10 transition-colors duration-300 ${isViewer ? 'border-gray-200 dark:border-zinc-800 opacity-90' : 'border-gray-200 dark:border-zinc-800'}`}>
-                <div className="flex items-center gap-2 mb-4 border-b border-gray-100 dark:border-zinc-800 pb-2">
-                    <span className="text-orange-500 font-bold text-lg">⚯</span>
-                    <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                        ADJUST RATES (LKR) {isViewer && "(Read Only)"}
-                    </h3>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">G/L RATE (PER KG)</label>
-                        <div className="relative">
-                            <span className="absolute left-3 top-2.5 text-gray-400 dark:text-gray-500 text-sm font-bold">Rs.</span>
-                            <input 
-                                type="number" 
-                                min="0"
-                                value={monthlyGlRate === 0 ? '' : monthlyGlRate} 
-                                onChange={handleRateChange(setMonthlyGlRate)}
-                                onWheel={(e) => e.target.blur()}
-                                disabled={isViewer}
-                                className="w-full border border-gray-300 dark:border-zinc-700 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed transition-colors" 
-                                placeholder="0.00" 
-                            />
-                        </div>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">LABOUR RATE (PER HEAD)</label>
-                        <div className="relative">
-                            <span className="absolute left-3 top-2.5 text-gray-400 dark:text-gray-500 text-sm font-bold">Rs.</span>
-                            <input 
-                                type="number" 
-                                min="0"
-                                value={labourRate} 
-                                onChange={handleRateChange(setLabourRate)}
-                                onWheel={(e) => e.target.blur()}
-                                disabled={isViewer}
-                                className="w-full border border-gray-300 dark:border-zinc-700 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed transition-colors" 
-                            />
-                        </div>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">ELECTRICITY RATE (PER UNIT)</label>
-                        <div className="relative">
-                            <span className="absolute left-3 top-2.5 text-gray-400 dark:text-gray-500 text-sm font-bold">Rs.</span>
-                            <input 
-                                type="number"
-                                min="0" 
-                                value={electricityRate} 
-                                onChange={handleRateChange(setElectricityRate)}
-                                onWheel={(e) => e.target.blur()}
-                                disabled={isViewer}
-                                className="w-full border border-gray-300 dark:border-zinc-700 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed transition-colors" 
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             {loading ? (
                 <div className="text-center py-20 text-gray-500 dark:text-gray-400 font-bold">Processing Monthly Data...</div>
             ) : records.length > 0 ? (
                 <>
+                    <div className={`bg-white dark:bg-zinc-900 p-6 rounded-xl border shadow-sm mb-10 transition-colors duration-300 ${isViewer ? 'border-gray-200 dark:border-zinc-800 opacity-90' : 'border-gray-200 dark:border-zinc-800'}`}>
+                        <div className="flex items-center gap-2 mb-4 border-b border-gray-100 dark:border-zinc-800 pb-2">
+                            <span className="text-orange-500 font-bold text-lg">⚯</span>
+                            <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
+                                ADJUST RATES (LKR) {isViewer && "(Read Only)"}
+                            </h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400">G/L RATE (PER KG)</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-2.5 text-gray-400 dark:text-gray-500 text-sm font-bold">Rs.</span>
+                                    <input 
+                                        type="number" 
+                                        min="0"
+                                        value={monthlyGlRate === 0 ? '' : monthlyGlRate} 
+                                        onChange={handleRateChange(setMonthlyGlRate)}
+                                        onWheel={(e) => e.target.blur()}
+                                        disabled={isViewer}
+                                        className="w-full border border-gray-300 dark:border-zinc-700 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed transition-colors" 
+                                        placeholder="0.00" 
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400">LABOUR RATE (PER HEAD)</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-2.5 text-gray-400 dark:text-gray-500 text-sm font-bold">Rs.</span>
+                                    <input 
+                                        type="number" 
+                                        min="0"
+                                        value={labourRate} 
+                                        onChange={handleRateChange(setLabourRate)}
+                                        onWheel={(e) => e.target.blur()}
+                                        disabled={isViewer}
+                                        className="w-full border border-gray-300 dark:border-zinc-700 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed transition-colors" 
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400">ELECTRICITY RATE (PER UNIT)</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-2.5 text-gray-400 dark:text-gray-500 text-sm font-bold">Rs.</span>
+                                    <input 
+                                        type="number"
+                                        min="0" 
+                                        value={electricityRate} 
+                                        onChange={handleRateChange(setElectricityRate)}
+                                        onWheel={(e) => e.target.blur()}
+                                        disabled={isViewer}
+                                        className="w-full border border-gray-300 dark:border-zinc-700 rounded-md p-2.5 pl-10 text-sm font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed transition-colors" 
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-1 gap-10">
                         {records.map((item) => {
-                            const glCost = item.selectedWeight * monthlyGlRate;
-                            const selectionCost = item.selectionWorkers * labourRate;
-                            const electricityCost = item.dryerUnits * electricityRate;
+                            const glCost = item.selectedWeight * Number(monthlyGlRate || 0);
+                            const selectionCost = item.selectionWorkers * Number(labourRate || 0);
+                            const electricityCost = item.dryerUnits * Number(electricityRate || 0);
                             const supCost = supervisionCosts[item.teaType] || 0;
-                            const handRollingCost = item.hrWorkers * labourRate;
+                            const handRollingCost = item.hrWorkers * Number(labourRate || 0);
                             const totalCost = glCost + selectionCost + handRollingCost + electricityCost + supCost;
 
                             return (
@@ -846,19 +851,19 @@ export default function CostOfProduction() {
                                                     <td className="py-4 text-right font-bold text-gray-900 dark:text-gray-100">{glCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                                 </tr>
                                                 <tr>
-                                                    <td className="py-4 font-semibold text-gray-700">G/L Selection Cost</td>
-                                                    <td className="py-4 text-right text-gray-500">{item.selectionWorkers > 0 ? `${item.selectionWorkers} Worker days` : '-'}</td>
-                                                    <td className="py-4 text-right font-bold text-gray-900">{selectionCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                                    <td className="py-4 font-semibold text-gray-700 dark:text-gray-300">G/L Selection Cost</td>
+                                                    <td className="py-4 text-right text-gray-500 dark:text-gray-400">{item.selectionWorkers > 0 ? `${item.selectionWorkers} Worker days` : '-'}</td>
+                                                    <td className="py-4 text-right font-bold text-gray-900 dark:text-gray-100">{selectionCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                                 </tr>
                                                 <tr>
-                                                    <td className="py-4 font-semibold text-gray-700">Hand Rolling Cost</td>
-                                                    <td className="py-4 text-right text-gray-500">{item.hrWorkers > 0 ? `${item.hrWorkers} Worker days` : '-'}</td>
-                                                    <td className="py-4 text-right font-bold text-gray-900">{handRollingCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                                    <td className="py-4 font-semibold text-gray-700 dark:text-gray-300">Hand Rolling Cost</td>
+                                                    <td className="py-4 text-right text-gray-500 dark:text-gray-400">{item.hrWorkers > 0 ? `${item.hrWorkers} Worker days` : '-'}</td>
+                                                    <td className="py-4 text-right font-bold text-gray-900 dark:text-gray-100">{handRollingCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                                 </tr>
                                                 <tr>
-                                                    <td className="py-4 font-semibold text-gray-700">Electricity Cost</td>
-                                                    <td className="py-4 text-right text-gray-500">{item.dryerUnits > 0 ? `${item.dryerUnits} Units Used` : '-'}</td>
-                                                    <td className="py-4 text-right font-bold text-gray-900">{electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                                                    <td className="py-4 font-semibold text-gray-700 dark:text-gray-300">Electricity Cost</td>
+                                                    <td className="py-4 text-right text-gray-500 dark:text-gray-400">{item.dryerUnits > 0 ? `${item.dryerUnits} Units Used` : '-'}</td>
+                                                    <td className="py-4 text-right font-bold text-gray-900 dark:text-gray-100">{electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                                                 </tr>
                                                 <tr>
                                                     <td className="py-4 font-semibold text-gray-700 dark:text-gray-300">Supervision Cost</td>
