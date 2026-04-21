@@ -30,7 +30,7 @@ export default function ProductionSummary() {
     const [selectedTeaTypes, setSelectedTeaTypes] = useState([]); 
 
     const [labourRate, setLabourRate] = useState(1350);
-    const [electricityRate, setElectricityRate] = useState(10);
+    const [electricityRate, setElectricityRate] = useState(20);
 
     const teaOptions = [
         "Purple Tea", "Pink Tea", "White Tea", "Silver Tips", 
@@ -159,7 +159,7 @@ export default function ProductionSummary() {
 
                 if (savedSummary) {
                     setLabourRate(savedSummary.labourRate);
-                    setElectricityRate(savedSummary.electricityRate);
+                    // setElectricityRate(savedSummary.electricityRate);
 
                     const activeTypes = savedSummary.teaSummaries.map(tea => tea.type);
 
@@ -336,7 +336,6 @@ export default function ProductionSummary() {
     
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
-            <Toaster />
             <div className="p-8 max-w-[1400px] mx-auto font-sans relative">
                 <AlertDialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
                     <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-md transition-colors">

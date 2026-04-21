@@ -218,8 +218,6 @@ export default function ViewRawMaterialCost() {
 
     return (
         <div className="p-8 max-w-[1400px] mx-auto font-sans relative bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
-            <Toaster />
-            
             <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-[#1B6A31] dark:text-green-500 flex items-center gap-2">

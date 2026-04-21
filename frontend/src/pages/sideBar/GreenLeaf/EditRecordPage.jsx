@@ -187,7 +187,8 @@ export default function EditRecordPage() {
     // 6. Main Submit Logic (Update)
     const handleUpdate = async (e) => {
         e.preventDefault(); 
-        
+
+        const currentUser = localStorage.getItem("username");
         const total = Number(formData.totalWeight);
         const selected = Number(formData.selectedWeight);
         
@@ -230,7 +231,7 @@ export default function EditRecordPage() {
             // 1. Update Green Leaf
             if (formData.greenLeafId) {
                 promises.push(fetchWithErr(`${BACKEND_URL}/api/green-leaf/${formData.greenLeafId}`, {
-                    method: 'PUT', headers: authHeaders, body: JSON.stringify({ totalWeight: total, selectedWeight: selected })
+                    method: 'PUT', headers: authHeaders, body: JSON.stringify({ totalWeight: total, selectedWeight: selected, updatedBy: currentUser })
                 }, "Failed to update Green Leaf record."));
             }
 
@@ -241,7 +242,8 @@ export default function EditRecordPage() {
                     body: JSON.stringify({ 
                         workerCount: Number(formData.workerCount),
                         rollingType: formData.rollingType,
-                        rollingWorkerCount: formData.rollingType === 'Hand Rolling' ? Number(formData.rollingWorkerCount) : 0
+                        rollingWorkerCount: formData.rollingType === 'Hand Rolling' ? Number(formData.rollingWorkerCount) : 0,
+                        updatedBy: currentUser
                     })
                 }, "Failed to update Labour record."));
             }
@@ -264,7 +266,8 @@ export default function EditRecordPage() {
                         teaType: formData.outputs[0].teaType,
                         madeTeaWeight: Number(formData.outputs[0].madeTeaWeight),
                         expectedDryerDate: formData.expectedDryerDate, // <-- INCLUDED
-                        dryerDetails: dryerDetailsObj
+                        dryerDetails: dryerDetailsObj,
+                        updatedBy: currentUser
                     })
                 }, "Failed to update Primary Production record."));
             }
@@ -277,7 +280,8 @@ export default function EditRecordPage() {
                         teaType: formData.outputs[i].teaType,
                         madeTeaWeight: Number(formData.outputs[i].madeTeaWeight),
                         expectedDryerDate: formData.expectedDryerDate, // <-- INCLUDED
-                        dryerDetails: { dryerName: '', meterStart: 0, meterEnd: 0, rollerPoints: 0 } 
+                        dryerDetails: { dryerName: '', meterStart: 0, meterEnd: 0, rollerPoints: 0 }, 
+                        updatedBy: currentUser
                     };
                     promises.push(fetchWithErr(`${BACKEND_URL}/api/production`, {
                         method: 'POST', headers: authHeaders, body: JSON.stringify(extraPayload)

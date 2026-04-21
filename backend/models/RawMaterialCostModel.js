@@ -37,7 +37,8 @@ const rawMaterialCostSchema = new mongoose.Schema({
     totalCost: { 
         type: Number, 
         required: true 
-    } // Total cost
+    }, // Total cost
+    updatedBy: { type: String, default: '' }
 }, { timestamps: true });
 
 export const RawMaterialCost = mongoose.model('RawMaterialCost', rawMaterialCostSchema);

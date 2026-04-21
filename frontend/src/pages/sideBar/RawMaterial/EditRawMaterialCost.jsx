@@ -10,9 +10,10 @@ export default function EditRawMaterialCost() {
     
     const [isSaving, setIsSaving] = useState(false);
 
-    // --- ROLE BASED ACCESS CONTROL ---
+    // --- ROLE BASED ACCESS CONTROL & USER INFO ---
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
+    const currentUsername = localStorage.getItem('username') || 'Unknown'; // <-- Get Current Username
 
     // View page එකෙන් එවන දත්ත ලබා ගැනීම
     const recordData = location.state?.record;
@@ -60,6 +61,13 @@ export default function EditRawMaterialCost() {
         setFormData({ ...formData, [name]: value });
     };
 
+    // ඍණ අගයන් ටයිප් කිරීම වැළැක්වීම
+    const blockMinus = (e) => {
+        if (e.key === '-') {
+            e.preventDefault();
+        }
+    };
+
     const points = (Number(formData.meterEnd) || 0) - (Number(formData.meterStart) || 0);
     const totalCost = (Number(formData.rawMaterialCost) || 0) + (Number(formData.electricityCost) || 0);
 
@@ -83,11 +91,11 @@ export default function EditRawMaterialCost() {
             totalPoints: points,
             rawMaterialCost: Number(formData.rawMaterialCost),
             electricityCost: Number(formData.electricityCost),
-            totalCost: totalCost
+            totalCost: totalCost,
+            updatedBy: currentUsername // <-- අලුතින් Edit කරන කෙනාගේ නම යැවීම
         };
 
         try {
-            // FIX: Grab the token to prove you are authorized!
             const token = localStorage.getItem('token');
             
             const res = await fetch(`${BACKEND_URL}/api/raw-material-cost/${recordData._id}`, {
@@ -120,11 +128,26 @@ export default function EditRawMaterialCost() {
     return (
         <div className="p-8 max-w-3xl mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
             
-            <div className="mb-8 text-center">
+            <div className="mb-8 text-center flex flex-col items-center">
                 <h2 className="text-3xl font-bold text-[#1B6A31] dark:text-green-500 flex items-center justify-center gap-2">
                     <Leaf size={28} /> Edit Raw Material Cost
                 </h2>
-                <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Update previously saved processing costs</p>
+                
+                {/* --- DATE & EDITOR NAME BADGE --- */}
+                <div className="mt-4 flex flex-col items-center justify-center gap-2">
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white dark:bg-zinc-800 rounded-full border border-gray-200 dark:border-zinc-700 shadow-sm transition-colors">
+                        <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">Record Date:</span>
+                        <span className="text-sm font-black text-gray-800 dark:text-gray-200">{formData.date}</span>
+                    </div>
+                    {/* කලින් කවුරුහරි Edit කරලා තියෙනවා නම් නම පෙන්වීම */}
+                    {recordData && (recordData.updatedBy || recordData.editedBy || recordData.username) && (
+                        <div className="inline-flex items-center px-3 py-1 bg-blue-50 dark:bg-blue-900/30 rounded-full border border-blue-100 dark:border-blue-800/50 transition-colors">
+                            <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                                Last Edited By: {recordData.updatedBy || recordData.editedBy || recordData.username}
+                            </span>
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div className="bg-white dark:bg-zinc-900 p-8 rounded-2xl shadow-lg border border-green-100 dark:border-zinc-800 transition-colors duration-300">
@@ -185,6 +208,7 @@ export default function EditRawMaterialCost() {
                             min="0"
                             step="0.01"
                             onWheel={(e) => e.target.blur()}
+                            onKeyDown={blockMinus}
                             value={formData.dryWeight} 
                             onChange={handleInputChange} 
                             className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-green-400 dark:focus:ring-green-600 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
@@ -202,7 +226,9 @@ export default function EditRawMaterialCost() {
                                 type="number" 
                                 name="meterStart"
                                 required
+                                min="0"
                                 onWheel={(e) => e.target.blur()}
+                                onKeyDown={blockMinus}
                                 value={formData.meterStart} 
                                 onChange={handleInputChange} 
                                 className="w-full p-2.5 border border-orange-200 dark:border-orange-800/50 rounded-md focus:ring-2 focus:ring-orange-400 dark:focus:ring-orange-600 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
@@ -214,7 +240,9 @@ export default function EditRawMaterialCost() {
                                 type="number" 
                                 name="meterEnd"
                                 required
+                                min="0"
                                 onWheel={(e) => e.target.blur()}
+                                onKeyDown={blockMinus}
                                 value={formData.meterEnd} 
                                 onChange={handleInputChange} 
                                 className="w-full p-2.5 border border-orange-200 dark:border-orange-800/50 rounded-md focus:ring-2 focus:ring-orange-400 dark:focus:ring-orange-600 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
@@ -234,7 +262,9 @@ export default function EditRawMaterialCost() {
                                 name="rawMaterialCost"
                                 required
                                 min="0"
+                                step="0.01"
                                 onWheel={(e) => e.target.blur()}
+                                onKeyDown={blockMinus}
                                 value={formData.rawMaterialCost} 
                                 onChange={handleInputChange} 
                                 className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-green-400 dark:focus:ring-green-600 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
@@ -249,6 +279,7 @@ export default function EditRawMaterialCost() {
                                 required
                                 min="0"
                                 onWheel={(e) => e.target.blur()}
+                                onKeyDown={blockMinus}
                                 value={formData.electricityCost} 
                                 onChange={handleInputChange} 
                                 className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-green-400 dark:focus:ring-green-600 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
@@ -261,7 +292,7 @@ export default function EditRawMaterialCost() {
                         <span className="text-3xl font-black text-green-700 dark:text-green-500">Rs. {totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                     </div>
 
-                    <div className="flex gap-4">
+                    <div className="flex gap-4 mt-6">
                         <button 
                             type="button" 
                             onClick={() => navigate(-1)}

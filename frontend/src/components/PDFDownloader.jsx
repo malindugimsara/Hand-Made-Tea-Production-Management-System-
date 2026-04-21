@@ -59,9 +59,22 @@ export default function PDFDownloader({
             const pageWidth = doc.internal.pageSize.getWidth();
             doc.text(`Doc Ref: ${uniqueCode}`, pageWidth - 14, 12, { align: 'right' });
 
+            const getDate = (row) => {
+                const item = Array.isArray(row) ? row : row.data;
+                return new Date(item[0]).getTime();
+            };
+
+            const sortedData = [...data].sort((a, b) => {
+                const dateA = Array.isArray(a) ? a[0] : a.data[0];
+                const dateB = Array.isArray(b) ? b[0] : b.data[0];
+                return new Date(dateA) - new Date(dateB);
+            });
+
             // --- Pre-process data for autoTable ---
             // Extract just the array of strings/numbers for the body
-            const processedBody = data.map(item => Array.isArray(item) ? item : item.data);
+           const processedBody = sortedData.map(item =>
+                Array.isArray(item) ? item : item.data
+            );  
 
             // 3. Generate Table
             autoTable(doc, {
