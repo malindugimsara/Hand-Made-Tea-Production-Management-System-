@@ -14,7 +14,8 @@ const productionSchema = new mongoose.Schema({
         meterEnd: Number,
         units: Number,
         rollerPoints: { type: Number, default: 0 }
-    }
+    },
+    updatedBy: { type: String, default: '' }
 }, { timestamps: true });
 
 export const Production = mongoose.model('Production', productionSchema);

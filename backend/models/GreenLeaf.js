@@ -18,6 +18,7 @@ const greenLeafSchema = new mongoose.Schema({
         type: Number, 
         default: 0 
     }, // Weight sent back to the main factory
+    updatedBy: { type: String, default: '' }
 }, { timestamps: true });
 
 export const GreenLeaf = mongoose.model('GreenLeaf', greenLeafSchema);

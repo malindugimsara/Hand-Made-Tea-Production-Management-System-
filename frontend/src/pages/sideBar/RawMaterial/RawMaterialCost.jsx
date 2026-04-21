@@ -251,7 +251,7 @@ export default function RawMaterialCost() {
                                     <input 
                                         type="number" 
                                         step="0.01"
-                                        name="rnumberawMaterialCost"
+                                        name="rawMaterialCost"
                                         required
                                         min="0"
                                         onWheel={(e) => e.target.blur()}

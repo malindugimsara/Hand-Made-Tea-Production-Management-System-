@@ -18,7 +18,8 @@ const labourSchema = new mongoose.Schema({
     rollingWorkerCount: {
         type: Number,
         default: 0
-    } // Number of workers used specifically for Hand Rolling
+    }, // Number of workers used specifically for Hand Rolling
+    updatedBy: { type: String, default: '' }
 }, { timestamps: true });
 
 export const Labour = mongoose.model('Labour', labourSchema);
