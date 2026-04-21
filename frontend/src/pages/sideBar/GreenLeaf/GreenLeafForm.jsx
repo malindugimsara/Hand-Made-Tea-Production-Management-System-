@@ -987,7 +987,7 @@ export default function GreenLeafForm() {
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                         <div>
                                             <label className={labelStyles}>Selection Workers</label>
-                                            <input type="number" min="0" name="workerCount" value={formData.workerCount} onChange={handleInputChange} onWheel={(e) => e.target.blur()} onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }} required className={inputStyles} />
+                                            <input type="number" min="0" step="0.01" name="workerCount" value={formData.workerCount} onChange={handleInputChange} onWheel={(e) => e.target.blur()} onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }} required className={inputStyles} />
                                         </div>
                                         <div>
                                             <label className={labelStyles}>Rolling Method</label>
@@ -1002,6 +1002,7 @@ export default function GreenLeafForm() {
                                             <input 
                                                 type="number" 
                                                 name="rollingWorkerCount" 
+                                                step="any"
                                                 min="0" 
                                                 value={formData.rollingWorkerCount} 
                                                 onChange={handleInputChange} 
