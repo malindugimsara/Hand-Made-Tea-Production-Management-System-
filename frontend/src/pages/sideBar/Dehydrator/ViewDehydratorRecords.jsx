@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import toast from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
-import { Fan, Zap, Clock, AlertCircle, Calendar, RefreshCw, Scale, Droplets, Users, Banknote } from "lucide-react";
+import { Fan, Zap, Clock, AlertCircle, Calendar, RefreshCw, Scale, Droplets, Users, Banknote, FilterX } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
 
 import {
@@ -27,9 +27,12 @@ export default function ViewDehydratorRecords() {
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer';
 
+    // --- FILTER STATES ---
+    const [filterMonth, setFilterMonth] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [trialFilter, setTrialFilter] = useState('');
+    
     const navigate = useNavigate(); 
     
     useEffect(() => {
@@ -58,7 +61,6 @@ export default function ViewDehydratorRecords() {
                 const isEdited = createdTime > 0 && updatedTime > 0 && (updatedTime - createdTime) > 5000;
                 const lastUpdatedDate = isEdited ? new Date(rec.updatedAt).toISOString().split('T')[0] : '';
                 
-                // Format array for multi-item cycles
                 const trialsArray = rec.trialsData && rec.trialsData.length > 0 
                     ? rec.trialsData 
                     : (rec.trial ? [{ 
@@ -68,10 +70,8 @@ export default function ViewDehydratorRecords() {
                         moisturePercentage: rec.moisturePercentage 
                       }] : []);
 
-                // For Search filtering
                 const searchString = trialsArray.map(t => t.trialName).join(' ');
                 
-                // For PDF: use newline characters for all stacked data
                 const trialNamesPDF = trialsArray.map(t => t.trialName).join('\n');
                 const moisturesPDF = trialsArray.map(t => `${t.moisturePercentage}%`).join('\n');
                 const startWeightsPDF = trialsArray.map(t => `${t.startWeight} kg`).join('\n');
@@ -96,6 +96,7 @@ export default function ViewDehydratorRecords() {
                 };
             });
 
+            // Default sorting for UI: Newest First
             const sortedData = processedData.sort((a, b) => {
                 const dateDiff = new Date(b.date) - new Date(a.date);
                 if (dateDiff !== 0) return dateDiff;
@@ -112,9 +113,10 @@ export default function ViewDehydratorRecords() {
     };
 
     const filteredRecords = records.filter(record => {
+        const monthMatch = !filterMonth || record.date.startsWith(filterMonth);
         const dateMatch = (!startDate || record.date >= startDate) && (!endDate || record.date <= endDate);
         const trialMatch = !trialFilter || record.searchString.toLowerCase().includes(trialFilter.toLowerCase());
-        return dateMatch && trialMatch;
+        return monthMatch && dateMatch && trialMatch;
     });
 
     const totalHours = filteredRecords.reduce((sum, record) => sum + (Number(record.timePeriodHours) || 0), 0);
@@ -152,16 +154,26 @@ export default function ViewDehydratorRecords() {
         }
     };
 
+    const clearFilters = () => {
+        setFilterMonth('');
+        setStartDate('');
+        setEndDate('');
+        setTrialFilter('');
+    };
+
     const getPdfData = () => {
-        const tableRows = filteredRecords.map(record => {
+        // --- FIX: Sort chronologically (Oldest to Newest) for the PDF ---
+        const pdfSortedRecords = [...filteredRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        const tableRows = pdfSortedRecords.map(record => {
             const baseDate = new Date(record.date).toISOString().split('T')[0];
             const pdfDateCell = record.isEdited ? `${baseDate}\n(Edited by ${record.editedBy} on ${record.lastUpdatedDate})` : baseDate;
 
             return [
                 pdfDateCell,
                 record.trialNamesPDF, 
-                record.startWeightsPDF, // Updated to show line-by-line
-                record.endWeightsPDF,   // Updated to show line-by-line
+                record.startWeightsPDF, 
+                record.endWeightsPDF,   
                 record.moisturesPDF, 
                 record.meterStart,
                 record.meterEnd,
@@ -192,6 +204,14 @@ export default function ViewDehydratorRecords() {
 
     const uniqueCode = `HT/DM/${new Date().toLocaleString('default', { month: 'long' }).toUpperCase()}.${new Date().getFullYear()}`;
 
+    // Ensure To Date is not earlier than From Date
+    const handleStartDateChange = (e) => {
+        setStartDate(e.target.value);
+        if (endDate && e.target.value > endDate) {
+            setEndDate(''); 
+        }
+    };
+
     return (
         <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -203,7 +223,7 @@ export default function ViewDehydratorRecords() {
                 <div className="flex items-center gap-3">
                     <PDFDownloader 
                         title="Dehydrator Machine Records"
-                        subtitle={`Filters -> Date: ${startDate || 'All'} to ${endDate || 'All'} | Trial: ${trialFilter || 'All'}`}
+                        subtitle={`Filters -> Month: ${filterMonth || 'All'} | Date: ${startDate || 'All'} to ${endDate || 'All'} | Trial: ${trialFilter || 'All'}`}
                         headers={["Date", "Trial(s)", "RM-Wt", "Dried-Wt", "Moisture", "Elec Start", "Elec End", "Units", "Elec Cost", "Time (Hrs)", "Lab Hrs", "Lab Cost"]}
                         data={getPdfData()}
                         uniqueCode={uniqueCode}
@@ -217,18 +237,61 @@ export default function ViewDehydratorRecords() {
                 </div>
             </div>
 
-            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-zinc-900 p-4 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-colors duration-300">
-                <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400">FROM DATE</label>
-                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border dark:border-zinc-800 rounded p-2 text-sm outline-none focus:border-[#8CC63F] dark:focus:border-green-600 bg-transparent dark:text-gray-200 transition-colors" />
-                </div>
-                <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400">TO DATE</label>
-                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border dark:border-zinc-800 rounded p-2 text-sm outline-none focus:border-[#8CC63F] dark:focus:border-green-600 bg-transparent dark:text-gray-200 transition-colors" />
-                </div>
-                <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400">TRIAL (SEARCH ITEM)</label>
-                    <input type="text" placeholder="e.g. Mango, Kiwi..." value={trialFilter} onChange={(e) => setTrialFilter(e.target.value)} className="border dark:border-zinc-800 rounded p-2 text-sm outline-none focus:border-[#8CC63F] dark:focus:border-green-600 bg-transparent dark:text-gray-200 transition-colors" />
+            {/* --- REFINED FILTER SECTION --- */}
+            <div className="mb-6 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-colors duration-300">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Month</label>
+                        <input 
+                            type="month" 
+                            value={filterMonth} 
+                            onChange={(e) => setFilterMonth(e.target.value)} 
+                            className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 transition-colors" 
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">From Date</label>
+                        <input 
+                            type="date" 
+                            value={startDate} 
+                            onChange={handleStartDateChange} 
+                            className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 transition-colors" 
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">To Date</label>
+                        <input 
+                            type="date" 
+                            min={startDate} 
+                            value={endDate} 
+                            onChange={(e) => setEndDate(e.target.value)} 
+                            disabled={!startDate}
+                            className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Trial (Search Item)</label>
+                        <input 
+                            type="text" 
+                            placeholder="e.g. Mango, Kiwi..." 
+                            value={trialFilter} 
+                            onChange={(e) => setTrialFilter(e.target.value)} 
+                            className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 transition-colors" 
+                        />
+                    </div>
+                    <div className="flex items-end lg:justify-end">
+                        <button 
+                            onClick={clearFilters}
+                            disabled={!filterMonth && !startDate && !endDate && !trialFilter}
+                            className={`w-full lg:w-auto px-4 py-2.5 text-sm font-bold rounded-md transition-colors flex items-center justify-center gap-2 ${
+                                filterMonth || startDate || endDate || trialFilter 
+                                ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-200 dark:border-red-800/50' 
+                                : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500 cursor-not-allowed'
+                            }`}
+                        >
+                            <FilterX size={16} /> Clear Filters
+                        </button>
+                    </div>
                 </div>
             </div>
             
@@ -259,7 +322,9 @@ export default function ViewDehydratorRecords() {
                                     <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">Start</th>
                                     <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">End</th>
                                     <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">Total Pts</th>
+                                    
                                     <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200 dark:border-zinc-800"><Banknote size={12} className="inline mr-1"/>Cost</th>
+                                    
                                     <th className="px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">Mach. Hrs</th>
                                     <th className="px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800"><Users size={12} className="inline mr-1"/>Lab. Hrs</th>
                                     <th className="px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-950/20 text-center border-r border-gray-200 dark:border-zinc-800"><Banknote size={12} className="inline mr-1"/>Cost</th>
@@ -274,7 +339,7 @@ export default function ViewDehydratorRecords() {
                                                     <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
                                                     {record.isEdited && (
                                                         <span className="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 px-1.5 py-0.5 rounded font-medium w-max">
-                                                            <span className="font-bold">Edited by {record.editedBy}</span><br/><span className="text-[9px] opacity-80">{record.lastUpdatedDate}</span>
+                                                            Edited : {record.lastUpdatedDate}<br/><span className="text-[10px] opacity-80"> by {record.editedBy}</span>
                                                         </span>
                                                     )}
                                                 </div>
