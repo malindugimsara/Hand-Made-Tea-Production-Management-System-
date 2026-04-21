@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast'; // Toaster import එක ඉවත් කර නැත, භාවිතා කරන බැවින්.
 import { useNavigate } from 'react-router-dom';
 import { Users, Shield, UserPlus, Edit, Trash2, X } from "lucide-react";
 
@@ -107,7 +107,7 @@ export default function ManageUsers() {
 
     return (
         <div className="p-8 max-w-5xl mx-auto font-sans relative min-h-screen bg-transparent transition-colors duration-300">
-            <Toaster position="top-center" />
+            {/* <Toaster /> Removed because it's in App.jsx */}
             
             <div className="flex justify-between items-end mb-8 border-b border-gray-200 dark:border-zinc-800 pb-4 transition-colors">
                 <div>

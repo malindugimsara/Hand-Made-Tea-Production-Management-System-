@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Loader2, User, LockKeyhole, CheckCircle2 } from 'lucide-react';
+import { Loader2, User, LockKeyhole, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Login() {
@@ -12,6 +12,9 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
+    
+    // Password show/hide state
+    const [showPassword, setShowPassword] = useState(false);
     
     const navigate = useNavigate();
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -32,7 +35,14 @@ export default function Login() {
                 body: JSON.stringify({ username, password })
             });
 
-            const data = await res.json();
+            // පෙළක් ලෙස ගෙන පසුව JSON වලට හැරවීම
+            const textResponse = await res.text();
+            let data = {};
+            try {
+                data = textResponse ? JSON.parse(textResponse) : {};
+            } catch (parseError) {
+                console.warn("Non-JSON response received from server");
+            }
 
             if (res.ok) {
                 localStorage.setItem('token', data.token);
@@ -45,7 +55,10 @@ export default function Login() {
                 
                 setTimeout(() => navigate('/dashboard'), 1500);
             } else {
-                toast.error(data.message || "Login failed. Please try again.");
+                // Backend එකෙන් 'message' හෝ 'error' ලෙස එවන පණිවිඩය ලබාගැනීම
+                const errorMsg = data.message || data.error || "Incorrect username or password. Please try again.";
+                toast.error(errorMsg);
+                
                 setPassword("");
                 setIsLoading(false);
             }
@@ -96,7 +109,6 @@ export default function Login() {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.8, filter: "blur(10px)" }}
                             transition={{ type: "spring", damping: 20 }}
-                            // Updated height classes: h-auto min-h-[380px] for mobile, sm:h-[480px] for larger screens
                             className="w-full max-w-[450px] h-auto min-h-[380px] sm:h-[480px] flex flex-col justify-center bg-white/60 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(27,106,49,0.15)] rounded-[2.5rem] p-8 sm:p-10 border border-white/80 relative"
                         >
                             {/* Loading Overlay */}
@@ -129,9 +141,19 @@ export default function Login() {
                                     <LockKeyhole className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#1B6A31] w-5 h-5 transition-colors" />
                                     <input
                                         onChange={(e) => setPassword(e.target.value)}
-                                        type="password" value={password} placeholder="Password"
-                                        className="w-full h-12 pl-12 pr-4 bg-white/80 border border-white rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-[#8CC63F]/20 transition-all"
+                                        type={showPassword ? "text" : "password"} 
+                                        value={password} 
+                                        placeholder="Password"
+                                        className="w-full h-12 pl-12 pr-12 bg-white/80 border border-white rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-[#8CC63F]/20 transition-all"
                                     />
+                                    {/* Show/Hide Password Button */}
+                                    <button 
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
+                                    >
+                                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                    </button>
                                 </div>
 
                                 <motion.button
@@ -151,7 +173,6 @@ export default function Login() {
                             key="success-card"
                             initial={{ opacity: 0, scale: 0.5 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            // Updated height classes for success container as well
                             className="w-full max-w-[450px] h-auto min-h-[380px] sm:h-[480px] flex flex-col items-center justify-center p-8 sm:p-12 text-center bg-white/60 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(27,106,49,0.15)] rounded-[2.5rem] border border-white/80"
                         >
                             <motion.div
