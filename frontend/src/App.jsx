@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 
 // Import your Layout and Pages
 import DashboardLayout from './pages/DashboardLayout';
-import DashboardHome from './pages/sideBar/Home';
+import DashboardHome from './pages/sideBar/HandMadeDashbord';
 import GreenLeafForm from './pages/sideBar/GreenLeaf/GreenLeafForm';
 import ViewGreenLeafForm from './pages/sideBar/GreenLeaf/ViewGreenLeafForm';
 import EditRecordPage from './pages/sideBar/GreenLeaf/EditRecordPage';
@@ -18,21 +18,22 @@ import Login from './pages/Login';
 import RawMaterialCost from './pages/sideBar/RawMaterial/RawMaterialCost';
 import ViewRawMaterialCost from './pages/sideBar/RawMaterial/ViewRawMaterialCost';
 import EditRawMaterialCost from './pages/sideBar/RawMaterial/EditRawMaterialCost';
-import ManageUsers from './pages/ManageUsers';
-import CreateUserForm from './pages/CreateUserForm';
+import ManageUsers from './pages/Users/ManageUsers';
+import CreateUserForm from './pages/Users/CreateUserForm';
 import { Analytics } from "@vercel/analytics/react"
+
+// --- NEW PACKING LAYOUT ---
+import DashboardLayoutP from './pages/PackingSection/PackingDashbordLayout';
+import PackingDashboard from './pages/PackingSection/PackingDashboard';
+
 // --- SECURITY GUARD: Protected Route ---
-// This checks if the user has a token in localStorage.
-// If they don't, it kicks them back to the login page.
 const ProtectedRoute = () => {
   const token = localStorage.getItem('token');
   
   if (!token) {
-    <Toaster position="top-center" /> 
     return <Navigate to="/login" replace />;
   }
   
-  // If they have a token, let them proceed to the requested page
   return <Outlet />;
 };
 
@@ -42,22 +43,17 @@ export default function App() {
       <Toaster position="top-center" /> 
       <Analytics />
       <Routes>
-        {/* =========================================
-            1. INDEPENDENT ROUTES (No Sidebar)
-            ========================================= */}
+        {/* We map Login to /login to prevent conflicts with your dashboard root */}
+        <Route path="/login" element={<Login />} />
         <Route path="/" element={<Login />} />
 
-
-        {/* =========================================
-            2. SECURE DASHBOARD ROUTES
-            ========================================= */}
-        {/* First, pass through the Security Guard */}
+        {/* ALL PROTECTED ROUTES GO IN HERE */}
         <Route element={<ProtectedRoute />}>
           
-          {/* Second, wrap the authorized user in the Dashboard Layout */}
+          {/* ========================================== */}
+          {/* LAYOUT 1: HANDMADE TEA SECTION (Root)        */}
+          {/* ========================================== */}
           <Route path="/" element={<DashboardLayout />}>
-            
-            {/* Third, load the specific page inside the Layout's Outlet */}
             <Route path="dashboard" element={<DashboardHome />} />
             <Route path="manage-users" element={<ManageUsers />} />
             <Route path="create-user" element={<CreateUserForm />} />
@@ -69,13 +65,23 @@ export default function App() {
             <Route path="selling-details-table" element={<SellingDetailsTable />} />
             <Route path="edit-dehydrator" element={<EditDehydratorRecord />} />
             <Route path="production-summary" element={<ProductionSummary />} />
-            <Route path="/cost-of-production" element={<CostOfProduction />} />
-            <Route path="/raw-material-cost" element={<RawMaterialCost />} />
-            <Route path="/view-raw-material-cost" element={<ViewRawMaterialCost />} />
-            <Route path="/edit-raw-material-cost" element={<EditRawMaterialCost />} />
+            <Route path="cost-of-production" element={<CostOfProduction />} />
+            <Route path="raw-material-cost" element={<RawMaterialCost />} />
+            <Route path="view-raw-material-cost" element={<ViewRawMaterialCost />} />
+            <Route path="edit-raw-material-cost" element={<EditRawMaterialCost />} />
           </Route>
+          {/* <--- END OF LAYOUT 1 */}
+
+          {/* ========================================== */}
+          {/* LAYOUT 2: PACKING SECTION                    */}
+          {/* ========================================== */}
+          <Route path="/packing" element={<DashboardLayoutP />}>
+             {/* When you create pages for Packing, put them here just like above! */}
+             <Route index element={<PackingDashboard />} />
+          </Route>
+          {/* <--- END OF LAYOUT 2 */}
+
         </Route>
-        
       </Routes>
     </BrowserRouter>
   );
