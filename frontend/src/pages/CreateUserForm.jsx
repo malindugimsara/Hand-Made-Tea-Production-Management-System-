@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast'; // Toaster import එක ඉවත් කළා
 import { useNavigate } from 'react-router-dom';
 import { UserPlus, Shield, User, Key, ArrowLeft } from "lucide-react";
 
@@ -53,7 +53,14 @@ export default function CreateUserForm() {
                 body: JSON.stringify(formData)
             });
 
-            const data = await response.json();
+            // පෙළක් ලෙස ගෙන පසුව JSON වලට හැරවීම (Error handling වඩාත් නිවැරදි කිරීමට)
+            const textResponse = await response.text();
+            let data = {};
+            try {
+                data = textResponse ? JSON.parse(textResponse) : {};
+            } catch (parseError) {
+                console.warn("Non-JSON response received from server");
+            }
 
             if (response.ok) {
                 toast.success(`User ${formData.username} created successfully!`, { id: toastId });
@@ -69,7 +76,9 @@ export default function CreateUserForm() {
                 if (response.status === 403) {
                     toast.error("Access Denied. Only Admins can create users.", { id: toastId });
                 } else {
-                    toast.error(data.message || "Failed to create user.", { id: toastId });
+                    // Backend එකෙන් 'message' හෝ 'error' ලෙස එවන පණිවිඩය ලබාගැනීම
+                    const errorMsg = data.message || data.error || "Failed to create user.";
+                    toast.error(errorMsg, { id: toastId });
                 }
             }
         } catch (error) {
@@ -82,7 +91,6 @@ export default function CreateUserForm() {
 
     return (
         <div className="p-8 max-w-2xl mx-auto font-sans relative">
-            <Toaster position="top-center" />
             
             {/* Back Button */}
             <button 
