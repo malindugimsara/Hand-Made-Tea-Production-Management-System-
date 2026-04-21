@@ -454,7 +454,7 @@ export default function EditRecordPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className={labelStyles}>Selection Worker Count</label>
-                                <input type="number" min="0" name="workerCount" value={formData.workerCount} onChange={handleInputChange} onWheel={handleWheel} onKeyDown={blockMinus} className={inputStyles} />
+                                <input type="number" step="any" min="0" name="workerCount" value={formData.workerCount} onChange={handleInputChange} onWheel={handleWheel} onKeyDown={blockMinus} className={inputStyles} />
                             </div>
                         </div>
 
@@ -480,6 +480,7 @@ export default function EditRecordPage() {
                                 <input 
                                     type="number" 
                                     min="0"
+                                    step="any"
                                     name="rollingWorkerCount" 
                                     value={formData.rollingWorkerCount} 
                                     onChange={handleInputChange} 
