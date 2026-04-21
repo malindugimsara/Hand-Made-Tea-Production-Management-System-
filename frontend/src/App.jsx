@@ -20,7 +20,7 @@ import ViewRawMaterialCost from './pages/sideBar/RawMaterial/ViewRawMaterialCost
 import EditRawMaterialCost from './pages/sideBar/RawMaterial/EditRawMaterialCost';
 import ManageUsers from './pages/ManageUsers';
 import CreateUserForm from './pages/CreateUserForm';
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from "@vercel/analytics/react"
 // --- SECURITY GUARD: Protected Route ---
 // This checks if the user has a token in localStorage.
 // If they don't, it kicks them back to the login page.
