@@ -65,34 +65,14 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const DATA = {
   factory: {
     name: 'Athukorala Group',
-    plan: (
-      <>
-        <span className="text-green-400 font-semibold">Hand Made Tea</span>{" "}
-          <span className="font-bold tracking-tight text-gray-300 font-style: italic letter-spacing: var(--tracking-wide);">(HT0049)</span>
-      </>
-    ),
+    plan: 'HandMade Tea',
     logo: () => <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain" />,
   },
   quickLinks: [
-    { name: 'Dashboard Home', url: '/dashboard', icon: LayoutDashboard },
+    { name: 'Dashboard Home', url: '', icon: LayoutDashboard },
   ],
   navMain: [
-    {
-      title: 'Green Leaf',
-      icon: Leaf,
-      items: [
-        { title: 'Record Entry', url: '/green-leaf-form', roles: ['Admin', 'Officer'] }, 
-        { title: 'View Records', url: '/view-green-leaf', roles: ['Admin', 'Officer', 'Viewer'] },
-      ],
-    },
-    {
-      title: 'Dehydrator Machine',
-      icon: Factory,
-      items: [
-        { title: 'Record Entry', url: '/dehydrator-record-form', roles: ['Admin', 'Officer'] },
-        { title: 'View Records', url: '/view-dehydrator-records', roles: ['Admin', 'Officer', 'Viewer'] },
-      ],
-    },
+    
     {
       title: 'Raw Material',
       icon: Sprout ,
@@ -101,26 +81,10 @@ const DATA = {
         { title: 'View RM Costs', url: '/view-raw-material-cost', roles: ['Admin', 'Officer', 'Viewer'] },
       ],
     },
-    {
-      title: 'Summary Reports',
-      icon: LineChart,
-      items: [
-        { title: 'Production Summary', url: '/production-summary', roles: ['Admin', 'Officer', 'Viewer'] },
-        { title: 'Selling Details', url: '/selling-details-table', roles: ['Admin', 'Officer', 'Viewer'] },
-        { title: 'Cost of Production', url: '/cost-of-production', roles: ['Admin', 'Officer', 'Viewer'] },
-      ],
-    },
-    {
-      title: 'System Administration',
-      icon: Shield,
-      items: [
-        { title: 'Manage Users', url: '/manage-users', roles: ['Admin'] },
-      ],
-    },
   ],
 };
 
-export default function DashboardLayout() {
+export default function DashboardLayoutP() {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -205,12 +169,8 @@ export default function DashboardLayout() {
       case '/cost-of-production': return 'Cost of Production';
       default: return 'System';
     }
-    
   };
-  const todayDateObj = new Date();
-  const today = todayDateObj.toLocaleDateString('en-US', { 
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-    });
+
   return (
     <TooltipProvider delayDuration={0}>
     {/* SidebarProvider is now controlled via state */}
@@ -364,7 +324,6 @@ export default function DashboardLayout() {
           <div className="flex items-center gap-2 sm:gap-4 mr-2">
             
             {/* Theme Toggle */}
-            <p className="text-sm font-medium p-4">{today}</p>
             <button 
               onClick={toggleTheme}
               title="Toggle Dark Mode"

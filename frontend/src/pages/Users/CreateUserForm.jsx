@@ -157,6 +157,7 @@ export default function CreateUserForm() {
                         >
                             <option value="Viewer" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Viewer (Read-Only Access)</option>
                             <option value="Officer" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Officer (Data Entry & Editing)</option>
+                            <option value="Packing Officer" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Packing Officer (Packing Related Tasks)</option>
                             <option value="Admin" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Admin (Full Control & User Management)</option>
                         </select>
                         
@@ -165,6 +166,7 @@ export default function CreateUserForm() {
                             {formData.role === 'Admin' && "⚠️ Admins have full access to view, edit, delete data, and create other users."}
                             {formData.role === 'Officer' && "Officers can enter and edit daily production data but cannot manage users."}
                             {formData.role === 'Viewer' && "Viewers can only look at records and reports. They cannot change any data."}
+                            {formData.role === 'Packing Officer' && "Packing Officers can manage packing records but have limited access to other data."}
                         </p>
                     </div>
                 </div>
