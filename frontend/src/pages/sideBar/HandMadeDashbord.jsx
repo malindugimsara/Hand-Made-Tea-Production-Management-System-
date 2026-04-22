@@ -57,7 +57,7 @@ export default function Home() {
     const generateProductionChartData = (glData, prodData, teaTypeFilter, monthFilter) => {
         const [yearStr, monthStr] = monthFilter.split('-');
         const year = parseInt(yearStr, 10);
-        const month = parseInt(monthStr, 10); // 1-based month
+        const month = parseInt(monthStr, 10); 
 
         const isCurrentMonth = todayDateObj.getFullYear() === year && (todayDateObj.getMonth() + 1) === month;
         
@@ -87,7 +87,7 @@ export default function Home() {
             const mtSum = filteredProd.reduce((sum, p) => sum + (Number(p.madeTeaWeight) || 0), 0);
             
             return { 
-                name: date.slice(8, 10), // Show DD
+                name: date.slice(8, 10), 
                 fullDate: date,
                 GreenLeaf: glSum, 
                 MadeTea: mtSum 
@@ -249,42 +249,33 @@ export default function Home() {
         <div className="p-6 md:p-8 max-w-[1500px] mx-auto h-full flex flex-col space-y-8 bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
             
             {/* 1. HERO WELCOME BANNER */}
-            <div className="relative rounded-2xl overflow-hidden px-10 py-10 min-h-[200px] flex flex-col justify-center"
-                style={{ background: 'linear-gradient(135deg, #2e6c4c 0%, #205236 60%, #164816 100%)' }}>
+            <div className="relative rounded-2xl overflow-hidden px-10 py-10 min-h-[200px] flex flex-col justify-center bg-gradient-to-br from-[#2e6c4c] via-[#205236] to-[#164816]">
 
                 {/* Glow layers */}
-                <div className="absolute inset-0 pointer-events-none"
-                    style={{
-                    background: `
-                        radial-gradient(ellipse 60% 80% at 85% 20%, rgba(180,210,120,0.13) 0%, transparent 70%),
-                        radial-gradient(ellipse 40% 50% at 10% 90%, rgba(90,160,80,0.10) 0%, transparent 60%)`
-                    }} />
+                <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_60%_80%_at_85%_20%,rgba(180,210,120,0.13)_0%,transparent_70%),radial-gradient(ellipse_40%_50%_at_10%_90%,rgba(90,160,80,0.10)_0%,transparent_60%)]" />
 
                 {/* Decorative rings */}
-                <div className="absolute -top-8 -right-8 w-56 h-56 rounded-full pointer-events-none"
-                    style={{ border: '40px solid rgba(255,255,255,0.04)' }} />
-                <div className="absolute -bottom-16 right-16 w-40 h-40 rounded-full pointer-events-none"
-                    style={{ border: '30px solid rgba(163,217,119,0.06)' }} />
+                <div className="absolute -top-8 -right-8 w-56 h-56 rounded-full pointer-events-none border-[40px] border-white/5" />
+                <div className="absolute -bottom-16 right-16 w-40 h-40 rounded-full pointer-events-none border-[30px] border-[#a3d977]/5" />
 
                 {/* Live badge */}
-                <div className="flex items-center gap-2 w-fit mb-4 px-3 py-1 rounded-full"
-                    style={{ background: 'rgba(255,255,255,0.08)', border: '0.5px solid rgba(255,255,255,0.18)' }}>
-                    <span className="w-2 h-2 rounded-full" style={{ background: '#a3d977', boxShadow: '0 0 6px #a3d977aa' }} />
-                    <span className="text-xs font-medium tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                <div className="flex items-center gap-2 w-fit mb-4 px-3 py-1 rounded-full bg-white/10 border border-white/20">
+                    <span className="w-2 h-2 rounded-full bg-[#a3d977] shadow-[0_0_6px_#a3d977aa]" />
+                    <span className="text-xs font-medium tracking-widest uppercase text-white/70">
                         Dashboard
                     </span>
                 </div>
 
                 {/* Title */}
-                <h1 className="text-4xl font-bold leading-tight mb-2 text-white"
-                    style={{ fontFamily: "'Playfair Display', serif", letterSpacing: '-0.5px' }}>
+                <h1 className="text-4xl font-bold leading-tight mb-2 text-white font-serif tracking-tight">
                     Welcome to{' '}
-                    <span style={{ color: '#c8e88a' }}>HandMade Tea</span>
+                    <span className="text-[#c8e88a]">HandMade Tea </span> 
+                    <span className="text-xl text-yellow-200/50 tracking-wide font-sans">(HT0049)</span>
                 </h1>
 
                 {/* Subtitle */}
-                <p className="text-base font-normal" style={{ color: 'rgba(255,255,255,0.65)' }}>
-                    {getGreeting()}, Admin &nbsp;🍃&nbsp; Here's your overview for today.
+                <p className="text-base font-normal text-white/65">
+                    {getGreeting()}, &nbsp;🍃&nbsp; Here's your overview for today.
                 </p>
                 </div>
 

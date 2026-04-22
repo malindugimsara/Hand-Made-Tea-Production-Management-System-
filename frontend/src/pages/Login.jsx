@@ -235,13 +235,41 @@ export default function Login() {
       try { data = text ? JSON.parse(text) : {}; } catch {}
 
       if (res.ok) {
+        
+        // ─────────────────────────────────────────────
+        // ROLE VALIDATION LOGIC (NEW)
+        // ─────────────────────────────────────────────
+        const userRole = data.role ? data.role.toLowerCase() : '';
+        let hasAccess = false;
+
+        // Admin & Viewers have access to both systems
+        if (userRole === 'admin' || userRole === 'viewer' || userRole === 'view') {
+            hasAccess = true;
+        } 
+        // Handmade Officers can only access the Handmade system
+        else if (activeTab === 'handmade' && userRole === 'handmade officer') {
+            hasAccess = true;
+        } 
+        // Packing Officers can only access the Packing system
+        else if (activeTab === 'packing' && userRole === 'packing officer') {
+            hasAccess = true;
+        }
+
+        // If access is denied based on role and tab selection
+        if (!hasAccess) {
+            toast.error(`Access Denied: A ${data.role} cannot log into the ${activeTab === 'handmade' ? 'Handmade Tea' : 'Packing Section'} system.`);
+            setIsLoading(false);
+            return; // Stop the login process
+        }
+        // ─────────────────────────────────────────────
+
         localStorage.setItem('token',        data.token);
         localStorage.setItem('userRole',     data.role);
         localStorage.setItem('username',     data.username);
         localStorage.setItem('activeSystem', activeTab);
         setIsLoading(false);
         setIsSuccess(true);
-        setTimeout(() => navigate(activeTab === 'handmade' ? '/dashboard' : '/packing-dashboard'), 1500);
+        setTimeout(() => navigate(activeTab === 'handmade' ? '/dashboard' : '/packing'), 1500);
       } else {
         toast.error(data.message || data.error || 'Incorrect username or password.');
         setPassword('');
@@ -281,7 +309,7 @@ export default function Login() {
       >
         <motion.img
           src="/logo.png" alt="Logo"
-          className="w-26 md:w-32 lg:w-50 drop-shadow-xl"
+          className="w-26 md:w-32 lg:w-55 drop-shadow-xl"
           animate={{
             filter:[
               'drop-shadow(0 0 0px transparent)',
@@ -325,13 +353,12 @@ export default function Login() {
             </motion.div>
           </AnimatePresence>
 
-          
-
           {/* Quick-switch pills */}
           <div className="flex gap-3 mt-3">
             {['handmade', 'packing'].map(sys => (
               <button
                 key={sys}
+                type="button"
                 onClick={() => handleTabChange(sys)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border backdrop-blur-md transition-all duration-300"
                 style={{
@@ -394,6 +421,7 @@ export default function Login() {
                 />
                 {/* Handmade */}
                 <button
+                  type="button"
                   onClick={() => handleTabChange('handmade')}
                   className={`relative flex-1 py-3 px-2 rounded-xl flex items-center justify-center gap-1.5 z-10 font-bold text-sm transition-colors duration-300 ${
                     activeTab === 'handmade' ? 'text-white' : 'text-gray-500 hover:text-gray-800'
@@ -407,6 +435,7 @@ export default function Login() {
                 </button>
                 {/* Packing */}
                 <button
+                  type="button"
                   onClick={() => handleTabChange('packing')}
                   className={`relative flex-1 py-3 px-2 rounded-xl flex items-center justify-center gap-1.5 z-10 font-bold text-sm transition-colors duration-300 ${
                     activeTab === 'packing' ? 'text-white' : 'text-gray-500 hover:text-gray-800'
@@ -493,17 +522,6 @@ export default function Login() {
               >
                 <CheckCircle2 className="w-16 h-16" style={{ color:t.textPrimary }} />
               </motion.div>
-
-              {[1,2,3].map(i => (
-                <motion.div
-                  key={i}
-                  className="absolute rounded-full border-2"
-                  style={{ borderColor:t.accent, width:96, height:96 }}
-                  initial={{ scale:1, opacity:0.6 }}
-                  animate={{ scale:1 + i*0.6, opacity:0 }}
-                  transition={{ delay:0.2 + i*0.15, duration:1.1, repeat:Infinity, repeatDelay:0.4 }}
-                />
-              ))}
 
               <motion.h2
                 initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.4 }}
