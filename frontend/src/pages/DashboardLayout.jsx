@@ -65,7 +65,12 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const DATA = {
   factory: {
     name: 'Athukorala Group',
-    plan: 'HandMade Tea',
+    plan: (
+      <>
+        <span className="text-green-400 font-semibold">Hand Made Tea</span>{" "}
+          <span className="font-bold tracking-tight text-gray-300 font-style: italic letter-spacing: var(--tracking-wide);">(HT0049)</span>
+      </>
+    ),
     logo: () => <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain" />,
   },
   quickLinks: [
@@ -200,8 +205,12 @@ export default function DashboardLayout() {
       case '/cost-of-production': return 'Cost of Production';
       default: return 'System';
     }
+    
   };
-
+  const todayDateObj = new Date();
+  const today = todayDateObj.toLocaleDateString('en-US', { 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+    });
   return (
     <TooltipProvider delayDuration={0}>
     {/* SidebarProvider is now controlled via state */}
@@ -355,6 +364,7 @@ export default function DashboardLayout() {
           <div className="flex items-center gap-2 sm:gap-4 mr-2">
             
             {/* Theme Toggle */}
+            <p className="text-sm font-medium p-4">{today}</p>
             <button 
               onClick={toggleTheme}
               title="Toggle Dark Mode"
