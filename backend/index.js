@@ -14,6 +14,9 @@ import userRouter from './router/userRouter.js';
 import sellingDetailsRouter from './router/sellingDetailsRoutes.js';
 import productionSummaryRouter from './router/productionSummaryRoute.js';
 
+// Packing Section Routes
+import localSaleRouter from './Packing/Routes/localSaleRoutes.js';
+
 dotenv.config();
 const app = express();
 
@@ -44,6 +47,13 @@ app.use('/api/raw-material-cost', rawMaterialCostRoutes);
 app.use('/api/users', userRouter); // User management routes (Admins only)
 app.use('/api/selling-details', sellingDetailsRouter);
 app.use('/api/production-summary', productionSummaryRouter); // Add this line to include the production summary routes
+
+
+
+// Packing Section Routes
+
+app.use('/api/local-sales', localSaleRouter);
+
 
 app.listen(3000, () => {
   console.log('Server is running on port 3000');

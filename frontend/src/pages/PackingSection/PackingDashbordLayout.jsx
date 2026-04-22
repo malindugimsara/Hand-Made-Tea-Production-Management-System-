@@ -69,16 +69,16 @@ const DATA = {
     logo: () => <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain" />,
   },
   quickLinks: [
-    { name: 'Dashboard Home', url: '', icon: LayoutDashboard },
+    { name: 'Dashboard Home', url: '/packing', icon: LayoutDashboard },
   ],
   navMain: [
     
     {
-      title: 'Raw Material',
+      title: 'Local Sales',
       icon: Sprout ,
       items: [
-        { title: 'Raw Material Cost', url: '/raw-material-cost', roles: ['Admin', 'Officer'] },
-        { title: 'View RM Costs', url: '/view-raw-material-cost', roles: ['Admin', 'Officer', 'Viewer'] },
+        { title: 'Local Record Entry', url: '/packing/local-record-entry', roles: ['Admin', 'Officer'] },
+        { title: 'Local Record View', url: '/packing/local-record-view', roles: ['Admin', 'Officer'] },
       ],
     },
   ],
