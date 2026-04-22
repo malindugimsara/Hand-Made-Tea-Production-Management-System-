@@ -281,7 +281,7 @@ export default function Login() {
       >
         <motion.img
           src="/logo.png" alt="Logo"
-          className="w-26 md:w-32 lg:w-40 drop-shadow-xl"
+          className="w-26 md:w-32 lg:w-50 drop-shadow-xl"
           animate={{
             filter:[
               'drop-shadow(0 0 0px transparent)',
@@ -294,14 +294,14 @@ export default function Login() {
 
         <div className="text-center flex flex-col items-center">
           <h1
-            className="text-3xl lg:text-4xl font-extrabold tracking-tight"
+            className="text-3xl lg:text-5xl font-extrabold tracking-tight"
             style={{ color:t.textPrimary, transition:'color 0.6s ease' }}
           >
             ATHUKORALA GROUP
           </h1>
 
           <p
-            className="text-xs md:text-sm font-bold tracking-[0.22em] uppercase mt-2"
+            className="text-xs md:text-lg font-bold tracking-[0.22em] uppercase mt-3"
             style={{ color:t.textSecondary, transition:'color 0.6s ease' }}
           >
             Unified Management System
@@ -315,7 +315,7 @@ export default function Login() {
               animate={{ opacity:1, scale:1,    y:0  }}
               exit={{   opacity:0, scale:0.85,  y:-8 }}
               transition={{ type:'spring', damping:16 }}
-              className="mt-4 flex items-center gap-2 px-4 py-2 rounded-full border-2 font-semibold text-sm shadow-md backdrop-blur-md"
+              className="mt-5 mb-3 flex items-center gap-2 px-4 py-2 rounded-full border-2 font-semibold text-md shadow-md backdrop-blur-md"
               style={{ borderColor:t.badgeBorder, backgroundColor:t.badgeBg, color:t.badgeText }}
             >
               {activeTab === 'handmade'
