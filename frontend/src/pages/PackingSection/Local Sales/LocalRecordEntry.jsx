@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
 import { PlusCircle, Trash2, ListChecks, Save, Package, ShoppingCart, Calendar, Weight, Tag, X } from "lucide-react"; 
 import { useNavigate } from 'react-router-dom';
+import PDFDownloader from '@/components/PDFDownloader';
 
 // Exact Colors based on your image
 const getTeaColor = (product) => {
@@ -19,6 +20,22 @@ const getTeaColor = (product) => {
     return 'bg-white dark:bg-zinc-800 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-zinc-700'; 
 };
 
+// Exact RGB Colors for PDF Generation
+const getPdfTeaColor = (product) => {
+    const p = product.toLowerCase();
+    if (p === 'bopf') return { fillColor: [253, 224, 71], textColor: [113, 63, 18] }; 
+    if (p.includes('bopf sp')) return { fillColor: [190, 242, 100], textColor: [77, 124, 15] }; 
+    if (p === 'dust') return { fillColor: [59, 130, 246], textColor: [255, 255, 255] }; 
+    if (p === 'dust 1') return { fillColor: [6, 182, 212], textColor: [255, 255, 255] }; 
+    if (p.includes('premium')) return { fillColor: [244, 114, 182], textColor: [255, 255, 255] }; 
+    if (p.includes('awuru')) return { fillColor: [192, 132, 252], textColor: [255, 255, 255] }; 
+    if (p === 't/b 25') return { fillColor: [239, 68, 68], textColor: [255, 255, 255] }; 
+    if (p === 't/b 100') return { fillColor: [120, 53, 15], textColor: [255, 255, 255] }; 
+    if (p.includes('green')) return { fillColor: [74, 222, 128], textColor: [20, 83, 45] }; 
+    if (p.includes('labour')) return { fillColor: [229, 231, 235], textColor: [31, 41, 55] }; 
+    return { fillColor: [244, 244, 245], textColor: [31, 41, 55] }; 
+};
+
 // Combined tea types
 const TEA_TYPES = [
     "BOPF", "BOPF SP", "OPA", "OP 1", "OP", "Pekoe", "BOP", "FBOP", 
@@ -27,6 +44,9 @@ const TEA_TYPES = [
     "Pitigala tea bags(50)", "T/B 25", "T/B 100", "Pitigala tea 400g", 
     "Awuru pack", "Labour drinking tea"
 ];
+
+// Special sizes for BOPF
+const BOPF_SIZES = ["0.4", "0.2", "0.1"];
 
 export default function LocalRecordEntry() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -43,10 +63,10 @@ export default function LocalRecordEntry() {
     ]);
 
     // --- Dropdown States ---
-    const [openDropdownId, setOpenDropdownId] = useState(null);
+    const [openDropdownId, setOpenDropdownId] = useState(null); // 'product-id' or 'size-id'
     const dropdownRefs = useRef({}); 
 
-    // Handle outside click for the custom dropdown
+    // Handle outside click for the custom dropdowns
     useEffect(() => {
         const handleClickOutside = (event) => {
             let isOutside = true;
@@ -62,7 +82,6 @@ export default function LocalRecordEntry() {
     }, []);
 
     // --- SUMMARY CALCULATION ---
-    // Generate summary table data from pending records
     const productSummaryMap = {};
     pendingRecords.forEach(record => {
         record.items.forEach(item => {
@@ -73,6 +92,42 @@ export default function LocalRecordEntry() {
     const summaryArray = Object.entries(productSummaryMap).sort((a, b) => b[1] - a[1]);
     const grandPendingQty = summaryArray.reduce((sum, [_, qty]) => sum + qty, 0);
 
+    // --- PDF GENERATION LOGIC ---
+    const getPdfData = () => {
+        const tableRows = [];
+        
+        pendingRecords.forEach(record => {
+            record.items.forEach((item, index) => {
+                const isFirst = index === 0;
+
+                tableRows.push([
+                    isFirst ? record.date : "",
+                    { 
+                        content: item.product, 
+                        styles: { ...getPdfTeaColor(item.product), fontStyle: 'bold', halign: 'center' } 
+                    },
+                    `${item.packSizeKg} kg`,
+                    item.numberOfBoxes.toString(),
+                    `${item.calculatedQtyKg} kg`
+                ]);
+            });
+        });
+
+        const grandTotalBoxes = pendingRecords.reduce((sum, rec) => sum + rec.totalBoxes, 0);
+        const grandTotalQty = pendingRecords.reduce((sum, rec) => sum + rec.totalQtyKg, 0);
+
+        tableRows.push([
+            { content: "PENDING TOTAL", styles: { fontStyle: 'bold', halign: 'right' } },
+            "-",
+            "-",
+            { content: grandTotalBoxes.toString(), styles: { fontStyle: 'bold' } },
+            { content: `${grandTotalQty.toFixed(2)} kg`, styles: { fontStyle: 'bold', textColor: [234, 88, 12] } }
+        ]);
+
+        return tableRows;
+    };
+    
+    const uniqueCode = `PS/ENTRY/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
 
     // --- DYNAMIC FIELD HANDLERS ---
     const handleAddItemRow = () => {
@@ -88,6 +143,7 @@ export default function LocalRecordEntry() {
         if (field !== 'product' && value !== '' && (Number(value) < 0 || value.includes('-'))) {
             return;
         }
+        
         setItemsList(itemsList.map(row => 
             row.id === id ? { ...row, [field]: value } : row
         ));
@@ -181,7 +237,7 @@ export default function LocalRecordEntry() {
             setPendingRecords([]);
             
             setTimeout(() => {
-                navigate('/packing/local-record-view');
+                navigate('/packing/view-local-sales');
             }, 1000);
 
         } catch (error) {
@@ -207,11 +263,15 @@ export default function LocalRecordEntry() {
     };
 
     return (
-        <div className="p-8 max-w-[1400px] mx-auto font-sans  transition-colors duration-300 min-h-screen">
+        <div className="p-8 max-w-[1400px] mx-auto font-sans  dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
             
-            <div className="mb-8 text-center sm:text-left">
-                <h2 className="text-3xl font-bold text-[#0f766e] dark:text-teal-400">Local Sale Record Entry</h2>
-                <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Issue record for daily local product sales</p>
+            <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 className="text-3xl font-bold text-[#0f766e] dark:text-teal-400">Local Sale Record Entry</h2>
+                    <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Issue record for daily local product sales</p>
+                </div>
+
+                
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -265,7 +325,7 @@ export default function LocalRecordEntry() {
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                             
                                             {/* Custom Product Autocomplete Input */}
-                                            <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[row.id] = el}>
+                                            <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`product-${row.id}`] = el}>
                                                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
                                                     <Tag size={12} className="text-[#0d9488] dark:text-teal-400"/> Product
                                                 </label>
@@ -274,13 +334,13 @@ export default function LocalRecordEntry() {
                                                     placeholder="Type or select..."
                                                     value={row.product}
                                                     onChange={(e) => handleItemChange(row.id, 'product', e.target.value)}
-                                                    onFocus={() => setOpenDropdownId(row.id)}
+                                                    onFocus={() => setOpenDropdownId(`product-${row.id}`)}
                                                     required
                                                     className={`w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none transition-colors ${row.product ? getTeaColor(row.product) : 'bg-white dark:bg-zinc-950 dark:text-gray-100'}`}
                                                 />
                                                 
-                                                {/* Dropdown Menu - Scrollable */}
-                                                {openDropdownId === row.id && (
+                                                {/* Dropdown Menu - Product */}
+                                                {openDropdownId === `product-${row.id}` && (
                                                     <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
                                                         {TEA_TYPES
                                                             .filter(tea => tea.toLowerCase().includes(row.product.toLowerCase()))
@@ -301,8 +361,8 @@ export default function LocalRecordEntry() {
                                                 )}
                                             </div>
 
-                                            {/* Pack Size Input */}
-                                            <div className="lg:col-span-1">
+                                            {/* Pack Size Autocomplete Input */}
+                                            <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`size-${row.id}`] = el}>
                                                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Pack Size (Kg)</label>
                                                 <input 
                                                     type="number" 
@@ -310,11 +370,35 @@ export default function LocalRecordEntry() {
                                                     min="0"
                                                     value={row.packSizeKg} 
                                                     onChange={(e) => handleItemChange(row.id, 'packSizeKg', e.target.value)}
+                                                    onFocus={() => {
+                                                        if (row.product.toLowerCase() === 'bopf') {
+                                                            setOpenDropdownId(`size-${row.id}`);
+                                                        }
+                                                    }}
                                                     onWheel={(e) => e.target.blur()} 
                                                     required 
                                                     placeholder="e.g. 0.4"
                                                     className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                                                 />
+                                                
+                                                {/* Dropdown Menu - Pack Size (ONLY IF BOPF) */}
+                                                {openDropdownId === `size-${row.id}` && row.product.toLowerCase() === 'bopf' && (
+                                                    <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-hidden">
+                                                        {BOPF_SIZES.map((size, idx) => (
+                                                            <li 
+                                                                key={idx} 
+                                                                onMouseDown={(e) => e.preventDefault()} 
+                                                                onClick={() => {
+                                                                    handleItemChange(row.id, 'packSizeKg', size);
+                                                                    setOpenDropdownId(null);
+                                                                }}
+                                                                className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0"
+                                                            >
+                                                                {size} kg
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )}
                                             </div>
 
                                             {/* Number of Boxes Input */}
