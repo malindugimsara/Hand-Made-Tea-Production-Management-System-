@@ -77,8 +77,8 @@ const DATA = {
       title: 'Local Sales',
       icon: Sprout ,
       items: [
-        { title: 'Local Record Entry', url: '/packing/local-record-entry', roles: ['Admin', 'Officer'] },
-        { title: 'Local Record View', url: '/packing/local-record-view', roles: ['Admin', 'Officer'] },
+        { title: 'Local Record Entry', url: '/packing/local-record-entry', roles: ['Admin', 'Packing Officer'] },
+        { title: 'Local Record View', url: '/packing/local-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
       ],
     },
   ],
