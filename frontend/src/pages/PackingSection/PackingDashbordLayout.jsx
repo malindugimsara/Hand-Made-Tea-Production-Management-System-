@@ -65,7 +65,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const DATA = {
   factory: {
     name: 'Athukorala Group',
-    plan: 'HandMade Tea',
+    plan: 'Packing Section',
     logo: () => <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain" />,
   },
   quickLinks: [
@@ -170,6 +170,11 @@ export default function DashboardLayoutP() {
       default: return 'System';
     }
   };
+
+  const todayDateObj = new Date();
+  const today = todayDateObj.toLocaleDateString('en-US', { 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+    });
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -320,9 +325,11 @@ export default function DashboardLayoutP() {
             </Breadcrumb>
           </div>
 
-          {/* --- TOP RIGHT CONTROLS (Theme + Profile/Logout) --- */}
+          {/* --- TOP RIGHT CONTROLS (Date + Theme + Profile/Logout) --- */}
           <div className="flex items-center gap-2 sm:gap-4 mr-2">
-            
+
+              {/* Time */}
+            <p className="text-sm font-medium p-4 dark:text-white">{today}</p>
             {/* Theme Toggle */}
             <button 
               onClick={toggleTheme}

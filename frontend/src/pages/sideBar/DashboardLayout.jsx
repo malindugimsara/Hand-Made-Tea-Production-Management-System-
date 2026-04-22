@@ -81,33 +81,33 @@ const DATA = {
       title: 'Green Leaf',
       icon: Leaf,
       items: [
-        { title: 'Record Entry', url: '/green-leaf-form', roles: ['Admin', 'Officer'] }, 
-        { title: 'View Records', url: '/view-green-leaf', roles: ['Admin', 'Officer', 'Viewer'] },
+        { title: 'Record Entry', url: '/green-leaf-form', roles: ['Admin', 'HandMade Officer'] }, 
+        { title: 'View Records', url: '/view-green-leaf', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
       ],
     },
     {
       title: 'Dehydrator Machine',
       icon: Factory,
       items: [
-        { title: 'Record Entry', url: '/dehydrator-record-form', roles: ['Admin', 'Officer'] },
-        { title: 'View Records', url: '/view-dehydrator-records', roles: ['Admin', 'Officer', 'Viewer'] },
+        { title: 'Record Entry', url: '/dehydrator-record-form', roles: ['Admin', 'HandMade Officer'] },
+        { title: 'View Records', url: '/view-dehydrator-records', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
       ],
     },
     {
       title: 'Raw Material',
       icon: Sprout ,
       items: [
-        { title: 'Raw Material Cost', url: '/raw-material-cost', roles: ['Admin', 'Officer'] },
-        { title: 'View RM Costs', url: '/view-raw-material-cost', roles: ['Admin', 'Officer', 'Viewer'] },
+        { title: 'Raw Material Cost', url: '/raw-material-cost', roles: ['Admin', 'HandMade Officer'] },
+        { title: 'View RM Costs', url: '/view-raw-material-cost', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
       ],
     },
     {
       title: 'Summary Reports',
       icon: LineChart,
       items: [
-        { title: 'Production Summary', url: '/production-summary', roles: ['Admin', 'Officer', 'Viewer'] },
-        { title: 'Selling Details', url: '/selling-details-table', roles: ['Admin', 'Officer', 'Viewer'] },
-        { title: 'Cost of Production', url: '/cost-of-production', roles: ['Admin', 'Officer', 'Viewer'] },
+        { title: 'Production Summary', url: '/production-summary', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'Selling Details', url: '/selling-details-table', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'Cost of Production', url: '/cost-of-production', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
       ],
     },
     {
@@ -360,11 +360,12 @@ export default function DashboardLayout() {
             </Breadcrumb>
           </div>
 
-          {/* --- TOP RIGHT CONTROLS (Theme + Profile/Logout) --- */}
+          {/* --- TOP RIGHT CONTROLS (Date + Theme + Profile/Logout) --- */}
           <div className="flex items-center gap-2 sm:gap-4 mr-2">
             
+            {/* Time */}
+            <p className="text-sm font-medium p-4 dark:text-white">{today}</p>
             {/* Theme Toggle */}
-            <p className="text-sm font-medium p-4">{today}</p>
             <button 
               onClick={toggleTheme}
               title="Toggle Dark Mode"
