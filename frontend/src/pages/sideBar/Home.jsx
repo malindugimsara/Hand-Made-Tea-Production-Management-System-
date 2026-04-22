@@ -249,18 +249,44 @@ export default function Home() {
         <div className="p-6 md:p-8 max-w-[1500px] mx-auto h-full flex flex-col space-y-8 bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
             
             {/* 1. HERO WELCOME BANNER */}
-            <div className="bg-gradient-to-r from-[#1B6A31] to-[#4A9E46] rounded-2xl p-8 md:p-10 text-white shadow-xl relative overflow-hidden flex flex-col justify-center min-h-[160px]">
-                <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-white opacity-10 dark:opacity-5 rounded-full blur-2xl pointer-events-none"></div>
-                <div className="relative">
-                    <p className="text-sm font-medium text-[#EBFFF4] mb-2">{today}</p>
-                    <h2 className="text-3xl md:text-4xl font-bold mb-3 tracking-tight">
-                        {getGreeting()}, Admin! 🍃
-                    </h2>
-                    <p className="text-[#EBFFF4] text-base md:text-lg opacity-90 max-w-2xl leading-relaxed">
-                        Here is the latest overview of the handmade tea production and sales.
-                    </p>
+            <div className="relative rounded-2xl overflow-hidden px-10 py-10 min-h-[200px] flex flex-col justify-center"
+                style={{ background: 'linear-gradient(135deg, #2e6c4c 0%, #205236 60%, #164816 100%)' }}>
+
+                {/* Glow layers */}
+                <div className="absolute inset-0 pointer-events-none"
+                    style={{
+                    background: `
+                        radial-gradient(ellipse 60% 80% at 85% 20%, rgba(180,210,120,0.13) 0%, transparent 70%),
+                        radial-gradient(ellipse 40% 50% at 10% 90%, rgba(90,160,80,0.10) 0%, transparent 60%)`
+                    }} />
+
+                {/* Decorative rings */}
+                <div className="absolute -top-8 -right-8 w-56 h-56 rounded-full pointer-events-none"
+                    style={{ border: '40px solid rgba(255,255,255,0.04)' }} />
+                <div className="absolute -bottom-16 right-16 w-40 h-40 rounded-full pointer-events-none"
+                    style={{ border: '30px solid rgba(163,217,119,0.06)' }} />
+
+                {/* Live badge */}
+                <div className="flex items-center gap-2 w-fit mb-4 px-3 py-1 rounded-full"
+                    style={{ background: 'rgba(255,255,255,0.08)', border: '0.5px solid rgba(255,255,255,0.18)' }}>
+                    <span className="w-2 h-2 rounded-full" style={{ background: '#a3d977', boxShadow: '0 0 6px #a3d977aa' }} />
+                    <span className="text-xs font-medium tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                        Dashboard
+                    </span>
                 </div>
-            </div>
+
+                {/* Title */}
+                <h1 className="text-4xl font-bold leading-tight mb-2 text-white"
+                    style={{ fontFamily: "'Playfair Display', serif", letterSpacing: '-0.5px' }}>
+                    Welcome to{' '}
+                    <span style={{ color: '#c8e88a' }}>HandMade Tea</span>
+                </h1>
+
+                {/* Subtitle */}
+                <p className="text-base font-normal" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                    {getGreeting()}, Admin &nbsp;🍃&nbsp; Here's your overview for today.
+                </p>
+                </div>
 
             {/* 2. HIGHLIGHTED STATS OVERVIEW CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
