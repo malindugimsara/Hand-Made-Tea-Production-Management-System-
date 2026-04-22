@@ -45,24 +45,34 @@ export const getLocalSales = async (req, res) => {
 // @access  Private
 export const updateLocalSale = async (req, res) => {
     try {
-        const { id } = req.params;
-        const { date, totalBoxes, totalQtyKg, salesItems } = req.body;
+        const { date, totalBoxes, totalQtyKg, salesItems, updatedBy, editorName } = req.body;
 
-        const updatedSale = await LocalSale.findByIdAndUpdate(
-            id,
-            { date, totalBoxes, totalQtyKg, salesItems },
-            { new: true, runValidators: true } 
-        );
-
-        if (!updatedSale) {
-            return res.status(404).json({ message: 'Local sale record not found.' });
+        const saleRecord = await LocalSale.findById(req.params.id);
+        
+        if (!saleRecord) {
+            return res.status(404).json({ message: "Record not found." });
         }
 
-        res.status(200).json(updatedSale);
+        // Update the fields with the new data from the frontend
+        if (date) saleRecord.date = date;
+        if (totalBoxes !== undefined) saleRecord.totalBoxes = totalBoxes;
+        if (totalQtyKg !== undefined) saleRecord.totalQtyKg = totalQtyKg;
+        if (salesItems) saleRecord.salesItems = salesItems;
+        
+        // 👇 මෙතන තමයි වැදගත්ම දේ: Username එක Update කිරීම 👇
+        if (updatedBy) {
+            saleRecord.updatedBy = updatedBy;
+        } else if (editorName) {
+            saleRecord.updatedBy = editorName; // Fallback
+        }
+
+        await saleRecord.save();
+
+        res.status(200).json({ message: "Record updated successfully.", record: saleRecord });
 
     } catch (error) {
-        console.error('Error updating local sale:', error);
-        res.status(500).json({ message: 'Server error while updating local sale record.' });
+        console.error("Update local sale error:", error);
+        res.status(500).json({ message: "Error updating local sale record." });
     }
 };
 

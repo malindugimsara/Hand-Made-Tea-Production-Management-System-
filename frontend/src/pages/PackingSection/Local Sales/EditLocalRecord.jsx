@@ -37,6 +37,8 @@ export default function EditLocalRecord() {
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
 
+    const username = localStorage.getItem('username') || '';
+
     // Get passed record data
     const recordData = location.state?.recordData;
 
@@ -144,6 +146,9 @@ export default function EditLocalRecord() {
 
         const currentUsername = localStorage.getItem('username') || 'Unknown';
 
+        // NOTE: Ensure your Backend Mongoose Schema for Local Sales includes:
+        // updatedBy: { type: String, default: '' } 
+        // editorName: { type: String, default: '' }
         const payload = {
             date: formData.date,
             totalBoxes: totalBoxes,
@@ -154,7 +159,8 @@ export default function EditLocalRecord() {
                 numberOfBoxes: Number(item.numberOfBoxes),
                 totalQtyKg: Number((Number(item.packSizeKg) * Number(item.numberOfBoxes)).toFixed(2))
             })),
-            updatedBy: currentUsername
+            updatedBy: currentUsername, // primary key for editor
+            editorName: currentUsername // fallback key for editor
         };
 
         try {
@@ -170,7 +176,7 @@ export default function EditLocalRecord() {
 
             if (response.ok) {
                 toast.success("Record updated successfully!", { id: toastId });
-                setTimeout(() => navigate(-1), 1000);
+                setTimeout(() => navigate(-1), 100);
             } else {
                 if (response.status === 403) throw new Error('Access Denied');
                 throw new Error('Failed to update record');
@@ -188,10 +194,10 @@ export default function EditLocalRecord() {
     };
 
     return (
-        <div className="p-8 max-w-[1000px] mx-auto font-sans transition-colors duration-300 min-h-screen">
+        <div className="p-8 max-w-[1000px] mx-auto font-sans transition-colors duration-300 min-h-screen border mt-4 border-teal-300 rounded-2xl dark:border-zinc-800">
             
-            <div className="mb-8 text-center flex flex-col items-center">
-                <h2 className="text-3xl font-bold text-[#0f766e] dark:text-teal-400 flex items-center justify-center gap-2">
+            <div className="mb-8  flex flex-col items-center ">
+                <h2 className="text-3xl font-bold text-[#0f766e] dark:text-teal-400 flex  gap-2">
                     <ShoppingCart size={28} /> Edit Local Sale Record
                 </h2>
                 <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Update previously issued product details</p>
@@ -202,17 +208,17 @@ export default function EditLocalRecord() {
                         <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">Record Date:</span>
                         <span className="text-sm font-black text-[#0d9488] dark:text-teal-400">{formData.date}</span>
                     </div>
-                    {recordData && (recordData.updatedBy || recordData.editedBy || recordData.username) && (
+                    {recordData && (recordData.updatedBy || recordData.editorName || recordData.username) && (
                         <div className="inline-flex items-center px-3 py-1 bg-teal-50 dark:bg-teal-900/30 rounded-full border border-teal-200 dark:border-teal-800/50 transition-colors">
                             <span className="text-xs font-bold text-teal-700 dark:text-teal-400">
-                                Last Edited By: {recordData.updatedBy || recordData.editedBy || recordData.username}
+                                Last Edited By: {recordData.updatedBy || recordData.editorName || recordData.username}
                             </span>
                         </div>
                     )}
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-lg border border-teal-100 dark:border-zinc-800 transition-colors duration-300">
+            <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-lg  transition-colors duration-300">
                 <form onSubmit={handleSubmit}>
                     
                     <div className="mb-6 flex justify-between items-center border-b border-gray-100 dark:border-zinc-800 pb-6">
