@@ -46,6 +46,13 @@ export default function Login() {
 
             if (res.ok) {
                 localStorage.setItem('token', data.token);
+                // normalize role
+                let role = data.role;
+            
+                if (role === "HandMade officer") {
+                    role = "officer";
+                }
+
                 localStorage.setItem('userRole', data.role);
                 localStorage.setItem('username', data.username);
 
