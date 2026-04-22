@@ -156,7 +156,7 @@ export default function CreateUserForm() {
                             className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-gray-100 focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none transition-all cursor-pointer appearance-none"
                         >
                             <option value="Viewer" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Viewer (Read-Only Access)</option>
-                            <option value="Officer" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Officer (Data Entry & Editing)</option>
+                            <option value="HandMade Officer" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">HandMade Officer (HandMade Tea Related Tasks)</option>
                             <option value="Packing Officer" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Packing Officer (Packing Related Tasks)</option>
                             <option value="Admin" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Admin (Full Control & User Management)</option>
                         </select>
@@ -164,7 +164,7 @@ export default function CreateUserForm() {
                         {/* Dynamic Help Text based on selected role */}
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2.5 italic">
                             {formData.role === 'Admin' && "⚠️ Admins have full access to view, edit, delete data, and create other users."}
-                            {formData.role === 'Officer' && "Officers can enter and edit daily production data but cannot manage users."}
+                            {formData.role === 'HandMade Officer' && "Officers can enter and edit daily production data but cannot manage users."}
                             {formData.role === 'Viewer' && "Viewers can only look at records and reports. They cannot change any data."}
                             {formData.role === 'Packing Officer' && "Packing Officers can manage packing records but have limited access to other data."}
                         </p>
