@@ -361,11 +361,11 @@ export default function ViewDehydratorRecords() {
                                                         <span key={i} className="block whitespace-nowrap">{t.startWeight} kg</span>
                                                     ))}
                                                 </div>
-                                                {record.trialsArray.length > 1 && (
+                                                {/* {record.trialsArray.length > 1 && (
                                                     <div className="mt-2 pt-1 border-t border-teal-100 dark:border-teal-900/50 text-xs font-bold text-teal-800 dark:text-teal-300" title="Batch Total RM Weight">
                                                         {record.totalStartWt.toFixed(2)} kg
                                                     </div>
-                                                )}
+                                                )} */}
                                             </td>
 
                                             {/* Stacked End Weights */}
@@ -375,11 +375,11 @@ export default function ViewDehydratorRecords() {
                                                         <span key={i} className="block whitespace-nowrap">{t.endWeight} kg</span>
                                                     ))}
                                                 </div>
-                                                {record.trialsArray.length > 1 && (
+                                                {/* {record.trialsArray.length > 1 && (
                                                     <div className="mt-2 pt-1 border-t border-teal-100 dark:border-teal-900/50 text-xs font-bold text-teal-800 dark:text-teal-300" title="Batch Total Dried Weight">
                                                         {record.totalEndWt.toFixed(2)} kg
                                                     </div>
-                                                )}
+                                                )} */}
                                             </td>
                                             
                                             {/* Stacked Moistures */}
