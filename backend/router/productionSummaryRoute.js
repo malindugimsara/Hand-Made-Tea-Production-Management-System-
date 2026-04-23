@@ -9,10 +9,10 @@ import { verifyToken, authorizeRoles } from '../middleware/auth.js';
 const productionSummaryRouter = express.Router();
 
 // Everyone can view the summaries
-productionSummaryRouter.get('/', verifyToken, authorizeRoles('Admin', 'Officer', 'Viewer'), getAllProductionSummaries);
+productionSummaryRouter.get('/', verifyToken, authorizeRoles('Admin', 'HandMade Officer', 'Viewer'), getAllProductionSummaries);
 
 // Only Admins and Officers can save/update the summaries
-productionSummaryRouter.post('/', verifyToken, authorizeRoles('Admin', 'Officer'), saveProductionSummary);
+productionSummaryRouter.post('/', verifyToken, authorizeRoles('Admin', 'HandMade Officer'), saveProductionSummary);
 
 // Only Admins can delete a summary record
 productionSummaryRouter.delete('/:id', verifyToken, authorizeRoles('Admin'), deleteProductionSummary);
