@@ -17,20 +17,6 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-import {
-    DropdownMenu,
-    DropdownMenuTrigger,
-    DropdownMenuContent,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuGroup,
-    DropdownMenuItem,
-    DropdownMenuShortcut,
-    DropdownMenuSub,
-    DropdownMenuSubTrigger,
-    DropdownMenuSubContent,
-} from "@/components/ui/dropdown-menu";
-
 export default function GreenLeafForm() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const navigation = useNavigate();
@@ -64,7 +50,6 @@ export default function GreenLeafForm() {
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const dropdownRef = useRef(null);
 
-    // Close dropdown when clicking outside
     useEffect(() => {
         function handleClickOutside(event) {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -139,23 +124,10 @@ export default function GreenLeafForm() {
                 const glUpdated = getSafeTime(gl, 'updatedAt');
                 const labCreated = getSafeTime(lab, 'createdAt');
                 const labUpdated = getSafeTime(lab, 'updatedAt');
-                const prodCreated = getSafeTime(prod, 'createdAt');
-                const prodUpdated = getSafeTime(prod, 'updatedAt');
-
+                
                 const isGlEdited = glUpdated > 0 && glCreated > 0 && (glUpdated - glCreated > 5000);
                 const isLabEdited = labUpdated > 0 && labCreated > 0 && (labUpdated - labCreated > 5000);
                 
-                // --- FIX: Exclude initial Dryer Data entry from being marked as 'Edited' ---
-                // If a record is updated, but it was just adding dryer details for the first time, it's not an "Edit"
-                // Assuming if it has an updatedBy field and it's NOT the same as the creator, or it was specifically edited
-                // For a robust fix, we rely on the specific flag if available, otherwise fallback to standard time difference.
-                // Note: The ideal way is to send an { isManualEdit: true } flag from the Edit Page and save it in DB.
-                // Here, we'll assume if only the Dryer info was added, we don't consider it edited unless Gl/Lab was also edited.
-                // We will treat ONLY gl and lab changes as "Edited" unless there is a clear manual override from the Edit page.
-                
-                // If production was updated but GL/Lab wasn't, check if it was just the Dryer Modal doing it.
-                // Since Dryer Modal only updates prod, we will NOT mark the whole row as 'Edited' unless GL or Lab changed, 
-                // OR if we know for a fact the Edit Page was used. 
                 const isEdited = isGlEdited || isLabEdited;
 
                 let lastUpdatedDate = '';
@@ -218,19 +190,28 @@ export default function GreenLeafForm() {
     };
 
     const filteredRecords = records.filter(record => {
-    const recordMonth = record.date.slice(0, 7); // YYYY-MM
+        const recordMonth = record.date.slice(0, 7); // YYYY-MM
 
-    const monthMatch = !filterMonth || recordMonth === filterMonth;
+        const monthMatch = !filterMonth || recordMonth === filterMonth;
 
-    const dateMatch =
-        (!startDate || record.date >= startDate) &&
-        (!endDate || record.date <= endDate);
+        const dateMatch =
+            (!startDate || record.date >= startDate) &&
+            (!endDate || record.date <= endDate);
 
-    const typeMatch = teaType === 'All' || record.teaType === teaType;
-    const dryerMatch = dryerType === 'All' || record.dryerName === dryerType;
+        const typeMatch = teaType === 'All' || record.teaType === teaType;
+        const dryerMatch = dryerType === 'All' || record.dryerName === dryerType;
 
-    return monthMatch && dateMatch && typeMatch && dryerMatch;
-});
+        return monthMatch && dateMatch && typeMatch && dryerMatch;
+    });
+
+    // --- GROUP BY DATE LOGIC FOR UI DISPLAY ---
+    const groupedRecordsByDate = filteredRecords.reduce((acc, record) => {
+        if (!acc[record.date]) {
+            acc[record.date] = [];
+        }
+        acc[record.date].push(record);
+        return acc;
+    }, {});
 
     const groupMap = {};
     filteredRecords.forEach(r => {
@@ -316,6 +297,7 @@ export default function GreenLeafForm() {
     };
 
     const getPdfData = () => {
+        let currentGroupDate = null;
         const tableRows = filteredRecords.map(record => {
             let displayUnits = record.units;
             let displayRollerPoints = record.rollerPoints; 
@@ -330,37 +312,34 @@ export default function GreenLeafForm() {
                     
                     const adjustedRoller = Number(record.rollerPoints) / groupInfo.count;
                     displayRollerPoints = Number.isInteger(adjustedRoller) ? adjustedRoller : adjustedRoller.toFixed(2);
-                    
                     rowColor = groupInfo.pdfColor; 
                 }
             }
 
-            const pdfDryerName = record.dryerName !== '-' 
-                ? `${record.dryerName}\n(${record.dryerUpdatedDate})` 
-                : '-';
+            const pdfDryerName = record.dryerName !== '-' ? `${record.dryerName}\n(${record.dryerUpdatedDate})` : '-';
+            let pdfDateCell = record.isEdited ? `${record.date}\n(Edited: ${record.lastUpdatedDate} by ${record.editedBy})` : record.date;
 
-            const pdfDateCell = record.isEdited 
-                ? `${record.date}\n(Edited: ${record.lastUpdatedDate} by ${record.editedBy})` 
-                : record.date;
+            if (currentGroupDate === record.date) {
+                pdfDateCell = ''; 
+            } else {
+                currentGroupDate = record.date;
+            }
             
-            const rollingText = record.rollingType === 'H/R' 
-                ? `H/R\n(${record.rollingWorkerCount} wkrs)` 
-                : record.rollingType;
+            const rollingText = record.rollingType === 'H/R' && record.rollingWorkerCount > 0 ? `H/R\n(${record.rollingWorkerCount} wkrs)` : record.rollingType;
 
             return {
                 data: [
-                    pdfDateCell,
-                    record.totalWeight,
-                    record.selectedWeight,
-                    record.returnedWeight > 0 ? record.returnedWeight : '-',
-                    record.teaType,
-                    record.madeTeaWeight,
+                    pdfDateCell, 
+                    Number(record.totalWeight) === 0 ? '-' : record.totalWeight, 
+                    Number(record.selectedWeight) === 0 ? '-' : record.selectedWeight,
+                    Number(record.returnedWeight) === 0 ? '-' : record.returnedWeight,
+                    record.teaType, 
+                    Number(record.madeTeaWeight) === 0 ? '-' : record.madeTeaWeight, 
                     pdfDryerName,
-                    record.meterStart,
-                    record.meterEnd,
-                    displayUnits !== '-' ? displayUnits : '-',
-                    displayRollerPoints !== '-' ? displayRollerPoints : '-', 
-                    record.workerCount !== '-' ? record.workerCount : '-',
+                    record.meterStart, record.meterEnd,
+                    Number(displayUnits) === 0 || displayUnits === '-' ? '-' : displayUnits,
+                    Number(displayRollerPoints) === 0 || displayRollerPoints === '-' ? '-' : displayRollerPoints, 
+                    Number(record.workerCount) === 0 || record.workerCount === '-' ? '-' : record.workerCount,
                     rollingText
                 ],
                 fillColor: rowColor 
@@ -369,19 +348,19 @@ export default function GreenLeafForm() {
 
         tableRows.push({
             data: [
-                "GRAND TOTAL",
-                totalGL.toFixed(2),
-                totalSelectedGL.toFixed(2),
-                totalReturnedGL.toFixed(2),
+                "TOTAL", 
+                totalGL === 0 ? '-' : totalGL.toFixed(2), 
+                totalSelectedGL === 0 ? '-' : totalSelectedGL.toFixed(2), 
+                totalReturnedGL === 0 ? '-' : totalReturnedGL.toFixed(2), 
                 "-",
-                totalMadeTea.toFixed(3),
+                totalMadeTea === 0 ? '-' : totalMadeTea.toFixed(3), 
+                "-", 
+                "-", 
                 "-",
-                "-",
-                "-",
-                Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2),
-                Number.isInteger(totalRollerPoints) ? totalRollerPoints : totalRollerPoints.toFixed(2), 
-                totalSelectionLabour,
-                totalHandRollingLabour > 0 ? `${totalHandRollingLabour} (H/R)` : '-'
+                totalUnits === 0 ? '-' : (Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2)),
+                totalRollerPoints === 0 ? '-' : (Number.isInteger(totalRollerPoints) ? totalRollerPoints : totalRollerPoints.toFixed(2)), 
+                totalSelectionLabour === 0 ? '-' : totalSelectionLabour, 
+                totalHandRollingLabour === 0 ? '-' : totalHandRollingLabour
             ],
             isFooter: true
         });
@@ -389,14 +368,7 @@ export default function GreenLeafForm() {
         return tableRows;
     };
 
-    const getCurrentMonthCode = () => {
-        const date = new Date();
-        const month = date.toLocaleString('default', { month: 'long' }).toUpperCase();
-        const year = date.getFullYear();
-        return `HT/DR/${month}.${year}`; 
-    };
-
-    const uniqueCode = getCurrentMonthCode();
+    const uniqueCode = `HT/DR/${new Date().toLocaleString('default', { month: 'long' }).toUpperCase()}.${new Date().getFullYear()}`;
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
@@ -432,56 +404,21 @@ export default function GreenLeafForm() {
 
                 {/* Filter Section */}
                 <div className="mb-6 grid grid-cols-1 md:grid-cols-5 gap-4 bg-white dark:bg-zinc-900 p-4 rounded-xl border border-gray-300 dark:border-zinc-800 shadow-sm transition-colors duration-300">
-                    
-                    {/* MONTH */}
                     <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                            MONTH
-                        </label>
-                        <input
-                            type="month"
-                            value={filterMonth}
-                            onChange={(e) => setFilterMonth(e.target.value)}
-                            className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
-                        />
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">MONTH</label>
+                        <input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
                     </div>
-
-                    {/* FROM DATE */}
                     <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                            FROM DATE
-                        </label>
-                        <input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
-                        />
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">FROM DATE</label>
+                        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
                     </div>
-
-                    {/* TO DATE */}
                     <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                            TO DATE
-                        </label>
-                        <input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
-                        />
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">TO DATE</label>
+                        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
                     </div>
-
-                    {/* TEA TYPE */}
                     <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                            TEA TYPE
-                        </label>
-                        <select
-                            value={teaType}
-                            onChange={(e) => setTeaType(e.target.value)}
-                            className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
-                        >
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">TEA TYPE</label>
+                        <select value={teaType} onChange={(e) => setTeaType(e.target.value)} className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors">
                             <option value="All">All Types</option>
                             <option value="Purple Tea">Purple Tea</option>
                             <option value="Pink Tea">Pink Tea</option>
@@ -495,26 +432,17 @@ export default function GreenLeafForm() {
                             <option value="Chakra">Chakra</option>
                         </select>
                     </div>
-
-                    {/* DRYER */}
                     <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                            DRYER
-                        </label>
-                        <select
-                            value={dryerType}
-                            onChange={(e) => setDryerType(e.target.value)}
-                            className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
-                        >
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400">DRYER</label>
+                        <select value={dryerType} onChange={(e) => setDryerType(e.target.value)} className="border border-gray-300 dark:border-zinc-700 rounded p-2 text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors">
                             <option value="All">All Dryers</option>
                             <option value="Dryer 1">Dryer 1</option>
                             <option value="Dryer 2">Dryer 2</option>
                         </select>
                     </div>
-
                 </div>
                 
-                <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-300 dark:border-zinc-800 overflow-hidden self-start w-full max-w-full transition-colors duration-300">
+                <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden self-start w-full max-w-full transition-colors duration-300">
                     {loading ? (
                         <div className="p-12 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center h-64">
                             <div className="w-8 h-8 border-4 border-[#8CC63F] dark:border-green-700 border-t-[#1B6A31] dark:border-t-green-400 rounded-full animate-spin mb-4"></div>
@@ -524,176 +452,170 @@ export default function GreenLeafForm() {
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
                                 <thead>
-                                    <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-300 dark:border-zinc-800 transition-colors">
-                                        <th rowSpan="2" className="px-4 py-3 font-semibold border-r border-gray-300 dark:border-zinc-800 align-bottom w-24">Date</th>
-                                        <th colSpan="3" className="px-4 py-2 font-bold text-[#1B6A31] dark:text-green-500 border-r border-gray-300 dark:border-zinc-800 bg-[#8CC63F]/10 dark:bg-green-900/20 text-center">
-                                            <div className="flex items-center justify-center gap-1"><Leaf size={14}/> Raw Material (kg)</div>
+                                    <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-800">
+                                        <th rowSpan="2" className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-800 align-bottom w-24">Date</th>
+                                        <th colSpan="3" className="px-4 py-2 font-bold text-[#1B6A31] dark:text-green-500 border-r border-gray-200 dark:border-zinc-800 bg-[#eef8f2] dark:bg-green-900/20 text-center uppercase tracking-wider text-[11px]">
+                                            <div className="flex items-center justify-center gap-1.5"><Leaf size={14}/> Raw Material</div>
                                         </th>
-                                        <th colSpan="2" className="px-4 py-2 font-bold text-purple-700 dark:text-purple-400 border-r border-gray-300 dark:border-zinc-800 bg-purple-50 dark:bg-purple-900/20 text-center">
-                                            <div className="flex items-center justify-center gap-1"><Factory size={14}/> Output</div>
+                                        <th colSpan="2" className="px-4 py-2 font-bold text-purple-700 dark:text-purple-400 border-r border-gray-200 dark:border-zinc-800 bg-[#f5f0ff] dark:bg-purple-900/20 text-center uppercase tracking-wider text-[11px]">
+                                            <div className="flex items-center justify-center gap-1.5"><Factory size={14}/> Output</div>
                                         </th>
-                                        <th colSpan="5" className="px-4 py-2 font-bold text-orange-700 dark:text-orange-400 border-r border-gray-300 dark:border-zinc-800 bg-orange-50 dark:bg-orange-900/20 text-center">
-                                            <div className="flex items-center justify-center gap-1"><Zap size={14}/> Machine Usage</div>
+                                        <th colSpan="5" className="px-4 py-2 font-bold text-orange-700 dark:text-orange-400 border-r border-gray-200 dark:border-zinc-800 bg-[#fff5eb] dark:bg-orange-900/20 text-center uppercase tracking-wider text-[11px]">
+                                            <div className="flex items-center justify-center gap-1.5"><Zap size={14}/> Machine Usage</div>
                                         </th>
-                                        
-                                        <th colSpan="2" className="px-4 py-2 font-bold text-blue-700 dark:text-blue-400 border-r border-gray-300 dark:border-zinc-800 bg-blue-50 dark:bg-blue-900/30 text-center">
-                                            <div className="flex items-center justify-center gap-1"><Users size={14}/> Labour Info</div>
+                                        <th colSpan="2" className="px-4 py-2 font-bold text-blue-700 dark:text-blue-400 border-r border-gray-200 dark:border-zinc-800 bg-[#f0f4ff] dark:bg-blue-900/30 text-center uppercase tracking-wider text-[11px]">
+                                            <div className="flex items-center justify-center gap-1.5"><Users size={14}/> Labour Info</div>
                                         </th>
-                                        
                                         {!isViewer && (
                                             <th rowSpan="2" className="px-4 py-3 font-semibold align-bottom text-center w-24 bg-gray-50 dark:bg-zinc-950/50">Action</th>
                                         )}
                                     </tr>
-                                    <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 text-xs border-b border-gray-300 dark:border-zinc-800">
-                                        <th className="px-3 py-2 font-medium bg-[#8CC63F]/5 dark:bg-green-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Received</th>
-                                        <th className="px-3 py-2 font-medium bg-[#8CC63F]/5 dark:bg-green-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Selected</th>
-                                        <th className="px-3 py-2 font-medium bg-[#8CC63F]/5 dark:bg-green-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Return</th>
+                                    <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 text-[11px] border-b border-gray-200 dark:border-zinc-800 uppercase tracking-wider">
+                                        <th className="px-3 py-2 font-semibold bg-[#eef8f2]/50 dark:bg-green-900/10 text-center border-r border-gray-200 dark:border-zinc-800">Received</th>
+                                        <th className="px-3 py-2 font-semibold bg-[#eef8f2]/50 dark:bg-green-900/10 text-center border-r border-gray-200 dark:border-zinc-800">Selected</th>
+                                        <th className="px-3 py-2 font-semibold bg-[#eef8f2]/50 dark:bg-green-900/10 text-center border-r border-gray-200 dark:border-zinc-800">Return</th>
                                         
-                                        <th className="px-3 py-2 font-medium bg-purple-50/50 dark:bg-purple-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Type</th>
-                                        <th className="px-3 py-2 font-medium bg-purple-50/50 dark:bg-purple-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Made (kg)</th>
+                                        <th className="px-3 py-2 font-semibold bg-[#f5f0ff]/50 dark:bg-purple-900/10 text-center border-r border-gray-200 dark:border-zinc-800">Type</th>
+                                        <th className="px-3 py-2 font-semibold bg-[#f5f0ff]/50 dark:bg-purple-900/10 text-center border-r border-gray-200 dark:border-zinc-800">Made (kg)</th>
                                         
-                                        <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Dryer</th>
-                                        <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Start</th>
-                                        <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-900/10 text-center border-r border-gray-300 dark:border-zinc-800">End</th>
-                                        <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Units</th>
-                                        <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Roller</th>
+                                        <th className="px-3 py-2 font-semibold bg-[#fff5eb]/50 dark:bg-orange-900/10 text-center border-r border-gray-200 dark:border-zinc-800">Dryer</th>
+                                        <th className="px-3 py-2 font-semibold bg-[#fff5eb]/50 dark:bg-orange-900/10 text-center border-r border-gray-200 dark:border-zinc-800">Start</th>
+                                        <th className="px-3 py-2 font-semibold bg-[#fff5eb]/50 dark:bg-orange-900/10 text-center border-r border-gray-200 dark:border-zinc-800">End</th>
+                                        <th className="px-3 py-2 font-semibold bg-[#fff5eb]/50 dark:bg-orange-900/10 text-center border-r border-gray-200 dark:border-zinc-800">Units</th>
+                                        <th className="px-3 py-2 font-semibold bg-[#fff5eb]/50 dark:bg-orange-900/10 text-center border-r border-gray-200 dark:border-zinc-800">Roller</th>
 
-                                        <th className="px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Selection</th>
-                                        <th className="px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-900/10 text-center border-r border-gray-300 dark:border-zinc-800">Rolling</th>
+                                        <th className="px-3 py-2 font-semibold bg-[#f0f4ff]/50 dark:bg-blue-900/10 text-center border-r border-gray-200 dark:border-zinc-800">Selection</th>
+                                        <th className="px-3 py-2 font-semibold bg-[#f0f4ff]/50 dark:bg-blue-900/10 text-center border-r border-gray-200 dark:border-zinc-800">Rolling</th>
                                     </tr>
                                 </thead>
 
-                                <tbody className="divide-y divide-gray-300 dark:divide-zinc-800">
-                                    {filteredRecords.length > 0 ? (
-                                        filteredRecords.map((record) => {
-                                            let isShared = false;
-                                            let highlightClass = '';
-                                            let displayUnits = record.units;
-                                            let displayRollerPoints = record.rollerPoints; 
-
-                                            if (record.meterStart !== '-' && record.meterEnd !== '-' && record.meterStart !== '' && record.meterEnd !== '') {
-                                                const key = `${record.dryerName}_${record.meterStart}_${record.meterEnd}`;
-                                                const groupInfo = groupMap[key];
-                                                
-                                                if (groupInfo && groupInfo.count > 1) {
-                                                    isShared = true;
-                                                    highlightClass = groupInfo.uiColor;
-                                                    const adjustedUnits = Number(record.units) / groupInfo.count;
-                                                    displayUnits = Number.isInteger(adjustedUnits) ? adjustedUnits : adjustedUnits.toFixed(2);
-
-                                                    const adjustedRoller = Number(record.rollerPoints) / groupInfo.count;
-                                                    displayRollerPoints = Number.isInteger(adjustedRoller) ? adjustedRoller : adjustedRoller.toFixed(2);
-                                                }
-                                            }
+                                <tbody className="bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-300">
+                                    {Object.keys(groupedRecordsByDate).length > 0 ? (
+                                        Object.entries(groupedRecordsByDate).map(([date, dayRecords]) => {
+                                            const isMulti = dayRecords.length > 1;
+                                            const totalRowSpan = dayRecords.length;
+                                            const paddingY = isMulti ? 'py-1.5' : 'py-3';
 
                                             return (
-                                                <tr key={record.productionId} className={`transition-colors group ${isShared ? highlightClass : 'hover:bg-gray-50/80 dark:hover:bg-zinc-800/50'}`}>
-                                                    <td className="px-4 py-3 border-r border-gray-300 dark:border-zinc-800 align-top">
-                                                        <div className="flex flex-col items-start gap-1 mt-1">
-                                                            <span className="font-semibold text-gray-800 dark:text-gray-200">{record.date}</span>
-                                                            {record.isEdited && (
-                                                                <span className="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 px-1.5 py-0.5 rounded font-bold w-max text-left leading-tight">
-                                                                    Edited: {record.lastUpdatedDate} <br />
-                                                                    {record.editedBy && `by ${record.editedBy}`}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-3 py-3 text-center text-gray-600 dark:text-gray-300 border-r border-gray-300 dark:border-zinc-800 align-top">
-                                                        <div className="mt-1">{record.totalWeight}</div>
-                                                    </td>
-                                                    <td className="px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 align-top">
-                                                        <div className="mt-1"><span className="px-2 py-1 rounded-full bg-[#8CC63F]/20 dark:bg-[#8CC63F]/30 text-[#1B6A31] dark:text-[#8CC63F] font-bold text-xs">{record.selectedWeight}</span></div>
-                                                    </td>
-                                                    <td className="px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 text-gray-500 dark:text-gray-400 align-top">
-                                                        <div className="mt-1">{record.returnedWeight > 0 ? record.returnedWeight : '-'}</div>
-                                                    </td>
-                                                    
-                                                    <td className="px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 align-top">
-                                                        <div className="mt-1">{record.teaType !== '-' ? <span className="text-purple-700 dark:text-purple-300 font-medium text-xs bg-purple-50 dark:bg-purple-900/30 px-2 py-1 rounded border border-purple-200 dark:border-purple-800/50">{record.teaType}</span> : '-'}</div>
-                                                    </td>
-                                                    <td className="px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 align-top">
-                                                        <div className="mt-1"><span className="font-bold text-gray-800 dark:text-gray-200">{record.madeTeaWeight}</span></div>
-                                                    </td>
-                                                    
-                                                    <td className="px-3 py-2 text-center border-r border-gray-300 dark:border-zinc-800">
-                                                        {record.dryerName !== '-' ? (
-                                                            <div className="flex flex-col items-center mt-1">
-                                                                <span className="font-semibold text-gray-700 dark:text-gray-300 leading-tight">{record.dryerName}</span>
-                                                                <span className="text-[9px] text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded mt-0.5 shadow-sm font-bold whitespace-nowrap">
-                                                                    {record.dryerUpdatedDate}
-                                                                </span>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-gray-400 dark:text-gray-600 mt-1 block">-</span>
-                                                        )}
-                                                    </td>
+                                                <React.Fragment key={date}>
+                                                    {dayRecords.map((record, index) => {
+                                                        const isLastDataRow = index === dayRecords.length - 1;
+                                                        const cellBottomBorder = isLastDataRow ? 'border-b border-gray-200 dark:border-zinc-800' : 'border-b-0';
 
-                                                    <td className={`px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 text-xs align-top ${isShared ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
-                                                        <div className="mt-1">{record.meterStart}</div>
-                                                    </td>
-                                                    <td className={`px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 text-xs align-top ${isShared ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
-                                                        <div className="mt-1">{record.meterEnd}</div>
-                                                    </td>
-                                                    <td className={`px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 align-top ${isShared ? '' : ''}`}>
-                                                        <div className="mt-1">{record.units !== '-' ? <span className={`font-bold ${isShared ? 'text-gray-900 dark:text-white' : 'text-orange-600 dark:text-orange-400'}`}>{displayUnits}</span> : '-'}</div>
-                                                    </td>
+                                                        let displayUnits = record.units;
+                                                        let displayRollerPoints = record.rollerPoints; 
 
-                                                    <td className={`px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 align-top ${isShared ? '' : ''}`}>
-                                                        <div className="mt-1">{displayRollerPoints !== '-' ? <span className={`font-bold ${isShared ? 'text-gray-900 dark:text-white' : 'text-orange-600 dark:text-orange-400'}`}>{displayRollerPoints}</span> : '-'}</div>
-                                                    </td>
+                                                        if (record.meterStart !== '-' && record.meterEnd !== '-' && record.meterStart !== '' && record.meterEnd !== '') {
+                                                            const key = `${record.dryerName}_${record.meterStart}_${record.meterEnd}`;
+                                                            const groupInfo = groupMap[key];
+                                                            
+                                                            if (groupInfo && groupInfo.count > 1) {
+                                                                const adjustedUnits = Number(record.units) / groupInfo.count;
+                                                                displayUnits = Number.isInteger(adjustedUnits) ? adjustedUnits : adjustedUnits.toFixed(2);
+                                                                const adjustedRoller = Number(record.rollerPoints) / groupInfo.count;
+                                                                displayRollerPoints = Number.isInteger(adjustedRoller) ? adjustedRoller : adjustedRoller.toFixed(2);
+                                                            }
+                                                        }
 
-                                                    <td className="px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 bg-blue-50/10 dark:bg-blue-900/10 align-top">
-                                                        <div className="mt-1 font-bold text-blue-700 dark:text-blue-400">{record.workerCount !== '-' ? record.workerCount : '-'}</div>
-                                                    </td>
-                                                    <td className="px-3 py-3 text-center border-r border-gray-300 dark:border-zinc-800 bg-blue-50/10 dark:bg-blue-900/10 align-top">
-                                                        <div className="flex flex-col items-center gap-0.5 mt-1">
-                                                            <span className="text-gray-700 dark:text-gray-300 font-medium">
-                                                                {record.rollingType === 'Hand Rolling' 
-                                                                    ? 'H/R' 
-                                                                    : (record.rollingType === 'Machine Rolling' ? 'M/R' : record.rollingType)
-                                                                }
-                                                            </span>
-                                                            {record.rollingWorkerCount > 0 && (
-                                                                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-800/50">
-                                                                    {record.rollingWorkerCount} wkrs
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    
-                                                    {!isViewer && (
-                                                        <td className={`px-3 py-3 text-center align-top ${isShared ? '' : 'bg-white dark:bg-zinc-900'}`}>
-                                                            <div className="flex items-center justify-center gap-1 mt-0.5">
-                                                                <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-400 hover:bg-[#8CC63F]/20 dark:hover:bg-zinc-800 rounded transition-all">
-                                                                    <MdOutlineEdit size={20} />
-                                                                </button>
-                                                                <AlertDialog>
-                                                                    <AlertDialogTrigger asChild>
-                                                                        <button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all">
-                                                                            <MdOutlineDeleteOutline size={20} />
-                                                                        </button>
-                                                                    </AlertDialogTrigger>
-                                                                    <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-md">
-                                                                        <AlertDialogHeader>
-                                                                            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4 border border-red-200 dark:border-red-800/50">
-                                                                                <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
-                                                                            </div>
-                                                                            <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-white">Delete Production Record</AlertDialogTitle>
-                                                                            <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-base">
-                                                                                Are you sure you want to permanently delete data for <span className="font-bold text-gray-800 dark:text-gray-200 ml-1">{record.date}</span>?
-                                                                            </AlertDialogDescription>
-                                                                        </AlertDialogHeader>
-                                                                        <AlertDialogFooter className="mt-6">
-                                                                            <AlertDialogCancel onClick={() => setRecordToDelete(null)} className="border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 rounded-lg px-6 font-semibold">Cancel</AlertDialogCancel>
-                                                                            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors">Delete Record</AlertDialogAction>
-                                                                        </AlertDialogFooter>
-                                                                    </AlertDialogContent>
-                                                                </AlertDialog>
-                                                            </div>
-                                                        </td>
-                                                    )}
-                                                </tr>
+                                                        return (
+                                                            <tr key={record.productionId} className={`transition-colors group hover:bg-gray-50/50 dark:hover:bg-zinc-800/20`}>
+                                                                {index === 0 && (
+                                                                    <td rowSpan={totalRowSpan} className="px-4 py-3 border-r border-b border-gray-200 dark:border-zinc-800 align-top bg-gray-50/30 dark:bg-zinc-900/30">
+                                                                        <div className="flex flex-col items-start gap-1 mt-1">
+                                                                            <span className="font-semibold text-gray-900 dark:text-gray-100">{record.date}</span>
+                                                                            {record.isEdited && (
+                                                                                <span className="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 px-1.5 py-0.5 rounded font-bold w-max text-left leading-tight mt-1">
+                                                                                    Edited: {record.lastUpdatedDate} <br />
+                                                                                    {record.editedBy && `by ${record.editedBy}`}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    </td>
+                                                                )}
+                                                                
+                                                                <td className={`px-3 ${paddingY} text-center border-r border-gray-200 dark:border-zinc-800 align-middle ${cellBottomBorder}`}>
+                                                                    <div className="font-medium">{Number(record.totalWeight) === 0 ? '-' : record.totalWeight}</div>
+                                                                </td>
+                                                                <td className={`px-3 ${paddingY} text-center border-r border-gray-200 dark:border-zinc-800 align-middle ${cellBottomBorder}`}>
+                                                                    <div>{Number(record.selectedWeight) === 0 ? '-' : <span className="text-[#1B6A31] dark:text-[#8CC63F] font-bold text-xs bg-[#eef8f2] dark:bg-[#8CC63F]/20 px-2 py-0.5 rounded-full inline-block">{record.selectedWeight}</span>}</div>
+                                                                </td>
+                                                                <td className={`px-3 ${paddingY} text-center border-r border-gray-200 dark:border-zinc-800 text-gray-500 align-middle ${cellBottomBorder}`}>
+                                                                    <div>{Number(record.returnedWeight) === 0 ? '-' : record.returnedWeight}</div>
+                                                                </td>
+                                                                
+                                                                <td className={`px-3 ${paddingY} text-center border-r border-gray-200 dark:border-zinc-800 align-middle ${cellBottomBorder}`}>
+                                                                    <div>{record.teaType !== '-' ? <span className="text-purple-700 dark:text-purple-300 font-medium text-xs bg-purple-50 dark:bg-purple-900/30 px-2 py-0.5 rounded">{record.teaType}</span> : '-'}</div>
+                                                                </td>
+                                                                <td className={`px-3 ${paddingY} text-center border-r border-gray-200 dark:border-zinc-800 align-middle ${cellBottomBorder}`}>
+                                                                    <div className="font-bold">{Number(record.madeTeaWeight) === 0 ? '-' : record.madeTeaWeight}</div>
+                                                                </td>
+                                                                
+                                                                <td className={`px-3 ${paddingY} text-center border-r border-gray-200 dark:border-zinc-800 align-middle ${cellBottomBorder}`}>
+                                                                    {record.dryerName !== '-' ? (
+                                                                        <div className="flex flex-col items-center">
+                                                                            <span className="font-semibold leading-tight">{record.dryerName}</span>
+                                                                            <span className="text-[9px] text-orange-600 dark:text-orange-400 px-1 py-0.5 rounded mt-0.5 font-bold">
+                                                                                {record.dryerUpdatedDate}
+                                                                            </span>
+                                                                        </div>
+                                                                    ) : <span className="text-gray-400">-</span>}
+                                                                </td>
+
+                                                                <td className={`px-3 ${paddingY} text-center border-r border-gray-200 dark:border-zinc-800 text-xs align-middle ${cellBottomBorder}`}>
+                                                                    <div>{record.meterStart}</div>
+                                                                </td>
+                                                                <td className={`px-3 ${paddingY} text-center border-r border-gray-200 dark:border-zinc-800 text-xs align-middle ${cellBottomBorder}`}>
+                                                                    <div>{record.meterEnd}</div>
+                                                                </td>
+                                                                <td className={`px-3 ${paddingY} text-center border-r border-gray-200 dark:border-zinc-800 align-middle ${cellBottomBorder}`}>
+                                                                    <div>{Number(displayUnits) === 0 || displayUnits === '-' ? '-' : <span className="font-bold text-orange-600 dark:text-orange-400">{displayUnits}</span>}</div>
+                                                                </td>
+                                                                <td className={`px-3 ${paddingY} text-center border-r border-gray-200 dark:border-zinc-800 align-middle ${cellBottomBorder}`}>
+                                                                    <div>{Number(displayRollerPoints) === 0 || displayRollerPoints === '-' ? '-' : <span className="font-bold text-orange-600 dark:text-orange-400">{displayRollerPoints}</span>}</div>
+                                                                </td>
+
+                                                                <td className={`px-3 ${paddingY} text-center border-r border-gray-200 dark:border-zinc-800 align-middle ${cellBottomBorder}`}>
+                                                                    <div className="font-bold text-blue-700 dark:text-blue-400">{Number(record.workerCount) === 0 ? '-' : record.workerCount}</div>
+                                                                </td>
+                                                                <td className={`px-3 ${paddingY} text-center border-r border-gray-200 dark:border-zinc-800 align-middle ${cellBottomBorder}`}>
+                                                                    <div className="flex flex-col items-center gap-0.5">
+                                                                        <span className="font-medium text-sm text-blue-700 dark:text-blue-400">
+                                                                            {record.rollingType === 'Hand Rolling' ? 'H/R' : record.rollingType.startsWith('Machine') ? `M/R` : record.rollingType}
+                                                                        </span>
+                                                                        {record.rollingWorkerCount > 0 && (
+                                                                            <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                                                                                {record.rollingWorkerCount} wkrs
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                
+                                                                {!isViewer && (
+                                                                    <td className={`px-3 ${paddingY} text-center align-middle bg-white dark:bg-zinc-950 ${cellBottomBorder}`}>
+                                                                        <div className="flex items-center justify-center gap-1">
+                                                                            <button onClick={() => handleEditClick(record)} className="p-1 text-gray-400 hover:text-[#1B6A31] transition-all"><MdOutlineEdit size={18} /></button>
+                                                                            <AlertDialog>
+                                                                                <AlertDialogTrigger asChild>
+                                                                                    <button onClick={() => setRecordToDelete(record)} className="p-1 text-gray-400 hover:text-red-500 transition-all"><MdOutlineDeleteOutline size={18} /></button>
+                                                                                </AlertDialogTrigger>
+                                                                                <AlertDialogContent className="bg-white rounded-2xl max-w-md">
+                                                                                    <AlertDialogHeader>
+                                                                                        <AlertDialogTitle className="text-xl font-bold">Delete Record</AlertDialogTitle>
+                                                                                        <AlertDialogDescription>Permanently delete data for {record.date}?</AlertDialogDescription>
+                                                                                    </AlertDialogHeader>
+                                                                                    <AlertDialogFooter>
+                                                                                        <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
+                                                                                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
+                                                                                    </AlertDialogFooter>
+                                                                                </AlertDialogContent>
+                                                                            </AlertDialog>
+                                                                        </div>
+                                                                    </td>
+                                                                )}
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </React.Fragment>
                                             );
                                         })
                                     ) : (
@@ -706,30 +628,45 @@ export default function GreenLeafForm() {
                                     )}
                                 </tbody>
 
-                                {/* --- TOTAL ROW --- */}
+                                {/* --- GRAND TOTAL ROW AT THE END --- */}
                                 {filteredRecords.length > 0 && (
-                                    <tfoot className="bg-gray-100/90 dark:bg-zinc-900/90 border-t-[3px] border-gray-400 dark:border-zinc-700 font-black text-gray-900 dark:text-white text-center shadow-[inset_0_4px_6px_-4px_rgba(0,0,0,0.1)]">
+                                    <tfoot className="bg-gray-100/80 dark:bg-zinc-900/80 border-t-[3px] border-gray-300 dark:border-zinc-700 font-bold text-center shadow-[inset_0_4px_6px_-4px_rgba(0,0,0,0.05)] text-[13px] tracking-wide">
                                         <tr>
-                                            <td className="px-4 py-4 border-r border-gray-300 dark:border-zinc-800 text-right uppercase tracking-wider text-sm">Total</td>
-                                            <td className="px-3 py-4 border-r border-gray-300 dark:border-zinc-800 text-[#1B6A31] dark:text-green-500 text-base">{totalGL.toFixed(2)}</td>
-                                            <td className="px-3 py-4 border-r border-gray-300 dark:border-zinc-800 text-[#1B6A31] dark:text-green-500 text-base">{totalSelectedGL.toFixed(2)}</td>
-                                            <td className="px-3 py-4 border-r border-gray-300 dark:border-zinc-800 text-gray-600 dark:text-gray-400 text-base">{totalReturnedGL.toFixed(2)}</td>
-                                            <td className="px-3 py-4 border-r border-gray-300 dark:border-zinc-800">-</td>
-                                            <td className="px-3 py-4 border-r border-gray-300 dark:border-zinc-800 text-purple-700 dark:text-purple-400 text-base">{totalMadeTea.toFixed(3)}</td>
-                                            <td className="px-3 py-4 border-r border-gray-300 dark:border-zinc-800">-</td>
-                                            <td className="px-3 py-4 border-r border-gray-300 dark:border-zinc-800">-</td>
-                                            <td className="px-3 py-4 border-r border-gray-300 dark:border-zinc-800">-</td>
+                                            <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-white uppercase text-sm">Total</td>
                                             
-                                            <td className="px-3 py-4 border-r border-gray-300 dark:border-zinc-800 text-orange-600 dark:text-orange-500 text-base">
-                                                {Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2)}
+                                            <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800 text-[#1B6A31] dark:text-green-500">
+                                                {totalGL === 0 ? '-' : totalGL.toFixed(2)}
                                             </td>
-
-                                            <td className="px-3 py-4 border-r border-gray-300 dark:border-zinc-800 text-orange-600 dark:text-orange-500 text-base">
-                                                {Number.isInteger(totalRollerPoints) ? totalRollerPoints : totalRollerPoints.toFixed(2)}
+                                            <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800 text-[#1B6A31] dark:text-green-500">
+                                                {totalSelectedGL === 0 ? '-' : totalSelectedGL.toFixed(2)}
+                                            </td>
+                                            <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-gray-400">
+                                                {totalReturnedGL === 0 ? '-' : totalReturnedGL.toFixed(2)}
                                             </td>
                                             
-                                            <td className="px-3 py-4 border-r border-gray-300 dark:border-zinc-800 text-blue-700 dark:text-blue-500 text-base">{totalSelectionLabour}</td>
-                                            <td className="px-3 py-4 border-r border-gray-300 dark:border-zinc-800 text-blue-700 dark:text-blue-500 text-base">{totalHandRollingLabour > 0 ? `${totalHandRollingLabour} (H/R)` : '-'}</td>
+                                            <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800">-</td>
+                                            
+                                            <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800 text-purple-700 dark:text-purple-400">
+                                                {totalMadeTea === 0 ? '-' : totalMadeTea.toFixed(3)}
+                                            </td>
+                                            
+                                            <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800">-</td>
+                                            <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800">-</td>
+                                            <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800">-</td>
+                                            
+                                            <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800 text-orange-600 dark:text-orange-500">
+                                                {totalUnits === 0 ? '-' : (Number.isInteger(totalUnits) ? totalUnits : totalUnits.toFixed(2))}
+                                            </td>
+                                            <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800 text-orange-600 dark:text-orange-500">
+                                                {totalRollerPoints === 0 ? '-' : (Number.isInteger(totalRollerPoints) ? totalRollerPoints : totalRollerPoints.toFixed(2))}
+                                            </td>
+                                            
+                                            <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800 text-blue-700 dark:text-blue-500">
+                                                {totalSelectionLabour === 0 ? '-' : totalSelectionLabour}
+                                            </td>
+                                            <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800 text-blue-700 dark:text-blue-500">
+                                                {totalHandRollingLabour === 0 ? '-' : totalHandRollingLabour}
+                                            </td>
                                             
                                             {!isViewer && (
                                                 <td className="px-3 py-4"></td>
@@ -744,4 +681,4 @@ export default function GreenLeafForm() {
             </div>
         </div>
     );
-}  
+}
