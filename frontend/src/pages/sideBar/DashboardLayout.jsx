@@ -110,6 +110,15 @@ const DATA = {
         { title: 'Cost of Production', url: '/cost-of-production', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
       ],
     },
+
+    {
+      title: 'Transfer Out',
+      icon: ChevronRight,
+      items: [
+        { title: 'Transfer Out', url: '/transfer-out', roles: ['HandMade Officer'] },
+        
+      ],
+    },
     {
       title: 'System Administration',
       icon: Shield,

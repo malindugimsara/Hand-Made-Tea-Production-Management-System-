@@ -16,6 +16,7 @@ import RawMaterialCost from '../pages/sideBar/RawMaterial/RawMaterialCost';
 import ViewRawMaterialCost from '../pages/sideBar/RawMaterial/ViewRawMaterialCost';
 import EditRawMaterialCost from '../pages/sideBar/RawMaterial/EditRawMaterialCost';
 import DashboardLayout from "./sideBar/DashboardLayout";
+import TransOut from "./sideBar/TransOut/TransOut";
 
 export const HandmadeRoutes = () => (
   <Route path="/" element={<DashboardLayout />}>
@@ -34,5 +35,7 @@ export const HandmadeRoutes = () => (
     <Route path="raw-material-cost" element={<RawMaterialCost />} />
     <Route path="view-raw-material-cost" element={<ViewRawMaterialCost />} />
     <Route path="edit-raw-material-cost" element={<EditRawMaterialCost />} />
+    <Route path="transfer-out" element={<TransOut />} />
+
   </Route>
 );
