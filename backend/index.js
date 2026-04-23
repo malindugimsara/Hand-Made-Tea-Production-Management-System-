@@ -16,6 +16,8 @@ import productionSummaryRouter from './router/productionSummaryRoute.js';
 
 // Packing Section Routes
 import localSaleRouter from './Packing/Routes/localSaleRoutes.js';
+import teaCenterIssueRouter from './Packing/Routes/TeaCenterIssueRouter.js';
+
 
 dotenv.config();
 const app = express();
@@ -53,6 +55,7 @@ app.use('/api/production-summary', productionSummaryRouter); // Add this line to
 // Packing Section Routes
 
 app.use('/api/local-sales', localSaleRouter);
+app.use('/api/tea-center-issues', teaCenterIssueRouter);
 
 
 app.listen(3000, () => {

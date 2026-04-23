@@ -81,6 +81,14 @@ const DATA = {
         { title: 'Local Record View', url: '/packing/local-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
       ],
     },
+    {
+      title: 'Tea Center',
+      icon: Sprout ,
+      items: [
+        { title: 'Tea Center Record Entry', url: '/packing/tea-center-record-entry', roles: ['Admin', 'Packing Officer'] },
+        { title: 'Tea Center Record View', url: '/packing/tea-center-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+      ],
+    },
   ],
 };
 
