@@ -1,9 +1,9 @@
-import TeaCenterIssue from '../models/TeaCenterIssueModel.js';
+import GuideIssue from '../models/GuideIssueModel.js';
 
-// @desc    Create new tea center issue records
-// @route   POST /api/tea-center-issues
+// @desc    Create new guide issue record
+// @route   POST /api/guide-issues
 // @access  Private
-export const createTeaCenterIssue = async (req, res) => {
+export const createGuideIssue = async (req, res) => {
     try {
         const { date, totalBoxes, totalQtyKg, issueItems } = req.body;
 
@@ -11,45 +11,62 @@ export const createTeaCenterIssue = async (req, res) => {
             return res.status(400).json({ message: 'No issue items provided' });
         }
 
-        // Must be "new TeaCenterIssue", NOT "new ProductIssue"
-        const newIssue = new TeaCenterIssue({
+        const newGuideIssue = new GuideIssue({
             date,
             totalBoxes,
             totalQtyKg,
             issueItems,
         });
 
-        const savedIssue = await newIssue.save();
+        const savedIssue = await newGuideIssue.save();
         res.status(201).json(savedIssue);
 
     } catch (error) {
-        // THIS is what is printing in your backend terminal right now
-        console.error('Error saving tea center issue:', error); 
+        console.error('Error saving guide issue:', error);
         res.status(500).json({ message: 'Server error failed to save record', error: error.message });
     }
-}
+};
 
-// @desc    Get all tea center issues
-// @route   GET /api/tea-center-issues
+// @desc    Get all guide issues
+// @route   GET /api/guide-issues
 // @access  Private
-export const getTeaCenterIssues = async (req, res) => {
+export const getGuideIssues = async (req, res) => {
     try {
-        const issues = await TeaCenterIssue.find().sort({ date: -1 });
+        const issues = await GuideIssue.find().sort({ date: -1 });
         res.status(200).json(issues);
     } catch (error) {
-        console.error('Error fetching tea center issues:', error);
+        console.error('Error fetching guide issues:', error);
         res.status(500).json({ message: 'Server error failed to fetch records', error: error.message });
     }
 };
 
-// @desc    Update a tea center issue record
-// @route   PUT /api/tea-center-issues/:id
+// @desc    Delete a guide issue
+// @route   DELETE /api/guide-issues/:id
 // @access  Private
-export const updateTeaCenterIssue = async (req, res) => {
+export const deleteGuideIssue = async (req, res) => {
+    try {
+        const issue = await GuideIssue.findById(req.params.id);
+
+        if (!issue) {
+            return res.status(404).json({ message: 'Record not found' });
+        }
+
+        await issue.deleteOne();
+        res.status(200).json({ message: 'Record removed successfully' });
+    } catch (error) {
+        console.error('Error deleting guide issue:', error);
+        res.status(500).json({ message: 'Server error failed to delete record', error: error.message });
+    }
+};
+
+// @desc    Update a guide issue record
+// @route   PUT /api/guide-issues/:id
+// @access  Private
+export const updateGuideIssue = async (req, res) => {
     try {
         const { date, totalBoxes, totalQtyKg, issueItems, updatedBy, editorName } = req.body;
 
-        const issue = await TeaCenterIssue.findById(req.params.id);
+        const issue = await GuideIssue.findById(req.params.id);
 
         if (!issue) {
             return res.status(404).json({ message: 'Record not found' });
@@ -69,7 +86,7 @@ export const updateTeaCenterIssue = async (req, res) => {
         res.status(200).json(updatedIssue);
 
     } catch (error) {
-        console.error('Error updating tea center issue:', error);
+        console.error('Error updating guide issue:', error);
         res.status(500).json({ message: 'Server error failed to update record', error: error.message });
     }
 };

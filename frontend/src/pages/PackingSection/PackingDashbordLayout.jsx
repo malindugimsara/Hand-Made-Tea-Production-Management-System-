@@ -90,6 +90,14 @@ const DATA = {
       ],
     },
     {
+      title: 'Guide Issues',
+      icon: Sprout ,
+      items: [
+        { title: 'Guide Issues Record Entry', url: '/packing/guide-issues-record-entry', roles: ['Admin', 'Packing Officer'] },
+        { title: 'Guide Issues Record View', url: '/packing/guide-issues-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+      ],
+    },
+    {
       title: 'Trans In',
       icon: Sprout ,
       items: [
