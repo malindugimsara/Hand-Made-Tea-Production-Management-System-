@@ -2,66 +2,67 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
 import { PlusCircle, Trash2, ListChecks, Save, Package, ShoppingCart, Calendar, Weight, Tag, X } from "lucide-react"; 
 import { useNavigate } from 'react-router-dom';
-import PDFDownloader from '@/components/PDFDownloader';
+import PDFDownloader from '@/components/PDFDownloader'; 
 
-// Exact Colors based on your image
 const getTeaColor = (product) => {
     const p = product.toLowerCase();
-    if (p === 'bopf') return 'bg-[#fde047] text-yellow-900 border-yellow-500'; 
-    if (p.includes('bopf sp')) return 'bg-[#bef264] text-lime-900 border-lime-500'; 
-    if (p === 'dust') return 'bg-[#3b82f6] text-white border-blue-600'; 
-    if (p === 'dust 1') return 'bg-[#06b6d4] text-white border-cyan-500'; 
+    if (p.includes('pink')) return 'bg-[#fbcfe8] text-pink-900 border-pink-400'; 
+    if (p.includes('purple')) return 'bg-[#e9d5ff] text-purple-900 border-purple-400'; 
+    if (p.includes('silver')) return 'bg-[#e2e8f0] text-slate-800 border-slate-400';
+    if (p.includes('white')) return 'bg-gray-100 text-gray-800 border-gray-300';
+    if (p.includes('golden')) return 'bg-[#fef08a] text-yellow-900 border-yellow-400';
+    if (p.includes('orange')) return 'bg-[#fed7aa] text-orange-900 border-orange-400';
+    if (p.includes('black')) return 'bg-[#374151] text-white border-gray-700';
+    if (p.includes('lemangrass') || p.includes('green')) return 'bg-[#bbf7d0] text-green-900 border-green-400';
+    if (p.includes('cinnamon') || p.includes('chest')) return 'bg-[#fed7aa] text-amber-900 border-amber-500';
+    if (p.includes('turmeric')) return 'bg-[#fef08a] text-yellow-900 border-yellow-500';
     if (p.includes('premium')) return 'bg-[#f472b6] text-white border-pink-500'; 
-    if (p.includes('awuru')) return 'bg-[#c084fc] text-white border-purple-500'; 
-    if (p === 't/b 25') return 'bg-[#ef4444] text-white border-red-600'; 
-    if (p === 't/b 100') return 'bg-[#78350f] text-white border-amber-900'; 
-    if (p.includes('green')) return 'bg-[#4ade80] text-green-900 border-green-600'; 
-    if (p.includes('labour')) return 'bg-gray-200 text-gray-800 border-gray-400'; 
+    if (p.includes('awrudu')) return 'bg-[#c084fc] text-white border-purple-500'; 
     return 'bg-white dark:bg-zinc-800 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-zinc-700'; 
 };
 
-// Exact RGB Colors for PDF Generation
 const getPdfTeaColor = (product) => {
     const p = product.toLowerCase();
-    if (p === 'bopf') return { fillColor: [253, 224, 71], textColor: [113, 63, 18] }; 
-    if (p.includes('bopf sp')) return { fillColor: [190, 242, 100], textColor: [77, 124, 15] }; 
-    if (p === 'dust') return { fillColor: [59, 130, 246], textColor: [255, 255, 255] }; 
-    if (p === 'dust 1') return { fillColor: [6, 182, 212], textColor: [255, 255, 255] }; 
+    if (p.includes('pink')) return { fillColor: [251, 207, 232], textColor: [131, 24, 67] };
+    if (p.includes('purple')) return { fillColor: [233, 213, 255], textColor: [88, 28, 135] };
+    if (p.includes('silver')) return { fillColor: [226, 232, 240], textColor: [30, 41, 59] };
+    if (p.includes('golden')) return { fillColor: [254, 240, 138], textColor: [113, 63, 18] };
+    if (p.includes('orange')) return { fillColor: [254, 215, 170], textColor: [124, 45, 18] };
+    if (p.includes('black')) return { fillColor: [55, 65, 81], textColor: [255, 255, 255] };
+    if (p.includes('lemangrass') || p.includes('green')) return { fillColor: [187, 247, 208], textColor: [20, 83, 45] };
+    if (p.includes('cinnamon')) return { fillColor: [254, 215, 170], textColor: [120, 53, 15] };
     if (p.includes('premium')) return { fillColor: [244, 114, 182], textColor: [255, 255, 255] }; 
-    if (p.includes('awuru')) return { fillColor: [192, 132, 252], textColor: [255, 255, 255] }; 
-    if (p === 't/b 25') return { fillColor: [239, 68, 68], textColor: [255, 255, 255] }; 
-    if (p === 't/b 100') return { fillColor: [120, 53, 15], textColor: [255, 255, 255] }; 
-    if (p.includes('green')) return { fillColor: [74, 222, 128], textColor: [20, 83, 45] }; 
-    if (p.includes('labour')) return { fillColor: [229, 231, 235], textColor: [31, 41, 55] }; 
+    if (p.includes('awrudu')) return { fillColor: [192, 132, 252], textColor: [255, 255, 255] }; 
     return { fillColor: [244, 244, 245], textColor: [31, 41, 55] }; 
 };
 
-// Combined tea types
 const TEA_TYPES = [
-    "BOPF", "BOPF SP", "OPA", "OP 1", "OP", "Pekoe", "BOP", "FBOP", 
-    "FF SP", "FF EX SP", "Dust", "Dust 1", "Premium", "Green tea", 
-    "Green tea bag (25)", "New edition", "Pitigala tea bags", 
-    "Pitigala tea 400g",
-    "Awurudu Special", "Labour drinking tea"
+    "Green tea", "G/T Lemangrass", "Silver tips can", "FBOP chest", 
+    "FF SP chest", "FF EX SP Pack", "Cinnamon can", "OP1 pack", 
+    "Silver green", "Pink tea can", "Pekoe box", "White tea can", 
+    "Cinnamon pack", "Ceylon premium", "Purple tea can", "Golden tips can", 
+    "Slim beauty can", "Bop pack", "Orange can", "purple pack", 
+    "pink tea pack", "Black T/B", "Premium", "Cinnaamon box", 
+    "FF EX SP Box", "turmeric", "Black pepar", "Masala box", 
+    "Awrudu gift pack", "chakra", "flower"
 ];
 
-// Helper function to map Tea Types to predefined Pack Sizes
 const getPackSizes = (product) => {
     if (!product) return null;
     const p = product.toLowerCase();
     
-    if (p === 'bopf') return ["0.4", "0.2", "0.1"];
-    if (p.includes('bopf sp')) return ["0.4", "0.2"];
-    if (p.includes('premium')) return ["0.4", "0.2"];
-    if (p.includes('awuru')) return ["0.3"];
-    if (p.includes('pitigala tea bags')) return ["0.025", "0.05", "0.1"];
-    if (p.includes('green tea bag (25)') || p.includes('green tea bags')) return ["0.025"];
-    if (p.includes('green tea')) return ["0.2"]; // General Green Tea
+    if (p.includes('pink tea can') || p.includes('white tea can') || p.includes('chakra') || p.includes('flower') || p.includes('black t/b')) return ["0.025"];
+    if (p.includes('silver tips') || p.includes('cinnamon can') || p.includes('silver green') || p.includes('golden tips') || p.includes('slim beauty') || p.includes('turmeric') || p.includes('black pepar')) return ["0.05"];
+    if (p.includes('lemangrass') || p.includes('fbop chest') || p.includes('ff sp chest') || p.includes('cinnamon pack') || p.includes('cinnaamon box') || p.includes('ff ex sp box') || p.includes('purple pack') || p.includes('masala')) return ["0.1"];
+    if (p.includes('ff ex sp pack') || p.includes('bop pack')) return ["0.15"];
+    if (p.includes('green tea') || p.includes('op1 pack') || p.includes('pekoe box') || p.includes('premium')) return ["0.2"];
+    if (p.includes('ceylon premium')) return ["0.125"];
+    if (p.includes('awrudu')) return ["0.3"];
     
-    return null; // Return null if no specific sizes are predefined (allows free typing)
+    return null; 
 };
 
-export default function LocalRecordEntry() {
+export default function TeaCenterRecordEntry() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const [showSpinner, setShowSpinner] = useState(false);
     const [pendingRecords, setPendingRecords] = useState([]);
@@ -75,11 +76,9 @@ export default function LocalRecordEntry() {
         { id: Date.now(), product: '', packSizeKg: '', numberOfBoxes: '' }
     ]);
 
-    // --- Dropdown States ---
-    const [openDropdownId, setOpenDropdownId] = useState(null); // 'product-id' or 'size-id'
+    const [openDropdownId, setOpenDropdownId] = useState(null);
     const dropdownRefs = useRef({}); 
 
-    // Handle outside click for the custom dropdowns
     useEffect(() => {
         const handleClickOutside = (event) => {
             let isOutside = true;
@@ -94,7 +93,6 @@ export default function LocalRecordEntry() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // --- SUMMARY CALCULATION ---
     const productSummaryMap = {};
     pendingRecords.forEach(record => {
         record.items.forEach(item => {
@@ -105,14 +103,12 @@ export default function LocalRecordEntry() {
     const summaryArray = Object.entries(productSummaryMap).sort((a, b) => b[1] - a[1]);
     const grandPendingQty = summaryArray.reduce((sum, [_, qty]) => sum + qty, 0);
 
-    // --- PDF GENERATION LOGIC ---
     const getPdfData = () => {
         const tableRows = [];
         
         pendingRecords.forEach(record => {
             record.items.forEach((item, index) => {
                 const isFirst = index === 0;
-
                 tableRows.push([
                     isFirst ? record.date : "",
                     { 
@@ -140,9 +136,8 @@ export default function LocalRecordEntry() {
         return tableRows;
     };
     
-    const uniqueCode = `PS/ENTRY/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
+    const uniqueCode = `PI/ENTRY/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
 
-    // --- DYNAMIC FIELD HANDLERS ---
     const handleAddItemRow = () => {
         setItemsList([...itemsList, { id: Date.now(), product: '', packSizeKg: '', numberOfBoxes: '' }]);
     };
@@ -159,7 +154,6 @@ export default function LocalRecordEntry() {
         
         setItemsList(itemsList.map(row => {
             if (row.id === id) {
-                // If Product changed, auto-clear pack size if it no longer matches the new predefined options
                 if (field === 'product') {
                     const availableSizes = getPackSizes(value);
                     if (availableSizes && !availableSizes.includes(row.packSizeKg)) {
@@ -197,7 +191,7 @@ export default function LocalRecordEntry() {
             date: formData.date,
             items: itemsList.map(item => ({
                 ...item,
-                calculatedQtyKg: (Number(item.packSizeKg) * Number(item.numberOfBoxes)).toFixed(2)
+                calculatedQtyKg: (Number(item.packSizeKg) * Number(item.numberOfBoxes)).toFixed(3) 
             })),
             totalBoxes,
             totalQtyKg
@@ -230,7 +224,7 @@ export default function LocalRecordEntry() {
                     date: record.date,
                     totalBoxes: record.totalBoxes,
                     totalQtyKg: record.totalQtyKg,
-                    salesItems: record.items.map(item => ({
+                    issueItems: record.items.map(item => ({
                         product: item.product,
                         packSizeKg: Number(item.packSizeKg),
                         numberOfBoxes: Number(item.numberOfBoxes),
@@ -238,7 +232,8 @@ export default function LocalRecordEntry() {
                     }))
                 };
 
-                return fetch(`${BACKEND_URL}/api/local-sales`, {
+                // UPDATED THIS LINE: Pointing to the new Tea Center route
+                return fetch(`${BACKEND_URL}/api/tea-center-issues`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -256,11 +251,12 @@ export default function LocalRecordEntry() {
 
             await Promise.all(promises);
 
-            toast.success("All local sales saved successfully!", { id: toastId });
+            // UPDATED THIS LINE: Success toast message
+            toast.success("All Tea Center records saved successfully!", { id: toastId });
             setPendingRecords([]);
             
             setTimeout(() => {
-                navigate('/packing/local-record-view');
+                navigate('/packing/tea-center-record-view'); // Make sure this matches your routing
             }, 1000);
 
         } catch (error) {
@@ -290,11 +286,9 @@ export default function LocalRecordEntry() {
             
             <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold text-[#0f766e] dark:text-teal-400">Local Sale Record Entry</h2>
-                    <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Issue record for daily local product sales</p>
+                    <h2 className="text-3xl font-bold text-[#0f766e] dark:text-teal-400">Tea Center Issue Record Entry</h2>
+                    <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Issue record for daily product dispatch/packing</p>
                 </div>
-
-                
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -353,7 +347,7 @@ export default function LocalRecordEntry() {
                                                 {/* Custom Product Autocomplete Input */}
                                                 <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`product-${row.id}`] = el}>
                                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
-                                                        <Tag size={12} className="text-[#0d9488] dark:text-teal-400"/> Product
+                                                        <Tag size={12} className="text-[#0d9488] dark:text-teal-400"/> Product Name
                                                     </label>
                                                     <input 
                                                         type="text" 
@@ -388,7 +382,7 @@ export default function LocalRecordEntry() {
 
                                                 {/* Dynamic Pack Size Input */}
                                                 <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`size-${row.id}`] = el}>
-                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Pack Size (Kg)</label>
+                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Pack Size (KG)</label>
                                                     <input 
                                                         type="number" 
                                                         step="any"
@@ -402,7 +396,7 @@ export default function LocalRecordEntry() {
                                                         }}
                                                         onWheel={(e) => e.target.blur()} 
                                                         required 
-                                                        placeholder="e.g. 0.4"
+                                                        placeholder="e.g. 0.025"
                                                         className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                                                     />
                                                     
@@ -428,7 +422,7 @@ export default function LocalRecordEntry() {
 
                                                 {/* Number of Boxes Input */}
                                                 <div className="lg:col-span-1">
-                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">No. of Box/Packs</label>
+                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase whitespace-nowrap">No. of Box/Packs</label>
                                                     <input 
                                                         type="number" 
                                                         step="1"
@@ -437,7 +431,7 @@ export default function LocalRecordEntry() {
                                                         onChange={(e) => handleItemChange(row.id, 'numberOfBoxes', e.target.value)}
                                                         onWheel={(e) => e.target.blur()} 
                                                         required 
-                                                        placeholder="e.g. 50"
+                                                        placeholder="e.g. 15"
                                                         className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                                                     />
                                                 </div>
@@ -445,11 +439,11 @@ export default function LocalRecordEntry() {
                                                 {/* Auto-Calculated Total Qty */}
                                                 <div className="lg:col-span-1">
                                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
-                                                        Qty (Kg) <Weight size={12} className="text-[#0d9488] dark:text-teal-400"/>
+                                                        Qty (KG) <Weight size={12} className="text-[#0d9488] dark:text-teal-400"/>
                                                     </label>
                                                     <div className="w-full p-2.5 border border-teal-300 dark:border-teal-700/50 bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 font-bold rounded-md text-center transition-colors">
                                                         {(Number(row.packSizeKg) * Number(row.numberOfBoxes)) > 0 
-                                                            ? (Number(row.packSizeKg) * Number(row.numberOfBoxes)).toFixed(2) 
+                                                            ? (Number(row.packSizeKg) * Number(row.numberOfBoxes)).toFixed(3) 
                                                             : "0.00"}
                                                     </div>
                                                 </div>
@@ -464,7 +458,7 @@ export default function LocalRecordEntry() {
                                     Total Packs: <span className="font-bold">{totalBoxes}</span>
                                 </div>
                                 <div className="text-sm font-medium text-[#0f766e] dark:text-teal-300 flex items-center gap-1">
-                                    <Package size={16}/> Total Weight: <span className="font-bold text-lg">{totalQtyKg.toFixed(2)} Kg</span>
+                                    <Package size={16}/> Total Weight: <span className="font-bold text-lg">{totalQtyKg.toFixed(3)} Kg</span>
                                 </div>
                             </div>
                         </div>
@@ -539,7 +533,7 @@ export default function LocalRecordEntry() {
                                                         <span className="text-gray-500 uppercase text-[10px]">Daily Totals:</span>
                                                         <div className="flex gap-4">
                                                             <span className="text-gray-600 dark:text-gray-300">{record.totalBoxes} Boxes</span>
-                                                            <span className="text-[#0f766e] dark:text-teal-400">{record.totalQtyKg.toFixed(2)} Kg</span>
+                                                            <span className="text-[#0f766e] dark:text-teal-400">{record.totalQtyKg.toFixed(3)} Kg</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -588,7 +582,7 @@ export default function LocalRecordEntry() {
                                     <thead>
                                         <tr className="bg-gray-200 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-700">
                                             <th className="px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-700 text-gray-800 dark:text-gray-200">Product</th>
-                                            <th className="px-3 py-2 text-right font-bold text-gray-800 dark:text-gray-200">Qty (Kg)</th>
+                                            <th className="px-3 py-2 text-right font-bold text-gray-800 dark:text-gray-200">Qty (KG)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -598,7 +592,7 @@ export default function LocalRecordEntry() {
                                                     {prodName}
                                                 </td>
                                                 <td className="px-3 py-2 text-right font-medium text-gray-700 dark:text-gray-300">
-                                                    {qty % 1 !== 0 ? qty.toFixed(2) : qty}
+                                                    {qty % 1 !== 0 ? qty.toFixed(3) : qty}
                                                 </td>
                                             </tr>
                                         ))}
@@ -606,16 +600,14 @@ export default function LocalRecordEntry() {
                                     <tfoot>
                                         <tr className="bg-gray-200 dark:bg-zinc-800 font-bold text-gray-900 dark:text-gray-100 border-t-2 border-gray-400 dark:border-zinc-600">
                                             <td className="px-3 py-2 uppercase border-r border-gray-300 dark:border-zinc-700">PENDING TOTAL</td>
-                                            <td className="px-3 py-2 text-right text-[#0f766e] dark:text-teal-400">{grandPendingQty % 1 !== 0 ? grandPendingQty.toFixed(2) : grandPendingQty}</td>
+                                            <td className="px-3 py-2 text-right text-[#0f766e] dark:text-teal-400">{grandPendingQty % 1 !== 0 ? grandPendingQty.toFixed(3) : grandPendingQty}</td>
                                         </tr>
                                     </tfoot>
                                 </table>
                             </div>
                         </div>
                     )}
-
                 </div>
-
             </div>
         </div>
     );

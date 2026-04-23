@@ -16,6 +16,8 @@ import productionSummaryRouter from './router/productionSummaryRoute.js';
 
 // Packing Section Routes
 import localSaleRouter from './Packing/Routes/localSaleRoutes.js';
+import teaCenterIssueRouter from './Packing/Routes/TeaCenterIssueRouter.js';
+
 import packingTransferRouter from './Packing/Routes/packingTransferRouter.js';
 import handmadeTransferRouter from './router/handmadeTransferRouter.js';
 
@@ -55,6 +57,7 @@ app.use('/api/handmade/transfers', handmadeTransferRouter);
 // Packing Section Routes
 
 app.use('/api/local-sales', localSaleRouter);
+app.use('/api/tea-center-issues', teaCenterIssueRouter);
 app.use('/api/packing/transfers', packingTransferRouter);
 
 
