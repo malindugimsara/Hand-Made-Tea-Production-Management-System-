@@ -81,6 +81,15 @@ const DATA = {
         { title: 'Local Record View', url: '/packing/local-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
       ],
     },
+
+    {
+      title: 'Trans In',
+      icon: Sprout ,
+      items: [
+        { title: 'Trans In', url: '/packing/trans-in-entry', roles: ['Admin', 'Packing Officer'] },
+        { title: 'Trans In View', url: '/packing/trans-in-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+      ],
+    },
   ],
 };
 
