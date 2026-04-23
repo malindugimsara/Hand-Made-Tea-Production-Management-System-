@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
-const issueItemSchema = new mongoose.Schema({
-    product: { 
+const guideIssueItemSchema = new mongoose.Schema({
+    grade: { 
         type: String, 
         required: true 
     },
@@ -9,17 +9,17 @@ const issueItemSchema = new mongoose.Schema({
         type: Number, 
         required: true 
     },
-    numberOfBoxes: { 
+    numberOfBoxes: { // Corresponds to the "QTY(KG)" column in your image
         type: Number, 
         required: true 
     },
-    totalQtyKg: { 
+    totalQtyKg: { // Corresponds to the "total" column in your image
         type: Number, 
         required: true 
     }
 });
 
-const TeaCenterIssueSchema = new mongoose.Schema({
+const guideIssueSchema = new mongoose.Schema({
     date: { 
         type: Date, 
         required: true 
@@ -32,21 +32,15 @@ const TeaCenterIssueSchema = new mongoose.Schema({
         type: Number, 
         required: true 
     },
-    issueItems: [issueItemSchema],
+    issueItems: [guideIssueItemSchema],
     
-    // Added tracking fields for edits
-    updatedBy: { 
-        type: String, 
-        default: '' 
-    },
-    editorName: { 
-        type: String, 
-        default: '' 
-    }
+    // Optional: useful if you are tracking edits/creators
+    // createdBy: { type: String },
+    updatedBy: { type: String }
 }, { 
     timestamps: true 
 });
 
-const TeaCenterIssue = mongoose.model('TeaCenterIssue', TeaCenterIssueSchema);
+const GuideIssue = mongoose.model('GuideIssue', guideIssueSchema);
 
-export default TeaCenterIssue;
+export default GuideIssue;

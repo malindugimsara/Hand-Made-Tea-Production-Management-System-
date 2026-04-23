@@ -20,6 +20,7 @@ import teaCenterIssueRouter from './Packing/Routes/TeaCenterIssueRouter.js';
 
 import packingTransferRouter from './Packing/Routes/packingTransferRouter.js';
 import handmadeTransferRouter from './router/handmadeTransferRouter.js';
+import guideIssueRouter from './Packing/Routes/guideIssueRouter.js';
 
 dotenv.config();
 const app = express();
@@ -59,7 +60,7 @@ app.use('/api/handmade/transfers', handmadeTransferRouter);
 app.use('/api/local-sales', localSaleRouter);
 app.use('/api/tea-center-issues', teaCenterIssueRouter);
 app.use('/api/packing/transfers', packingTransferRouter);
-
+app.use('/api/guide-issues', guideIssueRouter);
 
 
 app.listen(3000, () => {

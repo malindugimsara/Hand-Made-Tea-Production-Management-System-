@@ -1,13 +1,17 @@
 import express from 'express';
 import {
     createTeaCenterIssue,
-    getTeaCenterIssues
+    getTeaCenterIssues,
+    updateTeaCenterIssue
 } from '../controllers/TeaCenterIssueController.js';
 
 const teaCenterIssueRouter = express.Router();
 
 teaCenterIssueRouter.route('/')
     .post(createTeaCenterIssue)
-    .get(getTeaCenterIssues);
+    .get(getTeaCenterIssues)
+
+teaCenterIssueRouter.route('/:id')
+.put(updateTeaCenterIssue);
 
 export default teaCenterIssueRouter;

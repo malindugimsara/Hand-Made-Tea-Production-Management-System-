@@ -87,7 +87,16 @@ const DATA = {
       items: [
         { title: 'Tea Center Record Entry', url: '/packing/tea-center-record-entry', roles: ['Admin', 'Packing Officer'] },
         { title: 'Tea Center Record View', url: '/packing/tea-center-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
-
+      ],
+    },
+    {
+      title: 'Guide Issues',
+      icon: Sprout ,
+      items: [
+        { title: 'Guide Issues Record Entry', url: '/packing/guide-issues-record-entry', roles: ['Admin', 'Packing Officer'] },
+        { title: 'Guide Issues Record View', url: '/packing/guide-issues-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+      ],
+    },
     {
       title: 'Trans In',
       icon: Sprout ,
