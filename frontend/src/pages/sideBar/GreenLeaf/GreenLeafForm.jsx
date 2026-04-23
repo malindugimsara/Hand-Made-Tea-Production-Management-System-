@@ -663,6 +663,7 @@ export default function GreenLeafForm() {
                 fetchInitialData();
                 fetchMergedRecords();
             }, 1000);
+            navigation('/view-green-leaf');
 
         } catch (error) {
             playErrorSound();
@@ -992,7 +993,9 @@ export default function GreenLeafForm() {
                                         <div>
                                             <label className={labelStyles}>Rolling Method</label>
                                             <select name="rollingType" value={formData.rollingType} onChange={handleInputChange} className={inputStyles}>
-                                                <option value="Machine Rolling">Machine</option>
+                                                <option value="Machine Rolling1">M/R 1</option>
+                                                <option value="Machine Rolling2">M/R 2</option>
+                                                <option value="Machine Rolling3">M/R 3</option>
                                                 <option value="Hand Rolling">Hand Rolled</option>
                                                 <option value="Other">Other</option>
                                             </select>
