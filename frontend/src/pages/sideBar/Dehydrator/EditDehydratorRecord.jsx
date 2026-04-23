@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
-import { Fan, Zap, Clock, ArrowLeft, Scale, Droplets, Users, Banknote } from "lucide-react"; 
+import toast from 'react-hot-toast';
+import { Fan, Zap, Clock, ArrowLeft, Scale, Droplets, Users, Banknote, Tag, PlusCircle, X } from "lucide-react"; 
 import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function EditDehydratorRecord() {
@@ -13,17 +13,18 @@ export default function EditDehydratorRecord() {
 
     const [formData, setFormData] = useState({
         date: '',
-        trial: '',
         meterStart: '',
         meterEnd: '',
         timePeriodHours: '',
-        startWeight: '',
-        endWeight: '',
         labourHours: '',
         labourCostPer8Hours: '', 
-        moisturePercentage: '',
         electricityRate: ''
     });
+
+    // Dynamic State for Multiple Trials & Moisture Details
+    const [trialsList, setTrialsList] = useState([
+        { id: Date.now(), trialName: '', startWeight: '', endWeight: '', moisturePercentage: '' }
+    ]);
 
     useEffect(() => {
         if (location.state && location.state.recordData) {
@@ -31,24 +32,58 @@ export default function EditDehydratorRecord() {
             setRecordId(data._id);
             setFormData({
                 date: data.date || '',
-                trial: data.trial || '',
                 meterStart: data.meterStart || '',
                 meterEnd: data.meterEnd || '',
                 timePeriodHours: data.timePeriodHours || data.timePeriod || '', 
-                startWeight: data.startWeight || '',
-                endWeight: data.endWeight || '',
                 labourHours: data.labourHours || '',
                 labourCostPer8Hours: data.labourCostPer8Hours || '',
-                moisturePercentage: data.moisturePercentage || '',
                 electricityRate: data.electricityRate || ''
             });
+
+            // Handle legacy single trial records OR new multi-trial records
+            if (data.trialsData && data.trialsData.length > 0) {
+                setTrialsList(data.trialsData.map((t, index) => ({ ...t, id: t._id || Date.now() + index })));
+            } else if (data.trials && data.trials.length > 0) {
+                setTrialsList(data.trials.map((t, index) => ({ ...t, id: t._id || Date.now() + index })));
+            } else {
+                setTrialsList([{
+                    id: Date.now(),
+                    trialName: data.trial || '',
+                    startWeight: data.startWeight || '',
+                    endWeight: data.endWeight || '',
+                    moisturePercentage: data.moisturePercentage || ''
+                }]);
+            }
         } else {
             toast.error("No record data found to edit.");
             navigate(-1); 
         }
     }, [location, navigate]);
 
+    // DYNAMIC FIELD HANDLERS
+    const handleAddTrialRow = () => {
+        setTrialsList([...trialsList, { id: Date.now(), trialName: '', startWeight: '', endWeight: '', moisturePercentage: '' }]);
+    };
+
+    const handleRemoveTrialRow = (idToRemove) => {
+        if (trialsList.length === 1) return; 
+        setTrialsList(trialsList.filter(row => row.id !== idToRemove));
+    };
+
+    const handleTrialChange = (id, field, value) => {
+        if (field !== 'trialName' && value !== '' && (Number(value) < 0 || value.includes('-'))) {
+            return;
+        }
+
+        setTrialsList(trialsList.map(row => 
+            row.id === id ? { ...row, [field]: value } : row
+        ));
+    };
+
     // Auto-Calculations for UI display
+    const totalStartWeight = trialsList.reduce((sum, row) => sum + (Number(row.startWeight) || 0), 0);
+    const totalEndWeight = trialsList.reduce((sum, row) => sum + (Number(row.endWeight) || 0), 0);
+
     const totalUnits = (Number(formData.meterEnd) || 0) - (Number(formData.meterStart) || 0);
     
     const calculatedLabourCost = formData.labourCostPer8Hours && formData.labourHours
@@ -63,7 +98,7 @@ export default function EditDehydratorRecord() {
         const { name, value } = e.target;
 
         // Prevent negative values for numeric fields
-        const numericFields = ['meterStart', 'meterEnd', 'timePeriodHours', 'startWeight', 'endWeight', 'labourHours', 'labourCostPer8Hours', 'moisturePercentage', 'electricityRate'];
+        const numericFields = ['meterStart', 'meterEnd', 'timePeriodHours', 'labourHours', 'labourCostPer8Hours', 'electricityRate'];
         if (numericFields.includes(name)) {
             if (value !== '' && (Number(value) < 0 || value.includes('-'))) {
                 return; 
@@ -94,6 +129,13 @@ export default function EditDehydratorRecord() {
             return;
         }
 
+        const hasEmptyTrial = trialsList.some(row => !row.trialName || row.startWeight === '' || row.endWeight === '' || row.moisturePercentage === '');
+        if (hasEmptyTrial) {
+            toast.error("Please fill out all Trial & Moisture details completely!");
+            setShowSpinner(false);
+            return;
+        }
+
         const toastId = toast.loading('Updating dehydrator record...');
 
         try {
@@ -102,21 +144,20 @@ export default function EditDehydratorRecord() {
 
             const payload = {
                 date: formData.date,
-                trial: formData.trial,
                 meterStart: mStart,
                 meterEnd: mEnd,
                 totalUnits: totalUnits,
                 timePeriodHours: time,
-                startWeight: Number(formData.startWeight),
-                endWeight: Number(formData.endWeight),
                 labourHours: Number(formData.labourHours),
                 labourCostPer8Hours: Number(formData.labourCostPer8Hours),
-                moisturePercentage: Number(formData.moisturePercentage),
+                totalLabourCost: calculatedLabourCost,
                 electricityRate: Number(formData.electricityRate),
-                updatedBy: currentUsername // <-- This updates the "Edited by" column in your table!
+                totalElectricityCost: calculatedElectricityCost,
+                trialsData: trialsList.map(({ id, ...rest }) => rest), // Strip out the UI tracking IDs
+                updatedBy: currentUsername 
             };
 
-            // UPDATE request to Backend (PUT method)
+            // UPDATE request to Backend
             const response = await fetch(`${BACKEND_URL}/api/dehydrator/${recordId}`, {
                 method: 'PUT',
                 headers: { 
@@ -147,7 +188,6 @@ export default function EditDehydratorRecord() {
 
     return (
         <div className="p-8 max-w-4xl mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
-  
             
             {/* Back Button */}
             <button 
@@ -166,7 +206,7 @@ export default function EditDehydratorRecord() {
                 
                 {/* General Info Section */}
                 <div className="mb-8 pb-6 border-b border-gray-100 dark:border-zinc-800">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 gap-6">
                         <div>
                             <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wider">Date</label>
                             <input 
@@ -175,76 +215,117 @@ export default function EditDehydratorRecord() {
                                 value={formData.date} 
                                 onChange={handleInputChange} 
                                 required 
-                                className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wider flex items-center gap-2">
-                                <Fan size={18} className="text-[#1B6A31] dark:text-green-500" /> Trial (Item Name)
-                            </label>
-                            <input 
-                                type="text" 
-                                name="trial" 
-                                value={formData.trial} 
-                                onChange={handleInputChange} 
-                                placeholder="e.g., Mango, Kiwi, Papaya" 
-                                required 
-                                className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                className="w-full md:w-1/2 p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                             />
                         </div>
                     </div>
                 </div>
 
-                {/* Weight & Moisture Section */}
+                {/* DYNAMIC TRIALS & MOISTURE SECTION */}
                 <div className="mb-8 bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-800/50 rounded-lg p-6 transition-colors duration-300">
-                    <h3 className="text-lg font-bold text-teal-700 dark:text-teal-500 mb-4 flex items-center gap-2">
-                        <Scale size={20} /> Weight & Moisture Details
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Start Weight (kg)</label>
-                            <input 
-                                type="number" 
-                                step="any"
-                                min="0"
-                                name="startWeight" 
-                                value={formData.startWeight} 
-                                onChange={handleInputChange} 
-                                onWheel={(e) => e.target.blur()} 
-                                required 
-                                className="w-full p-3 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-teal-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
-                            />
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-bold text-teal-700 dark:text-teal-500 flex items-center gap-2">
+                            <Scale size={20} /> Items & Moisture Details
+                        </h3>
+                        <button 
+                            type="button" 
+                            onClick={handleAddTrialRow}
+                            className="text-sm font-bold bg-teal-100 hover:bg-teal-200 dark:bg-teal-900/40 dark:hover:bg-teal-800/60 text-teal-700 dark:text-teal-400 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+                        >
+                            <PlusCircle size={16} /> Add Item
+                        </button>
+                    </div>
+
+                    <div className="space-y-6">
+                        {trialsList.map((row) => (
+                            <div key={row.id} className="relative bg-white dark:bg-zinc-950 p-4 rounded-xl border border-teal-100 dark:border-teal-900/40 shadow-sm">
+                                
+                                {/* Remove Button */}
+                                {trialsList.length > 1 && (
+                                    <button 
+                                        type="button"
+                                        onClick={() => handleRemoveTrialRow(row.id)}
+                                        className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/50 dark:hover:bg-red-800 text-red-600 dark:text-red-400 rounded-full p-1.5 transition-colors shadow-sm z-10"
+                                        title="Remove Item"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                )}
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <div className="lg:col-span-1">
+                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
+                                            <Tag size={12} className="text-teal-600 dark:text-teal-400"/> Item Name
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            value={row.trialName}
+                                            onChange={(e) => handleTrialChange(row.id, 'trialName', e.target.value)}
+                                            required
+                                            placeholder="e.g., Mango"
+                                            className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-teal-400 outline-none bg-gray-50 dark:bg-zinc-900 dark:text-gray-100 transition-colors"
+                                        />
+                                    </div>
+
+                                    <div className="lg:col-span-1">
+                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Start Wt (kg)</label>
+                                        <input 
+                                            type="number" 
+                                            step="any"
+                                            min="0"
+                                            value={row.startWeight} 
+                                            onChange={(e) => handleTrialChange(row.id, 'startWeight', e.target.value)}
+                                            onWheel={(e) => e.target.blur()} 
+                                            required 
+                                            placeholder="50.5"
+                                            className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-teal-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                        />
+                                    </div>
+
+                                    <div className="lg:col-span-1">
+                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">End Wt (kg)</label>
+                                        <input 
+                                            type="number" 
+                                            step="any"
+                                            min="0"
+                                            value={row.endWeight} 
+                                            onChange={(e) => handleTrialChange(row.id, 'endWeight', e.target.value)}
+                                            onWheel={(e) => e.target.blur()} 
+                                            required 
+                                            placeholder="12.2"
+                                            className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-teal-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                        />
+                                    </div>
+
+                                    <div className="lg:col-span-1">
+                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
+                                            Moisture <Droplets size={12} className="text-teal-600 dark:text-teal-400"/> (%)
+                                        </label>
+                                        <input 
+                                            type="number" 
+                                            step="any"
+                                            min="0"
+                                            max="100"
+                                            value={row.moisturePercentage} 
+                                            onChange={(e) => handleTrialChange(row.id, 'moisturePercentage', e.target.value)}
+                                            onWheel={(e) => e.target.blur()} 
+                                            required 
+                                            placeholder="4.5"
+                                            className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-teal-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Batch Totals */}
+                    <div className="mt-4 flex flex-col sm:flex-row justify-end gap-3 border-t border-teal-200/50 dark:border-teal-800/30 pt-4">
+                        <div className="text-sm font-medium text-teal-800 dark:text-teal-300">
+                            Total Start: <span className="font-bold">{totalStartWeight.toFixed(2)} kg</span>
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">End Weight (kg)</label>
-                            <input 
-                                type="number" 
-                                step="any"
-                                min="0"
-                                name="endWeight" 
-                                value={formData.endWeight} 
-                                onChange={handleInputChange} 
-                                onWheel={(e) => e.target.blur()} 
-                                required 
-                                className="w-full p-3 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-teal-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
-                                Moisture <Droplets size={12} className="text-teal-600 dark:text-teal-400"/> (%)
-                            </label>
-                            <input 
-                                type="number" 
-                                step="any"
-                                min="0"
-                                max="100"
-                                name="moisturePercentage" 
-                                value={formData.moisturePercentage} 
-                                onChange={handleInputChange} 
-                                onWheel={(e) => e.target.blur()} 
-                                required 
-                                className="w-full p-3 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-teal-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
-                            />
+                        <div className="text-sm font-medium text-teal-800 dark:text-teal-300">
+                            Total End: <span className="font-bold">{totalEndWeight.toFixed(2)} kg</span>
                         </div>
                     </div>
                 </div>
