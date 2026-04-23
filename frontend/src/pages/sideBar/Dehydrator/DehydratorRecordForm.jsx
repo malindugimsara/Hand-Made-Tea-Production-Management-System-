@@ -16,7 +16,7 @@ export default function DehydratorRecordForm() {
         meterEnd: '',
         timePeriod: '',
         labourHours: '',
-        labourCostPer8Hours: '',
+        labourCostPer8Hours: '1350',
         electricityRate: '20' 
     });
 

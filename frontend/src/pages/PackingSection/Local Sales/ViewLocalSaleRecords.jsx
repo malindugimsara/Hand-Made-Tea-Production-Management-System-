@@ -18,7 +18,7 @@ import {
 
 import { useNavigate } from 'react-router-dom';
 
-// Exact Colors based on your image
+// Exact Colors based on your image (Untouched)
 const getTeaColor = (product) => {
     const p = product.toLowerCase();
     if (p === 'bopf') return 'bg-[#fde047] text-yellow-900 border-yellow-500'; 
@@ -36,17 +36,17 @@ const getTeaColor = (product) => {
 
 const getPdfTeaColor = (product) => {
     const p = product.toLowerCase();
-    if (p === 'bopf') return { fillColor: [253, 224, 71], textColor: [113, 63, 18] }; // Yellow
-    if (p.includes('bopf sp')) return { fillColor: [190, 242, 100], textColor: [77, 124, 15] }; // Lime
-    if (p === 'dust') return { fillColor: [59, 130, 246], textColor: [255, 255, 255] }; // Blue
-    if (p === 'dust 1') return { fillColor: [6, 182, 212], textColor: [255, 255, 255] }; // Cyan
-    if (p.includes('premium')) return { fillColor: [244, 114, 182], textColor: [255, 255, 255] }; // Pink
-    if (p.includes('awuru')) return { fillColor: [192, 132, 252], textColor: [255, 255, 255] }; // Purple
-    if (p === 't/b 25') return { fillColor: [239, 68, 68], textColor: [255, 255, 255] }; // Red
-    if (p === 't/b 100') return { fillColor: [120, 53, 15], textColor: [255, 255, 255] }; // Brown
-    if (p.includes('green')) return { fillColor: [74, 222, 128], textColor: [20, 83, 45] }; // Green
-    if (p.includes('labour')) return { fillColor: [229, 231, 235], textColor: [31, 41, 55] }; // Gray
-    return { fillColor: [244, 244, 245], textColor: [31, 41, 55] }; // Default Gray
+    if (p === 'bopf') return { fillColor: [253, 224, 71], textColor: [113, 63, 18] }; 
+    if (p.includes('bopf sp')) return { fillColor: [190, 242, 100], textColor: [77, 124, 15] }; 
+    if (p === 'dust') return { fillColor: [59, 130, 246], textColor: [255, 255, 255] }; 
+    if (p === 'dust 1') return { fillColor: [6, 182, 212], textColor: [255, 255, 255] }; 
+    if (p.includes('premium')) return { fillColor: [244, 114, 182], textColor: [255, 255, 255] }; 
+    if (p.includes('awuru')) return { fillColor: [192, 132, 252], textColor: [255, 255, 255] }; 
+    if (p === 't/b 25') return { fillColor: [239, 68, 68], textColor: [255, 255, 255] }; 
+    if (p === 't/b 100') return { fillColor: [120, 53, 15], textColor: [255, 255, 255] }; 
+    if (p.includes('green')) return { fillColor: [74, 222, 128], textColor: [20, 83, 45] }; 
+    if (p.includes('labour')) return { fillColor: [229, 231, 235], textColor: [31, 41, 55] }; 
+    return { fillColor: [244, 244, 245], textColor: [31, 41, 55] }; 
 };
 
 // All Tea Types for the filter dropdown
@@ -160,7 +160,6 @@ export default function ViewLocalSaleRecords() {
             productSummaryMap[item.product] += Number(item.totalQtyKg) || 0;
         });
     });
-    // Sort array descending by qty
     const summaryArray = Object.entries(productSummaryMap).sort((a, b) => b[1] - a[1]);
 
     const handleEditClick = (record) => {
@@ -210,10 +209,10 @@ export default function ViewLocalSaleRecords() {
 
         pdfSortedRecords.forEach(record => {
             const baseDate = new Date(record.date).toISOString().split('T')[0];
-            const pdfDateCell = record.isEdited ? `${baseDate}\n(Edited)` : baseDate;
+            // Include Edited By details in PDF
+            const pdfDateCell = record.isEdited ? `${baseDate}\n(Edited by ${record.editedBy} on ${record.lastUpdatedDate})` : baseDate;
 
             record.itemsArray.forEach((item, index) => {
-                // Only show Date and Daily Totals on the first item of the day to keep it clean
                 const isFirst = index === 0;
 
                 tableRows.push([
@@ -231,12 +230,11 @@ export default function ViewLocalSaleRecords() {
             });
         });
 
-        // Add the Monthly Total Row at the bottom
         tableRows.push([
             { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' } },
             "-", "-", "-", "-",
             { content: grandTotalBoxes.toString(), styles: { fontStyle: 'bold' } },
-            { content: `${grandTotalQty.toFixed(2)} kg`, styles: { fontStyle: 'bold', textColor: [234, 88, 12] } }
+            { content: `${grandTotalQty.toFixed(2)} kg`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } } // Teal color
         ]);
 
         return tableRows;
@@ -245,17 +243,16 @@ export default function ViewLocalSaleRecords() {
     const uniqueCode = `PS/LSR/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
 
     return (
-        <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
+        <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen  transition-colors duration-300">
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-green-600 dark:text-green-500 flex items-center gap-2">
+                    <h2 className="text-2xl font-bold text-[#0f766e] dark:text-teal-400 flex items-center gap-2">
                         <ShoppingCart size={24} /> Local Sale Records
                     </h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Overview of daily local product issues and sales</p>
                 </div>
                 
                 <div className="flex items-center gap-3">
-                    {/* PDF DOWNLOADER ADDED HERE */}
                     <PDFDownloader 
                         title="Local Sale Records"
                         subtitle={`Filters -> Month: ${filterMonth || 'All'} | Date: ${startDate || 'All'} to ${endDate || 'All'} | Product: ${productFilter || 'All'}`}
@@ -266,7 +263,7 @@ export default function ViewLocalSaleRecords() {
                         orientation="portrait" 
                         disabled={loading || filteredRecords.length === 0}
                     />
-                    <button onClick={fetchRecords} disabled={loading} className={`px-4 py-2.5 bg-white dark:bg-zinc-900 text-orange-600 dark:text-orange-500 border border-orange-300 dark:border-orange-800 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-orange-50 dark:hover:bg-zinc-800'}`}>
+                    <button onClick={fetchRecords} disabled={loading} className={`px-4 py-2.5 bg-white dark:bg-zinc-900 text-[#0f766e] dark:text-teal-400 border border-[#0d9488] dark:border-teal-800 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-50 dark:hover:bg-zinc-800'}`}>
                         <RefreshCw size={18} className={loading ? 'animate-spin' : ''} /> Sync Data
                     </button>
                 </div>
@@ -277,15 +274,15 @@ export default function ViewLocalSaleRecords() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Month</label>
-                        <input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-500 transition-colors" />
+                        <input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors" />
                     </div>
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">From Date</label>
-                        <input type="date" value={startDate} onChange={handleStartDateChange} className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-500 transition-colors" />
+                        <input type="date" value={startDate} onChange={handleStartDateChange} className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors" />
                     </div>
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">To Date</label>
-                        <input type="date" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} disabled={!startDate} className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-500 transition-colors disabled:opacity-50" />
+                        <input type="date" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} disabled={!startDate} className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors disabled:opacity-50" />
                     </div>
                     
                     {/* CUSTOM SCROLLABLE AUTOCOMPLETE DROPDOWN */}
@@ -300,7 +297,7 @@ export default function ViewLocalSaleRecords() {
                                 setIsDropdownOpen(true);
                             }} 
                             onFocus={() => setIsDropdownOpen(true)}
-                            className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-orange-500 transition-colors" 
+                            className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors" 
                         />
                         {isDropdownOpen && (
                             <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
@@ -313,7 +310,7 @@ export default function ViewLocalSaleRecords() {
                                             setProductFilter(tea);
                                             setIsDropdownOpen(false);
                                         }}
-                                        className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex items-center gap-2"
+                                        className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-teal-50 dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex items-center gap-2"
                                     >
                                         <div className={`w-3 h-3 rounded-full ${getTeaColor(tea)} border border-white/20`}></div> {tea}
                                     </li>
@@ -337,7 +334,7 @@ export default function ViewLocalSaleRecords() {
                 <div className="xl:col-span-3 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden self-start w-full transition-colors duration-300">
                     {loading ? (
                         <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center h-64">
-                            <div className="w-8 h-8 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mb-4"></div>
+                            <div className="w-8 h-8 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mb-4"></div>
                             <p className="font-medium">Loading sales records...</p>
                         </div>
                     ) : (
@@ -361,6 +358,13 @@ export default function ViewLocalSaleRecords() {
                                             <tr key={record._id} className="hover:bg-gray-50/80 dark:hover:bg-zinc-800/50 transition-colors group">
                                                 <td className="px-4 py-3 border-r border-gray-100 dark:border-zinc-800 align-top">
                                                     <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
+                                                    {/* Edited Username Display */}
+                                                    {record.isEdited && (
+                                                        <div className="mt-1.5 text-[10px] bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-800/50 px-2 py-1 rounded font-medium w-max leading-tight">
+                                                            <span className="font-bold">Edited by {record.editedBy}</span><br />
+                                                            <span className="opacity-80">{record.lastUpdatedDate}</span>
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 
                                                 {/* Products with Colors */}
@@ -394,9 +398,9 @@ export default function ViewLocalSaleRecords() {
                                                 {!isViewer && (
                                                     <td className="px-3 py-3 text-center align-top pt-3">
                                                         <div className="flex items-center justify-center gap-1">
-                                                            <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-orange-600 rounded"><MdOutlineEdit size={20} /></button>
+                                                            <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-teal-600 rounded transition-colors"><MdOutlineEdit size={20} /></button>
                                                             <AlertDialog>
-                                                                <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 rounded"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
+                                                                <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 rounded transition-colors"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
                                                                 <AlertDialogContent className="bg-white rounded-2xl max-w-md">
                                                                     <AlertDialogHeader>
                                                                         <AlertDialogTitle className="text-xl font-bold">Delete Record</AlertDialogTitle>
@@ -404,7 +408,7 @@ export default function ViewLocalSaleRecords() {
                                                                     </AlertDialogHeader>
                                                                     <AlertDialogFooter>
                                                                         <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
-                                                                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white">Delete</AlertDialogAction>
+                                                                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700">Delete</AlertDialogAction>
                                                                     </AlertDialogFooter>
                                                                 </AlertDialogContent>
                                                             </AlertDialog>
@@ -418,11 +422,11 @@ export default function ViewLocalSaleRecords() {
                                     )}
                                 </tbody>
                                 {filteredRecords.length > 0 && (
-                                    <tfoot className="bg-gray-100/90 dark:bg-zinc-900/90 border-t-2 border-gray-200">
+                                    <tfoot className="bg-gray-100/90 dark:bg-zinc-900/90 border-t-2 border-gray-200 dark:border-zinc-700">
                                         <tr>
-                                            <td colSpan="5" className="px-4 py-4 text-right font-bold tracking-wider uppercase border-r border-gray-200">MONTHLY TOTAL</td>
-                                            <td className="px-3 py-4 text-center font-black text-xl border-r border-gray-200">{grandTotalBoxes}</td>
-                                            <td className="px-3 py-4 text-center font-black text-orange-600 text-xl border-r border-gray-200">{grandTotalQty.toFixed(2)} kg</td>
+                                            <td colSpan="5" className="px-4 py-4 text-right font-bold tracking-wider uppercase border-r border-gray-200 dark:border-zinc-800">MONTHLY TOTAL</td>
+                                            <td className="px-3 py-4 text-center font-black text-xl border-r border-gray-200 dark:border-zinc-800">{grandTotalBoxes}</td>
+                                            <td className="px-3 py-4 text-center font-black text-[#0f766e] dark:text-teal-500 text-xl border-r border-gray-200 dark:border-zinc-800">{grandTotalQty.toFixed(2)} kg</td>
                                             {!isViewer && <td></td>}
                                         </tr>
                                     </tfoot>
@@ -437,7 +441,7 @@ export default function ViewLocalSaleRecords() {
                     <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden sticky top-8">
                         <div className="bg-gray-100 dark:bg-zinc-800 px-4 py-3 border-b border-gray-200 dark:border-zinc-600">
                             <h3 className="font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                                <Weight size={18} className="text-orange-600" /> Summary By Product
+                                <Weight size={18} className="text-[#0d9488] dark:text-teal-500" /> Summary By Product
                             </h3>
                         </div>
                         <div className="p-4">

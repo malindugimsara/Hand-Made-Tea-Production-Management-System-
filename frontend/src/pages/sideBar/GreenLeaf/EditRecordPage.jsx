@@ -471,7 +471,9 @@ export default function EditRecordPage() {
                                     onChange={handleInputChange} 
                                     className={inputStyles}
                                 >
-                                    <option value="Machine Rolling">Machine Rolling</option>
+                                    <option value="Machine Rolling1">M/R 1</option>
+                                    <option value="Machine Rolling2">M/R 2</option>
+                                    <option value="Machine Rolling3">M/R 3</option>
                                     <option value="Hand Rolling">Hand Rolled</option>
                                     <option value="Other">Other</option>
                                 </select>

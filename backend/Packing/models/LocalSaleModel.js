@@ -21,7 +21,8 @@ const saleItemSchema = new mongoose.Schema({
         type: Number,
         required: true,
         min: 0
-    }
+    },
+    updatedBy: { type: String, default: '' }
 });
 
 // Main schema for the daily local sale record
@@ -45,7 +46,8 @@ const localSaleSchema = new mongoose.Schema({
         type: [saleItemSchema],
         required: true,
         validate: [v => v.length > 0, 'A sale record must contain at least one item.']
-    }
+    },
+    updatedBy: { type: String, default: '' }
 }, {
     // Automatically adds createdAt and updatedAt fields
     timestamps: true 
