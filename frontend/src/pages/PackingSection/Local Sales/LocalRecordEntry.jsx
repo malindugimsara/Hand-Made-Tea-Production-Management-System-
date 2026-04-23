@@ -40,13 +40,26 @@ const getPdfTeaColor = (product) => {
 const TEA_TYPES = [
     "BOPF", "BOPF SP", "OPA", "OP 1", "OP", "Pekoe", "BOP", "FBOP", 
     "FF SP", "FF EX SP", "Dust", "Dust 1", "Premium", "Green tea", 
-    "Green tea (25)", "New edition", "Pitigala tea bags(100)", 
-    "Pitigala tea bags(50)", "T/B 25", "T/B 100", "Pitigala tea 400g", 
-    "Awuru pack", "Labour drinking tea"
+    "Green tea bag (25)", "New edition", "Pitigala tea bags", 
+    "Pitigala tea 400g",
+    "Awurudu Special", "Labour drinking tea"
 ];
 
-// Special sizes for BOPF
-const BOPF_SIZES = ["0.4", "0.2", "0.1"];
+// Helper function to map Tea Types to predefined Pack Sizes
+const getPackSizes = (product) => {
+    if (!product) return null;
+    const p = product.toLowerCase();
+    
+    if (p === 'bopf') return ["0.4", "0.2", "0.1"];
+    if (p.includes('bopf sp')) return ["0.4", "0.2"];
+    if (p.includes('premium')) return ["0.4", "0.2"];
+    if (p.includes('awuru')) return ["0.3"];
+    if (p.includes('pitigala tea bags')) return ["0.025", "0.05", "0.1"];
+    if (p.includes('green tea bag (25)') || p.includes('green tea bags')) return ["0.025"];
+    if (p.includes('green tea')) return ["0.2"]; // General Green Tea
+    
+    return null; // Return null if no specific sizes are predefined (allows free typing)
+};
 
 export default function LocalRecordEntry() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -144,9 +157,19 @@ export default function LocalRecordEntry() {
             return;
         }
         
-        setItemsList(itemsList.map(row => 
-            row.id === id ? { ...row, [field]: value } : row
-        ));
+        setItemsList(itemsList.map(row => {
+            if (row.id === id) {
+                // If Product changed, auto-clear pack size if it no longer matches the new predefined options
+                if (field === 'product') {
+                    const availableSizes = getPackSizes(value);
+                    if (availableSizes && !availableSizes.includes(row.packSizeKg)) {
+                        return { ...row, [field]: value, packSizeKg: '' };
+                    }
+                }
+                return { ...row, [field]: value };
+            }
+            return row;
+        }));
     };
 
     const handleInputChange = (e) => {
@@ -237,7 +260,7 @@ export default function LocalRecordEntry() {
             setPendingRecords([]);
             
             setTimeout(() => {
-                navigate('/packing/view-local-sales');
+                navigate('/packing/local-record-view');
             }, 1000);
 
         } catch (error) {
@@ -263,7 +286,7 @@ export default function LocalRecordEntry() {
     };
 
     return (
-        <div className="p-8 max-w-[1400px] mx-auto font-sans  dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
+        <div className="p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
             
             <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
@@ -271,7 +294,18 @@ export default function LocalRecordEntry() {
                     <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Issue record for daily local product sales</p>
                 </div>
 
-                
+                <div className="flex items-center gap-3">
+                    <PDFDownloader 
+                        title="Pending Issue Record - Local Sale"
+                        subtitle={`Date Generated: ${new Date().toISOString().split('T')[0]}`}
+                        headers={["Date", "Product", "Pack Size", "No. of Boxes", "Qty (Kg)"]}
+                        data={getPdfData()}
+                        uniqueCode={uniqueCode}
+                        fileName={`Pending_Local_Sales_${new Date().toISOString().split('T')[0]}.pdf`}
+                        orientation="portrait" 
+                        disabled={pendingRecords.length === 0}
+                    />
+                </div>
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -309,128 +343,131 @@ export default function LocalRecordEntry() {
                             </div>
 
                             <div className="space-y-6">
-                                {itemsList.map((row) => (
-                                    <div key={row.id} className="relative bg-white dark:bg-zinc-950 p-4 rounded-xl border border-teal-100 dark:border-teal-900/40 shadow-sm">
-                                        
-                                        {itemsList.length > 1 && (
-                                            <button 
-                                                type="button"
-                                                onClick={() => handleRemoveItemRow(row.id)}
-                                                className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/50 dark:hover:bg-red-800 text-red-600 dark:text-red-400 rounded-full p-1.5 transition-colors shadow-sm z-10"
-                                            >
-                                                <X size={14} />
-                                            </button>
-                                        )}
+                                {itemsList.map((row) => {
+                                    const availableSizes = getPackSizes(row.product);
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    return (
+                                        <div key={row.id} className="relative bg-white dark:bg-zinc-950 p-4 rounded-xl border border-teal-100 dark:border-teal-900/40 shadow-sm">
                                             
-                                            {/* Custom Product Autocomplete Input */}
-                                            <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`product-${row.id}`] = el}>
-                                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
-                                                    <Tag size={12} className="text-[#0d9488] dark:text-teal-400"/> Product
-                                                </label>
-                                                <input 
-                                                    type="text" 
-                                                    placeholder="Type or select..."
-                                                    value={row.product}
-                                                    onChange={(e) => handleItemChange(row.id, 'product', e.target.value)}
-                                                    onFocus={() => setOpenDropdownId(`product-${row.id}`)}
-                                                    required
-                                                    className={`w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none transition-colors ${row.product ? getTeaColor(row.product) : 'bg-white dark:bg-zinc-950 dark:text-gray-100'}`}
-                                                />
+                                            {itemsList.length > 1 && (
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => handleRemoveItemRow(row.id)}
+                                                    className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/50 dark:hover:bg-red-800 text-red-600 dark:text-red-400 rounded-full p-1.5 transition-colors shadow-sm z-10"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            )}
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                                 
-                                                {/* Dropdown Menu - Product */}
-                                                {openDropdownId === `product-${row.id}` && (
-                                                    <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
-                                                        {TEA_TYPES
-                                                            .filter(tea => tea.toLowerCase().includes(row.product.toLowerCase()))
-                                                            .map((tea, idx) => (
-                                                            <li 
-                                                                key={idx} 
-                                                                onMouseDown={(e) => e.preventDefault()} 
-                                                                onClick={() => {
-                                                                    handleItemChange(row.id, 'product', tea);
-                                                                    setOpenDropdownId(null);
-                                                                }}
-                                                                className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex items-center gap-2"
-                                                            >
-                                                                <div className={`w-3 h-3 rounded-full ${getTeaColor(tea)} border border-white/20`}></div> {tea}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                )}
-                                            </div>
+                                                {/* Custom Product Autocomplete Input */}
+                                                <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`product-${row.id}`] = el}>
+                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
+                                                        <Tag size={12} className="text-[#0d9488] dark:text-teal-400"/> Product
+                                                    </label>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Type or select..."
+                                                        value={row.product}
+                                                        onChange={(e) => handleItemChange(row.id, 'product', e.target.value)}
+                                                        onFocus={() => setOpenDropdownId(`product-${row.id}`)}
+                                                        required
+                                                        className={`w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none transition-colors ${row.product ? getTeaColor(row.product) : 'bg-white dark:bg-zinc-950 dark:text-gray-100'}`}
+                                                    />
+                                                    
+                                                    {openDropdownId === `product-${row.id}` && (
+                                                        <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
+                                                            {TEA_TYPES
+                                                                .filter(tea => tea.toLowerCase().includes(row.product.toLowerCase()))
+                                                                .map((tea, idx) => (
+                                                                <li 
+                                                                    key={idx} 
+                                                                    onMouseDown={(e) => e.preventDefault()} 
+                                                                    onClick={() => {
+                                                                        handleItemChange(row.id, 'product', tea);
+                                                                        setOpenDropdownId(null);
+                                                                    }}
+                                                                    className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex items-center gap-2"
+                                                                >
+                                                                    <div className={`w-3 h-3 rounded-full ${getTeaColor(tea)} border border-white/20`}></div> {tea}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    )}
+                                                </div>
 
-                                            {/* Pack Size Autocomplete Input */}
-                                            <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`size-${row.id}`] = el}>
-                                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Pack Size (Kg)</label>
-                                                <input 
-                                                    type="number" 
-                                                    step="any"
-                                                    min="0"
-                                                    value={row.packSizeKg} 
-                                                    onChange={(e) => handleItemChange(row.id, 'packSizeKg', e.target.value)}
-                                                    onFocus={() => {
-                                                        if (row.product.toLowerCase() === 'bopf') {
-                                                            setOpenDropdownId(`size-${row.id}`);
-                                                        }
-                                                    }}
-                                                    onWheel={(e) => e.target.blur()} 
-                                                    required 
-                                                    placeholder="e.g. 0.4"
-                                                    className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
-                                                />
-                                                
-                                                {/* Dropdown Menu - Pack Size (ONLY IF BOPF) */}
-                                                {openDropdownId === `size-${row.id}` && row.product.toLowerCase() === 'bopf' && (
-                                                    <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-hidden">
-                                                        {BOPF_SIZES.map((size, idx) => (
-                                                            <li 
-                                                                key={idx} 
-                                                                onMouseDown={(e) => e.preventDefault()} 
-                                                                onClick={() => {
-                                                                    handleItemChange(row.id, 'packSizeKg', size);
-                                                                    setOpenDropdownId(null);
-                                                                }}
-                                                                className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0"
-                                                            >
-                                                                {size} kg
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                )}
-                                            </div>
+                                                {/* Dynamic Pack Size Input */}
+                                                <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`size-${row.id}`] = el}>
+                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Pack Size (Kg)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        step="any"
+                                                        min="0"
+                                                        value={row.packSizeKg} 
+                                                        onChange={(e) => handleItemChange(row.id, 'packSizeKg', e.target.value)}
+                                                        onFocus={() => {
+                                                            if (availableSizes) {
+                                                                setOpenDropdownId(`size-${row.id}`);
+                                                            }
+                                                        }}
+                                                        onWheel={(e) => e.target.blur()} 
+                                                        required 
+                                                        placeholder="e.g. 0.4"
+                                                        className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                                    />
+                                                    
+                                                    {/* Dropdown Menu - Display only if predefined sizes exist */}
+                                                    {openDropdownId === `size-${row.id}` && availableSizes && (
+                                                        <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-hidden">
+                                                            {availableSizes.map((size, idx) => (
+                                                                <li 
+                                                                    key={idx} 
+                                                                    onMouseDown={(e) => e.preventDefault()} 
+                                                                    onClick={() => {
+                                                                        handleItemChange(row.id, 'packSizeKg', size);
+                                                                        setOpenDropdownId(null);
+                                                                    }}
+                                                                    className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0"
+                                                                >
+                                                                    {size} kg
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    )}
+                                                </div>
 
-                                            {/* Number of Boxes Input */}
-                                            <div className="lg:col-span-1">
-                                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">No. of Box/Packs</label>
-                                                <input 
-                                                    type="number" 
-                                                    step="1"
-                                                    min="0"
-                                                    value={row.numberOfBoxes} 
-                                                    onChange={(e) => handleItemChange(row.id, 'numberOfBoxes', e.target.value)}
-                                                    onWheel={(e) => e.target.blur()} 
-                                                    required 
-                                                    placeholder="e.g. 50"
-                                                    className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
-                                                />
-                                            </div>
+                                                {/* Number of Boxes Input */}
+                                                <div className="lg:col-span-1">
+                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">No. of Box/Packs</label>
+                                                    <input 
+                                                        type="number" 
+                                                        step="1"
+                                                        min="0"
+                                                        value={row.numberOfBoxes} 
+                                                        onChange={(e) => handleItemChange(row.id, 'numberOfBoxes', e.target.value)}
+                                                        onWheel={(e) => e.target.blur()} 
+                                                        required 
+                                                        placeholder="e.g. 50"
+                                                        className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                                    />
+                                                </div>
 
-                                            {/* Auto-Calculated Total Qty */}
-                                            <div className="lg:col-span-1">
-                                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
-                                                    Qty (Kg) <Weight size={12} className="text-[#0d9488] dark:text-teal-400"/>
-                                                </label>
-                                                <div className="w-full p-2.5 border border-teal-300 dark:border-teal-700/50 bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 font-bold rounded-md text-center transition-colors">
-                                                    {(Number(row.packSizeKg) * Number(row.numberOfBoxes)) > 0 
-                                                        ? (Number(row.packSizeKg) * Number(row.numberOfBoxes)).toFixed(2) 
-                                                        : "0.00"}
+                                                {/* Auto-Calculated Total Qty */}
+                                                <div className="lg:col-span-1">
+                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
+                                                        Qty (Kg) <Weight size={12} className="text-[#0d9488] dark:text-teal-400"/>
+                                                    </label>
+                                                    <div className="w-full p-2.5 border border-teal-300 dark:border-teal-700/50 bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 font-bold rounded-md text-center transition-colors">
+                                                        {(Number(row.packSizeKg) * Number(row.numberOfBoxes)) > 0 
+                                                            ? (Number(row.packSizeKg) * Number(row.numberOfBoxes)).toFixed(2) 
+                                                            : "0.00"}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
 
                             <div className="mt-4 flex flex-col sm:flex-row justify-end gap-6 border-t border-teal-200/50 dark:border-teal-800/30 pt-4">
