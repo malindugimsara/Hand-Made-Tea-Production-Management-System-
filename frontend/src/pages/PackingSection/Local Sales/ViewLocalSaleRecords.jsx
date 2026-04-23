@@ -331,7 +331,7 @@ export default function ViewLocalSaleRecords() {
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
                 
                 {/* LEFT: MAIN TABLE (Col Span 3) */}
-                <div className="xl:col-span-3 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden self-start w-full transition-colors duration-300">
+                <div className="xl:col-span-3 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden self-start w-full transition-colors duration-300">
                     {loading ? (
                         <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center h-64">
                             <div className="w-8 h-8 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mb-4"></div>
@@ -341,18 +341,18 @@ export default function ViewLocalSaleRecords() {
                         <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
                             <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
                                 <thead>
-                                    <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-800">
-                                        <th className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-800 align-bottom min-w-[140px]"><Calendar size={14} className="inline mr-1"/> Date</th>
-                                        <th className="px-4 py-3 font-bold text-[#0d9488] dark:text-teal-500 border-r border-gray-200 dark:border-zinc-800 bg-teal-50 dark:bg-teal-950/30 align-bottom min-w-[160px]"><Tag size={14} className="inline mr-1"/> Product</th>
-                                        <th className="px-4 py-3 font-bold text-teal-700 dark:text-teal-400 border-r border-gray-200 dark:border-zinc-800 bg-teal-50 dark:bg-teal-950/30 text-center"><Weight size={14} className="inline mr-1"/> (Kg)</th>
-                                        <th className="px-4 py-3 font-bold text-teal-700 dark:text-teal-400 border-r border-gray-200 dark:border-zinc-800 bg-teal-50 dark:bg-teal-950/30 text-center"><Package size={14} className="inline mr-1"/> Box/Packs</th>
-                                        <th className="px-4 py-3 font-bold text-teal-700 dark:text-teal-400 border-r border-gray-200 dark:border-zinc-800 bg-teal-50 dark:bg-teal-950/30 text-center"><Weight size={14} className="inline mr-1"/> Qty (Kg)</th>
-                                        <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-800 text-center bg-gray-100 dark:bg-zinc-800">Daily Boxes</th>
-                                        <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-800 text-center bg-gray-100 dark:bg-zinc-800">Daily Qty (Kg)</th>
+                                    <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-500">
+                                        <th className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-500 align-bottom min-w-[120px]"><Calendar size={14} className="inline mr-1"/> Date</th>
+                                        <th className="px-4 py-3 font-bold text-green-600 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 align-bottom min-w-[160px]"><Tag size={14} className="inline mr-1"/> Product</th>
+                                        <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> (Kg)</th>
+                                        <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Package size={14} className="inline mr-1"/> Box/Packs</th>
+                                        <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> Qty (Kg)</th>
+                                        <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Boxes</th>
+                                        <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Qty (Kg)</th>
                                         {!isViewer && <th className="px-4 py-3 font-semibold align-bottom text-center bg-gray-50 dark:bg-zinc-950/50">Action</th>}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
+                                <tbody className="divide-y divide-gray-100 dark:divide-zinc-200">
                                     {filteredRecords.length > 0 ? (
                                         filteredRecords.map((record) => (
                                             <tr key={record._id} className="hover:bg-gray-50/80 dark:hover:bg-zinc-800/50 transition-colors group">
@@ -378,21 +378,21 @@ export default function ViewLocalSaleRecords() {
                                                     </div>
                                                 </td>
                                                 
-                                                <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300 font-medium align-top">
+                                                <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-600 text-gray-600 dark:text-gray-300 font-medium align-top">
                                                     <div className="flex flex-col gap-2">{record.itemsArray.map((t, i) => <span key={i} className="py-1 border border-transparent">{t.packSizeKg}</span>)}</div>
                                                 </td>
-                                                <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300 font-medium align-top">
+                                                <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-600 text-gray-600 dark:text-gray-300 font-medium align-top">
                                                     <div className="flex flex-col gap-2">{record.itemsArray.map((t, i) => <span key={i} className="py-1 border border-transparent">{t.numberOfBoxes}</span>)}</div>
                                                 </td>
-                                                <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-800 dark:text-gray-200 font-bold align-top">
-                                                    <div className="flex flex-col gap-2">{record.itemsArray.map((t, i) => <span key={i} className="py-1 border border-transparent text-[#0d9488] dark:text-teal-400">{t.totalQtyKg?.toFixed(2)}</span>)}</div>
+                                                <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-600 text-gray-800 dark:text-gray-200 font-bold align-top">
+                                                    <div className="flex flex-col gap-2">{record.itemsArray.map((t, i) => <span key={i} className="py-1 border border-transparent text-gray-500 dark:text-green-500">{t.totalQtyKg?.toFixed(2)}</span>)}</div>
                                                 </td>
 
-                                                <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/50 align-top pt-4">
+                                                <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-600 bg-gray-50/50 dark:bg-zinc-900/50 align-top pt-4">
                                                     <span className="font-bold text-gray-700 dark:text-gray-300 text-lg">{record.totalBoxes}</span>
                                                 </td>
-                                                <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/50 align-top pt-4">
-                                                    <span className="font-bold text-[#0f766e] dark:text-teal-400 text-lg">{record.totalQtyKg?.toFixed(2)}</span>
+                                                <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-600 bg-gray-50/50 dark:bg-zinc-900/50 align-top pt-4">
+                                                    <span className="font-bold text-green-700 dark:text-green-400 text-lg">{record.totalQtyKg?.toFixed(2)}</span>
                                                 </td>
                                                 
                                                 {!isViewer && (
@@ -438,8 +438,8 @@ export default function ViewLocalSaleRecords() {
 
                 {/* RIGHT: SUMMARY TABLE (Col Span 1) */}
                 <div className="xl:col-span-1">
-                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden sticky top-8">
-                        <div className="bg-gray-100 dark:bg-zinc-800 px-4 py-3 border-b border-gray-200 dark:border-zinc-700">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden sticky top-8">
+                        <div className="bg-gray-100 dark:bg-zinc-800 px-4 py-3 border-b border-gray-200 dark:border-zinc-600">
                             <h3 className="font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                                 <Weight size={18} className="text-[#0d9488] dark:text-teal-500" /> Summary By Product
                             </h3>
@@ -447,16 +447,16 @@ export default function ViewLocalSaleRecords() {
                         <div className="p-4">
                             <table className="w-full text-sm border border-gray-300 dark:border-zinc-700 border-collapse">
                                 <thead>
-                                    <tr className="bg-gray-200 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-700">
-                                        <th className="px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-700">Product</th>
+                                    <tr className="bg-gray-200 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-500">
+                                        <th className="px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-500">Product</th>
                                         <th className="px-3 py-2 text-right font-bold">Qty (Kg)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {summaryArray.length > 0 ? (
                                         summaryArray.map(([prodName, qty], idx) => (
-                                            <tr key={idx} className="border-b border-gray-300 dark:border-zinc-700">
-                                                <td className={`px-3 py-2 font-semibold border-r border-gray-300 dark:border-zinc-700 ${getTeaColor(prodName)}`}>
+                                            <tr key={idx} className="border-b border-gray-300 dark:border-zinc-500">
+                                                <td className={`px-3 py-2 font-semibold border-r border-gray-300 dark:border-zinc-500 ${getTeaColor(prodName)}`}>
                                                     {prodName}
                                                 </td>
                                                 <td className="px-3 py-2 text-right font-medium text-gray-700 dark:text-gray-300">
@@ -469,9 +469,9 @@ export default function ViewLocalSaleRecords() {
                                     )}
                                 </tbody>
                                 <tfoot>
-                                    <tr className="bg-gray-200 dark:bg-zinc-800 font-bold text-gray-900 dark:text-gray-100 border-t-2 border-gray-400 dark:border-zinc-600">
-                                        <td className="px-3 py-2 uppercase border-r border-gray-300 dark:border-zinc-700 text-[#0d9488] dark:text-teal-500">TOTAL</td>
-                                        <td className="px-3 py-2 text-right text-[#0f766e] dark:text-teal-400">{grandTotalQty % 1 !== 0 ? grandTotalQty.toFixed(2) : grandTotalQty}</td>
+                                    <tr className="bg-gray-200 dark:bg-zinc-800 font-bold text-gray-900 dark:text-gray-100 border-t-2 border-gray-400 dark:border-zinc-500">
+                                        <td className="px-3 py-2 uppercase border-r border-gray-300 dark:border-zinc-500">TOTAL</td>
+                                        <td className="px-3 py-2 text-right">{grandTotalQty % 1 !== 0 ? grandTotalQty.toFixed(2) : grandTotalQty}</td>
                                     </tr>
                                 </tfoot>
                             </table>
