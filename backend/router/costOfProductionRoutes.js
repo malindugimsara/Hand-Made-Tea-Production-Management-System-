@@ -6,9 +6,9 @@ import { verifyToken, authorizeRoles } from '../middleware/auth.js';
 const costOfProductionRouter = express.Router();
 
 // POST: Save or Update
-costOfProductionRouter.post('/', verifyToken, authorizeRoles('Admin', 'Officer'), saveCostOfProduction);
+costOfProductionRouter.post('/', verifyToken, authorizeRoles('Admin', 'HandMade Officer'), saveCostOfProduction);
 
 // GET: Fetch by Month (URL එකේ අගට මාසය එනවා)
-costOfProductionRouter.get('/:month', verifyToken, authorizeRoles('Admin', 'Officer', 'Viewer'), getCostOfProductionByMonth);
+costOfProductionRouter.get('/:month', verifyToken, authorizeRoles('Admin', 'HandMade Officer', 'Viewer'), getCostOfProductionByMonth);
 
 export default costOfProductionRouter;
