@@ -18,6 +18,8 @@ import productionSummaryRouter from './router/productionSummaryRoute.js';
 import localSaleRouter from './Packing/Routes/localSaleRoutes.js';
 import teaCenterIssueRouter from './Packing/Routes/TeaCenterIssueRouter.js';
 
+import packingTransferRouter from './Packing/Routes/packingTransferRouter.js';
+import handmadeTransferRouter from './router/handmadeTransferRouter.js';
 
 dotenv.config();
 const app = express();
@@ -49,13 +51,15 @@ app.use('/api/raw-material-cost', rawMaterialCostRoutes);
 app.use('/api/users', userRouter); // User management routes (Admins only)
 app.use('/api/selling-details', sellingDetailsRouter);
 app.use('/api/production-summary', productionSummaryRouter); // Add this line to include the production summary routes
-
+app.use('/api/handmade/transfers', handmadeTransferRouter);
 
 
 // Packing Section Routes
 
 app.use('/api/local-sales', localSaleRouter);
 app.use('/api/tea-center-issues', teaCenterIssueRouter);
+app.use('/api/packing/transfers', packingTransferRouter);
+
 
 
 app.listen(3000, () => {

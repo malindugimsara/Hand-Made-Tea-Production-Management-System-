@@ -10,23 +10,23 @@ import {
 // Adjust the path and import name based on your actual auth middleware file
 // import authjwt from '../middleware/authjwt.js'; 
 
-const router = express.Router();
+const localSaleRouter = express.Router();
 
 // Option A: If you want to protect ALL routes in this file, uncomment the line below:
-// router.use(authjwt);
+// localSaleRouter.use(authjwt);
 
 /**
  * @route   /api/local-sales
  */
-router.route('/')
+localSaleRouter.route('/')
     .get(getLocalSales)    // Or .get(authjwt, getLocalSales) if protecting individually
     .post(createLocalSale);
 
 /**
  * @route   /api/local-sales/:id
  */
-router.route('/:id')
+localSaleRouter.route('/:id')
     .put(updateLocalSale)
     .delete(deleteLocalSale);
 
-export default router;
+export default localSaleRouter;

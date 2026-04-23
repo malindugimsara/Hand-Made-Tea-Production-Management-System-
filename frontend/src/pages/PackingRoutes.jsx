@@ -6,6 +6,8 @@ import ViewLocalSaleRecords from "./PackingSection/Local Sales/ViewLocalSaleReco
 import EditLocalRecord from "./PackingSection/Local Sales/EditLocalRecord";
 import TeaCenterRecordEntry from "./PackingSection/Tea center/TeaCenterRecordEntry";
 import ViewTeaCenterRecords from "./PackingSection/Tea center/ViewTeaCenterRecord";
+import TransIn from "./PackingSection/Trans in/TransIn";
+import ViewTransInRecords from "./PackingSection/Trans in/ViewTransInRecords";
 
 export const PackingRoutes = () => (
   <Route path="/packing" element={<DashboardLayoutP />}>
@@ -15,5 +17,8 @@ export const PackingRoutes = () => (
     <Route path="edit-local-sale" element={<EditLocalRecord />} />
     <Route path="tea-center-record-entry" element={<TeaCenterRecordEntry />} />
     <Route path="tea-center-record-view" element={<ViewTeaCenterRecords />} />
+    <Route path="trans-in-entry" element={<TransIn />} />
+    <Route path="trans-in-view" element={<ViewTransInRecords />} />
+
   </Route>
 );
