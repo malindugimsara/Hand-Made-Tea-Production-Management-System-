@@ -87,7 +87,8 @@ const DATA = {
       items: [
         { title: 'Tea Center Record Entry', url: '/packing/tea-center-record-entry', roles: ['Admin', 'Packing Officer'] },
         { title: 'Tea Center Record View', url: '/packing/tea-center-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
-
+      ],
+    },
     {
       title: 'Trans In',
       icon: Sprout ,

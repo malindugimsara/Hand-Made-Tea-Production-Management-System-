@@ -53,7 +53,6 @@ app.use('/api/selling-details', sellingDetailsRouter);
 app.use('/api/production-summary', productionSummaryRouter); // Add this line to include the production summary routes
 app.use('/api/handmade/transfers', handmadeTransferRouter);
 
-
 // Packing Section Routes
 
 app.use('/api/local-sales', localSaleRouter);
