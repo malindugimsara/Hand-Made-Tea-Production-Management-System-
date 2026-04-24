@@ -211,7 +211,7 @@ export default function TeaGradesReceivedEntry() {
             setPendingRecords([]);
             
             setTimeout(() => {
-                navigate('/factory/received-records-view'); // Update with your actual route
+                navigate('/packing/trans-in-factory-view'); // Update with your actual route
             }, 1000);
 
         } catch (error) {

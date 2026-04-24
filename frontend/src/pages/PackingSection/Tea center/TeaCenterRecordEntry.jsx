@@ -2,49 +2,164 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
 import { PlusCircle, Trash2, ListChecks, Save, Package, ShoppingCart, Calendar, Weight, Tag, X } from "lucide-react"; 
 import { useNavigate } from 'react-router-dom';
-import PDFDownloader from '@/components/PDFDownloader'; 
 
 const getTeaColor = (product) => {
     const p = product.toLowerCase();
-    if (p.includes('pink')) return 'bg-[#fbcfe8] text-pink-900 border-pink-400'; 
+    
+    // Premium / Special Collections
+    if (p.includes('premium') || p.includes('supreme') || p.includes('gift')) return 'bg-[#f472b6] text-white border-pink-500'; 
+    if (p.includes('awrudu') || p.includes('awurudu')) return 'bg-[#c084fc] text-white border-purple-500'; 
+    if (p.includes('chakra') || p.includes('flower')) return 'bg-[#e0e7ff] text-indigo-900 border-indigo-400';
+    if (p.includes('slim beauty')) return 'bg-[#ccfbf1] text-teal-900 border-teal-400';
+    if (p.includes('vita glow')) return 'bg-[#fef08a] text-yellow-900 border-yellow-400';
+
+    // Floral & Fruity
+    if (p.includes('heen bovitiya')) return 'bg-[#fdf4ff] text-fuchsia-900 border-fuchsia-400';
+    if (p.includes('rose') || p.includes('hibiscus') || p.includes('strawberry') || p.includes('mix fruit') || p.includes('pink')) return 'bg-[#fbcfe8] text-pink-900 border-pink-400';
+    if (p.includes('peach') || p.includes('orange')) return 'bg-[#fed7aa] text-orange-900 border-orange-400';
+    if (p.includes('pineapple') || p.includes('mango') || p.includes('honey') || p.includes('ginger') || p.includes('golden') || p.includes('turmeric')) return 'bg-[#fef08a] text-yellow-900 border-yellow-500';
+    if (p.includes('jasmine') || p.includes('vanilla')) return 'bg-[#fef9c3] text-yellow-800 border-yellow-300';
+    
+    // Spices & Rich Flavors
+    if (p.includes('cinnamon') || p.includes('masala') || p.includes('chest') || p.includes('carmel') || p.includes('cardamom')) return 'bg-[#ffedd5] text-amber-900 border-amber-400';
+    if (p.includes('earl grey')) return 'bg-[#f1f5f9] text-slate-700 border-slate-400';
+    
+    // Herbal & Greens
+    if (p.includes('mint')) return 'bg-[#ccfbf1] text-teal-900 border-teal-400';
+    if (p.includes('lime')) return 'bg-[#ecfccb] text-lime-900 border-lime-400';
+    if (p.includes('moringa') || p.includes('curry') || p.includes('gotukola')) return 'bg-[#d1fae5] text-emerald-900 border-emerald-400';
+    if (p.includes('soursop') || p.includes('lemongrass') || p.includes('green')) return 'bg-[#bbf7d0] text-green-900 border-green-400';
+    
+    // Colors & Metals
     if (p.includes('purple')) return 'bg-[#e9d5ff] text-purple-900 border-purple-400'; 
     if (p.includes('silver')) return 'bg-[#e2e8f0] text-slate-800 border-slate-400';
     if (p.includes('white')) return 'bg-gray-100 text-gray-800 border-gray-300';
-    if (p.includes('golden')) return 'bg-[#fef08a] text-yellow-900 border-yellow-400';
-    if (p.includes('orange')) return 'bg-[#fed7aa] text-orange-900 border-orange-400';
     if (p.includes('black')) return 'bg-[#374151] text-white border-gray-700';
-    if (p.includes('lemangrass') || p.includes('green')) return 'bg-[#bbf7d0] text-green-900 border-green-400';
-    if (p.includes('cinnamon') || p.includes('chest')) return 'bg-[#fed7aa] text-amber-900 border-amber-500';
-    if (p.includes('turmeric')) return 'bg-[#fef08a] text-yellow-900 border-yellow-500';
-    if (p.includes('premium')) return 'bg-[#f472b6] text-white border-pink-500'; 
-    if (p.includes('awrudu')) return 'bg-[#c084fc] text-white border-purple-500'; 
+
+    // Classic Black Tea Grades (Fallback)
+    if (p.includes('bopf sp')) return 'bg-[#bef264] text-lime-900 border-lime-500'; 
+    if (p.includes('bopf')) return 'bg-[#fde047] text-yellow-900 border-yellow-500'; 
+    if (p.includes('dust 1')) return 'bg-[#06b6d4] text-white border-cyan-500'; 
+    if (p.includes('dust')) return 'bg-[#3b82f6] text-white border-blue-600'; 
+    
+    // Catch-all for remaining black tea types (BOP, Pekoe, OP, OPA, FF, English Breakfast/Afternoon)
+    if (p.includes('bop') || p.includes('pekoe') || p.includes('op') || p.includes('ff') || p.includes('english')) return 'bg-[#ffedd5] text-amber-900 border-amber-500';
+
+    // Default 
     return 'bg-white dark:bg-zinc-800 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-zinc-700'; 
 };
 
 const getPdfTeaColor = (product) => {
     const p = product.toLowerCase();
-    if (p.includes('pink')) return { fillColor: [251, 207, 232], textColor: [131, 24, 67] };
+
+    // Premium / Special Collections
+    if (p.includes('premium') || p.includes('supreme') || p.includes('gift')) return { fillColor: [244, 114, 182], textColor: [255, 255, 255] }; 
+    if (p.includes('awrudu') || p.includes('awurudu')) return { fillColor: [192, 132, 252], textColor: [255, 255, 255] }; 
+    if (p.includes('chakra') || p.includes('flower')) return { fillColor: [224, 231, 255], textColor: [49, 46, 129] };
+    if (p.includes('slim beauty')) return { fillColor: [204, 251, 241], textColor: [19, 78, 74] };
+    if (p.includes('vita glow')) return { fillColor: [254, 240, 138], textColor: [113, 63, 18] };
+
+    // Floral & Fruity
+    if (p.includes('heen bovitiya')) return { fillColor: [253, 244, 255], textColor: [112, 26, 117] };
+    if (p.includes('rose') || p.includes('hibiscus') || p.includes('strawberry') || p.includes('mix fruit') || p.includes('pink')) return { fillColor: [251, 207, 232], textColor: [131, 24, 67] };
+    if (p.includes('peach') || p.includes('orange')) return { fillColor: [254, 215, 170], textColor: [124, 45, 18] };
+    if (p.includes('pineapple') || p.includes('mango') || p.includes('honey') || p.includes('ginger') || p.includes('golden') || p.includes('turmeric')) return { fillColor: [254, 240, 138], textColor: [113, 63, 18] };
+    if (p.includes('jasmine') || p.includes('vanilla')) return { fillColor: [254, 249, 195], textColor: [133, 77, 14] };
+
+    // Spices & Rich Flavors
+    if (p.includes('cinnamon') || p.includes('masala') || p.includes('chest') || p.includes('carmel') || p.includes('cardamom')) return { fillColor: [255, 237, 213], textColor: [120, 53, 15] };
+    if (p.includes('earl grey')) return { fillColor: [241, 245, 249], textColor: [51, 65, 85] };
+
+    // Herbal & Greens
+    if (p.includes('mint')) return { fillColor: [204, 251, 241], textColor: [19, 78, 74] };
+    if (p.includes('lime')) return { fillColor: [236, 252, 203], textColor: [54, 83, 20] };
+    if (p.includes('moringa') || p.includes('curry') || p.includes('gotukola')) return { fillColor: [209, 250, 229], textColor: [6, 78, 59] };
+    if (p.includes('soursop') || p.includes('lemongrass') || p.includes('green')) return { fillColor: [187, 247, 208], textColor: [20, 83, 45] };
+
+    // Colors & Metals
     if (p.includes('purple')) return { fillColor: [233, 213, 255], textColor: [88, 28, 135] };
     if (p.includes('silver')) return { fillColor: [226, 232, 240], textColor: [30, 41, 59] };
-    if (p.includes('golden')) return { fillColor: [254, 240, 138], textColor: [113, 63, 18] };
-    if (p.includes('orange')) return { fillColor: [254, 215, 170], textColor: [124, 45, 18] };
+    if (p.includes('white')) return { fillColor: [243, 244, 246], textColor: [31, 41, 55] };
     if (p.includes('black')) return { fillColor: [55, 65, 81], textColor: [255, 255, 255] };
-    if (p.includes('lemangrass') || p.includes('green')) return { fillColor: [187, 247, 208], textColor: [20, 83, 45] };
-    if (p.includes('cinnamon')) return { fillColor: [254, 215, 170], textColor: [120, 53, 15] };
-    if (p.includes('premium')) return { fillColor: [244, 114, 182], textColor: [255, 255, 255] }; 
-    if (p.includes('awrudu')) return { fillColor: [192, 132, 252], textColor: [255, 255, 255] }; 
+
+    // Classic Black Tea Grades (Fallback)
+    if (p.includes('bopf sp')) return { fillColor: [190, 242, 100], textColor: [77, 124, 15] }; 
+    if (p.includes('bopf')) return { fillColor: [253, 224, 71], textColor: [113, 63, 18] }; 
+    if (p.includes('dust 1')) return { fillColor: [6, 182, 212], textColor: [255, 255, 255] }; 
+    if (p.includes('dust')) return { fillColor: [59, 130, 246], textColor: [255, 255, 255] }; 
+    
+    // Catch-all for remaining black tea types (BOP, Pekoe, OP, OPA, FF, English Breakfast/Afternoon)
+    if (p.includes('bop') || p.includes('pekoe') || p.includes('op') || p.includes('ff') || p.includes('english')) return { fillColor: [255, 237, 213], textColor: [120, 53, 15] };
+
+    // Default
     return { fillColor: [244, 244, 245], textColor: [31, 41, 55] }; 
 };
 
 const TEA_TYPES = [
-    "Green tea", "G/T Lemangrass", "Guide Issue-BOPF", "Silver tips can", "FBOP chest", 
-    "FF SP chest", "FF EX SP Pack", "Cinnamon can", "OP1 pack", 
-    "Silver green", "Pink tea can", "Pekoe box", "White tea can", 
-    "Cinnamon pack", "Ceylon premium", "Purple tea can", "Golden tips can", 
-    "Slim beauty can", "Bop pack", "Orange can", "purple pack", 
-    "pink tea pack", "Black T/B", "Premium", "Cinnaamon box", 
-    "FF EX SP Box", "turmeric", "Black pepar", "Masala box", 
-    "Awrudu gift pack", "chakra", "flower"
+    "Lemongrass - BOPF",
+    "Lemongrass - Green Tea",
+    "BOP",
+    "Pekoe",
+    "Rose Tea",
+    "English Breakfast",
+    "Pink Tea",
+    "Ceylon Premium - FF ",
+    "Ceylon Supreme",
+    "Cinnamon Tea - BOPF SP",
+    "Cinnamon Tea - BOPF",
+    "Ginger Tea - BOPF SP",
+    "Ginger Tea - BOPF",
+    "Silver Tips",
+    "Golden Tips",
+    "OPA",
+    "OP",
+    "OP 1",
+    "FF EX SP",
+    "Masala Tea - BOPF",
+    "Masala Tea - BOPF SP",
+    "Pineapple Tea",
+    "Mix Fruit",
+    "Peach",
+    "Strawberry",
+    "Jasmin - Green Tea",
+    "Jasmin - BOPF",
+    "Mango Tea",
+    "Carmel",
+    "Honey",
+    "Vanilla",
+    "Earl Grey",
+    "Hibiscus",
+    "Mint - Green Tea",
+    "Mint - BOPF SP",
+    "Lime",
+    "Soursop - Green Tea",
+    "Soursop - BOPF",
+    "White Tea",
+    "Purple Tea",
+    "Slim Beauty",
+    "Vita Glow",
+    "Silver Green",
+    "FBOP",
+    "Moringa - BOPF SP",
+    "Moringa - Green Tea",
+    "Curry Leaves - BOPF SP",
+    "Curry Leaves - Green Tea",
+    "Heen Bovitiya - BOPF SP",
+    "Heen Bovitiya - Green Tea",
+    "Gotukola - BOPF SP",
+    "Gotukola",
+    "Flower",
+    "Chakra",
+    "Green Tea - Other",
+    "Gift Pack",
+    "Premium",
+    "Cardamom",
+    "English Afternoon",
+    "Green Tea T/B",
+    "Black Tea T/B",
+    "Black Pepper",
+    "Cinnamon Stick",
+    "Turmeric"
 ];
 
 const getPackSizes = (product) => {
