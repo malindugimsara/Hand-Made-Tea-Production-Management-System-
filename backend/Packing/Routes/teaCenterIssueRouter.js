@@ -1,6 +1,7 @@
 import express from 'express';
 import {
     createTeaCenterIssue,
+    deleteTeaCenterIssue,
     getTeaCenterIssues,
     updateTeaCenterIssue
 } from '../controllers/TeaCenterIssueController.js';
@@ -13,5 +14,8 @@ teaCenterIssueRouter.route('/')
 
 teaCenterIssueRouter.route('/:id')
 .put(updateTeaCenterIssue);
+
+teaCenterIssueRouter.route('/:id')
+.delete(deleteTeaCenterIssue);
 
 export default teaCenterIssueRouter;

@@ -73,3 +73,20 @@ export const updateTeaCenterIssue = async (req, res) => {
         res.status(500).json({ message: 'Server error failed to update record', error: error.message });
     }
 };
+
+export const deleteTeaCenterIssue = async (req, res) => {
+    try {
+        const issue = await TeaCenterIssue.findById(req.params.id);
+
+        if (!issue) {
+            return res.status(404).json({ message: 'Record not found' });
+        }
+
+        await issue.deleteOne();
+        res.status(200).json({ message: 'Record deleted successfully' });
+
+    } catch (error) {
+        console.error('Error deleting tea center issue:', error);
+        res.status(500).json({ message: 'Server error failed to delete record', error: error.message });
+    }
+};
