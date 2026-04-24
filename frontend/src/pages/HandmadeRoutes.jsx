@@ -17,6 +17,7 @@ import ViewRawMaterialCost from '../pages/sideBar/RawMaterial/ViewRawMaterialCos
 import EditRawMaterialCost from '../pages/sideBar/RawMaterial/EditRawMaterialCost';
 import DashboardLayout from "./sideBar/DashboardLayout";
 import TransOut from "./sideBar/TransOut/TransOut";
+import ViewTransOutRecords from "./sideBar/TransOut/ViewTransOutRecords";
 
 export const HandmadeRoutes = () => (
   <Route path="/" element={<DashboardLayout />}>
@@ -36,6 +37,8 @@ export const HandmadeRoutes = () => (
     <Route path="view-raw-material-cost" element={<ViewRawMaterialCost />} />
     <Route path="edit-raw-material-cost" element={<EditRawMaterialCost />} />
     <Route path="transfer-out" element={<TransOut />} />
+    <Route path="transfer-out-view" element={<ViewTransOutRecords />} />
+
 
   </Route>
 );

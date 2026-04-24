@@ -13,10 +13,16 @@ export const getPendingTransfersForPacking = async (req, res) => {
 
 // @desc    Receive a transfer (Packing officer updates with actual Kg)
 // @route   PUT /api/packing/transfers/:id/receive
+// @desc    Receive a transfer (Packing officer updates with actual Kg)
+// @route   PUT /api/packing/transfers/:id/receive
 export const receiveTransferInPacking = async (req, res) => {
     try {
         const { id } = req.params;
-        const { receivedItems, remarks, receivedBy } = req.body;
+        // Notice we don't need 'receivedBy' from req.body anymore
+        const { receivedItems, remarks } = req.body; 
+
+        // --- NEW LOGIC: Grab the logged-in user's name from the token ---
+        const currentUserName = req.user?.name || req.user?.username || 'Packing Officer';
 
         const transfer = await StockTransfer.findById(id);
 
@@ -33,7 +39,10 @@ export const receiveTransferInPacking = async (req, res) => {
 
         transfer.status = 'COMPLETED';
         transfer.dateReceived = new Date();
-        transfer.receivedBy = receivedBy || 'Packing Officer';
+        
+        // --- NEW LOGIC: Stamp the real name into the database ---
+        transfer.receivedBy = currentUserName; 
+        
         if (remarks) transfer.remarks = remarks;
 
         const updatedTransfer = await transfer.save();
@@ -44,7 +53,6 @@ export const receiveTransferInPacking = async (req, res) => {
         res.status(500).json({ message: 'Server error while receiving transfer.' });
     }
 };
-
 
 // @desc    Get all COMPLETED transfers (Trans In History)
 // @route   GET /api/packing/transfers/completed

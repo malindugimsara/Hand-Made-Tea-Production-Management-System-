@@ -116,6 +116,7 @@ const DATA = {
       icon: ChevronRight,
       items: [
         { title: 'Transfer Out', url: '/transfer-out', roles: ['HandMade Officer'] },
+        { title: 'Transfer Out Records', url: '/transfer-out-view', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
         
       ],
     },

@@ -37,7 +37,7 @@ export default function PDFDownloader({
                         reader.onloadend = () => resolve(reader.result);
                         reader.readAsDataURL(blob);
                     });
-                    doc.addImage(dataUrl, "PNG", 14, 10, 25, 25); 
+                    doc.addImage(dataUrl, "PNG", 14, 10, 25, 25,"","FAST"); 
                 }
             } catch (err) {
                 console.warn("Logo not found or couldn't be loaded.");
