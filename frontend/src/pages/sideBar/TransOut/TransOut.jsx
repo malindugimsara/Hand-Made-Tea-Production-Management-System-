@@ -488,18 +488,7 @@ export default function TransOut() {
                             <span className="font-black text-2xl text-[#0f766e] dark:text-teal-400">{totalOutgoingKg.toFixed(2)} <span className="text-sm font-bold text-teal-600/50 uppercase">KG</span></span>
                         </div>
 
-                        <div className="mb-8">
-                            <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1">
-                                <FileText size={16}/> Dispatch Notes (Optional)
-                            </label>
-                            <textarea 
-                                rows="2"
-                                value={remarks}
-                                onChange={(e) => setRemarks(e.target.value)}
-                                placeholder="Instructions for the packing team..."
-                                className="w-full p-4 border border-gray-300 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-teal-500/50 outline-none bg-white dark:bg-zinc-900 dark:text-gray-100 transition-colors resize-none shadow-sm"
-                            />
-                        </div>
+
 
                         <button 
                             type="submit" 

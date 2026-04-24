@@ -3,13 +3,20 @@ import ProductionSummary from '../models/ProductionSummary.js';
 
 // @desc    Create a new stock transfer (Handmade -> Packing)
 // @route   POST /api/handmade/transfers
+// @desc    Create a new stock transfer (Handmade -> Packing)
+// @route   POST /api/handmade/transfers
 export const createHandmadeTransfer = async (req, res) => {
     try {
-        const { items, issuedBy, remarks } = req.body;
+        // We no longer need to rely on the frontend sending 'issuedBy'
+        const { items, remarks } = req.body;
 
         if (!items || items.length === 0) {
             return res.status(400).json({ message: 'At least one item is required.' });
         }
+
+        // --- NEW LOGIC: Get the user's name from the verified token ---
+        // Depending on what you called it in your login controller, it might be .name or .username
+        const currentUserName = req.user?.name || req.user?.username || 'Handmade Officer';
 
         // Generate Transfer ID (e.g., TR-20260423-XXXX)
         const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, '');
@@ -22,7 +29,8 @@ export const createHandmadeTransfer = async (req, res) => {
                 product: item.product,
                 issuedQtyKg: Number(item.issuedQtyKg)
             })),
-            issuedBy: issuedBy || 'Handmade Officer',
+            // --- NEW LOGIC: Save the token's name to the database ---
+            issuedBy: currentUserName,
             remarks,
             status: 'PENDING'
         });
@@ -103,5 +111,37 @@ export const getStockSummary = async (req, res) => {
     } catch (error) {
         console.error('Error fetching stock summary:', error);
         res.status(500).json({ message: 'Server error while calculating stock.' });
+    }
+};
+
+
+export const getTransOutRecords = async (req, res) => {
+    try {
+        // Use StockTransfer instead of HandmadeTransfer!
+        // We sort by dateIssued to get the newest ones first.
+        const transOutRecords = await StockTransfer.find({
+            // If you only want records issued BY Handmade, you can filter here.
+            // Based on your create function, 'issuedBy' seems to hold 'Handmade Officer'
+            // or we can just fetch all if that's what you need.
+        }).sort({ dateIssued: -1 }); 
+
+        // Send the records back to the frontend
+        res.status(200).json(transOutRecords);
+    } catch (error) {
+        console.error("Error fetching Trans Out records:", error);
+        res.status(500).json({ message: "Failed to fetch transfer history" });
+    }
+};      
+
+
+export const getHandmadeTransfersHistory = async (req, res) => {
+    try {
+        // Fetch all transfers, sorting by the newest ones first
+        const transfers = await StockTransfer.find().sort({ dateIssued: -1 });
+        
+        res.status(200).json(transfers);
+    } catch (error) {
+        console.error('Error fetching handmade transfer history:', error);
+        res.status(500).json({ message: 'Server error while fetching transfer history.' });
     }
 };
