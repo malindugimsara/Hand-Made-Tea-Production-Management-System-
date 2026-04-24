@@ -1,11 +1,10 @@
 import express from 'express';
 import { getCompletedTransfers, getPendingTransfersForPacking, receiveTransferInPacking } from '../controllers/packingTransferController.js';
-// import authjwt from '../middleware/authjwt.js'; 
+import { verifyToken } from '../../middleware/auth.js';
 
 const packingTransferRouter = express.Router();
 
-// router.use(authjwt); // Uncomment to protect routes
-
+packingTransferRouter.use(verifyToken); // Ensure user is authenticated for all routes in this router
 // GET /api/packing/transfers/pending
 packingTransferRouter.get('/pending', getPendingTransfersForPacking);
 

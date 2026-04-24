@@ -16,7 +16,7 @@ export const loginUser = async (req, res) => {
 
     // 3. Generate JWT containing the user ID and Role
     const token = jwt.sign(
-      { id: user._id, role: user.role }, 
+      { id: user._id, role: user.role , name: user.username }, 
       process.env.JWT_KEY, 
       { expiresIn: '12h' } // Token expires in 12 hours
     );
