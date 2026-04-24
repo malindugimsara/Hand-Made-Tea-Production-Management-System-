@@ -18,17 +18,32 @@ import {
 
 import { useNavigate } from 'react-router-dom';
 
-// Colors matched to the Entry page
+// Updated Colors: Softer/Dull Pastel Backgrounds with dark mode support
 const getTeaColor = (grade) => {
     const p = grade.toLowerCase();
-    if (p === 'bopf') return 'bg-[#fde047] text-yellow-900 border-yellow-500'; 
-    if (p.includes('bopf sp')) return 'bg-[#bef264] text-lime-900 border-lime-500'; 
-    if (p === 'dust') return 'bg-[#3b82f6] text-white border-blue-600'; 
-    if (p === 'dust 1') return 'bg-[#06b6d4] text-white border-cyan-500'; 
-    if (p.includes('premium')) return 'bg-[#f472b6] text-white border-pink-500'; 
-    if (p.includes('awrudu')) return 'bg-[#c084fc] text-white border-purple-500'; 
-    if (p.includes('green')) return 'bg-[#4ade80] text-green-900 border-green-600'; 
-    return 'bg-white dark:bg-zinc-800 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-zinc-700'; 
+    
+    if (p === 'bopf') 
+        return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800/50'; 
+    if (p.includes('bopf sp')) 
+        return 'bg-lime-200 dark:bg-lime-900/30 text-lime-800 dark:text-lime-200 border-lime-200 dark:border-lime-800/50'; 
+    if (p === 'dust') 
+        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/50'; 
+    if (p === 'dust 1') 
+        return 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-800 dark:text-cyan-200 border-cyan-200 dark:border-cyan-800/50'; 
+    if (p.includes('premium')) 
+        return 'bg-pink-100 dark:bg-pink-900/30 text-pink-800 dark:text-pink-200 border-pink-200 dark:border-pink-800/50'; 
+    if (p.includes('awuru') || p.includes('awrudu')) 
+        return 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-800/50'; 
+    if (p === 't/b 25') 
+        return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800/50'; 
+    if (p === 't/b 100') 
+        return 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800/50'; 
+    if (p.includes('green')) 
+        return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800/50'; 
+    if (p.includes('labour')) 
+        return 'bg-gray-100 dark:bg-zinc-800/80 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700'; 
+        
+    return 'bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-zinc-700'; 
 };
 
 const getPdfTeaColor = (grade) => {
@@ -260,15 +275,15 @@ export default function ViewTeaGradesReceivedRecords() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Month</label>
-                        <input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors" />
+                        <input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors" />
                     </div>
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">From Date</label>
-                        <input type="date" value={startDate} onChange={handleStartDateChange} className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors" />
+                        <input type="date" value={startDate} onChange={handleStartDateChange} className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors" />
                     </div>
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">To Date</label>
-                        <input type="date" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} disabled={!startDate} className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors disabled:opacity-50" />
+                        <input type="date" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} disabled={!startDate} className="w-full border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors disabled:opacity-50" />
                     </div>
                     
                     {/* CUSTOM SCROLLABLE AUTOCOMPLETE DROPDOWN */}
@@ -283,7 +298,7 @@ export default function ViewTeaGradesReceivedRecords() {
                                 setIsDropdownOpen(true);
                             }} 
                             onFocus={() => setIsDropdownOpen(true)}
-                            className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors" 
+                            className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors" 
                         />
                         {isDropdownOpen && (
                             <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
@@ -306,7 +321,7 @@ export default function ViewTeaGradesReceivedRecords() {
                     </div>
 
                     <div className="flex items-end lg:justify-end">
-                        <button onClick={clearFilters} disabled={!filterMonth && !startDate && !endDate && !gradeFilter} className={`w-full lg:w-auto px-4 py-2.5 text-sm font-bold rounded-md transition-colors flex items-center justify-center gap-2 ${filterMonth || startDate || endDate || gradeFilter ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 border border-red-200' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
+                        <button onClick={clearFilters} disabled={!filterMonth && !startDate && !endDate && !gradeFilter} className={`w-full lg:w-auto px-4 py-2.5 text-sm font-bold rounded-md transition-colors flex items-center justify-center gap-2 ${filterMonth || startDate || endDate || gradeFilter ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 border border-red-200 dark:border-red-800' : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-gray-600 cursor-not-allowed border border-transparent'}`}>
                             <FilterX size={16} /> Clear
                         </button>
                     </div>
@@ -336,47 +351,51 @@ export default function ViewTeaGradesReceivedRecords() {
                                         {!isViewer && <th className="px-4 py-3 font-semibold align-bottom text-center bg-gray-50 dark:bg-zinc-950/50">Action</th>}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100 dark:divide-zinc-200">
+                                <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
                                     {filteredRecords.length > 0 ? (
                                         filteredRecords.map((record) => (
-                                            <tr key={record._id} className="hover:bg-gray-50/80 dark:hover:bg-zinc-800/50 transition-colors group">
-                                                <td className="px-4 py-3 border-r border-gray-100 dark:border-zinc-800 align-top">
+                                            <tr key={record._id} className="hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors group">
+                                                
+                                                <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
                                                     <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
                                                     {record.isEdited && (
-                                                        <div className="mt-1.5 text-[10px] bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-800/50 px-2 py-1 rounded font-medium w-max leading-tight">
+                                                        <div className="mt-1.5 text-[10px] bg-teal-50 dark:bg-teal-900 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-700 px-2 py-1 rounded font-medium w-max leading-tight">
                                                             <span className="font-bold">Edited by {record.editedBy}</span><br />
-                                                            <span className="opacity-80">{record.lastUpdatedDate}</span>
+                                                            <span className="opacity-100">{record.lastUpdatedDate}</span>
                                                         </div>
                                                     )}
                                                 </td>
                                                 
-                                                <td className="px-4 py-3 border-r border-gray-100 dark:border-zinc-800 align-top">
+                                                <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
                                                     <span className="font-semibold text-[#0d9488] dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-2 py-1 rounded">{record.transactionNo}</span>
                                                 </td>
                                                 
-                                                {/* Grades with Colors */}
-                                                <td className="px-4 py-3 border-r border-gray-100 dark:border-zinc-800 align-top">
-                                                    <div className="flex flex-col gap-2">
+                                                <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px">
+                                                    <div className="flex flex-col w-full h-full">
                                                         {record.itemsArray.map((t, i) => (
-                                                            <span key={i} className={`block font-bold border px-2 py-0.5 rounded shadow-sm w-fit ${getTeaColor(t.grade)}`}>
+                                                            <div key={i} className={`flex-1 flex items-center px-4 py-3 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0 ${getTeaColor(t.grade)}`}>
                                                                 {t.grade}
-                                                            </span>
+                                                            </div>
                                                         ))}
                                                     </div>
                                                 </td>
                                                 
-                                                <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-600 text-gray-800 dark:text-gray-200 font-bold align-top">
-                                                    <div className="flex flex-col gap-2">
-                                                        {record.itemsArray.map((t, i) => <span key={i} className="py-1 border border-transparent text-gray-500 dark:text-green-500">{Number(t.qtyKg).toFixed(2)}</span>)}
+                                                <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                    <div className="flex flex-col w-full h-full">
+                                                        {record.itemsArray.map((t, i) => (
+                                                            <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-800 dark:text-gray-200 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
+                                                                <span className="text-gray-600 dark:text-green-500">{Number(t.qtyKg).toFixed(2)}</span>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 </td>
 
-                                                <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-600 bg-gray-50/50 dark:bg-zinc-900/50 align-top pt-4">
+                                                <td className="px-3 py-4 text-center border-r border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 align-top">
                                                     <span className="font-bold text-green-700 dark:text-green-400 text-lg">{Number(record.totalQtyKg).toFixed(2)}</span>
                                                 </td>
                                                 
                                                 {!isViewer && (
-                                                    <td className="px-3 py-3 text-center align-top pt-3">
+                                                    <td className="px-3 py-4 text-center align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
                                                         <div className="flex flex-wrap items-center justify-center gap-1">
                                                             <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-teal-600 rounded transition-colors"><MdOutlineEdit size={20} /></button>
                                                             <AlertDialog>
