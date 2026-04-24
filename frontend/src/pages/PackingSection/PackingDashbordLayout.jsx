@@ -93,14 +93,7 @@ const DATA = {
         { title: 'Tea Center Record View', url: '/packing/tea-center-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
       ],
     },
-      {
-        title: 'Guide Issues',
-        icon: Map,
-        items: [
-          { title: 'Guide Issues Record Entry', url: '/packing/guide-issues-record-entry', roles: ['Admin', 'Packing Officer'] },
-          { title: 'Guide Issues Record View', url: '/packing/guide-issues-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
-        ],
-      },
+      
     {
       title: 'Trans In - H/T',
       icon: PackagePlus ,
@@ -108,6 +101,14 @@ const DATA = {
         { title: 'Trans In', url: '/packing/trans-in-entry', roles: ['Admin', 'Packing Officer'] },
         { title: 'Trans In View', url: '/packing/trans-in-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
       ],
+    },
+    {
+        title: 'Trans In - Factory',
+        icon: PackagePlus,
+        items: [
+          { title: 'Trans In Record Entry', url: '/packing/trans-in-factory-entry', roles: ['Admin', 'Packing Officer'] },
+          { title: 'Trans In Record View', url: '/packing/trans-in-factory-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+        ],
     },
   ],
 };
@@ -193,10 +194,10 @@ export default function DashboardLayoutP() {
       case '/packing/tea-center-record-view': return 'Tea Center Record View';
       case '/packing/edit-tea-center-issue': return 'Edit Tea Center Record';
 
-      // --- Guide Issues ---
-      case '/packing/guide-issues-record-entry': return 'Guide Issues Record Entry';
-      case '/packing/guide-issues-record-view': return 'Guide Issues Record View';
-      case '/packing/edit-guide-issue': return 'Edit Guide Issue Record';
+      // --- Trans In ---
+      case '/packing/Trans In-record-entry': return 'Trans In Record Entry';
+      case '/packing/Trans In-record-view': return 'Trans In Record View';
+      case '/packing/edit-Trans In-issue': return 'Edit Trans In Issue Record';
 
       // --- Trans In ---
       case '/packing/trans-in-entry': return 'Trans In Entry';

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
-import { AlertCircle, Calendar, RefreshCw, Package, ShoppingCart, Weight, Tag, FilterX } from "lucide-react";
+import { Calendar, RefreshCw, FileText, Weight, Tag, FilterX } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
 
 import {
@@ -50,7 +50,7 @@ const TEA_TYPES = [
     "Awurudu Special"
 ];
 
-export default function ViewGuideIssueRecords() {
+export default function ViewTeaGradesReceivedRecords() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -64,7 +64,7 @@ export default function ViewGuideIssueRecords() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     
-    // Custom Dropdown State for "Grade" instead of "Product"
+    // Custom Dropdown State for "Grade"
     const [gradeFilter, setGradeFilter] = useState('');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -88,7 +88,7 @@ export default function ViewGuideIssueRecords() {
         setLoading(true); 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/guide-issues`, {
+            const response = await fetch(`${BACKEND_URL}/api/tea-received`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -105,10 +105,10 @@ export default function ViewGuideIssueRecords() {
                 const isEdited = createdTime > 0 && updatedTime > 0 && (updatedTime - createdTime) > 5000;
                 const lastUpdatedDate = isEdited ? new Date(rec.updatedAt).toISOString().split('T')[0] : '';
                 
-                const itemsArray = rec.issueItems || [];
+                const itemsArray = rec.receivedItems || [];
 
-                // Update to map by 'grade' instead of 'product'
-                const searchString = itemsArray.map(item => item.grade).join(' ');
+                // Update search string to include transaction no
+                const searchString = itemsArray.map(item => item.grade).join(' ') + ' ' + (rec.transactionNo || '');
 
                 return {
                     ...rec, itemsArray, searchString, isEdited, lastUpdatedDate,
@@ -138,7 +138,6 @@ export default function ViewGuideIssueRecords() {
         return monthMatch && dateMatch && gradeMatch;
     });
 
-    const grandTotalBoxes = filteredRecords.reduce((sum, record) => sum + (Number(record.totalBoxes) || 0), 0);
     const grandTotalQty = filteredRecords.reduce((sum, record) => sum + (Number(record.totalQtyKg) || 0), 0);
 
     // --- GENERATE DATA FOR SUMMARY TABLE ---
@@ -146,13 +145,13 @@ export default function ViewGuideIssueRecords() {
     filteredRecords.forEach(record => {
         record.itemsArray.forEach(item => {
             if (!gradeSummaryMap[item.grade]) gradeSummaryMap[item.grade] = 0;
-            gradeSummaryMap[item.grade] += Number(item.totalQtyKg) || 0;
+            gradeSummaryMap[item.grade] += Number(item.qtyKg) || 0;
         });
     });
     const summaryArray = Object.entries(gradeSummaryMap).sort((a, b) => b[1] - a[1]);
 
     const handleEditClick = (record) => {
-        navigate('/packing/edit-guide-issue', { state: { recordData: record } });
+        navigate('/packing/edit-received-record', { state: { recordData: record } });
     };
 
     const handleConfirmDelete = async () => {
@@ -160,7 +159,7 @@ export default function ViewGuideIssueRecords() {
         const toastId = toast.loading('Deleting record...');
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/guide-issues/${recordToDelete._id}`, { 
+            const response = await fetch(`${BACKEND_URL}/api/tea-received/${recordToDelete._id}`, { 
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -205,53 +204,52 @@ export default function ViewGuideIssueRecords() {
 
                 tableRows.push([
                     isFirst ? pdfDateCell : "",
+                    isFirst ? record.transactionNo : "",
                     { 
                         content: item.grade, 
                         styles: { ...getPdfTeaColor(item.grade), fontStyle: 'bold', halign: 'center' } 
                     },
-                    `${item.packSizeKg} kg`,
-                    item.numberOfBoxes.toString(),
-                    `${item.totalQtyKg.toFixed(2)} kg`,
-                    isFirst ? record.totalBoxes.toString() : "",
-                    isFirst ? `${record.totalQtyKg.toFixed(2)} kg` : ""
+                    `${Number(item.qtyKg).toFixed(2)} kg`,
+                    isFirst ? `${Number(record.totalQtyKg).toFixed(2)} kg` : ""
                 ]);
             });
         });
 
         tableRows.push([
-            { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' } },
-            "-", "-", "-", "-",
-            { content: grandTotalBoxes.toString(), styles: { fontStyle: 'bold' } },
+            { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' }, colSpan: 3 },
+            "-",
             { content: `${grandTotalQty.toFixed(2)} kg`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } } 
         ]);
 
         return tableRows;
     };
 
-    const uniqueCode = `GI/REC/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
+    const uniqueCode = `TR/REC/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
 
     return (
         <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen transition-colors duration-300">
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
+                <div className="w-full sm:w-auto">
                     <h2 className="text-2xl font-bold text-[#0f766e] dark:text-teal-400 flex items-center gap-2">
-                        <ShoppingCart size={24} /> Guide Issue Records
+                        <FileText size={24} /> Received Tea Records
                     </h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Overview of daily guide product issues</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Overview of tea grades received from main factory</p>
                 </div>
                 
-                <div className="flex items-center gap-3">
-                    <PDFDownloader 
-                        title="Guide Issue Records"
-                        subtitle={`Filters -> Month: ${filterMonth || 'All'} | Date: ${startDate || 'All'} to ${endDate || 'All'} | Grade: ${gradeFilter || 'All'}`}
-                        headers={["Date", "Grade", "Pack Size", "Qty (Packs)", "Total (KG)", "Daily Packs", "Daily Total"]}
-                        data={getPdfData()}
-                        uniqueCode={uniqueCode}
-                        fileName={`Guide_Issue_Records_${new Date().toISOString().split('T')[0]}.pdf`}
-                        orientation="portrait" 
-                        disabled={loading || filteredRecords.length === 0}
-                    />
-                    <button onClick={fetchRecords} disabled={loading} className={`px-4 py-2.5 bg-white dark:bg-zinc-900 text-[#0f766e] dark:text-teal-400 border border-[#0d9488] dark:border-teal-800 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-50 dark:hover:bg-zinc-800'}`}>
+                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                    <div className="w-full sm:w-auto">
+                        <PDFDownloader 
+                            title="Tea Grades Received Records"
+                            subtitle={`Filters -> Month: ${filterMonth || 'All'} | Date: ${startDate || 'All'} to ${endDate || 'All'} | Grade: ${gradeFilter || 'All'}`}
+                            headers={["Date", "Transaction No", "Grade", "Qty (KG)", "Daily Total (KG)"]}
+                            data={getPdfData()}
+                            uniqueCode={uniqueCode}
+                            fileName={`Received_Records_${new Date().toISOString().split('T')[0]}.pdf`}
+                            orientation="portrait" 
+                            disabled={loading || filteredRecords.length === 0}
+                        />
+                    </div>
+                    <button onClick={fetchRecords} disabled={loading} className={`w-full sm:w-auto justify-center px-4 py-2.5 bg-white dark:bg-zinc-900 text-[#0f766e] dark:text-teal-400 border border-[#0d9488] dark:border-teal-800 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-50 dark:hover:bg-zinc-800'}`}>
                         <RefreshCw size={18} className={loading ? 'animate-spin' : ''} /> Sync Data
                     </button>
                 </div>
@@ -275,7 +273,7 @@ export default function ViewGuideIssueRecords() {
                     
                     {/* CUSTOM SCROLLABLE AUTOCOMPLETE DROPDOWN */}
                     <div className="flex flex-col gap-1.5 relative" ref={dropdownRef}>
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Grade (Search)</label>
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Search Grade/Trans No</label>
                         <input 
                             type="text" 
                             placeholder="Type to search..." 
@@ -323,19 +321,17 @@ export default function ViewGuideIssueRecords() {
                     {loading ? (
                         <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center h-64">
                             <div className="w-8 h-8 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mb-4"></div>
-                            <p className="font-medium">Loading guide records...</p>
+                            <p className="font-medium">Loading received records...</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
-                            <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
+                        <div className="overflow-x-auto w-full scrollbar-thin scrollbar-thumb-gray-300">
+                            <table className="w-full text-sm text-left border-collapse whitespace-nowrap min-w-full">
                                 <thead>
                                     <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-500">
                                         <th className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-500 align-bottom min-w-[120px]"><Calendar size={14} className="inline mr-1"/> Date</th>
+                                        <th className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-500 align-bottom"><FileText size={14} className="inline mr-1"/> Trans No</th>
                                         <th className="px-4 py-3 font-bold text-green-600 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 align-bottom min-w-[160px]"><Tag size={14} className="inline mr-1"/> Grade</th>
-                                        <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> (Kg)</th>
-                                        <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Package size={14} className="inline mr-1"/> Qty (Packs)</th>
-                                        <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> Total (Kg)</th>
-                                        <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Packs</th>
+                                        <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> Qty (Kg)</th>
                                         <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Total (Kg)</th>
                                         {!isViewer && <th className="px-4 py-3 font-semibold align-bottom text-center bg-gray-50 dark:bg-zinc-950/50">Action</th>}
                                     </tr>
@@ -354,6 +350,10 @@ export default function ViewGuideIssueRecords() {
                                                     )}
                                                 </td>
                                                 
+                                                <td className="px-4 py-3 border-r border-gray-100 dark:border-zinc-800 align-top">
+                                                    <span className="font-semibold text-[#0d9488] dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-2 py-1 rounded">{record.transactionNo}</span>
+                                                </td>
+                                                
                                                 {/* Grades with Colors */}
                                                 <td className="px-4 py-3 border-r border-gray-100 dark:border-zinc-800 align-top">
                                                     <div className="flex flex-col gap-2">
@@ -365,30 +365,23 @@ export default function ViewGuideIssueRecords() {
                                                     </div>
                                                 </td>
                                                 
-                                                <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-600 text-gray-600 dark:text-gray-300 font-medium align-top">
-                                                    <div className="flex flex-col gap-2">{record.itemsArray.map((t, i) => <span key={i} className="py-1 border border-transparent">{t.packSizeKg}</span>)}</div>
-                                                </td>
-                                                <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-600 text-gray-600 dark:text-gray-300 font-medium align-top">
-                                                    <div className="flex flex-col gap-2">{record.itemsArray.map((t, i) => <span key={i} className="py-1 border border-transparent">{t.numberOfBoxes}</span>)}</div>
-                                                </td>
                                                 <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-600 text-gray-800 dark:text-gray-200 font-bold align-top">
-                                                    <div className="flex flex-col gap-2">{record.itemsArray.map((t, i) => <span key={i} className="py-1 border border-transparent text-gray-500 dark:text-green-500">{t.totalQtyKg?.toFixed(2)}</span>)}</div>
+                                                    <div className="flex flex-col gap-2">
+                                                        {record.itemsArray.map((t, i) => <span key={i} className="py-1 border border-transparent text-gray-500 dark:text-green-500">{Number(t.qtyKg).toFixed(2)}</span>)}
+                                                    </div>
                                                 </td>
 
                                                 <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-600 bg-gray-50/50 dark:bg-zinc-900/50 align-top pt-4">
-                                                    <span className="font-bold text-gray-700 dark:text-gray-300 text-lg">{record.totalBoxes}</span>
-                                                </td>
-                                                <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-600 bg-gray-50/50 dark:bg-zinc-900/50 align-top pt-4">
-                                                    <span className="font-bold text-green-700 dark:text-green-400 text-lg">{record.totalQtyKg?.toFixed(2)}</span>
+                                                    <span className="font-bold text-green-700 dark:text-green-400 text-lg">{Number(record.totalQtyKg).toFixed(2)}</span>
                                                 </td>
                                                 
                                                 {!isViewer && (
                                                     <td className="px-3 py-3 text-center align-top pt-3">
-                                                        <div className="flex items-center justify-center gap-1">
+                                                        <div className="flex flex-wrap items-center justify-center gap-1">
                                                             <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-teal-600 rounded transition-colors"><MdOutlineEdit size={20} /></button>
                                                             <AlertDialog>
                                                                 <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 rounded transition-colors"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
-                                                                <AlertDialogContent className="bg-white rounded-2xl max-w-md">
+                                                                <AlertDialogContent className="bg-white rounded-2xl max-w-md w-[90vw] max-w-[425px]">
                                                                     <AlertDialogHeader>
                                                                         <AlertDialogTitle className="text-xl font-bold">Delete Record</AlertDialogTitle>
                                                                         <AlertDialogDescription>Are you sure you want to delete this record?</AlertDialogDescription>
@@ -405,14 +398,13 @@ export default function ViewGuideIssueRecords() {
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr><td colSpan={isViewer ? "7" : "8"} className="p-16 text-center text-gray-400"><p>No records found</p></td></tr>
+                                        <tr><td colSpan={isViewer ? "5" : "6"} className="p-16 text-center text-gray-400"><p>No records found</p></td></tr>
                                     )}
                                 </tbody>
                                 {filteredRecords.length > 0 && (
                                     <tfoot className="bg-gray-100/90 dark:bg-zinc-900/90 border-t-2 border-gray-200 dark:border-zinc-700">
                                         <tr>
-                                            <td colSpan="5" className="px-4 py-4 text-right font-bold tracking-wider uppercase border-r border-gray-200 dark:border-zinc-800">MONTHLY TOTAL</td>
-                                            <td className="px-3 py-4 text-center font-black text-xl border-r border-gray-200 dark:border-zinc-800">{grandTotalBoxes}</td>
+                                            <td colSpan="4" className="px-4 py-4 text-right font-bold tracking-wider uppercase border-r border-gray-200 dark:border-zinc-800">MONTHLY TOTAL</td>
                                             <td className="px-3 py-4 text-center font-black text-[#0f766e] dark:text-teal-500 text-xl border-r border-gray-200 dark:border-zinc-800">{grandTotalQty.toFixed(2)} kg</td>
                                             {!isViewer && <td></td>}
                                         </tr>
@@ -424,15 +416,15 @@ export default function ViewGuideIssueRecords() {
                 </div>
 
                 {/* RIGHT: SUMMARY TABLE (Col Span 1) */}
-                <div className="xl:col-span-1">
+                <div className="xl:col-span-1 w-full">
                     <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden sticky top-8">
                         <div className="bg-gray-100 dark:bg-zinc-800 px-4 py-3 border-b border-gray-200 dark:border-zinc-600">
                             <h3 className="font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                                 <Weight size={18} className="text-[#0d9488] dark:text-teal-500" /> Summary By Grade
                             </h3>
                         </div>
-                        <div className="p-4">
-                            <table className="w-full text-sm border border-gray-300 dark:border-zinc-700 border-collapse">
+                        <div className="p-4 overflow-x-auto">
+                            <table className="w-full text-sm border border-gray-300 dark:border-zinc-700 border-collapse min-w-full">
                                 <thead>
                                     <tr className="bg-gray-200 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-500">
                                         <th className="px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-500">Grade</th>
