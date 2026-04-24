@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-
 export default function PDFDownloader({ 
     title = "Document", 
     subtitle = "", 

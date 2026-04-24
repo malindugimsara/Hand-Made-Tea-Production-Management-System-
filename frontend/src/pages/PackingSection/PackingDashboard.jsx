@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
-import { Bell, AlertTriangle, Package, Truck, Layers, BarChart2, CheckCircle, Info, Box, Calendar, Filter } from 'lucide-react';
+import { Bell, AlertTriangle, Package, Truck, Layers, Box, Calendar, Filter, CheckCircle, Info } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function PackingDashboard() {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const navigate = useNavigate();
     
     // Basic Stats States
@@ -25,9 +27,11 @@ export default function PackingDashboard() {
     });
 
     const todayDateObj = new Date();
-    const today = todayDateObj.toLocaleDateString('en-US', { 
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-    });
+    const todayStr = todayDateObj.toISOString().split('T')[0];
+    
+    const yesterdayDateObj = new Date(todayDateObj);
+    yesterdayDateObj.setDate(yesterdayDateObj.getDate() - 1);
+    const yesterdayStr = yesterdayDateObj.toISOString().split('T')[0];
 
     const getGreeting = () => {
         const hour = todayDateObj.getHours();
@@ -37,62 +41,134 @@ export default function PackingDashboard() {
     };
 
     useEffect(() => {
-        // Simulating an API fetch with Mock Data
-        const loadDashboardData = () => {
-            setTimeout(() => {
-                // 1. Mock Stats
-                setPackedYesterday(145.5);
-                setPendingDispatch(42);
-                setLowStockMaterials(3);
+        const fetchDashboardData = async () => {
+            setIsLoading(true);
+            try {
+                const token = localStorage.getItem('token');
+                const headers = { 'Authorization': `Bearer ${token}` };
 
-                // 2. Mock Bar Chart Data (Packing Output)
-                const mockPackingData = [...Array(15)].map((_, i) => {
-                    return {
-                        name: String(i + 1).padStart(2, '0'),
-                        Pouches: Math.floor(Math.random() * 50) + 20,
-                        Boxes: Math.floor(Math.random() * 30) + 10,
-                    };
-                });
-                setPackingChartData(mockPackingData);
-
-                // 3. Mock Area Chart Data (Dispatch Trends)
-                const mockDispatchData = [...Array(6)].map((_, i) => {
-                    const d = new Date();
-                    d.setMonth(d.getMonth() - (5 - i));
-                    return {
-                        name: d.toLocaleString('default', { month: 'short' }),
-                        DispatchedKG: Math.floor(Math.random() * 500) + 200,
-                    };
-                });
-                setDispatchChartData(mockDispatchData);
-
-                // 4. Mock Alerts
-                setAlerts([
-                    {
-                        id: 1, type: 'danger', icon: <AlertTriangle size={20}/>,
-                        title: 'Low Material Stock',
-                        message: "50g Silver Pouches are running critically low (Under 100 units remaining)."
-                    },
-                    {
-                        id: 2, type: 'warning', icon: <Truck size={20}/>,
-                        title: 'Pending Dispatch Delay',
-                        message: "Shipment #1042 to Colombo has been pending for over 48 hours."
-                    },
-                    {
-                        id: 3, type: 'success', icon: <CheckCircle size={20}/>,
-                        title: 'Target Met',
-                        message: "Yesterday's packing target of 120kg was successfully exceeded."
-                    }
+                // Fetch all 3 endpoints concurrently
+                const [resLocal, resTea, resGuide] = await Promise.all([
+                    fetch(`${BACKEND_URL}/api/local-sales`, { headers }).catch(() => ({ ok: false })),
+                    fetch(`${BACKEND_URL}/api/tea-center-issues`, { headers }).catch(() => ({ ok: false })),
+                    fetch(`${BACKEND_URL}/api/guide-issues`, { headers }).catch(() => ({ ok: false }))
                 ]);
 
+                const localData = resLocal.ok ? await resLocal.json() : [];
+                const teaData = resTea.ok ? await resTea.json() : [];
+                const guideData = resGuide.ok ? await resGuide.json() : [];
+
+                // Standardize and combine records
+                const allRecords = [
+                    ...(Array.isArray(localData) ? localData.map(d => ({ ...d, items: d.salesItems })) : []),
+                    ...(Array.isArray(teaData) ? teaData.map(d => ({ ...d, items: d.issueItems })) : []),
+                    ...(Array.isArray(guideData) ? guideData.map(d => ({ ...d, items: d.issueItems })) : [])
+                ];
+
+                // --- 1. Calculate Stat Cards ---
+                
+                // Packed Yesterday (Sum of Qty KG)
+                const yesterdayRecords = allRecords.filter(r => r.date.startsWith(yesterdayStr));
+                const totalYesterdayKg = yesterdayRecords.reduce((sum, r) => sum + (Number(r.totalQtyKg) || 0), 0);
+                setPackedYesterday(totalYesterdayKg.toFixed(2));
+
+                // Pending Dispatch (Using today's total boxes as a proxy for "pending/working" orders)
+                const todayRecords = allRecords.filter(r => r.date.startsWith(todayStr));
+                const todayPendingBoxes = todayRecords.reduce((sum, r) => sum + (Number(r.totalBoxes) || 0), 0);
+                setPendingDispatch(todayPendingBoxes);
+
+                // Static low stock for UI purposes (as no inventory backend exists yet)
+                setLowStockMaterials(3);
+
+                // --- 2. Packing Output Trend (Bar Chart for Selected Month) ---
+                const [yearStr, monthStr] = selectedMonth.split('-');
+                const daysInMonth = new Date(parseInt(yearStr), parseInt(monthStr), 0).getDate();
+                
+                const packingDataMap = {};
+                for(let i = 1; i <= daysInMonth; i++) {
+                    const dayStr = String(i).padStart(2, '0');
+                    packingDataMap[dayStr] = { name: dayStr, Pouches: 0, Boxes: 0 };
+                }
+
+                allRecords.forEach(rec => {
+                    if (rec.date.startsWith(selectedMonth)) {
+                        const day = rec.date.split('-')[2].substring(0, 2);
+                        if (packingDataMap[day]) {
+                            rec.items?.forEach(item => {
+                                // Assuming packSize <= 0.25kg are pouches, larger are boxes/chests
+                                if (Number(item.packSizeKg) <= 0.25) {
+                                    packingDataMap[day].Pouches += Number(item.numberOfBoxes) || 0;
+                                } else {
+                                    packingDataMap[day].Boxes += Number(item.numberOfBoxes) || 0;
+                                }
+                            });
+                        }
+                    }
+                });
+                setPackingChartData(Object.values(packingDataMap));
+
+                // --- 3. Dispatch Volume (Area Chart for Last 6 Months) ---
+                const monthMap = {};
+                for(let i = 5; i >= 0; i--) {
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - i);
+                    const yyyyMm = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    const shortName = d.toLocaleString('default', { month: 'short' });
+                    monthMap[yyyyMm] = { name: shortName, DispatchedKG: 0 };
+                }
+
+                allRecords.forEach(rec => {
+                    const yyyyMm = rec.date.substring(0, 7);
+                    if (monthMap[yyyyMm]) {
+                        monthMap[yyyyMm].DispatchedKG += Number(rec.totalQtyKg) || 0;
+                    }
+                });
+
+                setDispatchChartData(Object.values(monthMap).map(m => ({
+                    name: m.name,
+                    DispatchedKG: Number(m.DispatchedKG.toFixed(2))
+                })));
+
+                // --- 4. Smart Alerts based on real data ---
+                const generatedAlerts = [];
+                
+                if (totalYesterdayKg > 100) {
+                    generatedAlerts.push({
+                        id: 1, type: 'success', icon: <CheckCircle size={20}/>,
+                        title: 'High Output Reached',
+                        message: `Great job! Yesterday's total packing output reached ${totalYesterdayKg.toFixed(2)}kg.`
+                    });
+                }
+
+                if (todayPendingBoxes > 150) {
+                    generatedAlerts.push({
+                        id: 2, type: 'warning', icon: <Truck size={20}/>,
+                        title: 'High Dispatch Load',
+                        message: `Heavy load today: ${todayPendingBoxes} boxes are scheduled for dispatch processing.`
+                    });
+                }
+
+                // Keep one static alert for UI aesthetics
+                generatedAlerts.push({
+                    id: 3, type: 'danger', icon: <AlertTriangle size={20}/>,
+                    title: 'Low Material Stock',
+                    message: "50g Silver Pouches are running critically low (Under 100 units remaining)."
+                });
+
+                setAlerts(generatedAlerts);
+
+            } catch (error) {
+                console.error("Dashboard Fetch Error:", error);
+                toast.error("Failed to load live dashboard data.");
+            } finally {
                 setIsLoading(false);
-            }, 800); // 800ms loading simulation
+            }
         };
 
-        loadDashboardData();
-    }, [selectedMonth, selectedProductType]); // Re-fetch or re-calculate when filters change
+        fetchDashboardData();
+    }, [selectedMonth, BACKEND_URL, todayStr, yesterdayStr]); 
 
-    // Label generation for Chart badge (e.g., "1st - 15th Apr")
+    // Label generation for Chart badge (e.g., "1st - 30th Apr")
     const getChartDateLabel = () => {
         if (!selectedMonth) return "";
         const [yearStr, monthStr] = selectedMonth.split('-');
@@ -112,7 +188,6 @@ export default function PackingDashboard() {
             <div className="relative rounded-2xl overflow-hidden px-10 py-10 min-h-[200px] flex flex-col justify-center shadow-xl"
                 style={{ background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 60%, #134e4a 100%)' }}>
 
-                {/* Glow layers */}
                 <div className="absolute inset-0 pointer-events-none"
                     style={{
                     background: `
@@ -120,29 +195,25 @@ export default function PackingDashboard() {
                         radial-gradient(ellipse 40% 50% at 10% 90%, rgba(45,212,191,0.12) 0%, transparent 60%)`
                     }} />
 
-                {/* Decorative rings */}
                 <div className="absolute -top-8 -right-8 w-56 h-56 rounded-full pointer-events-none"
                     style={{ border: '40px solid rgba(255,255,255,0.04)' }} />
                 <div className="absolute -bottom-16 right-16 w-40 h-40 rounded-full pointer-events-none"
                     style={{ border: '30px solid rgba(45,212,191,0.08)' }} />
 
-                {/* Live badge */}
                 <div className="flex items-center gap-2 w-fit mb-4 px-3 py-1 rounded-full backdrop-blur-md"
                     style={{ background: 'rgba(255,255,255,0.1)', border: '0.5px solid rgba(255,255,255,0.2)' }}>
                     <span className="w-2 h-2 rounded-full" style={{ background: '#5eead4', boxShadow: '0 0 8px #5eead4aa' }} />
                     <span className="text-xs font-bold tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.9)' }}>
-                        Dashboard
+                        Live Dashboard
                     </span>
                 </div>
 
-                {/* Title */}
                 <h1 className="text-4xl font-bold leading-tight mb-2 text-white"
                     style={{ fontFamily: "'Playfair Display', serif", letterSpacing: '-0.5px' }}>
                     Welcome to{' '}
                     <span style={{ color: '#d5f429' }}>Packing Section</span>
                 </h1>
 
-                {/* Subtitle */}
                 <p className="text-base font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>
                     {getGreeting()}, &nbsp;📦&nbsp; Here's your overview for today.
                 </p>
@@ -172,9 +243,9 @@ export default function PackingDashboard() {
                         <Truck size={32} />
                     </div>
                     <div>
-                        <p className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Pending Dispatch</p>
+                        <p className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Today's Box Volume</p>
                         <p className="text-4xl font-black text-[#14b8a6] dark:text-teal-400">
-                            {isLoading ? '...' : pendingDispatch} <span className="text-lg text-gray-400 dark:text-gray-500 font-semibold lowercase">Orders</span>
+                            {isLoading ? '...' : pendingDispatch} <span className="text-lg text-gray-400 dark:text-gray-500 font-semibold lowercase">Boxes</span>
                         </p>
                     </div>
                 </div>
@@ -233,7 +304,6 @@ export default function PackingDashboard() {
                                         <option value="All">All Products</option>
                                         <option value="Pouches">Pouches Only</option>
                                         <option value="Boxes">Boxes Only</option>
-                                        <option value="Bulk">Bulk Packs</option>
                                     </select>
                                 </div>
                                 <div className="bg-teal-50 dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 px-4 py-2 rounded-xl text-xs font-bold border border-teal-100 dark:border-teal-800/50 whitespace-nowrap">
@@ -244,7 +314,7 @@ export default function PackingDashboard() {
                         
                         <div className="h-[320px] w-full">
                             {isLoading ? (
-                                <div className="h-full flex items-center justify-center text-gray-400">Loading chart...</div>
+                                <div className="h-full flex items-center justify-center text-gray-400">Loading chart data...</div>
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={packingChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barSize={15}>
@@ -258,10 +328,10 @@ export default function PackingDashboard() {
                                         />
                                         <Legend wrapperStyle={{ paddingTop: '20px' }} />
                                         {(selectedProductType === 'All' || selectedProductType === 'Pouches') && (
-                                            <Bar dataKey="Pouches" name="Pouches Packed" fill="#2dd4bf" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="Pouches" name="Pouches (≤250g)" fill="#2dd4bf" radius={[4, 4, 0, 0]} />
                                         )}
                                         {(selectedProductType === 'All' || selectedProductType === 'Boxes') && (
-                                            <Bar dataKey="Boxes" name="Boxes Packed" fill="#0f766e" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="Boxes" name="Boxes (>250g)" fill="#0f766e" radius={[4, 4, 0, 0]} />
                                         )}
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -285,7 +355,7 @@ export default function PackingDashboard() {
 
                         <div className="h-[280px] w-full">
                             {isLoading ? (
-                                <div className="h-full flex items-center justify-center text-gray-400">Loading chart...</div>
+                                <div className="h-full flex items-center justify-center text-gray-400">Loading volume data...</div>
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={dispatchChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -326,7 +396,9 @@ export default function PackingDashboard() {
 
                         <div className="space-y-4">
                             {isLoading ? (
-                                <div className="text-center text-sm text-gray-400 py-10">Checking system status...</div>
+                                <div className="text-center text-sm text-gray-400 py-10">Syncing live alerts...</div>
+                            ) : alerts.length === 0 ? (
+                                <div className="text-center text-sm text-gray-400 py-10">No new alerts at this time.</div>
                             ) : (
                                 alerts.map((alert) => (
                                     <div key={alert.id} className={`p-4 rounded-2xl border flex gap-4 transition-all hover:-translate-y-0.5 ${
