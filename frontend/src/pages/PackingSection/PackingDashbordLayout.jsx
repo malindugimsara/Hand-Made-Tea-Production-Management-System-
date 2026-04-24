@@ -15,7 +15,11 @@ import {
   Shield, 
   Sun,
   Moon,
-  Sprout, 
+  Sprout,
+  Store,
+  Coffee,
+  Map,
+  PackagePlus, 
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -75,7 +79,7 @@ const DATA = {
     
     {
       title: 'Local Sales',
-      icon: Sprout ,
+      icon: Store,
       items: [
         { title: 'Local Record Entry', url: '/packing/local-record-entry', roles: ['Admin', 'Packing Officer'] },
         { title: 'Local Record View', url: '/packing/local-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
@@ -83,23 +87,23 @@ const DATA = {
     },
     {
       title: 'Tea Center',
-      icon: Sprout ,
+      icon: Coffee ,
       items: [
         { title: 'Tea Center Record Entry', url: '/packing/tea-center-record-entry', roles: ['Admin', 'Packing Officer'] },
         { title: 'Tea Center Record View', url: '/packing/tea-center-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
       ],
     },
+      {
+        title: 'Guide Issues',
+        icon: Map,
+        items: [
+          { title: 'Guide Issues Record Entry', url: '/packing/guide-issues-record-entry', roles: ['Admin', 'Packing Officer'] },
+          { title: 'Guide Issues Record View', url: '/packing/guide-issues-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+        ],
+      },
     {
-      title: 'Guide Issues',
-      icon: Sprout ,
-      items: [
-        { title: 'Guide Issues Record Entry', url: '/packing/guide-issues-record-entry', roles: ['Admin', 'Packing Officer'] },
-        { title: 'Guide Issues Record View', url: '/packing/guide-issues-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
-      ],
-    },
-    {
-      title: 'Trans In',
-      icon: Sprout ,
+      title: 'Trans In - H/T',
+      icon: PackagePlus ,
       items: [
         { title: 'Trans In', url: '/packing/trans-in-entry', roles: ['Admin', 'Packing Officer'] },
         { title: 'Trans In View', url: '/packing/trans-in-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
@@ -179,18 +183,25 @@ export default function DashboardLayoutP() {
 
   const getBreadcrumbTitle = () => {
     switch (location.pathname) {
-      case '/': return 'Dashboard Overview';
-      case '/green-leaf-form': return 'Green Leaf Entry';
-      case '/view-green-leaf': return 'View Green Leaf Records';
-      case '/dehydrator-record-form': return 'Dehydrator Record Entry';
-      case '/view-dehydrator-records': return 'Dehydrator Records';
-      case '/raw-material-cost': return 'Raw Material Cost Entry';
-      case '/view-raw-material-cost': return 'View Raw Material Costs';
-      case '/production-summary': return 'Production Summary';
-      case '/manage-users': return 'User Management'; 
-      case '/create-user': return 'Create User'; 
-      case '/selling-details-table': return 'Selling Details';
-      case '/cost-of-production': return 'Cost of Production';
+      // --- Local Sales ---
+      case '/packing/local-record-entry': return 'Local Record Entry';
+      case '/packing/local-record-view': return 'Local Record View';
+      case '/packing/edit-local-sale': return 'Edit Local Sale Record';
+
+      // --- Tea Center ---
+      case '/packing/tea-center-record-entry': return 'Tea Center Record Entry';
+      case '/packing/tea-center-record-view': return 'Tea Center Record View';
+      case '/packing/edit-tea-center-issue': return 'Edit Tea Center Record';
+
+      // --- Guide Issues ---
+      case '/packing/guide-issues-record-entry': return 'Guide Issues Record Entry';
+      case '/packing/guide-issues-record-view': return 'Guide Issues Record View';
+      case '/packing/edit-guide-issue': return 'Edit Guide Issue Record';
+
+      // --- Trans In ---
+      case '/packing/trans-in-entry': return 'Trans In Entry';
+      case '/packing/trans-in-view': return 'Trans In View';
+      
       default: return 'System';
     }
   };

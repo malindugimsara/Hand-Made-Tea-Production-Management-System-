@@ -54,7 +54,7 @@ const getPdfTeaColor = (product) => {
 
 // Tea Center specific products
 const TEA_TYPES = [
-    "Green tea", "G/T Lemangrass", "Silver tips can", "FBOP chest", 
+    "Green tea", "G/T Lemangrass", "Guide Issue-BOPF", "Silver tips can", "FBOP chest", 
     "FF SP chest", "FF EX SP Pack", "Cinnamon can", "OP1 pack", 
     "Silver green", "Pink tea can", "Pekoe box", "White tea can", 
     "Cinnamon pack", "Ceylon premium", "Purple tea can", "Golden tips can", 

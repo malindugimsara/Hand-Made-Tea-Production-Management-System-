@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
-import { PlusCircle, Trash2, ListChecks, Save, Package, ShoppingCart, Calendar, Weight, Tag, X } from "lucide-react"; 
+import { PlusCircle, Trash2, ListChecks, Save, Package, ShoppingCart, Calendar, Weight, Tag, X, FileText } from "lucide-react"; 
 import { useNavigate } from 'react-router-dom';
-import PDFDownloader from '@/components/PDFDownloader'; 
 
 const getTeaColor = (grade) => {
     const p = grade.toLowerCase();
@@ -34,18 +33,7 @@ const TEA_TYPES = [
     "Awurudu Special"
 ];
 
-const getPackSizes = (grade) => {
-    if (!grade) return null;
-    const p = grade.toLowerCase();
-    
-    if (p.includes('bopf sp')) return ["0.2", "0.4"];
-    if (p === 'bopf') return ["0.1", "0.2", "0.4"];
-    if (p.includes('premium')) return ["0.2", "0.4"];
-    
-    return null; 
-};
-
-export default function GuideIssueRecordEntry() {
+export default function TeaGradesReceivedEntry() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const [showSpinner, setShowSpinner] = useState(false);
     const [pendingRecords, setPendingRecords] = useState([]);
@@ -53,10 +41,11 @@ export default function GuideIssueRecordEntry() {
 
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
+        transactionNo: '',
     });
 
     const [itemsList, setItemsList] = useState([
-        { id: Date.now(), grade: '', packSizeKg: '', numberOfBoxes: '' }
+        { id: Date.now(), grade: '', qtyKg: '' }
     ]);
 
     const [openDropdownId, setOpenDropdownId] = useState(null);
@@ -80,7 +69,7 @@ export default function GuideIssueRecordEntry() {
     pendingRecords.forEach(record => {
         record.items.forEach(item => {
             if (!productSummaryMap[item.grade]) productSummaryMap[item.grade] = 0;
-            productSummaryMap[item.grade] += Number(item.calculatedQtyKg) || 0;
+            productSummaryMap[item.grade] += Number(item.qtyKg) || 0;
         });
     });
     const summaryArray = Object.entries(productSummaryMap).sort((a, b) => b[1] - a[1]);
@@ -94,35 +83,30 @@ export default function GuideIssueRecordEntry() {
                 const isFirst = index === 0;
                 tableRows.push([
                     isFirst ? record.date : "",
+                    isFirst ? `HO/TO/${record.transactionNo}` : "",
                     { 
                         content: item.grade, 
                         styles: { ...getPdfTeaColor(item.grade), fontStyle: 'bold', halign: 'center' } 
                     },
-                    `${item.packSizeKg} kg`,
-                    item.numberOfBoxes.toString(),
-                    `${item.calculatedQtyKg} kg`
+                    `${Number(item.qtyKg).toFixed(2)} kg`
                 ]);
             });
         });
 
-        const grandTotalBoxes = pendingRecords.reduce((sum, rec) => sum + rec.totalBoxes, 0);
         const grandTotalQty = pendingRecords.reduce((sum, rec) => sum + rec.totalQtyKg, 0);
 
         tableRows.push([
-            { content: "PENDING TOTAL", styles: { fontStyle: 'bold', halign: 'right' } },
-            "-",
-            "-",
-            { content: grandTotalBoxes.toString(), styles: { fontStyle: 'bold' } },
+            { content: "PENDING TOTAL", styles: { fontStyle: 'bold', halign: 'right' }, colSpan: 3 },
             { content: `${grandTotalQty.toFixed(2)} kg`, styles: { fontStyle: 'bold', textColor: [234, 88, 12] } }
         ]);
 
         return tableRows;
     };
     
-    const uniqueCode = `GI/ENTRY/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
+    const uniqueCode = `TR/ENTRY/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
 
     const handleAddItemRow = () => {
-        setItemsList([...itemsList, { id: Date.now(), grade: '', packSizeKg: '', numberOfBoxes: '' }]);
+        setItemsList([...itemsList, { id: Date.now(), grade: '', qtyKg: '' }]);
     };
 
     const handleRemoveItemRow = (idToRemove) => {
@@ -131,18 +115,12 @@ export default function GuideIssueRecordEntry() {
     };
 
     const handleItemChange = (id, field, value) => {
-        if (field !== 'grade' && value !== '' && (Number(value) < 0 || value.includes('-'))) {
+        if (field === 'qtyKg' && value !== '' && (Number(value) < 0 || value.includes('-'))) {
             return;
         }
         
         setItemsList(itemsList.map(row => {
             if (row.id === id) {
-                if (field === 'grade') {
-                    const availableSizes = getPackSizes(value);
-                    if (availableSizes && !availableSizes.includes(row.packSizeKg)) {
-                        return { ...row, [field]: value, packSizeKg: '' };
-                    }
-                }
                 return { ...row, [field]: value };
             }
             return row;
@@ -154,36 +132,34 @@ export default function GuideIssueRecordEntry() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const totalBoxes = itemsList.reduce((sum, row) => sum + (Number(row.numberOfBoxes) || 0), 0);
-    const totalQtyKg = itemsList.reduce((sum, row) => {
-        const pack = Number(row.packSizeKg) || 0;
-        const boxes = Number(row.numberOfBoxes) || 0;
-        return sum + (pack * boxes);
-    }, 0);
+    const totalQtyKg = itemsList.reduce((sum, row) => sum + (Number(row.qtyKg) || 0), 0);
 
     const handleAddToList = (e) => {
         e.preventDefault();
 
-        const hasEmptyItem = itemsList.some(row => !row.grade || row.packSizeKg === '' || row.numberOfBoxes === '');
+        if (!formData.transactionNo.trim()) {
+            toast.error("Please enter a Transaction No!");
+            return;
+        }
+
+        const hasEmptyItem = itemsList.some(row => !row.grade || row.qtyKg === '');
         if (hasEmptyItem) {
-            toast.error("Please fill out all Grade, Pack Size, and Box details completely!");
+            toast.error("Please fill out all Grade and Qty details completely!");
             return;
         }
 
         const newRecord = { 
             date: formData.date,
-            items: itemsList.map(item => ({
-                ...item,
-                calculatedQtyKg: (Number(item.packSizeKg) * Number(item.numberOfBoxes)).toFixed(2) 
-            })),
-            totalBoxes,
+            transactionNo: formData.transactionNo,
+            items: itemsList.map(item => ({ ...item })),
             totalQtyKg
         };
 
         setPendingRecords([...pendingRecords, newRecord]);
         toast.success(`Record added to list!`);
         
-        setItemsList([{ id: Date.now(), grade: '', packSizeKg: '', numberOfBoxes: '' }]);
+        setItemsList([{ id: Date.now(), grade: '', qtyKg: '' }]);
+        setFormData(prev => ({ ...prev, transactionNo: '' })); // Reset transaction number for next entry
     };
 
     const handleRemoveFromList = (indexToRemove) => {
@@ -205,17 +181,15 @@ export default function GuideIssueRecordEntry() {
             const promises = pendingRecords.map(record => {
                 const payload = {
                     date: record.date,
-                    totalBoxes: record.totalBoxes,
+                    transactionNo: `HO/TO/${record.transactionNo}`,
                     totalQtyKg: record.totalQtyKg,
-                    issueItems: record.items.map(item => ({
+                    receivedItems: record.items.map(item => ({
                         grade: item.grade,
-                        packSizeKg: Number(item.packSizeKg),
-                        numberOfBoxes: Number(item.numberOfBoxes),
-                        totalQtyKg: Number(item.calculatedQtyKg)
+                        qtyKg: Number(item.qtyKg)
                     }))
                 };
 
-                return fetch(`${BACKEND_URL}/api/guide-issues`, {
+                return fetch(`${BACKEND_URL}/api/tea-received`, { // Update this endpoint according to your backend
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -233,11 +207,11 @@ export default function GuideIssueRecordEntry() {
 
             await Promise.all(promises);
 
-            toast.success("All Guide Issue records saved successfully!", { id: toastId });
+            toast.success("All Received records saved successfully!", { id: toastId });
             setPendingRecords([]);
             
             setTimeout(() => {
-                navigate('/packing/guide-issues-record-view'); // Ensure this matches your routing setup
+                navigate('/factory/received-records-view'); // Update with your actual route
             }, 1000);
 
         } catch (error) {
@@ -267,22 +241,10 @@ export default function GuideIssueRecordEntry() {
             
             <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold text-[#0f766e] dark:text-teal-400">Guide Issue Record Entry</h2>
-                    <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Issue record for guide products and dispatch</p>
+                    <h2 className="text-3xl font-bold text-[#0f766e] dark:text-teal-400">Tea grades received from the main factory</h2>
+                    <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Record of tea grades received and transaction details</p>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <PDFDownloader 
-                        title="Pending Record - Guide Issue"
-                        subtitle={`Date Generated: ${new Date().toISOString().split('T')[0]}`}
-                        headers={["Date", "Grade", "Pack Size (KG)", "Qty (Packs)", "Total (KG)"]}
-                        data={getPdfData()}
-                        uniqueCode={uniqueCode}
-                        fileName={`Pending_Guide_Issue_${new Date().toISOString().split('T')[0]}.pdf`}
-                        orientation="portrait" 
-                        disabled={pendingRecords.length === 0}
-                    />
-                </div>
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -291,24 +253,45 @@ export default function GuideIssueRecordEntry() {
                 <div className="lg:col-span-3">
                     <form onSubmit={handleAddToList} className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-lg border border-teal-100 dark:border-zinc-800 transition-colors duration-300">
                         
-                        <div className="mb-6">
-                            <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-2">
-                                <Calendar size={16} className="text-[#0d9488]"/> Date
-                            </label>
-                            <input 
-                                type="date" 
-                                name="date" 
-                                value={formData.date} 
-                                onChange={handleInputChange} 
-                                required 
-                                className="w-full md:w-1/2 p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
-                            />
+                        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-2">
+                                    <Calendar size={16} className="text-[#0d9488]"/> Date
+                                </label>
+                                <input 
+                                    type="date" 
+                                    name="date" 
+                                    value={formData.date} 
+                                    onChange={handleInputChange} 
+                                    required 
+                                    className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-2">
+                                    <FileText size={16} className="text-[#0d9488]"/> Transaction No
+                                </label>
+                                <div className="flex rounded-md shadow-sm">
+                                    <span className="inline-flex items-center px-4 rounded-l-md border border-r-0 border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 sm:text-sm font-bold">
+                                        HO/TO/
+                                    </span>
+                                    <input 
+                                        type="text" 
+                                        name="transactionNo" 
+                                        value={formData.transactionNo} 
+                                        onChange={handleInputChange} 
+                                        placeholder="000851"
+                                        required 
+                                        className="flex-1 block w-full min-w-0 p-3 rounded-none rounded-r-md border border-gray-300 dark:border-zinc-700 focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <div className="mb-8 bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-800/50 rounded-lg p-6 transition-colors duration-300">
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="text-lg font-bold text-[#0f766e] dark:text-teal-500 flex items-center gap-2">
-                                    <ShoppingCart size={20} /> Grades Issued
+                                    <ShoppingCart size={20} /> Grades Received
                                 </h3>
                                 <button 
                                     type="button" 
@@ -321,8 +304,6 @@ export default function GuideIssueRecordEntry() {
 
                             <div className="space-y-6">
                                 {itemsList.map((row) => {
-                                    const availableSizes = getPackSizes(row.grade);
-
                                     return (
                                         <div key={row.id} className="relative bg-white dark:bg-zinc-950 p-4 rounded-xl border border-teal-100 dark:border-teal-900/40 shadow-sm">
                                             
@@ -336,10 +317,10 @@ export default function GuideIssueRecordEntry() {
                                                 </button>
                                             )}
 
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 
                                                 {/* Grade Input */}
-                                                <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`grade-${row.id}`] = el}>
+                                                <div className="relative" ref={el => dropdownRefs.current[`grade-${row.id}`] = el}>
                                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
                                                         <Tag size={12} className="text-[#0d9488] dark:text-teal-400"/> Grade
                                                     </label>
@@ -374,72 +355,22 @@ export default function GuideIssueRecordEntry() {
                                                     )}
                                                 </div>
 
-                                                {/* Pack Size Input */}
-                                                <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`size-${row.id}`] = el}>
-                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Pack Size (KG)</label>
+                                                {/* Qty (KG) Input */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase whitespace-nowrap">Qty (KG)</label>
                                                     <input 
                                                         type="number" 
                                                         step="any"
                                                         min="0"
-                                                        value={row.packSizeKg} 
-                                                        onChange={(e) => handleItemChange(row.id, 'packSizeKg', e.target.value)}
-                                                        onFocus={() => {
-                                                            if (availableSizes) {
-                                                                setOpenDropdownId(`size-${row.id}`);
-                                                            }
-                                                        }}
+                                                        value={row.qtyKg} 
+                                                        onChange={(e) => handleItemChange(row.id, 'qtyKg', e.target.value)}
                                                         onWheel={(e) => e.target.blur()} 
                                                         required 
-                                                        placeholder="e.g. 0.2"
-                                                        className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
-                                                    />
-                                                    
-                                                    {openDropdownId === `size-${row.id}` && availableSizes && (
-                                                        <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-hidden">
-                                                            {availableSizes.map((size, idx) => (
-                                                                <li 
-                                                                    key={idx} 
-                                                                    onMouseDown={(e) => e.preventDefault()} 
-                                                                    onClick={() => {
-                                                                        handleItemChange(row.id, 'packSizeKg', size);
-                                                                        setOpenDropdownId(null);
-                                                                    }}
-                                                                    className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0"
-                                                                >
-                                                                    {size} kg
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    )}
-                                                </div>
-
-                                                {/* Number of Boxes/Packs Input (Referred to as QTY in image) */}
-                                                <div className="lg:col-span-1">
-                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase whitespace-nowrap">Qty (Packs)</label>
-                                                    <input 
-                                                        type="number" 
-                                                        step="1"
-                                                        min="0"
-                                                        value={row.numberOfBoxes} 
-                                                        onChange={(e) => handleItemChange(row.id, 'numberOfBoxes', e.target.value)}
-                                                        onWheel={(e) => e.target.blur()} 
-                                                        required 
-                                                        placeholder="e.g. 5"
+                                                        placeholder="e.g. 5.5"
                                                         className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                                                     />
                                                 </div>
 
-                                                {/* Auto-Calculated Total Qty */}
-                                                <div className="lg:col-span-1">
-                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
-                                                        Total (KG) <Weight size={12} className="text-[#0d9488] dark:text-teal-400"/>
-                                                    </label>
-                                                    <div className="w-full p-2.5 border border-teal-300 dark:border-teal-700/50 bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 font-bold rounded-md text-center transition-colors">
-                                                        {(Number(row.packSizeKg) * Number(row.numberOfBoxes)) > 0 
-                                                            ? (Number(row.packSizeKg) * Number(row.numberOfBoxes)).toFixed(2) 
-                                                            : "0.00"}
-                                                    </div>
-                                                </div>
                                             </div>
                                         </div>
                                     );
@@ -447,9 +378,6 @@ export default function GuideIssueRecordEntry() {
                             </div>
 
                             <div className="mt-4 flex flex-col sm:flex-row justify-end gap-6 border-t border-teal-200/50 dark:border-teal-800/30 pt-4">
-                                <div className="text-sm font-medium text-[#0f766e] dark:text-teal-300">
-                                    Total Packs: <span className="font-bold">{totalBoxes}</span>
-                                </div>
                                 <div className="text-sm font-medium text-[#0f766e] dark:text-teal-300 flex items-center gap-1">
                                     <Package size={16}/> Total Weight: <span className="font-bold text-lg">{totalQtyKg.toFixed(2)} Kg</span>
                                 </div>
@@ -502,9 +430,12 @@ export default function GuideIssueRecordEntry() {
                                             </button>
 
                                             <div className="flex flex-col gap-2 pr-8">
-                                                <div className="flex flex-wrap items-center gap-2">
+                                                <div className="flex flex-wrap items-center justify-between gap-2">
                                                     <span className="font-black text-gray-800 dark:text-gray-200 text-lg">
                                                         {record.date}
+                                                    </span>
+                                                    <span className="text-xs font-bold text-[#0d9488] bg-teal-50 dark:bg-teal-900/30 px-2 py-1 rounded">
+                                                        HO/TO/{record.transactionNo}
                                                     </span>
                                                 </div>
                                                 
@@ -516,16 +447,14 @@ export default function GuideIssueRecordEntry() {
                                                                     {item.grade}
                                                                 </span>
                                                                 <div className="flex items-center gap-3 text-gray-500">
-                                                                    <span>{item.numberOfBoxes} x {item.packSizeKg}kg</span>
-                                                                    <span className="font-bold text-[#0d9488] w-12 text-right">{item.calculatedQtyKg} kg</span>
+                                                                    <span className="font-bold text-[#0d9488] w-16 text-right">{Number(item.qtyKg).toFixed(2)} kg</span>
                                                                 </div>
                                                             </div>
                                                         ))}
                                                     </div>
                                                     <div className="flex justify-between items-center font-bold">
-                                                        <span className="text-gray-500 uppercase text-[10px]">Daily Totals:</span>
+                                                        <span className="text-gray-500 uppercase text-[10px]">Daily Total:</span>
                                                         <div className="flex gap-4">
-                                                            <span className="text-gray-600 dark:text-gray-300">{record.totalBoxes} Packs</span>
                                                             <span className="text-[#0f766e] dark:text-teal-400">{record.totalQtyKg.toFixed(2)} Kg</span>
                                                         </div>
                                                     </div>
