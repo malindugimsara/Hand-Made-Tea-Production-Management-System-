@@ -43,7 +43,7 @@ export default function PDFDownloader({
             }
 
             // 2. Add Titles
-            doc.setFontSize(22);
+            doc.setFontSize(16);
             doc.setTextColor(27, 106, 49); // Dark Green
             doc.text(title, 45, 20);
             
