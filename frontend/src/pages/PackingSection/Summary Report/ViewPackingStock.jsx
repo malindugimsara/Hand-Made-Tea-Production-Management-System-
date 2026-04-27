@@ -177,7 +177,7 @@ export default function ViewPackingStock() {
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 className="text-2xl font-bold text-[#0f766e] dark:text-teal-400 flex items-center gap-2">
-                        <PackageSearch size={28} /> Packing Section Inventory
+                        <PackageSearch size={28} /> Available Packing Stock
                     </h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Real-time overview of bulk and packed tea stock</p>
                 </div>

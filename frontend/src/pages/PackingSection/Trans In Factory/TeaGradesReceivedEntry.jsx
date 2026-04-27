@@ -293,13 +293,7 @@ export default function TeaGradesReceivedEntry() {
                                 <h3 className="text-lg font-bold text-[#0f766e] dark:text-teal-500 flex items-center gap-2">
                                     <ShoppingCart size={20} /> Grades Received
                                 </h3>
-                                <button 
-                                    type="button" 
-                                    onClick={handleAddItemRow}
-                                    className="text-sm font-bold bg-teal-100 hover:bg-teal-200 dark:bg-teal-900/40 dark:hover:bg-teal-800/60 text-[#0f766e] dark:text-teal-400 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
-                                >
-                                    <PlusCircle size={16} /> Add Grade
-                                </button>
+                                
                             </div>
 
                             <div className="space-y-6">
@@ -375,6 +369,16 @@ export default function TeaGradesReceivedEntry() {
                                         </div>
                                     );
                                 })}
+                            </div>
+
+                            <div className="flex justify-end w-full">
+                                <button 
+                                    type="button" 
+                                    onClick={handleAddItemRow}
+                                    className="text-sm mt-4 font-bold bg-teal-100 hover:bg-teal-200 dark:bg-teal-900/40 dark:hover:bg-teal-800/60 text-[#0f766e] dark:text-teal-400 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+                                >
+                                    <PlusCircle size={16} /> Add Grade
+                                </button>
                             </div>
 
                             <div className="mt-4 flex flex-col sm:flex-row justify-end gap-6 border-t border-teal-200/50 dark:border-teal-800/30 pt-4">
