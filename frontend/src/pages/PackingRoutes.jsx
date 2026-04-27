@@ -13,6 +13,8 @@ import TeaGradesReceivedEntry from "./PackingSection/Trans In Factory/TeaGradesR
 import EditTeaReceivedRecord from "./PackingSection/Trans In Factory/EditTeaReceivedRecord";
 import ViewTeaGradesReceivedRecords from "./PackingSection/Trans In Factory/ViewTeaGradesReceivedRecords";
 import ProductIssueSummary from "./PackingSection/Summary report/ProductIssueSummary";
+import ViewPackingStock from "./PackingSection/Summary Report/ViewPackingStock";
+
 
 export const PackingRoutes = () => (
   <Route path="/packing" element={<DashboardLayoutP />}>
@@ -29,6 +31,7 @@ export const PackingRoutes = () => (
     <Route path="trans-in-entry" element={<TransIn />} />
     <Route path="trans-in-view" element={<ViewTransInRecords />} />
     <Route path="product-issue-summary" element={<ProductIssueSummary />} />    
+    <Route path="summary-reports" element={<ViewPackingStock />} />
 
   </Route>
 );

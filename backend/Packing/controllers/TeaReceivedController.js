@@ -1,4 +1,5 @@
-import TeaReceived from '../models/TeaReceivedModel.js'; // Ensure the filename matches your actual file
+import TeaReceived from '../models/TeaReceivedModel.js'; 
+import PackingStock from '../models/PackingStock.js'; // <-- Import the stock model!
 
 // @desc    Create new tea received record
 // @route   POST /api/tea-received
@@ -17,6 +18,39 @@ export const createTeaReceivedRecord = async (req, res) => {
             totalQtyKg,
             receivedItems,
         });
+
+        // 👇 AUTOMATED INVENTORY ADDITION LOGIC (FACTORY) 👇
+        for (const item of receivedItems) {
+            // Find the product name (adjust if your schema uses 'grade' instead of 'product')
+            const productName = item.product || item.grade || item.productName;
+            
+            // Get the incoming weight securely
+            const incomingQty = Number(item.qtyKg || item.weight || item.receivedQtyKg || 0);
+
+            if (incomingQty <= 0) continue; // Skip empty rows
+
+            // Search by BOTH Product and explicitly "Factory"
+            let stock = await PackingStock.findOne({ 
+                productName: productName, 
+                source: 'Factory' 
+            });
+
+            if (stock) {
+                // If it already exists on the Factory shelf, add the new kg to it
+                stock.bulkStockKg += incomingQty;
+                await stock.save();
+            } else {
+                // First time receiving this grade from the Factory? Create a new shelf for it
+                const newStock = new PackingStock({
+                    productName: productName,
+                    source: 'Factory', // Hardcoded here because this controller is only for Factory tea
+                    bulkStockKg: incomingQty,
+                    packedItems: []
+                });
+                await newStock.save();
+            }
+        }
+        // 👆 END OF AUTOMATED INVENTORY ADDITION 👆
 
         const savedRecord = await newTeaReceived.save();
         res.status(201).json(savedRecord);
