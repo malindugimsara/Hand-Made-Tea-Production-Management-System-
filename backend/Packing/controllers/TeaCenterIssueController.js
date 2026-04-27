@@ -1,4 +1,5 @@
 import TeaCenterIssue from '../models/TeaCenterIssueModel.js';
+import PackingStock from '../models/PackingStock.js'; // <-- Added the PackingStock model
 
 // @desc    Create new tea center issue records
 // @route   POST /api/tea-center-issues
@@ -18,6 +19,35 @@ export const createTeaCenterIssue = async (req, res) => {
             totalQtyKg,
             issueItems,
         });
+
+        // 👇 AUTOMATED INVENTORY DEDUCTION LOGIC 👇
+        for (const item of issueItems) {
+            // Find the master stock record for this product
+            const stock = await PackingStock.findOne({ productName: item.product });
+
+            if (stock) {
+                // Find the specific pack size inside the packedItems array
+                const packIndex = stock.packedItems.findIndex(p => p.packSizeKg === item.packSizeKg);
+
+                if (packIndex > -1) {
+                    // Deduct the number of boxes issued from the inventory
+                    stock.packedItems[packIndex].numberOfBoxes -= item.numberOfBoxes;
+                    
+                    // Safety check: prevent negative inventory
+                    if (stock.packedItems[packIndex].numberOfBoxes < 0) {
+                        stock.packedItems[packIndex].numberOfBoxes = 0; 
+                    }
+                } else {
+                    console.warn(`Warning: Pack size ${item.packSizeKg}kg not found in inventory for ${item.product}`);
+                }
+
+                // Save the stock to trigger the .pre('save') hook and recalculate totals
+                await stock.save();
+            } else {
+                console.warn(`Warning: Product ${item.product} not found in inventory master list.`);
+            }
+        }
+        // 👆 END OF AUTOMATED INVENTORY DEDUCTION 👆
 
         const savedIssue = await newIssue.save();
         res.status(201).json(savedIssue);

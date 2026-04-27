@@ -1,4 +1,5 @@
 import LocalSale from '../models/LocalSaleModel.js';
+import PackingStock from '../models/PackingStock.js'; // <-- Added the PackingStock model
 
 // @desc    Create a new local sale record
 // @route   POST /api/local-sales
@@ -17,6 +18,35 @@ export const createLocalSale = async (req, res) => {
             totalQtyKg,
             salesItems
         });
+
+        // 👇 AUTOMATED INVENTORY DEDUCTION LOGIC 👇
+        for (const item of salesItems) {
+            // Find the master stock record for this product
+            const stock = await PackingStock.findOne({ productName: item.product });
+
+            if (stock) {
+                // Find the specific pack size inside the packedItems array
+                const packIndex = stock.packedItems.findIndex(p => p.packSizeKg === item.packSizeKg);
+
+                if (packIndex > -1) {
+                    // Deduct the number of boxes sold from the inventory
+                    stock.packedItems[packIndex].numberOfBoxes -= item.numberOfBoxes;
+                    
+                    // Safety check: prevent negative inventory
+                    if (stock.packedItems[packIndex].numberOfBoxes < 0) {
+                        stock.packedItems[packIndex].numberOfBoxes = 0; 
+                    }
+                } else {
+                    console.warn(`Warning: Pack size ${item.packSizeKg}kg not found in inventory for ${item.product}`);
+                }
+
+                // Save the stock to trigger the .pre('save') hook and recalculate totals
+                await stock.save();
+            } else {
+                console.warn(`Warning: Product ${item.product} not found in inventory master list.`);
+            }
+        }
+        // 👆 END OF AUTOMATED INVENTORY DEDUCTION 👆
 
         const savedSale = await newSale.save();
         res.status(201).json(savedSale);

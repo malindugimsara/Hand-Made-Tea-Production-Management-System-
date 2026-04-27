@@ -1,4 +1,5 @@
 import StockTransfer from "../../models/StockTransfer.js";
+import PackingStock from "../models/PackingStock.js"; // <-- Import the Packing Stock model
 
 // @route   GET /api/packing/transfers/pending
 export const getPendingTransfersForPacking = async (req, res) => {
@@ -13,12 +14,9 @@ export const getPendingTransfersForPacking = async (req, res) => {
 
 // @desc    Receive a transfer (Packing officer updates with actual Kg)
 // @route   PUT /api/packing/transfers/:id/receive
-// @desc    Receive a transfer (Packing officer updates with actual Kg)
-// @route   PUT /api/packing/transfers/:id/receive
 export const receiveTransferInPacking = async (req, res) => {
     try {
         const { id } = req.params;
-        // Notice we don't need 'receivedBy' from req.body anymore
         const { receivedItems, remarks } = req.body; 
 
         // --- NEW LOGIC: Grab the logged-in user's name from the token ---
@@ -46,6 +44,41 @@ export const receiveTransferInPacking = async (req, res) => {
         if (remarks) transfer.remarks = remarks;
 
         const updatedTransfer = await transfer.save();
+
+        // 👇 AUTOMATED INVENTORY ADDITION LOGIC 👇
+        for (const item of transfer.items) {
+            // Skip items where receivedQtyKg is missing or 0
+            if (!item.receivedQtyKg || item.receivedQtyKg <= 0) continue; 
+
+            // Find the master stock record for this product 
+            const productName = item.grade || item.productName || item.product;
+            
+            // dynamically grab the source from the transfer record (default to Factory)
+            const incomingSource = transfer.source || 'Factory'; 
+            
+            // 👇 THIS IS THE FIX: SEARCH BY BOTH PRODUCT AND SOURCE 👇
+            let stock = await PackingStock.findOne({ 
+                productName: productName, 
+                source: incomingSource 
+            });
+
+            if (stock) {
+                // If it exists from this specific source, add to it
+                stock.bulkStockKg += Number(item.receivedQtyKg);
+                await stock.save();
+            } else {
+                // If this is the very first time receiving this grade from this specific source, create it
+                const newStock = new PackingStock({
+                    productName: productName,
+                    source: incomingSource, 
+                    bulkStockKg: Number(item.receivedQtyKg),
+                    packedItems: []
+                });
+                await newStock.save();
+            }
+        }
+        // 👆 END OF AUTOMATED INVENTORY ADDITION 👆
+
         res.status(200).json(updatedTransfer);
 
     } catch (error) {
