@@ -474,4 +474,3 @@ export default function ProductionSummary() {
         </div>
     );
 }
-

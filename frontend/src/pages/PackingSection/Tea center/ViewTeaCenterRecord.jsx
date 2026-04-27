@@ -25,10 +25,11 @@ const getTeaColor = (product) => {
     // 1. Grade/Type strict matching (Order matters!)
     if (p.includes('ff ex sp')) return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800/50';
     if (p.includes('ff sp')) return 'bg-orange-200 dark:bg-orange-900/40 text-orange-900 dark:text-orange-200 border-orange-300 dark:border-orange-800/50';
+    if (p.includes('bopf sp')) return 'bg-[#bef264] text-lime-900 border-lime-500'; 
     if (p.includes('bopf')) return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800/50';
     if (p.includes('fbop')) return 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-800/50';
     if (p.includes('bop')) return 'bg-lime-100 dark:bg-lime-900/30 text-lime-800 dark:text-lime-200 border-lime-200 dark:border-lime-800/50';
-    if (p.includes('op1')) return 'bg-sky-100 dark:bg-sky-900/30 text-sky-800 dark:text-sky-200 border-sky-200 dark:border-sky-800/50';
+    if (p.includes('op1') || p.includes('op 1')) return 'bg-sky-100 dark:bg-sky-900/30 text-sky-800 dark:text-sky-200 border-sky-200 dark:border-sky-800/50';
     if (p.includes('pekoe')) return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/50';
     if (p.includes('dust')) return 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-800 dark:text-cyan-200 border-cyan-200 dark:border-cyan-800/50';
     
@@ -48,6 +49,7 @@ const getTeaColor = (product) => {
     if (p.includes('chakra')) return 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-200 border-indigo-200 dark:border-indigo-800/50';
     if (p.includes('flower')) return 'bg-violet-100 dark:bg-violet-900/30 text-violet-800 dark:text-violet-200 border-violet-200 dark:border-violet-800/50';
     if (p.includes('labour')) return 'bg-stone-200 dark:bg-stone-800 text-stone-800 dark:text-stone-200 border-stone-300 dark:border-stone-700';
+    if (p.includes('other purchasing')) return 'bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200 border-teal-200 dark:border-teal-800/50';
     
     // Default fallback
     return 'bg-gray-50 dark:bg-zinc-900 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-zinc-700'; 
@@ -59,10 +61,11 @@ const getPdfTeaColor = (product) => {
     
     if (p.includes('ff ex sp')) return { fillColor: [254, 226, 226], textColor: [153, 27, 27] };
     if (p.includes('ff sp')) return { fillColor: [254, 215, 170], textColor: [124, 45, 18] };
+    if (p.includes('bopf sp')) return { fillColor: [190, 242, 100], textColor: [77, 124, 15] }; 
     if (p.includes('bopf')) return { fillColor: [254, 240, 138], textColor: [113, 63, 18] };
     if (p.includes('fbop')) return { fillColor: [254, 243, 199], textColor: [146, 64, 14] };
     if (p.includes('bop')) return { fillColor: [236, 252, 203], textColor: [63, 98, 18] };
-    if (p.includes('op1')) return { fillColor: [224, 242, 254], textColor: [7, 89, 133] };
+    if (p.includes('op1') || p.includes('op 1')) return { fillColor: [224, 242, 254], textColor: [7, 89, 133] };
     if (p.includes('pekoe')) return { fillColor: [209, 250, 229], textColor: [6, 78, 59] };
     if (p.includes('dust')) return { fillColor: [207, 250, 254], textColor: [21, 94, 117] };
     
@@ -81,11 +84,70 @@ const getPdfTeaColor = (product) => {
     if (p.includes('chakra')) return { fillColor: [224, 231, 255], textColor: [55, 48, 163] };
     if (p.includes('flower')) return { fillColor: [237, 233, 254], textColor: [91, 33, 182] };
     if (p.includes('labour')) return { fillColor: [231, 229, 228], textColor: [41, 37, 36] };
+    if (p.includes('other purchasing')) return { fillColor: [204, 251, 241], textColor: [17, 94, 89] };
     
     return { fillColor: [249, 250, 251], textColor: [31, 41, 55] }; 
 };
 
-// All Tea Center specific products based on the ledger
+// Map individual products to their summary categories based on the user's ledger
+const getBaseCategory = (product) => {
+    if (!product) return "Unknown";
+    const p = product.trim().toLowerCase().replace(/\s+/g, ' ');
+
+    const bopf = ["lemongrass - bopf", "cinnamon tea - bopf", "ginger tea - bopf", "masala tea - bopf", "pineapple tea", "mix fruit", "peach", "strawberry", "jasmin - bopf", "mango tea", "carmel", "honey", "earl grey", "lime", "soursop - bopf", "cardamom", "gift pack", "guide issue-bopf"];
+    const bopfSp = ["english breakfast", "cinnamon tea - bopf sp", "ginger tea - bopf sp", "masala tea - bopf sp", "vanilla", "mint - bopf sp", "moringa - bopf sp", "curry leaves - bopf sp", "gotukola - bopf sp", "heen bovitiya - bopf sp", "black t/b", "english afternoon"];
+    const greenTea = ["lemongrass - green tea", "g/t lemangrass", "mint - green tea", "soursop - green tea", "moringa - green tea", "curry leaves - green tea", "heen bovitiya - green tea", "gotukola - green tea", "jasmin - green tea", "green tea t/b"];
+    const otherPurchasing = ["silver tips", "golden tips", "flower", "chakra", "green tea"];
+    const pekoe = ["pekoe", "rose tea"];
+    const ff = ["ceylon premium - ff"];
+    const op = ["op", "hibiscus"];
+    const fbop = ["ceylon supreme"];
+    
+    // Explicit single mapping for standalone items
+    const standaloneMap = {
+        "opa": "OPA",
+        "bop": "BOP",
+        "bop pack": "BOP",
+        "pink tea": "Pink Tea",
+        "pink tea can": "Pink Tea",
+        "pink tea pack": "Pink Tea",
+        "op 1": "OP 1",
+        "op1 pack": "OP 1",
+        "ff ex sp": "FF EX SP",
+        "ff ex sp pack": "FF EX SP",
+        "ff ex sp box": "FF EX SP",
+        "white tea": "White Tea",
+        "white tea can": "White Tea",
+        "purple tea": "Purple Tea",
+        "purple tea can": "Purple Tea",
+        "purple pack": "Purple Tea",
+        "slim beauty": "Slim Beauty",
+        "slim beauty can": "Slim Beauty",
+        "vita glow": "Vita Glow",
+        "silver green": "Silver Green",
+        "premium": "Premium",
+        "ceylon premium": "FF",
+        "black pepper": "Black Pepper",
+        "black pepar": "Black Pepper",
+        "cinnamon stick": "Cinnamon Stick",
+        "turmeric": "Turmeric"
+    };
+
+    if (bopf.includes(p)) return "BOPF";
+    if (bopfSp.includes(p)) return "BOPF SP";
+    if (greenTea.includes(p)) return "Green Tea";
+    if (otherPurchasing.includes(p)) return "Other Purchasing";
+    if (pekoe.includes(p)) return "Pekoe";
+    if (ff.includes(p)) return "FF";
+    if (op.includes(p)) return "OP";
+    if (fbop.includes(p)) return "FBOP";
+    
+    if (standaloneMap[p]) return standaloneMap[p];
+
+    return product.trim(); // Return unmodified if no category matches
+};
+
+// All Tea Center specific products
 const TEA_TYPES = [
     "Green tea", "G/T Lemangrass", "Guide Issue-BOPF", "Silver tips can", "FBOP chest", 
     "FF SP chest", "FF EX SP Pack", "Cinnamon can", "OP1 pack", 
@@ -94,7 +156,14 @@ const TEA_TYPES = [
     "Slim beauty can", "Bop pack", "Orange can", "purple pack", 
     "pink tea pack", "Black T/B", "Premium", "Cinnaamon box", 
     "FF EX SP Box", "turmeric", "Black pepar", "Masala box", 
-    "Awrudu gift pack", "chakra", "flower"
+    "Awrudu gift pack", "chakra", "flower",
+    // Base List Items for Autocomplete
+    "Lemongrass - BOPF", "Cinnamon Tea - BOPF", "Ginger Tea - BOPF", "Masala Tea - BOPF", "Pineapple Tea", "Mix Fruit", "Peach", "Strawberry", "Jasmin - BOPF", "Mango Tea", "Carmel", "Honey", "Earl Grey", "Lime", "Soursop - BOPF", "Cardamom", "Gift Pack",
+    "English Breakfast", "Cinnamon Tea - BOPF SP", "Ginger Tea - BOPF SP", "Masala Tea - BOPF SP", "Vanilla", "Mint - BOPF SP", "Moringa - BOPF SP", "Curry Leaves - BOPF SP", "Gotukola - BOPF SP", "Heen Bovitiya - BOPF SP", "English Afternoon",
+    "Lemongrass - Green Tea", "Mint - Green Tea", "Soursop - Green Tea", "Moringa - Green Tea", "Curry Leaves - Green Tea", "Heen Bovitiya - Green Tea", "Gotukola - Green Tea", "Jasmin - Green Tea",
+    "Silver Tips", "Golden Tips", "Flower", "Chakra",
+    "Pekoe", "Rose Tea", "Ceylon Premium - FF", "Ceylon Premium - FF SP", "OP", "Hibiscus", "Ceylon Supreme", "FBOP",
+    "OPA", "BOP", "Pink Tea", "OP 1", "FF EX SP", "White Tea", "Purple Tea", "Slim Beauty", "Vita Glow", "Silver Green", "Green Tea T/B", "Black Pepper", "Cinnamon Stick", "Turmeric"
 ];
 
 export default function ViewTeaCenterRecords() {
@@ -192,19 +261,20 @@ export default function ViewTeaCenterRecords() {
     const grandTotalBoxes = filteredRecords.reduce((sum, record) => sum + (Number(record.totalBoxes) || 0), 0);
     const grandTotalQty = filteredRecords.reduce((sum, record) => sum + (Number(record.totalQtyKg) || 0), 0);
 
-    // --- GENERATE DATA FOR SUMMARY TABLE ---
-    const productSummaryMap = {};
+    // --- GENERATE DATA FOR SUMMARY TABLE BY CATEGORY ---
+    const categorySummaryMap = {};
     filteredRecords.forEach(record => {
         record.itemsArray.forEach(item => {
-            if (!productSummaryMap[item.product]) {
-                productSummaryMap[item.product] = { qty: 0, boxes: 0 };
+            const cat = getBaseCategory(item.product);
+            if (!categorySummaryMap[cat]) {
+                categorySummaryMap[cat] = { qty: 0, boxes: 0 };
             }
-            productSummaryMap[item.product].qty += Number(item.totalQtyKg) || 0;
-            productSummaryMap[item.product].boxes += Number(item.numberOfBoxes) || 0;
+            categorySummaryMap[cat].qty += Number(item.totalQtyKg) || 0;
+            categorySummaryMap[cat].boxes += Number(item.numberOfBoxes) || 0;
         });
     });
     // Sort array by highest Qty
-    const summaryArray = Object.entries(productSummaryMap).sort((a, b) => b[1].qty - a[1].qty);
+    const summaryArray = Object.entries(categorySummaryMap).sort((a, b) => b[1].qty - a[1].qty);
 
     const handleEditClick = (record) => {
         navigate('/packing/edit-tea-center-issue', { state: { recordData: record } });
@@ -504,24 +574,24 @@ export default function ViewTeaCenterRecords() {
                     <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden sticky top-8">
                         <div className="bg-gray-100 dark:bg-zinc-800 px-4 py-3 border-b border-gray-200 dark:border-zinc-600">
                             <h3 className="font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                                <Package size={18} className="text-[#0d9488] dark:text-teal-500" /> Summary By Product
+                                <Package size={18} className="text-[#0d9488] dark:text-teal-500" /> Summary By Category
                             </h3>
                         </div>
                         <div className="p-4 overflow-x-auto">
                             <table className="w-full text-sm border border-gray-300 dark:border-zinc-700 border-collapse min-w-full">
                                 <thead>
                                     <tr className="bg-gray-200 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-500">
-                                        <th className="px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-500">Product</th>
+                                        <th className="px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-500">Category</th>
                                         <th className="px-3 py-2 text-center font-bold border-r border-gray-300 dark:border-zinc-500">Packs/Boxes</th>
                                         <th className="px-3 py-2 text-right font-bold">Qty (Kg)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {summaryArray.length > 0 ? (
-                                        summaryArray.map(([prodName, data], idx) => (
+                                        summaryArray.map(([catName, data], idx) => (
                                             <tr key={idx} className="border-b border-gray-300 dark:border-zinc-500">
-                                                <td className={`px-3 py-2 font-semibold border-r border-gray-300 dark:border-zinc-500 ${getTeaColor(prodName)}`}>
-                                                    {prodName}
+                                                <td className={`px-3 py-2 font-semibold border-r border-gray-300 dark:border-zinc-500 ${getTeaColor(catName)}`}>
+                                                    {catName}
                                                 </td>
                                                 <td className="px-3 py-2 text-center font-medium text-gray-700 dark:text-gray-300 border-r border-gray-300 dark:border-zinc-500">
                                                     {data.boxes}
