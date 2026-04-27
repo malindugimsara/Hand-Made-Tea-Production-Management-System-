@@ -89,64 +89,6 @@ const getPdfTeaColor = (product) => {
     return { fillColor: [249, 250, 251], textColor: [31, 41, 55] }; 
 };
 
-// Map individual products to their summary categories based on the user's ledger
-const getBaseCategory = (product) => {
-    if (!product) return "Unknown";
-    const p = product.trim().toLowerCase().replace(/\s+/g, ' ');
-
-    const bopf = ["lemongrass - bopf", "cinnamon tea - bopf", "ginger tea - bopf", "masala tea - bopf", "pineapple tea", "mix fruit", "peach", "strawberry", "jasmin - bopf", "mango tea", "carmel", "honey", "earl grey", "lime", "soursop - bopf", "cardamom", "gift pack", "guide issue-bopf"];
-    const bopfSp = ["english breakfast", "cinnamon tea - bopf sp", "ginger tea - bopf sp", "masala tea - bopf sp", "vanilla", "mint - bopf sp", "moringa - bopf sp", "curry leaves - bopf sp", "gotukola - bopf sp", "heen bovitiya - bopf sp", "black t/b", "english afternoon"];
-    const greenTea = ["lemongrass - green tea", "g/t lemangrass", "mint - green tea", "soursop - green tea", "moringa - green tea", "curry leaves - green tea", "heen bovitiya - green tea", "gotukola - green tea", "jasmin - green tea", "green tea t/b"];
-    const otherPurchasing = ["silver tips", "golden tips", "flower", "chakra", "green tea"];
-    const pekoe = ["pekoe", "rose tea"];
-    const ff = ["ceylon premium - ff"];
-    const op = ["op", "hibiscus"];
-    const fbop = ["ceylon supreme"];
-    
-    // Explicit single mapping for standalone items
-    const standaloneMap = {
-        "opa": "OPA",
-        "bop": "BOP",
-        "bop pack": "BOP",
-        "pink tea": "Pink Tea",
-        "pink tea can": "Pink Tea",
-        "pink tea pack": "Pink Tea",
-        "op 1": "OP 1",
-        "op1 pack": "OP 1",
-        "ff ex sp": "FF EX SP",
-        "ff ex sp pack": "FF EX SP",
-        "ff ex sp box": "FF EX SP",
-        "white tea": "White Tea",
-        "white tea can": "White Tea",
-        "purple tea": "Purple Tea",
-        "purple tea can": "Purple Tea",
-        "purple pack": "Purple Tea",
-        "slim beauty": "Slim Beauty",
-        "slim beauty can": "Slim Beauty",
-        "vita glow": "Vita Glow",
-        "silver green": "Silver Green",
-        "premium": "Premium",
-        "ceylon premium": "FF",
-        "black pepper": "Black Pepper",
-        "black pepar": "Black Pepper",
-        "cinnamon stick": "Cinnamon Stick",
-        "turmeric": "Turmeric"
-    };
-
-    if (bopf.includes(p)) return "BOPF";
-    if (bopfSp.includes(p)) return "BOPF SP";
-    if (greenTea.includes(p)) return "Green Tea";
-    if (otherPurchasing.includes(p)) return "Other Purchasing";
-    if (pekoe.includes(p)) return "Pekoe";
-    if (ff.includes(p)) return "FF";
-    if (op.includes(p)) return "OP";
-    if (fbop.includes(p)) return "FBOP";
-    
-    if (standaloneMap[p]) return standaloneMap[p];
-
-    return product.trim(); // Return unmodified if no category matches
-};
-
 // All Tea Center specific products
 const TEA_TYPES = [
     "Green tea", "G/T Lemangrass", "Guide Issue-BOPF", "Silver tips can", "FBOP chest", 
@@ -260,21 +202,6 @@ export default function ViewTeaCenterRecords() {
 
     const grandTotalBoxes = filteredRecords.reduce((sum, record) => sum + (Number(record.totalBoxes) || 0), 0);
     const grandTotalQty = filteredRecords.reduce((sum, record) => sum + (Number(record.totalQtyKg) || 0), 0);
-
-    // --- GENERATE DATA FOR SUMMARY TABLE BY CATEGORY ---
-    const categorySummaryMap = {};
-    filteredRecords.forEach(record => {
-        record.itemsArray.forEach(item => {
-            const cat = getBaseCategory(item.product);
-            if (!categorySummaryMap[cat]) {
-                categorySummaryMap[cat] = { qty: 0, boxes: 0 };
-            }
-            categorySummaryMap[cat].qty += Number(item.totalQtyKg) || 0;
-            categorySummaryMap[cat].boxes += Number(item.numberOfBoxes) || 0;
-        });
-    });
-    // Sort array by highest Qty
-    const summaryArray = Object.entries(categorySummaryMap).sort((a, b) => b[1].qty - a[1].qty);
 
     const handleEditClick = (record) => {
         navigate('/packing/edit-tea-center-issue', { state: { recordData: record } });
@@ -440,183 +367,130 @@ export default function ViewTeaCenterRecords() {
                 </div>
             </div>
             
-            {/* --- MAIN GRID LAYOUT --- */}
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-                
-                {/* LEFT: MAIN TABLE (Col Span 3) */}
-                <div className="xl:col-span-3 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden self-start w-full transition-colors duration-300">
-                    {loading ? (
-                        <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center h-64">
-                            <div className="w-8 h-8 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mb-4"></div>
-                            <p className="font-medium">Loading issue records...</p>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
-                            <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
-                                <thead>
-                                    <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-500">
-                                        <th className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-500 align-bottom min-w-[120px]"><Calendar size={14} className="inline mr-1"/> Date</th>
-                                        <th className="px-4 py-3 font-bold text-green-600 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 align-bottom min-w-[160px]"><Tag size={14} className="inline mr-1"/> Product</th>
-                                        <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> (Kg)</th>
-                                        <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Package size={14} className="inline mr-1"/> Box/Packs</th>
-                                        <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> Qty (Kg)</th>
-                                        <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Boxes</th>
-                                        <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Qty (Kg)</th>
-                                        {!isViewer && <th className="px-4 py-3 font-semibold align-bottom text-center bg-gray-50 dark:bg-zinc-950/50">Action</th>}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
-                                    {filteredRecords.length > 0 ? (
-                                        filteredRecords.map((record) => (
-                                            <tr key={record._id} className="hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors group">
-                                                
-                                                <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
-                                                    {record.isEdited && (
-                                                        <div className="mt-1.5 text-[10px] bg-teal-50 dark:bg-teal-900 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-700 px-2 py-1 rounded font-medium w-max leading-tight">
-                                                            <span className="font-bold">Edited by {record.editedBy}</span><br />
-                                                            <span className="opacity-100">{record.lastUpdatedDate}</span>
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                
-                                                <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px">
-                                                    <div className="flex flex-col w-full h-full">
-                                                        {record.itemsArray.map((t, i) => (
-                                                            <div key={i} className={`flex-1 flex items-center px-4 py-3 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0 ${getTeaColor(t.product)}`}>
-                                                                {t.product}
-                                                            </div>
-                                                        ))}
+            {/* --- MAIN TABLE --- */}
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden w-full transition-colors duration-300">
+                {loading ? (
+                    <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center h-64">
+                        <div className="w-8 h-8 border-4 border-teal-200 border-t-teal-600 rounded-full animate-spin mb-4"></div>
+                        <p className="font-medium">Loading issue records...</p>
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
+                        <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
+                            <thead>
+                                <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-500">
+                                    <th className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-500 align-bottom min-w-[120px]"><Calendar size={14} className="inline mr-1"/> Date</th>
+                                    <th className="px-4 py-3 font-bold text-green-600 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 align-bottom min-w-[160px]"><Tag size={14} className="inline mr-1"/> Product</th>
+                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> (Kg)</th>
+                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Package size={14} className="inline mr-1"/> Box/Packs</th>
+                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> Qty (Kg)</th>
+                                    <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Boxes</th>
+                                    <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Qty (Kg)</th>
+                                    {!isViewer && <th className="px-4 py-3 font-semibold align-bottom text-center bg-gray-50 dark:bg-zinc-950/50">Action</th>}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
+                                {filteredRecords.length > 0 ? (
+                                    filteredRecords.map((record) => (
+                                        <tr key={record._id} className="hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors group">
+                                            
+                                            <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
+                                                {record.isEdited && (
+                                                    <div className="mt-1.5 text-[10px] bg-teal-50 dark:bg-teal-900 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-700 px-2 py-1 rounded font-medium w-max leading-tight">
+                                                        <span className="font-bold">Edited by {record.editedBy}</span><br />
+                                                        <span className="opacity-100">{record.lastUpdatedDate}</span>
                                                     </div>
-                                                </td>
-                                                
-                                                <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                    <div className="flex flex-col w-full h-full">
-                                                        {record.itemsArray.map((t, i) => (
-                                                            <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-600 dark:text-gray-300 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                                {t.packSizeKg}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </td>
-
-                                                <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                    <div className="flex flex-col w-full h-full">
-                                                        {record.itemsArray.map((t, i) => (
-                                                            <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-600 dark:text-gray-300 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                                {t.numberOfBoxes}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </td>
-
-                                                <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                    <div className="flex flex-col w-full h-full">
-                                                        {record.itemsArray.map((t, i) => (
-                                                            <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-800 dark:text-gray-200 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                                <span className="text-gray-600 dark:text-green-500">{t.totalQtyKg?.toFixed(3)}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </td>
-
-                                                <td className="px-3 py-4 text-center border-r border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 align-top">
-                                                    <span className="font-bold text-gray-700 dark:text-gray-300 text-lg">{record.totalBoxes}</span>
-                                                </td>
-
-                                                <td className="px-3 py-4 text-center border-r border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 align-top">
-                                                    <span className="font-bold text-green-700 dark:text-green-400 text-lg">{record.totalQtyKg?.toFixed(3)}</span>
-                                                </td>
-                                                
-                                                {!isViewer && (
-                                                    <td className="px-3 py-4 text-center align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                        <div className="flex items-center justify-center gap-1">
-                                                            <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-teal-600 rounded transition-colors"><MdOutlineEdit size={20} /></button>
-                                                            <AlertDialog>
-                                                                <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 rounded transition-colors"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
-                                                                <AlertDialogContent className="bg-white rounded-2xl max-w-md">
-                                                                    <AlertDialogHeader>
-                                                                        <AlertDialogTitle className="text-xl font-bold">Delete Record</AlertDialogTitle>
-                                                                        <AlertDialogDescription>Are you sure you want to delete this record?</AlertDialogDescription>
-                                                                    </AlertDialogHeader>
-                                                                    <AlertDialogFooter>
-                                                                        <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
-                                                                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700">Delete</AlertDialogAction>
-                                                                    </AlertDialogFooter>
-                                                                </AlertDialogContent>
-                                                            </AlertDialog>
-                                                        </div>
-                                                    </td>
                                                 )}
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr><td colSpan={isViewer ? "7" : "8"} className="p-16 text-center text-gray-400"><p>No records found</p></td></tr>
-                                    )}
-                                </tbody>
-                                {filteredRecords.length > 0 && (
-                                    <tfoot className="bg-gray-100/90 dark:bg-zinc-900/90 border-t-2 border-gray-200 dark:border-zinc-700">
-                                        <tr>
-                                            <td colSpan="5" className="px-4 py-4 text-right font-bold tracking-wider uppercase border-r border-gray-200 dark:border-zinc-800">MONTHLY TOTAL</td>
-                                            <td className="px-3 py-4 text-center font-black text-xl border-r border-gray-200 dark:border-zinc-800">{grandTotalBoxes}</td>
-                                            <td className="px-3 py-4 text-center font-black text-[#0f766e] dark:text-teal-500 text-xl border-r border-gray-200 dark:border-zinc-800">{grandTotalQty.toFixed(3)} kg</td>
-                                            {!isViewer && <td></td>}
-                                        </tr>
-                                    </tfoot>
-                                )}
-                            </table>
-                        </div>
-                    )}
-                </div>
+                                            </td>
+                                            
+                                            <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px">
+                                                <div className="flex flex-col w-full h-full">
+                                                    {record.itemsArray.map((t, i) => (
+                                                        <div key={i} className={`flex-1 flex items-center px-4 py-3 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0 ${getTeaColor(t.product)}`}>
+                                                            {t.product}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            
+                                            <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                <div className="flex flex-col w-full h-full">
+                                                    {record.itemsArray.map((t, i) => (
+                                                        <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-600 dark:text-gray-300 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
+                                                            {t.packSizeKg}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </td>
 
-                {/* RIGHT: SUMMARY TABLE (Col Span 1) */}
-                <div className="xl:col-span-1">
-                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden sticky top-8">
-                        <div className="bg-gray-100 dark:bg-zinc-800 px-4 py-3 border-b border-gray-200 dark:border-zinc-600">
-                            <h3 className="font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                                <Package size={18} className="text-[#0d9488] dark:text-teal-500" /> Summary By Category
-                            </h3>
-                        </div>
-                        <div className="p-4 overflow-x-auto">
-                            <table className="w-full text-sm border border-gray-300 dark:border-zinc-700 border-collapse min-w-full">
-                                <thead>
-                                    <tr className="bg-gray-200 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-500">
-                                        <th className="px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-500">Category</th>
-                                        <th className="px-3 py-2 text-center font-bold border-r border-gray-300 dark:border-zinc-500">Packs/Boxes</th>
-                                        <th className="px-3 py-2 text-right font-bold">Qty (Kg)</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {summaryArray.length > 0 ? (
-                                        summaryArray.map(([catName, data], idx) => (
-                                            <tr key={idx} className="border-b border-gray-300 dark:border-zinc-500">
-                                                <td className={`px-3 py-2 font-semibold border-r border-gray-300 dark:border-zinc-500 ${getTeaColor(catName)}`}>
-                                                    {catName}
+                                            <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                <div className="flex flex-col w-full h-full">
+                                                    {record.itemsArray.map((t, i) => (
+                                                        <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-600 dark:text-gray-300 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
+                                                            {t.numberOfBoxes}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </td>
+
+                                            <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                <div className="flex flex-col w-full h-full">
+                                                    {record.itemsArray.map((t, i) => (
+                                                        <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-800 dark:text-gray-200 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
+                                                            <span className="text-gray-600 dark:text-green-500">{t.totalQtyKg?.toFixed(3)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </td>
+
+                                            <td className="px-3 py-4 text-center border-r border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 align-top">
+                                                <span className="font-bold text-gray-700 dark:text-gray-300 text-lg">{record.totalBoxes}</span>
+                                            </td>
+
+                                            <td className="px-3 py-4 text-center border-r border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 align-top">
+                                                <span className="font-bold text-green-700 dark:text-green-400 text-lg">{record.totalQtyKg?.toFixed(3)}</span>
+                                            </td>
+                                            
+                                            {!isViewer && (
+                                                <td className="px-3 py-4 text-center align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-teal-600 rounded transition-colors"><MdOutlineEdit size={20} /></button>
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 rounded transition-colors"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
+                                                            <AlertDialogContent className="bg-white rounded-2xl max-w-md">
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle className="text-xl font-bold">Delete Record</AlertDialogTitle>
+                                                                    <AlertDialogDescription>Are you sure you want to delete this record?</AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700">Delete</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    </div>
                                                 </td>
-                                                <td className="px-3 py-2 text-center font-medium text-gray-700 dark:text-gray-300 border-r border-gray-300 dark:border-zinc-500">
-                                                    {data.boxes}
-                                                </td>
-                                                <td className="px-3 py-2 text-right font-medium text-gray-700 dark:text-gray-300">
-                                                    {data.qty % 1 !== 0 ? data.qty.toFixed(3) : data.qty}
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr><td colSpan="3" className="px-3 py-6 text-center text-gray-400">No data</td></tr>
-                                    )}
-                                </tbody>
-                                <tfoot>
-                                    <tr className="bg-gray-200 dark:bg-zinc-800 font-bold text-gray-900 dark:text-gray-100 border-t-2 border-gray-400 dark:border-zinc-500">
-                                        <td className="px-3 py-2 uppercase border-r border-gray-300 dark:border-zinc-500">TOTAL</td>
-                                        <td className="px-3 py-2 text-center border-r border-gray-300 dark:border-zinc-500">{grandTotalBoxes}</td>
-                                        <td className="px-3 py-2 text-right">{grandTotalQty % 1 !== 0 ? grandTotalQty.toFixed(3) : grandTotalQty}</td>
+                                            )}
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr><td colSpan={isViewer ? "7" : "8"} className="p-16 text-center text-gray-400"><p>No records found</p></td></tr>
+                                )}
+                            </tbody>
+                            {filteredRecords.length > 0 && (
+                                <tfoot className="bg-gray-100/90 dark:bg-zinc-900/90 border-t-2 border-gray-200 dark:border-zinc-700">
+                                    <tr>
+                                        <td colSpan="5" className="px-4 py-4 text-right font-bold tracking-wider uppercase border-r border-gray-200 dark:border-zinc-800">MONTHLY TOTAL</td>
+                                        <td className="px-3 py-4 text-center font-black text-xl border-r border-gray-200 dark:border-zinc-800">{grandTotalBoxes}</td>
+                                        <td className="px-3 py-4 text-center font-black text-[#0f766e] dark:text-teal-500 text-xl border-r border-gray-200 dark:border-zinc-800">{grandTotalQty.toFixed(3)} kg</td>
+                                        {!isViewer && <td></td>}
                                     </tr>
                                 </tfoot>
-                            </table>
-                        </div>
+                            )}
+                        </table>
                     </div>
-                </div>
-
+                )}
             </div>
         </div>
     );
