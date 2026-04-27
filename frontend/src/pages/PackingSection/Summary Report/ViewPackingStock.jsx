@@ -186,7 +186,7 @@ export default function ViewPackingStock() {
                     <PDFDownloader 
                         title="Packing Section Inventory"
                         subtitle={`Filters -> Search: ${searchQuery || 'All'} | Source: ${sourceFilter || 'All'}`}
-                        headers={["Product", "Source", "Bulk Stock", "Pack Size", "Boxes", "Packed Qty", "Grand Total"]}
+                        headers={["Product", "Source", "Bulk Stock", "Grand Total"]}
                         data={getPdfData()}
                         uniqueCode={uniqueCode}
                         fileName={`Packing_Inventory_${new Date().toISOString().split('T')[0]}.pdf`}
@@ -284,9 +284,6 @@ export default function ViewPackingStock() {
                                         <th className="px-4 py-4 font-bold text-amber-700 dark:text-amber-500 border-r border-gray-200 dark:border-zinc-600 bg-amber-50/50 dark:bg-amber-950/20 text-center"><Warehouse size={14} className="inline mr-1"/> Bulk Stock (Kg)</th>
                                         
                                         {/* Packed Items Breakdown */}
-                                        <th className="px-4 py-4 font-bold text-blue-700 dark:text-blue-400 border-r border-gray-200 dark:border-zinc-600 bg-blue-50/50 dark:bg-blue-950/20 text-center"><PackageOpen size={14} className="inline mr-1"/> Pack Size</th>
-                                        <th className="px-4 py-4 font-bold text-blue-700 dark:text-blue-400 border-r border-gray-200 dark:border-zinc-600 bg-blue-50/50 dark:bg-blue-950/20 text-center">No. of Boxes</th>
-                                        <th className="px-4 py-4 font-bold text-blue-700 dark:text-blue-400 border-r border-gray-200 dark:border-zinc-600 bg-blue-50/50 dark:bg-blue-950/20 text-center">Packed Qty (Kg)</th>
                                         
                                         <th className="px-4 py-4 font-bold text-[#0f766e] dark:text-teal-400 bg-teal-50/30 dark:bg-teal-950/20 text-center text-sm">Grand Total (Kg)</th>
                                     </tr>
@@ -318,38 +315,9 @@ export default function ViewPackingStock() {
                                                     <span className="font-black text-amber-700 dark:text-amber-500 text-lg">{(Number(stock.bulkStockKg) || 0).toFixed(2)}</span>
                                                 </td>
 
-                                                {/* Packed Size */}
-                                                <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-blue-50/20 dark:bg-blue-950/10">
-                                                    <div className="flex flex-col w-full h-full">
-                                                        {stock.packedItems && stock.packedItems.length > 0 ? stock.packedItems.map((item, i) => (
-                                                            <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-600 dark:text-gray-300 font-medium border-b border-gray-200 dark:border-zinc-700/50 last:border-b-0">
-                                                                {item.packSizeKg || 0} kg
-                                                            </div>
-                                                        )) : <div className="flex-1 flex items-center justify-center p-3 text-gray-400 italic">-</div>}
-                                                    </div>
-                                                </td>
+                                                
 
-                                                {/* Packed Boxes */}
-                                                <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-blue-50/20 dark:bg-blue-950/10">
-                                                    <div className="flex flex-col w-full h-full">
-                                                        {stock.packedItems && stock.packedItems.length > 0 ? stock.packedItems.map((item, i) => (
-                                                            <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-600 dark:text-gray-300 font-medium border-b border-gray-200 dark:border-zinc-700/50 last:border-b-0">
-                                                                {item.numberOfBoxes || 0}
-                                                            </div>
-                                                        )) : <div className="flex-1 flex items-center justify-center p-3 text-gray-400 italic">-</div>}
-                                                    </div>
-                                                </td>
-
-                                                {/* Packed Qty Total */}
-                                                <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-blue-50/20 dark:bg-blue-950/10">
-                                                    <div className="flex flex-col w-full h-full">
-                                                        {stock.packedItems && stock.packedItems.length > 0 ? stock.packedItems.map((item, i) => (
-                                                            <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-blue-700 dark:text-blue-400 font-bold border-b border-gray-200 dark:border-zinc-700/50 last:border-b-0">
-                                                                {(Number(item.totalQtyKg) || 0).toFixed(2)}
-                                                            </div>
-                                                        )) : <div className="flex-1 flex items-center justify-center p-3 text-gray-400 italic">-</div>}
-                                                    </div>
-                                                </td>
+                                                
 
                                                 {/* Grand Total */}
                                                 <td className="px-4 py-4 text-center align-top bg-teal-50/10 dark:bg-teal-950/10">
