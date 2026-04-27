@@ -44,6 +44,12 @@ const stockTransferSchema = new mongoose.Schema({
         required: true,
         validate: [v => v.length > 0, 'A transfer must contain at least one item.']
     },
+    source: {
+        type: String,
+        enum: ['Factory', 'Handmade', 'Other'],
+        required: true,
+        default: 'Factory' // You can default it to whatever is most common
+    },
     issuedBy: {
         type: String,
         required: true
