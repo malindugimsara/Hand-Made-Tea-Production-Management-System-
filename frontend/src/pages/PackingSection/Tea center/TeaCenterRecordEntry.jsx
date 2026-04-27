@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
-import { PlusCircle, Trash2, ListChecks, Save, Package, ShoppingCart, Calendar, Weight, Tag, X, Calculator, AlertTriangle, ArrowRight } from "lucide-react"; 
+import { PlusCircle, Trash2, ListChecks, Save, Package, ShoppingCart, Calendar, Weight, Tag, X, Calculator, AlertTriangle, ArrowRight, Box } from "lucide-react"; 
 import { useNavigate } from 'react-router-dom';
 
 // --- NEW LOGIC: BASE TEA MAPPING ---
@@ -98,6 +98,12 @@ const TEA_TYPES = [
     "Lemongrass - BOPF", "Lemongrass - Green Tea", "BOP", "Pekoe", "Rose Tea", "English Breakfast", "Pink Tea", "Ceylon Premium - FF ", "Ceylon Supreme", "Cinnamon Tea - BOPF SP", "Cinnamon Tea - BOPF", "Ginger Tea - BOPF SP", "Ginger Tea - BOPF", "Silver Tips", "Golden Tips", "OPA", "OP", "OP 1", "FF EX SP", "Masala Tea - BOPF", "Masala Tea - BOPF SP", "Pineapple Tea", "Mix Fruit", "Peach", "Strawberry", "Jasmin - Green Tea", "Jasmin - BOPF", "Mango Tea", "Carmel", "Honey", "Vanilla", "Earl Grey", "Hibiscus", "Mint - Green Tea", "Mint - BOPF SP", "Lime", "Soursop - Green Tea", "Soursop - BOPF", "White Tea", "Purple Tea", "Slim Beauty", "Vita Glow", "Silver Green", "FBOP", "Moringa - BOPF SP", "Moringa - Green Tea", "Curry Leaves - BOPF SP", "Curry Leaves - Green Tea", "Heen Bovitiya - BOPF SP", "Heen Bovitiya - Green Tea", "Gotukola - BOPF SP", "Gotukola", "Flower", "Chakra", "Green Tea - Other", "Gift Pack", "Premium", "Cardamom", "English Afternoon", "Green Tea T/B", "Black Tea T/B", "Black Pepper", "Cinnamon Stick", "Turmeric"
 ];
 
+// New Array for Packaging Types
+const PACKAGING_TYPES = [
+    "E/L Pack", "Pack", "Box", "Chest box", "Cloth bag", 
+    "Paper can", "Wooden box", "Wooden cylinder", "Tin"
+];
+
 const getPackSizes = (product) => {
     if (!product) return null;
     const p = product.toLowerCase();
@@ -120,7 +126,9 @@ export default function TeaCenterRecordEntry() {
     
     const navigate = useNavigate();
     const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0] });
-    const [itemsList, setItemsList] = useState([{ id: Date.now(), product: '', packSizeKg: '', numberOfBoxes: '' }]);
+    
+    // Add 'type' to initial state
+    const [itemsList, setItemsList] = useState([{ id: Date.now(), product: '', type: '', packSizeKg: '', numberOfBoxes: '' }]);
 
     const [openDropdownId, setOpenDropdownId] = useState(null);
     const dropdownRefs = useRef({}); 
@@ -175,7 +183,7 @@ export default function TeaCenterRecordEntry() {
     const totalAvailableStockCapacity = availableStock.reduce((sum, item) => sum + (item.bulkStockKg || 0), 0);
 
     const handleAddItemRow = () => {
-        setItemsList([...itemsList, { id: Date.now(), product: '', packSizeKg: '', numberOfBoxes: '' }]);
+        setItemsList([...itemsList, { id: Date.now(), product: '', type: '', packSizeKg: '', numberOfBoxes: '' }]);
     };
 
     const handleRemoveItemRow = (idToRemove) => {
@@ -184,7 +192,7 @@ export default function TeaCenterRecordEntry() {
     };
 
     const handleItemChange = (id, field, value) => {
-        if (field !== 'product' && value !== '' && (Number(value) < 0 || value.includes('-'))) return;
+        if (field !== 'product' && field !== 'type' && value !== '' && (Number(value) < 0 || value.includes('-'))) return;
         
         setItemsList(itemsList.map(row => {
             if (row.id === id) {
@@ -214,9 +222,9 @@ export default function TeaCenterRecordEntry() {
 
     const handleAddToList = (e) => {
         e.preventDefault();
-        const hasEmptyItem = itemsList.some(row => !row.product || row.packSizeKg === '' || row.numberOfBoxes === '');
+        const hasEmptyItem = itemsList.some(row => !row.product || !row.type || row.packSizeKg === '' || row.numberOfBoxes === '');
         if (hasEmptyItem) {
-            toast.error("Please fill out all Product, Pack Size, and Box details completely!");
+            toast.error("Please fill out all Product, Type, Pack Size, and Box details completely!");
             return;
         }
 
@@ -232,7 +240,7 @@ export default function TeaCenterRecordEntry() {
 
         setPendingRecords([...pendingRecords, newRecord]);
         toast.success(`Record added to list!`);
-        setItemsList([{ id: Date.now(), product: '', packSizeKg: '', numberOfBoxes: '' }]);
+        setItemsList([{ id: Date.now(), product: '', type: '', packSizeKg: '', numberOfBoxes: '' }]);
     };
 
     const handleRemoveFromList = (indexToRemove) => {
@@ -246,11 +254,9 @@ export default function TeaCenterRecordEntry() {
             return;
         }
 
-        // --- ENHANCED WARNING LOGIC: Check Stock by BASE GRADE ---
         let stockWarning = false;
-        
-        // 1. Group requested quantities by Base Grade
         const requestedByBaseGrade = {};
+        
         pendingRecords.forEach(record => {
             record.items.forEach(item => {
                 const baseGrade = getBaseTeaGrade(item.product);
@@ -259,7 +265,6 @@ export default function TeaCenterRecordEntry() {
             });
         });
 
-        // 2. Check if any Base Grade exceeds available stock
         for (const [baseGrade, requestedQty] of Object.entries(requestedByBaseGrade)) {
             const stockData = availableStock.find(s => s.productName === baseGrade);
             const available = stockData ? stockData.bulkStockKg : 0;
@@ -287,6 +292,7 @@ export default function TeaCenterRecordEntry() {
                     totalQtyKg: record.totalQtyKg,
                     issueItems: record.items.map(item => ({
                         product: item.product,
+                        type: item.type, // Sending the new Type field
                         packSizeKg: Number(item.packSizeKg),
                         numberOfBoxes: Number(item.numberOfBoxes),
                         totalQtyKg: Number(item.calculatedQtyKg)
@@ -402,21 +408,15 @@ export default function TeaCenterRecordEntry() {
                                 <h3 className="text-lg font-bold text-[#0f766e] dark:text-teal-500 flex items-center gap-2">
                                     <ShoppingCart size={20} /> Products Issued
                                 </h3>
-                                <button type="button" onClick={handleAddItemRow} className="text-sm font-bold bg-teal-100 hover:bg-teal-200 dark:bg-teal-900/40 dark:hover:bg-teal-800/60 text-[#0f766e] dark:text-teal-400 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
-                                    <PlusCircle size={16} /> Add Product
-                                </button>
                             </div>
 
                             <div className="space-y-6">
                                 {itemsList.map((row) => {
                                     const availableSizes = getPackSizes(row.product);
-
-                                    // --- NEW LOGIC: Calculate Stock by Base Grade for Warning ---
                                     const baseGrade = getBaseTeaGrade(row.product);
                                     const stockData = availableStock.find(s => s.productName === baseGrade);
                                     const availableForProduct = stockData ? stockData.bulkStockKg : 0;
                                     
-                                    // Aggregate all current inputs that share this base grade
                                     const totalIssuedForBaseGradeSoFar = itemsList.reduce((sum, currentItem) => {
                                         if (getBaseTeaGrade(currentItem.product) === baseGrade) {
                                              return sum + ((Number(currentItem.packSizeKg) * Number(currentItem.numberOfBoxes)) || 0);
@@ -437,20 +437,21 @@ export default function TeaCenterRecordEntry() {
                                                 </button>
                                             )}
 
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                            {/* Changed to grid-cols-5 to accommodate the new Type field */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                                                 
                                                 <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`product-${row.id}`] = el}>
                                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
-                                                        <Tag size={12} className={isOverCapacity ? "text-amber-500" : "text-[#0d9488] dark:text-teal-400"}/> Product Name
+                                                        <Tag size={12} className={isOverCapacity ? "text-amber-500" : "text-[#0d9488] dark:text-teal-400"}/> Product
                                                     </label>
                                                     <input 
                                                         type="text" 
-                                                        placeholder="Type or select..."
+                                                        placeholder="Select..."
                                                         value={row.product}
                                                         onChange={(e) => handleItemChange(row.id, 'product', e.target.value)}
                                                         onFocus={() => setOpenDropdownId(`product-${row.id}`)}
                                                         required
-                                                        className={`w-full p-2.5 border rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none transition-colors ${row.product ? getTeaColor(row.product) : 'bg-white dark:bg-zinc-950 dark:text-gray-100'} ${isOverCapacity ? 'border-amber-300' : 'border-teal-200 dark:border-teal-800/50'}`}
+                                                        className={`w-full p-2.5 border rounded-md text-sm focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none transition-colors ${row.product ? getTeaColor(row.product) : 'bg-white dark:bg-zinc-950 dark:text-gray-100'} ${isOverCapacity ? 'border-amber-300' : 'border-teal-200 dark:border-teal-800/50'}`}
                                                     />
                                                     
                                                     {openDropdownId === `product-${row.id}` && (
@@ -466,9 +467,37 @@ export default function TeaCenterRecordEntry() {
                                                     )}
                                                 </div>
 
+                                                {/* NEW TYPE FIELD */}
+                                                <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`type-${row.id}`] = el}>
+                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
+                                                        <Box size={12} className="text-[#0d9488] dark:text-teal-400"/> Packing Type
+                                                    </label>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Type..."
+                                                        value={row.type}
+                                                        onChange={(e) => handleItemChange(row.id, 'type', e.target.value)}
+                                                        onFocus={() => setOpenDropdownId(`type-${row.id}`)}
+                                                        required
+                                                        className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
+                                                    />
+                                                    
+                                                    {openDropdownId === `type-${row.id}` && (
+                                                        <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
+                                                            {PACKAGING_TYPES
+                                                                .filter(type => type.toLowerCase().includes(row.type.toLowerCase()))
+                                                                .map((type, idx) => (
+                                                                <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'type', type); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0">
+                                                                    {type}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    )}
+                                                </div>
+
                                                 <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`size-${row.id}`] = el}>
-                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Pack Size (Kg)</label>
-                                                    <input type="number" step="any" min="0" value={row.packSizeKg} onChange={(e) => handleItemChange(row.id, 'packSizeKg', e.target.value)} onFocus={() => { if (availableSizes) setOpenDropdownId(`size-${row.id}`); }} onWheel={(e) => e.target.blur()} required placeholder="e.g. 0.025" className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
+                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Pack (Kg)</label>
+                                                    <input type="number" step="any" min="0" value={row.packSizeKg} onChange={(e) => handleItemChange(row.id, 'packSizeKg', e.target.value)} onFocus={() => { if (availableSizes) setOpenDropdownId(`size-${row.id}`); }} onWheel={(e) => e.target.blur()} required placeholder="e.g. 0.025" className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
                                                     
                                                     {openDropdownId === `size-${row.id}` && availableSizes && (
                                                         <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-hidden">
@@ -482,14 +511,14 @@ export default function TeaCenterRecordEntry() {
                                                 </div>
 
                                                 <div className="lg:col-span-1">
-                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase whitespace-nowrap">No. of Box/Packs</label>
-                                                    <input type="number" step="1" min="0" value={row.numberOfBoxes} onChange={(e) => handleItemChange(row.id, 'numberOfBoxes', e.target.value)} onWheel={(e) => e.target.blur()} required placeholder="e.g. 15" className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
+                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase whitespace-nowrap">No. of Items</label>
+                                                    <input type="number" step="1" min="0" value={row.numberOfBoxes} onChange={(e) => handleItemChange(row.id, 'numberOfBoxes', e.target.value)} onWheel={(e) => e.target.blur()} required placeholder="e.g. 15" className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
                                                 </div>
 
                                                 <div className="lg:col-span-1">
                                                     <div className="flex justify-between items-center mb-1">
                                                         <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase flex items-center gap-1">
-                                                            Qty (KG) <Weight size={12} className={isOverCapacity ? "text-amber-500" : "text-[#0d9488] dark:text-teal-400"}/>
+                                                            Qty <Weight size={12} className={isOverCapacity ? "text-amber-500" : "text-[#0d9488] dark:text-teal-400"}/>
                                                         </label>
                                                         {row.product && (
                                                             <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400" title={`Base Grade: ${baseGrade}`}>
@@ -497,7 +526,7 @@ export default function TeaCenterRecordEntry() {
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div className={`w-full p-2.5 border font-bold rounded-md text-center transition-colors ${isOverCapacity ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400' : 'border-teal-300 dark:border-teal-700/50 bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400'}`}>
+                                                    <div className={`w-full p-2.5 border font-bold text-sm rounded-md text-center transition-colors ${isOverCapacity ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400' : 'border-teal-300 dark:border-teal-700/50 bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400'}`}>
                                                         {issuedNum > 0 ? issuedNum.toFixed(3) : "0.00"}
                                                     </div>
                                                 </div>
@@ -522,10 +551,15 @@ export default function TeaCenterRecordEntry() {
                                     );
                                 })}
                             </div>
-
+                            
+                            <div className="flex justify-end w-full">
+                                <button type="button" onClick={handleAddItemRow} className="mt-4 text-sm font-bold bg-teal-100 hover:bg-teal-200 dark:bg-teal-900/40 dark:hover:bg-teal-800/60 text-[#0f766e] dark:text-teal-400 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors ml-auto">
+                                    <PlusCircle size={16} /> Add Product
+                                </button>
+                            </div>
                             <div className="mt-4 flex flex-col sm:flex-row justify-end gap-6 border-t border-teal-200/50 dark:border-teal-800/30 pt-4">
                                 <div className="text-sm font-medium text-[#0f766e] dark:text-teal-300">
-                                    Total Packs: <span className="font-bold">{totalBoxes}</span>
+                                    Total Items: <span className="font-bold">{totalBoxes}</span>
                                 </div>
                                 <div className="text-sm font-medium text-[#0f766e] dark:text-teal-300 flex items-center gap-1">
                                     <Package size={16}/> Total Weight: <span className="font-bold text-lg">{totalQtyKg.toFixed(3)} Kg</span>
@@ -569,7 +603,8 @@ export default function TeaCenterRecordEntry() {
                                                             <div key={i} className="flex justify-between items-center text-[11px]">
                                                                 <span className={`font-bold border px-2 py-0.5 rounded shadow-sm text-[10px] w-fit ${getTeaColor(item.product)}`}>{item.product}</span>
                                                                 <div className="flex items-center gap-3 text-gray-500">
-                                                                    <span>{item.numberOfBoxes} x {item.packSizeKg}kg</span>
+                                                                    {/* SHOWING THE NEW TYPE FIELD IN PENDING LIST */}
+                                                                    <span>{item.numberOfBoxes} {item.type} x {item.packSizeKg}kg</span>
                                                                     <span className="font-bold text-[#0d9488] w-12 text-right">{item.calculatedQtyKg} kg</span>
                                                                 </div>
                                                             </div>
@@ -578,7 +613,7 @@ export default function TeaCenterRecordEntry() {
                                                     <div className="flex justify-between items-center font-bold">
                                                         <span className="text-gray-500 uppercase text-[10px]">Daily Totals:</span>
                                                         <div className="flex gap-4">
-                                                            <span className="text-gray-600 dark:text-gray-300">{record.totalBoxes} Boxes</span>
+                                                            <span className="text-gray-600 dark:text-gray-300">{record.totalBoxes} Items</span>
                                                             <span className="text-[#0f766e] dark:text-teal-400">{record.totalQtyKg.toFixed(3)} Kg</span>
                                                         </div>
                                                     </div>

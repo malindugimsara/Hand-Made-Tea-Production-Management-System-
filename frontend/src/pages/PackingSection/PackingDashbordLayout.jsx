@@ -94,35 +94,22 @@ const DATA = {
       ],
     },
     {
-      title: 'Product Issue Summary',
-      icon: Coffee ,
-      items: [
-        { title: 'product-issue-summary', url: '/packing/product-issue-summary', roles: ['Admin', 'Packing Officer', 'Viewer'] },
-      ],
-    }, 
-    {
-      title: 'Trans In - H/T',
-      icon: PackagePlus ,
-      items: [
-        { title: 'Trans In', url: '/packing/trans-in-entry', roles: ['Admin', 'Packing Officer'] },
-        { title: 'Trans In View', url: '/packing/trans-in-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
-      ],
-    },
-    {
-        title: 'Trans In - Factory',
-        icon: PackagePlus,
-        items: [
-          { title: 'Trans In Record Entry', url: '/packing/trans-in-factory-entry', roles: ['Admin', 'Packing Officer'] },
-          { title: 'Trans In Record View', url: '/packing/trans-in-factory-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
-        ],
-    },
-
-    {
         title: 'Summary & Reports',
         icon: LineChart,
         items: [
-          { title: 'Summary & Reports', url: '/packing/summary-reports', roles: ['Admin', 'Packing Officer'] },
+          { title: 'Product-Issue Summary', url: '/packing/product-issue-summary', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+          { title: 'Stock Summary', url: '/packing/summary-reports', roles: ['Admin', 'Packing Officer'] },
         ],
+    }, 
+    {
+      title: 'Trans In ',
+      icon: PackagePlus ,
+      items: [
+        { title: 'Trans In - H/T', url: '/packing/trans-in-entry', roles: ['Admin', 'Packing Officer'] },
+        { title: 'Trans In View H/T', url: '/packing/trans-in-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+        { title: 'Trans In - Factory', url: '/packing/trans-in-factory-entry', roles: ['Admin', 'Packing Officer'] },
+        { title: 'Trans In View - Factory', url: '/packing/trans-in-factory-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+      ],
     },
   ],
 };

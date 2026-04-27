@@ -5,6 +5,10 @@ const issueItemSchema = new mongoose.Schema({
         type: String, 
         required: true 
     },
+    type: { // අලුතින් එකතු කළ Packaging Type එක
+        type: String, 
+        required: true 
+    },
     packSizeKg: { 
         type: Number, 
         required: true 
