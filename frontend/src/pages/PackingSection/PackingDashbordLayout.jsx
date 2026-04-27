@@ -116,6 +116,14 @@ const DATA = {
           { title: 'Trans In Record View', url: '/packing/trans-in-factory-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
         ],
     },
+
+    {
+        title: 'Summary & Reports',
+        icon: LineChart,
+        items: [
+          { title: 'Summary & Reports', url: '/packing/summary-reports', roles: ['Admin', 'Packing Officer'] },
+        ],
+    },
   ],
 };
 

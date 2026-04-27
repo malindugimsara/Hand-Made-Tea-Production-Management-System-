@@ -3,8 +3,6 @@ import ProductionSummary from '../models/ProductionSummary.js';
 
 // @desc    Create a new stock transfer (Handmade -> Packing)
 // @route   POST /api/handmade/transfers
-// @desc    Create a new stock transfer (Handmade -> Packing)
-// @route   POST /api/handmade/transfers
 export const createHandmadeTransfer = async (req, res) => {
     try {
         // We no longer need to rely on the frontend sending 'issuedBy'
@@ -31,6 +29,8 @@ export const createHandmadeTransfer = async (req, res) => {
             })),
             // --- NEW LOGIC: Save the token's name to the database ---
             issuedBy: currentUserName,
+            // 👇 THIS IS THE NEW LINE WE ADDED 👇
+            source: 'Handmade', 
             remarks,
             status: 'PENDING'
         });
@@ -114,7 +114,6 @@ export const getStockSummary = async (req, res) => {
     }
 };
 
-
 export const getTransOutRecords = async (req, res) => {
     try {
         // Use StockTransfer instead of HandmadeTransfer!
@@ -132,7 +131,6 @@ export const getTransOutRecords = async (req, res) => {
         res.status(500).json({ message: "Failed to fetch transfer history" });
     }
 };      
-
 
 export const getHandmadeTransfersHistory = async (req, res) => {
     try {
