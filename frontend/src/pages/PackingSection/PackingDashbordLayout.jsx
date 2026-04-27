@@ -93,7 +93,13 @@ const DATA = {
         { title: 'Tea Center Record View', url: '/packing/tea-center-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
       ],
     },
-      
+    {
+      title: 'Product Issue Summary',
+      icon: Coffee ,
+      items: [
+        { title: 'product-issue-summary', url: '/packing/product-issue-summary', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+      ],
+    }, 
     {
       title: 'Trans In - H/T',
       icon: PackagePlus ,
@@ -193,6 +199,8 @@ export default function DashboardLayoutP() {
       case '/packing/tea-center-record-entry': return 'Tea Center Record Entry';
       case '/packing/tea-center-record-view': return 'Tea Center Record View';
       case '/packing/edit-tea-center-issue': return 'Edit Tea Center Record';
+
+
 
       // --- Trans In ---
       case '/packing/Trans In-record-entry': return 'Trans In Record Entry';

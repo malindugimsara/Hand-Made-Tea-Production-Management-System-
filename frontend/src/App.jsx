@@ -28,6 +28,7 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           {HandmadeRoutes()}
           {PackingRoutes()}
+          
         </Route>
 
       </Routes>

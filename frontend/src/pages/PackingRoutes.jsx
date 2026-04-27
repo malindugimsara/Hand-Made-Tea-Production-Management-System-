@@ -12,6 +12,7 @@ import EditTeaCenterRecord from "./PackingSection/Tea center/EditTeaCenterRecord
 import TeaGradesReceivedEntry from "./PackingSection/Trans In Factory/TeaGradesReceivedEntry";
 import EditTeaReceivedRecord from "./PackingSection/Trans In Factory/EditTeaReceivedRecord";
 import ViewTeaGradesReceivedRecords from "./PackingSection/Trans In Factory/ViewTeaGradesReceivedRecords";
+import ProductIssueSummary from "./PackingSection/Summary report/ProductIssueSummary";
 
 export const PackingRoutes = () => (
   <Route path="/packing" element={<DashboardLayoutP />}>
@@ -27,6 +28,7 @@ export const PackingRoutes = () => (
     <Route path="edit-received-record" element={<EditTeaReceivedRecord />} />
     <Route path="trans-in-entry" element={<TransIn />} />
     <Route path="trans-in-view" element={<ViewTransInRecords />} />
+    <Route path="product-issue-summary" element={<ProductIssueSummary />} />    
 
   </Route>
 );
