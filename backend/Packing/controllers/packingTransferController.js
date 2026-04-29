@@ -45,7 +45,7 @@ export const receiveTransferInPacking = async (req, res) => {
 
         const updatedTransfer = await transfer.save();
 
-        // 👇 AUTOMATED INVENTORY ADDITION LOGIC 👇
+        // 👇 AUTOMATED INVENTORY ADDITION LOGIC (UPDATED FOR NEW SCHEMA) 👇
         for (const item of transfer.items) {
             // Skip items where receivedQtyKg is missing or 0
             if (!item.receivedQtyKg || item.receivedQtyKg <= 0) continue; 
@@ -53,25 +53,36 @@ export const receiveTransferInPacking = async (req, res) => {
             // Find the master stock record for this product 
             const productName = item.grade || item.productName || item.product;
             
-            // dynamically grab the source from the transfer record (default to Factory)
-            const incomingSource = transfer.source || 'Factory'; 
+            // dynamically grab the source from the transfer record (e.g., 'Handmade')
+            const incomingSource = transfer.source || 'Handmade'; // Default fallback added
             
-            // 👇 THIS IS THE FIX: SEARCH BY BOTH PRODUCT AND SOURCE 👇
-            let stock = await PackingStock.findOne({ 
-                productName: productName, 
-                source: incomingSource 
-            });
+            const incomingQty = Number(item.receivedQtyKg);
+
+            // Search BY PRODUCT NAME ONLY (since product name is unique now)
+            let stock = await PackingStock.findOne({ productName: productName });
 
             if (stock) {
-                // If it exists from this specific source, add to it
-                stock.bulkStockKg += Number(item.receivedQtyKg);
+                // Product එක කලින් තියෙනවා නම්, අදාළ Source එක Array එකේ තියෙනවද බලනවා
+                let sourceObj = stock.stockBySource.find(s => s.sourceName === incomingSource);
+                
+                if (sourceObj) {
+                    // Source එකත් තියෙනවා නම් quantity එකතු කරනවා
+                    sourceObj.quantityKg += incomingQty;
+                } else {
+                    // අලුත් Source එකක් නම් අලුතින් Array එකට දානවා
+                    stock.stockBySource.push({ sourceName: incomingSource, quantityKg: incomingQty });
+                }
+                
+                // මුළු ප්‍රමාණයටත් එකතු කරනවා
+                stock.totalBulkStockKg += incomingQty;
                 await stock.save();
+                
             } else {
-                // If this is the very first time receiving this grade from this specific source, create it
+                // සම්පූර්ණයෙන්ම අලුත් Product එකක් නම්
                 const newStock = new PackingStock({
                     productName: productName,
-                    source: incomingSource, 
-                    bulkStockKg: Number(item.receivedQtyKg),
+                    stockBySource: [{ sourceName: incomingSource, quantityKg: incomingQty }],
+                    totalBulkStockKg: incomingQty,
                     packedItems: []
                 });
                 await newStock.save();

@@ -19,7 +19,8 @@ import {
   Store,
   Coffee,
   Map,
-  PackagePlus, 
+  PackagePlus,
+  Proportions, 
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -94,23 +95,34 @@ const DATA = {
       ],
     },
     {
-        title: 'Summary & Reports',
+        title: 'Summary',
         icon: LineChart,
         items: [
           { title: 'Product-Issue Summary', url: '/packing/product-issue-summary', roles: ['Admin', 'Packing Officer', 'Viewer'] },
           { title: 'Stock Summary', url: '/packing/summary-reports', roles: ['Admin', 'Packing Officer'] },
-        ],
+          ],
     }, 
     {
       title: 'Trans In ',
       icon: PackagePlus ,
       items: [
-        { title: 'Trans In - H/T', url: '/packing/trans-in-entry', roles: ['Admin', 'Packing Officer'] },
-        { title: 'Trans In View H/T', url: '/packing/trans-in-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
-        { title: 'Trans In - Factory', url: '/packing/trans-in-factory-entry', roles: ['Admin', 'Packing Officer'] },
-        { title: 'Trans In View - Factory', url: '/packing/trans-in-factory-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+        { title: 'H/T - Trans In ', url: '/packing/trans-in-entry', roles: ['Admin', 'Packing Officer'] },
+        { title: 'Factory - Trans In ', url: '/packing/trans-in-factory-entry', roles: ['Admin', 'Packing Officer'] },
+        { title: 'Other - Trans In ', url: '/packing/trans-in-other', roles: ['Admin', 'Packing Officer'] },
+        { title: 'Raw Material - Trans In ', url: '/packing/trans-in-raw-material', roles: ['Admin', 'Packing Officer'] }
+      
       ],
     },
+    {
+        title: 'Reports',
+        icon: Proportions,
+        items: [
+          { title: 'H/T - Trans In View', url: '/packing/trans-in-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+          { title: 'Factory - Trans In View', url: '/packing/trans-in-factory-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+          { title: 'Other - Trans In View', url: '/packing/trans-in-view-other', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+          { title: 'Raw Material - Trans In View', url: '/packing/trans-in-view-raw-material', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+        ],
+    }, 
   ],
 };
 

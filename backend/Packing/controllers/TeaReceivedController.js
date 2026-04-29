@@ -21,7 +21,7 @@ export const createTeaReceivedRecord = async (req, res) => {
 
         // 👇 AUTOMATED INVENTORY ADDITION LOGIC (FACTORY) 👇
         for (const item of receivedItems) {
-            // Find the product name (adjust if your schema uses 'grade' instead of 'product')
+            // Find the product name 
             const productName = item.product || item.grade || item.productName;
             
             // Get the incoming weight securely
@@ -29,22 +29,31 @@ export const createTeaReceivedRecord = async (req, res) => {
 
             if (incomingQty <= 0) continue; // Skip empty rows
 
-            // Search by BOTH Product and explicitly "Factory"
-            let stock = await PackingStock.findOne({ 
-                productName: productName, 
-                source: 'Factory' 
-            });
+            // වෙනස 1: නමින් පමණක් Stock එක සොයයි (Unique නිසා)
+            let stock = await PackingStock.findOne({ productName: productName });
 
             if (stock) {
-                // If it already exists on the Factory shelf, add the new kg to it
-                stock.bulkStockKg += incomingQty;
+                // කලින් මේ නමින් තේ එකක් Database එකේ තිබේ නම් 'Factory' කියන source එක ඒකෙ තියෙනවද බලනවා
+                let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Factory');
+                
+                if (sourceObj) {
+                    // 'Factory' එක දැනටමත් තිබේ නම් එයට අලුත් ප්‍රමාණය එකතු කරයි
+                    sourceObj.quantityKg += incomingQty;
+                } else {
+                    // 'Factory' එකෙන් මේ තේ ජාතිය එන පළමු වතාව නම් අලුතින් Array එකට දමයි
+                    stock.stockBySource.push({ sourceName: 'Factory', quantityKg: incomingQty });
+                }
+                
+                // මුළු ප්‍රමාණයටත් (Grand Total) එකතු කරයි
+                stock.totalBulkStockKg += incomingQty;
                 await stock.save();
+
             } else {
-                // First time receiving this grade from the Factory? Create a new shelf for it
+                // මේ නමින් කිසිම තේ එකක් කලින් තිබිලා නැත්නම් අලුතින් සාදයි
                 const newStock = new PackingStock({
                     productName: productName,
-                    source: 'Factory', // Hardcoded here because this controller is only for Factory tea
-                    bulkStockKg: incomingQty,
+                    stockBySource: [{ sourceName: 'Factory', quantityKg: incomingQty }],
+                    totalBulkStockKg: incomingQty,
                     packedItems: []
                 });
                 await newStock.save();

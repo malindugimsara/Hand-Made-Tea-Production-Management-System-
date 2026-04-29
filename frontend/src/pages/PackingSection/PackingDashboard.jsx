@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
 import { Bell, AlertTriangle, Package, Truck, Layers, Box, Calendar, Filter, CheckCircle, Info } from 'lucide-react';
@@ -8,24 +8,19 @@ export default function PackingDashboard() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const navigate = useNavigate();
     
-    // Basic Stats States
-    const [packedYesterday, setPackedYesterday] = useState(0);
-    const [pendingDispatch, setPendingDispatch] = useState(0);
-    const [lowStockMaterials, setLowStockMaterials] = useState(0);
-    
-    // Charts & Alerts States
-    const [packingChartData, setPackingChartData] = useState([]);
-    const [dispatchChartData, setDispatchChartData] = useState([]);
-    const [alerts, setAlerts] = useState([]);
+    // UI & Filter States
     const [isLoading, setIsLoading] = useState(true);
-
-    // Filter States
+    const [showCharts, setShowCharts] = useState(false); // New state to delay chart rendering
     const [selectedProductType, setSelectedProductType] = useState('All');
     const [selectedMonth, setSelectedMonth] = useState(() => {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     });
 
+    // Raw Data State
+    const [allRecords, setAllRecords] = useState([]);
+
+    // Dates Setup
     const todayDateObj = new Date();
     const todayStr = todayDateObj.toISOString().split('T')[0];
     
@@ -40,6 +35,15 @@ export default function PackingDashboard() {
         return "Good Evening";
     };
 
+    // Delay showing charts to allow Nav Bar animation to complete smoothly
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setShowCharts(true);
+        }, 150); // 150ms delay
+        return () => clearTimeout(timer);
+    }, []);
+
+    // Fetch Data (Runs only on mount or when BACKEND_URL changes)
     useEffect(() => {
         const fetchDashboardData = async () => {
             setIsLoading(true);
@@ -47,7 +51,6 @@ export default function PackingDashboard() {
                 const token = localStorage.getItem('token');
                 const headers = { 'Authorization': `Bearer ${token}` };
 
-                // Fetch all 3 endpoints concurrently
                 const [resLocal, resTea, resGuide] = await Promise.all([
                     fetch(`${BACKEND_URL}/api/local-sales`, { headers }).catch(() => ({ ok: false })),
                     fetch(`${BACKEND_URL}/api/tea-center-issues`, { headers }).catch(() => ({ ok: false })),
@@ -58,104 +61,13 @@ export default function PackingDashboard() {
                 const teaData = resTea.ok ? await resTea.json() : [];
                 const guideData = resGuide.ok ? await resGuide.json() : [];
 
-                // Standardize and combine records
-                const allRecords = [
+                const combinedRecords = [
                     ...(Array.isArray(localData) ? localData.map(d => ({ ...d, items: d.salesItems })) : []),
                     ...(Array.isArray(teaData) ? teaData.map(d => ({ ...d, items: d.issueItems })) : []),
                     ...(Array.isArray(guideData) ? guideData.map(d => ({ ...d, items: d.issueItems })) : [])
                 ];
 
-                // --- 1. Calculate Stat Cards ---
-                
-                // Packed Yesterday (Sum of Qty KG)
-                const yesterdayRecords = allRecords.filter(r => r.date.startsWith(yesterdayStr));
-                const totalYesterdayKg = yesterdayRecords.reduce((sum, r) => sum + (Number(r.totalQtyKg) || 0), 0);
-                setPackedYesterday(totalYesterdayKg.toFixed(2));
-
-                // Pending Dispatch (Using today's total boxes as a proxy for "pending/working" orders)
-                const todayRecords = allRecords.filter(r => r.date.startsWith(todayStr));
-                const todayPendingBoxes = todayRecords.reduce((sum, r) => sum + (Number(r.totalBoxes) || 0), 0);
-                setPendingDispatch(todayPendingBoxes);
-
-                // Static low stock for UI purposes (as no inventory backend exists yet)
-                setLowStockMaterials(3);
-
-                // --- 2. Packing Output Trend (Bar Chart for Selected Month) ---
-                const [yearStr, monthStr] = selectedMonth.split('-');
-                const daysInMonth = new Date(parseInt(yearStr), parseInt(monthStr), 0).getDate();
-                
-                const packingDataMap = {};
-                for(let i = 1; i <= daysInMonth; i++) {
-                    const dayStr = String(i).padStart(2, '0');
-                    packingDataMap[dayStr] = { name: dayStr, Pouches: 0, Boxes: 0 };
-                }
-
-                allRecords.forEach(rec => {
-                    if (rec.date.startsWith(selectedMonth)) {
-                        const day = rec.date.split('-')[2].substring(0, 2);
-                        if (packingDataMap[day]) {
-                            rec.items?.forEach(item => {
-                                // Assuming packSize <= 0.25kg are pouches, larger are boxes/chests
-                                if (Number(item.packSizeKg) <= 0.25) {
-                                    packingDataMap[day].Pouches += Number(item.numberOfBoxes) || 0;
-                                } else {
-                                    packingDataMap[day].Boxes += Number(item.numberOfBoxes) || 0;
-                                }
-                            });
-                        }
-                    }
-                });
-                setPackingChartData(Object.values(packingDataMap));
-
-                // --- 3. Dispatch Volume (Area Chart for Last 6 Months) ---
-                const monthMap = {};
-                for(let i = 5; i >= 0; i--) {
-                    const d = new Date();
-                    d.setMonth(d.getMonth() - i);
-                    const yyyyMm = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                    const shortName = d.toLocaleString('default', { month: 'short' });
-                    monthMap[yyyyMm] = { name: shortName, DispatchedKG: 0 };
-                }
-
-                allRecords.forEach(rec => {
-                    const yyyyMm = rec.date.substring(0, 7);
-                    if (monthMap[yyyyMm]) {
-                        monthMap[yyyyMm].DispatchedKG += Number(rec.totalQtyKg) || 0;
-                    }
-                });
-
-                setDispatchChartData(Object.values(monthMap).map(m => ({
-                    name: m.name,
-                    DispatchedKG: Number(m.DispatchedKG.toFixed(2))
-                })));
-
-                // --- 4. Smart Alerts based on real data ---
-                const generatedAlerts = [];
-                
-                if (totalYesterdayKg > 100) {
-                    generatedAlerts.push({
-                        id: 1, type: 'success', icon: <CheckCircle size={20}/>,
-                        title: 'High Output Reached',
-                        message: `Great job! Yesterday's total packing output reached ${totalYesterdayKg.toFixed(2)}kg.`
-                    });
-                }
-
-                if (todayPendingBoxes > 150) {
-                    generatedAlerts.push({
-                        id: 2, type: 'warning', icon: <Truck size={20}/>,
-                        title: 'High Dispatch Load',
-                        message: `Heavy load today: ${todayPendingBoxes} boxes are scheduled for dispatch processing.`
-                    });
-                }
-
-                // Keep one static alert for UI aesthetics
-                generatedAlerts.push({
-                    id: 3, type: 'danger', icon: <AlertTriangle size={20}/>,
-                    title: 'Low Material Stock',
-                    message: "50g Silver Pouches are running critically low (Under 100 units remaining)."
-                });
-
-                setAlerts(generatedAlerts);
+                setAllRecords(combinedRecords);
 
             } catch (error) {
                 console.error("Dashboard Fetch Error:", error);
@@ -166,9 +78,111 @@ export default function PackingDashboard() {
         };
 
         fetchDashboardData();
-    }, [selectedMonth, BACKEND_URL, todayStr, yesterdayStr]); 
+    }, [BACKEND_URL]);
 
-    // Label generation for Chart badge (e.g., "1st - 30th Apr")
+    // Process Data efficiently using useMemo
+    const dashboardData = useMemo(() => {
+        if (!allRecords || allRecords.length === 0) {
+            return {
+                packedYesterday: 0,
+                pendingDispatch: 0,
+                lowStockMaterials: 3,
+                packingChartData: [],
+                dispatchChartData: [],
+                alerts: [
+                    {
+                        id: 3, type: 'danger', icon: <AlertTriangle size={20}/>,
+                        title: 'Low Material Stock',
+                        message: "50g Silver Pouches are running critically low (Under 100 units remaining)."
+                    }
+                ]
+            };
+        }
+
+        // --- Calculate Stat Cards ---
+        const yesterdayRecords = allRecords.filter(r => r.date?.startsWith(yesterdayStr));
+        const totalYesterdayKg = yesterdayRecords.reduce((sum, r) => sum + (Number(r.totalQtyKg) || 0), 0);
+
+        const todayRecords = allRecords.filter(r => r.date?.startsWith(todayStr));
+        const todayPendingBoxes = todayRecords.reduce((sum, r) => sum + (Number(r.totalBoxes) || 0), 0);
+
+        // --- Packing Output Trend ---
+        const [yearStr, monthStr] = selectedMonth.split('-');
+        const daysInMonth = new Date(parseInt(yearStr), parseInt(monthStr), 0).getDate();
+        
+        const packingDataMap = {};
+        for(let i = 1; i <= daysInMonth; i++) {
+            const dayStr = String(i).padStart(2, '0');
+            packingDataMap[dayStr] = { name: dayStr, Pouches: 0, Boxes: 0 };
+        }
+
+        allRecords.forEach(rec => {
+            if (rec.date?.startsWith(selectedMonth)) {
+                const day = rec.date.split('-')[2]?.substring(0, 2);
+                if (day && packingDataMap[day]) {
+                    rec.items?.forEach(item => {
+                        if (Number(item.packSizeKg) <= 0.25) {
+                            packingDataMap[day].Pouches += Number(item.numberOfBoxes) || 0;
+                        } else {
+                            packingDataMap[day].Boxes += Number(item.numberOfBoxes) || 0;
+                        }
+                    });
+                }
+            }
+        });
+
+        // --- Dispatch Volume ---
+        const monthMap = {};
+        for(let i = 5; i >= 0; i--) {
+            const d = new Date();
+            d.setMonth(d.getMonth() - i);
+            const yyyyMm = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const shortName = d.toLocaleString('default', { month: 'short' });
+            monthMap[yyyyMm] = { name: shortName, DispatchedKG: 0 };
+        }
+
+        allRecords.forEach(rec => {
+            const yyyyMm = rec.date?.substring(0, 7);
+            if (yyyyMm && monthMap[yyyyMm]) {
+                monthMap[yyyyMm].DispatchedKG += Number(rec.totalQtyKg) || 0;
+            }
+        });
+
+        // --- Smart Alerts ---
+        const generatedAlerts = [];
+        if (totalYesterdayKg > 100) {
+            generatedAlerts.push({
+                id: 1, type: 'success', icon: <CheckCircle size={20}/>,
+                title: 'High Output Reached',
+                message: `Great job! Yesterday's total packing output reached ${totalYesterdayKg.toFixed(2)}kg.`
+            });
+        }
+        if (todayPendingBoxes > 150) {
+            generatedAlerts.push({
+                id: 2, type: 'warning', icon: <Truck size={20}/>,
+                title: 'High Dispatch Load',
+                message: `Heavy load today: ${todayPendingBoxes} boxes are scheduled for dispatch processing.`
+            });
+        }
+        generatedAlerts.push({
+            id: 3, type: 'danger', icon: <AlertTriangle size={20}/>,
+            title: 'Low Material Stock',
+            message: "50g Silver Pouches are running critically low (Under 100 units remaining)."
+        });
+
+        return {
+            packedYesterday: totalYesterdayKg.toFixed(2),
+            pendingDispatch: todayPendingBoxes,
+            lowStockMaterials: 3,
+            packingChartData: Object.values(packingDataMap),
+            dispatchChartData: Object.values(monthMap).map(m => ({
+                name: m.name,
+                DispatchedKG: Number(m.DispatchedKG.toFixed(2))
+            })),
+            alerts: generatedAlerts
+        };
+    }, [allRecords, selectedMonth, todayStr, yesterdayStr]); 
+
     const getChartDateLabel = () => {
         if (!selectedMonth) return "";
         const [yearStr, monthStr] = selectedMonth.split('-');
@@ -181,10 +195,16 @@ export default function PackingDashboard() {
         return `1st - ${maxDay} ${monthNameShort}`;
     };
 
+    // Destructure calculated values
+    const { 
+        packedYesterday, pendingDispatch, lowStockMaterials, 
+        packingChartData, dispatchChartData, alerts 
+    } = dashboardData;
+
     return (
         <div className="p-6 md:p-8 max-w-[1500px] mx-auto h-full flex flex-col space-y-8 bg-[#f0fdfb] dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
             
-            {/* 1. HERO WELCOME BANNER (Packing Theme) */}
+            {/* 1. HERO WELCOME BANNER */}
             <div className="relative rounded-2xl overflow-hidden px-10 py-10 min-h-[200px] flex flex-col justify-center shadow-xl"
                 style={{ background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 60%, #134e4a 100%)' }}>
 
@@ -219,10 +239,10 @@ export default function PackingDashboard() {
                 </p>
             </div>
 
-            {/* 2. HIGHLIGHTED STATS OVERVIEW CARDS */}
+            {/* 2. STATS OVERVIEW CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
-                {/* Stat Card 1 - Packed Yesterday */}
+                {/* Stat Card 1 */}
                 <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-md hover:shadow-xl border border-teal-50 dark:border-zinc-800 relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group flex items-center gap-5">
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-[#0d9488] dark:bg-teal-600"></div>
                     <div className="w-16 h-16 bg-[#0f766e]/10 dark:bg-teal-600/10 rounded-2xl flex items-center justify-center text-[#0f766e] dark:text-teal-500 group-hover:scale-110 transition-transform duration-300">
@@ -236,7 +256,7 @@ export default function PackingDashboard() {
                     </div>
                 </div>
 
-                {/* Stat Card 2 - Pending Dispatch */}
+                {/* Stat Card 2 */}
                 <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-md hover:shadow-xl border border-teal-50 dark:border-zinc-800 relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group flex items-center gap-5">
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-[#14b8a6] dark:bg-teal-500"></div>
                     <div className="w-16 h-16 bg-[#14b8a6]/10 dark:bg-teal-500/10 rounded-2xl flex items-center justify-center text-[#14b8a6] dark:text-teal-400 group-hover:scale-110 transition-transform duration-300">
@@ -250,7 +270,7 @@ export default function PackingDashboard() {
                     </div>
                 </div>
 
-                {/* Stat Card 3 - Material Alerts */}
+                {/* Stat Card 3 */}
                 <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-md hover:shadow-xl border border-teal-50 dark:border-zinc-800 relative overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group flex items-center gap-5">
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500 dark:bg-red-600"></div>
                     <div className="w-16 h-16 bg-red-50 dark:bg-red-900/30 rounded-2xl flex items-center justify-center text-red-600 dark:text-red-400 group-hover:scale-110 transition-transform duration-300">
@@ -266,7 +286,7 @@ export default function PackingDashboard() {
 
             </div>
 
-            {/* 3. HIGHLIGHTED CHARTS & ALERTS SECTION */}
+            {/* 3. CHARTS & ALERTS SECTION */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
                 {/* --- Left Column: Charts --- */}
@@ -313,7 +333,7 @@ export default function PackingDashboard() {
                         </div>
                         
                         <div className="h-[320px] w-full">
-                            {isLoading ? (
+                            {isLoading || !showCharts ? (
                                 <div className="h-full flex items-center justify-center text-gray-400">Loading chart data...</div>
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
@@ -328,10 +348,10 @@ export default function PackingDashboard() {
                                         />
                                         <Legend wrapperStyle={{ paddingTop: '20px' }} />
                                         {(selectedProductType === 'All' || selectedProductType === 'Pouches') && (
-                                            <Bar dataKey="Pouches" name="Pouches (≤250g)" fill="#2dd4bf" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="Pouches" name="Pouches (≤250g)" fill="#2dd4bf" radius={[4, 4, 0, 0]} isAnimationActive={false} />
                                         )}
                                         {(selectedProductType === 'All' || selectedProductType === 'Boxes') && (
-                                            <Bar dataKey="Boxes" name="Boxes (>250g)" fill="#0f766e" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="Boxes" name="Boxes (>250g)" fill="#0f766e" radius={[4, 4, 0, 0]} isAnimationActive={false} />
                                         )}
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -354,7 +374,7 @@ export default function PackingDashboard() {
                         </div>
 
                         <div className="h-[280px] w-full">
-                            {isLoading ? (
+                            {isLoading || !showCharts ? (
                                 <div className="h-full flex items-center justify-center text-gray-400">Loading volume data...</div>
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
@@ -372,7 +392,7 @@ export default function PackingDashboard() {
                                             formatter={(value) => [`${value} kg`, 'Dispatched']}
                                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', color: 'black' }}
                                         />
-                                        <Area type="monotone" dataKey="DispatchedKG" stroke="#0f766e" strokeWidth={4} fillOpacity={1} fill="url(#colorDispatch)" />
+                                        <Area type="monotone" dataKey="DispatchedKG" stroke="#0f766e" strokeWidth={4} fillOpacity={1} fill="url(#colorDispatch)" isAnimationActive={false} />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             )}
