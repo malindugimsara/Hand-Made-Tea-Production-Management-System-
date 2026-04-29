@@ -238,9 +238,6 @@ export default function EditTeaReceivedOutRecord() {
                                     <FileText size={16} className="text-[#0d9488]"/> Transaction No
                                 </label>
                                 <div className="flex rounded-md shadow-sm">
-                                    <span className="inline-flex items-center px-4 rounded-l-md border border-r-0 border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 sm:text-sm font-bold">
-                                        HO/TO/
-                                    </span>
                                     <input 
                                         type="text" 
                                         name="transactionNo" 

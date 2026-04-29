@@ -60,7 +60,7 @@ export default function LocalRecordEntry() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const [showSpinner, setShowSpinner] = useState(false);
     const [pendingRecords, setPendingRecords] = useState([]);
-    const [availableStock, setAvailableStock] = useState([]); // Changed from factoryStock
+    const [availableStock, setAvailableStock] = useState([]); 
     const navigate = useNavigate();
 
     const [formData, setFormData] = useState({
@@ -96,21 +96,31 @@ export default function LocalRecordEntry() {
                 if (res.ok) {
                     const data = await res.json();
                     
-                    // --- CHANGED LOGIC: Get Grand Total for all sources ---
-                    const allSourcesData = [];
+                    // --- CHANGED LOGIC: ONLY get Factory and Other sources ---
+                    const factoryAndOtherData = [];
                     data.forEach(product => {
-                        // Use totalBulkStockKg (or totalOverallQtyKg as fallback)
-                        const totalBulk = Number(product.totalBulkStockKg) || Number(product.totalOverallQtyKg) || Number(product.bulkStockKg) || 0;
-                        
-                        if (totalBulk > 0) {
-                            allSourcesData.push({
+                        let validStock = 0;
+
+                        if (product.stockBySource && product.stockBySource.length > 0) {
+                            const factoryStock = product.stockBySource.find(s => s.sourceName === 'Factory')?.quantityKg || 0;
+                            const otherStock = product.stockBySource.find(s => s.sourceName === 'Other')?.quantityKg || 0;
+                            validStock = factoryStock + otherStock;
+                        } else {
+                            // Fallback for old data structures without array
+                            if (product.source === 'Factory' || product.source === 'Other') {
+                                validStock = Number(product.bulkStockKg) || 0;
+                            }
+                        }
+
+                        if (validStock > 0) {
+                            factoryAndOtherData.push({
                                 productName: product.productName,
-                                bulkStockKg: totalBulk // This now holds the Grand Total
+                                bulkStockKg: validStock // Holds the sum of Factory + Other
                             });
                         }
                     });
                     
-                    setAvailableStock(allSourcesData);
+                    setAvailableStock(factoryAndOtherData);
                 }
             } catch (error) {
                 console.error("Error fetching available stock:", error);
@@ -213,7 +223,7 @@ export default function LocalRecordEntry() {
         });
 
         if (stockWarning) {
-            if(!window.confirm("You are issuing MORE stock than what is currently available in the total bulk stock. Do you want to proceed anyway?")) {
+            if(!window.confirm("You are issuing MORE stock than what is currently available in the Factory & Other bulk stock. Do you want to proceed anyway?")) {
                 return;
             }
         }
@@ -297,7 +307,7 @@ export default function LocalRecordEntry() {
                 <div className="bg-[#2f7466] px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                            <Calculator size={20} /> Current Available Bulk Stock (All Sources)
+                            <Calculator size={20} /> Current Available Stock (Factory & Other)
                         </h3>
                         <p className="text-white/80 text-xs mt-1">
                             Use these values to ensure you do not exceed the available bulk stock during dispatch.
@@ -310,7 +320,7 @@ export default function LocalRecordEntry() {
                 
                 <div className="p-6">
                     {availableStock.length === 0 ? (
-                        <p className="text-gray-500 text-sm italic">No stock is currently available.</p>
+                        <p className="text-gray-500 text-sm italic">No stock is currently available from Factory or Other sources.</p>
                     ) : (
                         <div className="flex flex-wrap gap-4">
                             {availableStock.map((item, idx) => (
@@ -467,7 +477,7 @@ export default function LocalRecordEntry() {
                                                             <AlertTriangle size={12} /> Exceeds total stock by {(totalIssuedForProductSoFar - availableForProduct).toFixed(2)} kg!
                                                         </div>
                                                     ) : issuedNum > 0 ? (
-                                                        <div className="flex items-center gap-1 text-[10px] font-bold text-teal-600 dark:text-teal-400 justify-end">
+                                                        <div className="flex items-center gap-1 text-[14px] font-bold text-teal-600 dark:text-teal-400 justify-end">
                                                             <ArrowRight size={12} /> Remaining total stock will be: {remaining.toFixed(2)} kg
                                                         </div>
                                                     ) : null

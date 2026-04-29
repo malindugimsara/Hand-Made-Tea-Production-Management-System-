@@ -114,7 +114,7 @@ const DATA = {
       ],
     },
     {
-        title: 'Reports',
+        title: 'Trans-In Reports',
         icon: Proportions,
         items: [
           { title: 'H/T - Trans In View', url: '/packing/trans-in-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },

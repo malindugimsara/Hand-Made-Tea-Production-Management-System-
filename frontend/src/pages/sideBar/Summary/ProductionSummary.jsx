@@ -359,15 +359,6 @@ export default function ProductionSummary() {
                     </div>
                     
                     <div className="flex flex-wrap gap-3 justify-center sm:justify-end items-center">
-                        {/* --- THEME TOGGLE BUTTON --- */}
-                        <button 
-                            onClick={toggleTheme}
-                            title="Toggle Dark Mode"
-                            className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 shadow-sm hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors text-gray-600 dark:text-gray-300"
-                        >
-                            {isDark ? <Sun size={18} className="text-yellow-500" /> : <Moon size={18} />}
-                        </button>
-
                         <button onClick={() => fetchAllData(false)} disabled={loading} className="px-5 py-2.5 bg-white dark:bg-zinc-900 text-[#1B6A31] dark:text-[#8CC63F] border border-[#8CC63F] rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 hover:bg-[#F8FAF8] dark:hover:bg-zinc-800"><RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Sync Data</button>
                         <button onClick={handleSaveToDatabase} disabled={isSaving || isSaved || tableData.length === 0 || isViewer} className={`px-5 py-2.5 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${(isSaved || tableData.length === 0 || isViewer) ? 'bg-gray-400 dark:bg-zinc-700 dark:text-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'}`}>{isViewer ? <Eye size={18}/> : <Save size={18} />} {isViewer ? "View Only" : isSaving ? "Saving..." : (isSaved && tableData.length > 0) ? "Saved" : "Save to DB"}</button>
                         {(!isSaved && !isViewer) ? (

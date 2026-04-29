@@ -1,6 +1,14 @@
 import RawMaterialIn from '../models/RawMaterialIn.js';
 import RawMaterialStock from '../models/RawMaterialStock.js';
 
+// අමුද්‍රව්‍ය Flavor එකක්ද කියලා අඳුරගන්න පාවිච්චි කරන නම් ලිස්ට් එක
+const FLAVOR_NAMES = [
+    "Cinnamon", "Chakra", "Ginger", "Masala", "Vanilla", "Mint", 
+    "Moringa", "Curry Leaves", "Gotukola", "Heen Bovitiya", "Cardamom", 
+    "Rose", "Strawberry", "Peach", "Mix Fruit", "Pineapple", "Mango", 
+    "Honey", "Earl Grey", "Lime", "Soursop", "Jasmine", "Flower", "Turmeric", "Black Pepper"
+];
+
 // 1. අලුත් Raw Material තොගයක් ඇතුළත් කිරීම (Create & Update Stock)
 export const createRawMaterialIn = async (req, res) => {
     try {
@@ -10,7 +18,8 @@ export const createRawMaterialIn = async (req, res) => {
             return res.status(400).json({ success: false, message: 'No items provided' });
         }
 
-        // Transaction වාර්තාව නිර්මාණය කිරීම
+        // Transaction වාර්තාව නිර්මාණය කිරීම 
+        // (Frontend එකෙන් එවන items ඇතුළේ දැන් category එකත් තියෙනවා)
         const newRecord = new RawMaterialIn({
             date,
             invoiceNo,
@@ -31,13 +40,18 @@ export const createRawMaterialIn = async (req, res) => {
             if (stock) {
                 // දැනටමත් තිබේ නම් එයට අලුත් ප්‍රමාණය එකතු කරයි
                 stock.totalQuantity += qty;
+                
+                // කෝකටත් Frontend එකෙන් එන අලුත් Category එකෙන් Stock එක Update කරනවා
+                if(item.category) stock.category = item.category; 
+                
                 await stock.save();
             } else {
-                // අලුත්ම අමුද්‍රව්‍යයක් නම් අලුතින් Stock එකක් සාදයි
+                // අලුතින් Stock එකක් සාදයි (Frontend එකෙන් ආපු Category එක කෙළින්ම පාවිච්චි කරයි)
                 const newStock = new RawMaterialStock({
                     materialName: item.materialName,
                     totalQuantity: qty,
-                    unit: item.unit
+                    unit: item.unit,
+                    category: item.category || 'other' // 👈 Frontend එකේ Select කරපු එක
                 });
                 await newStock.save();
             }
@@ -90,19 +104,44 @@ export const getRawMaterialInById = async (req, res) => {
     }
 };
 
-// 4. වාර්තාවක් මකා දැමීම (Delete)
+// 4. වාර්තාවක් මකා දැමීම (Delete & Auto Stock Reversal)
 export const deleteRawMaterialInRecord = async (req, res) => {
     try {
-        const record = await RawMaterialIn.findByIdAndDelete(req.params.id);
+        // 1. මුලින්ම මකන්න ඕනේ Record එක මොකක්ද කියලා DB එකෙන් හොයාගන්නවා (මකන්න කලින්)
+        const record = await RawMaterialIn.findById(req.params.id);
+        
         if (!record) {
             return res.status(404).json({ success: false, message: "Record not found" });
         }
-        
-        // සටහන: Delete කිරීමේදී Stock එකෙන් මේවා අඩු කළ යුතුද යන්න ඔබේ අවශ්‍යතාවය මත තීරණය කරන්න.
-        // සාමාන්‍යයෙන් Delete කළොත් Manual විදිහට Stock එක Update කරගන්නවා.
 
-        res.status(200).json({ success: true, message: "Record deleted successfully" });
+        // 👇 AUTOMATED STOCK REVERSAL LOGIC 👇
+        // Record එකේ තිබුණ Items ටික එකින් එක අරගෙන Stock එකෙන් අඩු කරනවා
+        for (const item of record.items) {
+            const qtyToRemove = Number(item.quantity || 0);
+            if (qtyToRemove <= 0) continue;
+
+            let stock = await RawMaterialStock.findOne({ materialName: item.materialName });
+
+            if (stock) {
+                // Stock එකට එකතු වෙලා තිබුණු ප්‍රමාණය ආපහු අඩු කරනවා
+                stock.totalQuantity -= qtyToRemove;
+                
+                // සෘණ (Negative) වීම වැළැක්වීම
+                if (stock.totalQuantity < 0) {
+                    stock.totalQuantity = 0;
+                }
+                
+                await stock.save();
+            }
+        }
+        // 👆 END OF AUTOMATED STOCK REVERSAL 👆
+
+        // 2. Stock එක අඩු කළාට පස්සේ අදාළ Record එක සම්පූර්ණයෙන්ම මකා දමනවා
+        await record.deleteOne();
+
+        res.status(200).json({ success: true, message: "Record deleted and stock reversed successfully" });
     } catch (error) {
+        console.error("Error deleting record:", error);
         res.status(500).json({ success: false, message: "Server Error", error: error.message });
     }
 };

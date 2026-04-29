@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
-import { Calendar, RefreshCw, FileText, FilterX, Truck, Box, PackagePlus, Hash, Layers } from "lucide-react";
+import { Calendar, RefreshCw, FileText, FilterX, Truck, Box, PackagePlus, Hash, Layers, Leaf } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
 
 import {
@@ -19,7 +19,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 const getMaterialColor = (material) => {
-    const m = material.toLowerCase();
+    const m = material?.toLowerCase() || '';
     
     if (m.includes('pouch')) return 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-800/50';
     if (m.includes('box') || m.includes('carton')) return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/50';
@@ -31,7 +31,7 @@ const getMaterialColor = (material) => {
 };
 
 const getPdfMaterialColor = (material) => {
-    const m = material.toLowerCase();
+    const m = material?.toLowerCase() || '';
     
     if (m.includes('pouch')) return { fillColor: [254, 243, 199], textColor: [146, 64, 14] };
     if (m.includes('box') || m.includes('carton')) return { fillColor: [219, 234, 254], textColor: [30, 64, 175] };
@@ -48,6 +48,22 @@ const RAW_MATERIALS = [
     "Packing Tape (Brown)", "Packing Tape (Clear)", "Glue Bottle", 
     "Tea Bags Filter Paper", "Cotton Thread", "Inner Polybag"
 ];
+
+// List of Flavors to determine category on the fly
+const FLAVOR_NAMES = [
+    "Cinnamon", "Chakra", "Ginger", "Masala", "Vanilla", "Mint", 
+    "Moringa", "Curry Leaves", "Gotukola", "Heen Bovitiya", "Cardamom", 
+    "Rose", "Strawberry", "Peach", "Mix Fruit", "Pineapple", "Mango", 
+    "Honey", "Earl Grey", "Lime", "Soursop", "Jasmine", "Flower", "Turmeric", "Black Pepper"
+];
+
+// Helper function to check if a material is a flavor
+const getCategory = (materialName) => {
+    const isFlavor = FLAVOR_NAMES.some(flavor => 
+        (materialName || "").toLowerCase().includes(flavor.toLowerCase())
+    );
+    return isFlavor ? 'flavor' : 'other';
+};
 
 export default function ViewRawMaterialInRecords() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -103,9 +119,12 @@ export default function ViewRawMaterialInRecords() {
                 const isEdited = createdTime > 0 && updatedTime > 0 && (updatedTime - createdTime) > 5000;
                 const lastUpdatedDate = isEdited ? new Date(rec.updatedAt).toISOString().split('T')[0] : '';
                 
-                const itemsArray = rec.items || [];
+                const itemsArray = (rec.items || []).map(item => ({
+                    ...item,
+                    // Dynamically calculate category here
+                    category: getCategory(item.materialName)
+                }));
                 
-                // Search string: Invoice No + Supplier + All Material Names
                 const searchString = `${rec.invoiceNo || ''} ${rec.supplierName || ''} ${itemsArray.map(item => item.materialName).join(' ')}`;
 
                 return {
@@ -141,16 +160,19 @@ export default function ViewRawMaterialInRecords() {
 
     filteredRecords.forEach(record => {
         record.itemsArray.forEach(item => {
-            // Group by Material Name AND Unit since units differ
             const key = `${item.materialName}_|_${item.unit}`;
             if (!summaryMap[key]) {
-                summaryMap[key] = { materialName: item.materialName, unit: item.unit, qty: 0 };
+                summaryMap[key] = { 
+                    materialName: item.materialName, 
+                    unit: item.unit, 
+                    category: item.category, // Uses the dynamically calculated category
+                    qty: 0 
+                };
             }
             summaryMap[key].qty += Number(item.quantity) || 0;
         });
     });
     
-    // Sort summary array by descending quantity
     const summaryArray = Object.values(summaryMap).sort((a, b) => b.qty - a.qty);
 
     const handleEditClick = (record) => {
@@ -162,7 +184,7 @@ export default function ViewRawMaterialInRecords() {
         const toastId = toast.loading('Deleting record...');
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/raw-materials-in/${recordToDelete._id}`, { 
+            const response = await fetch(`${BACKEND_URL}/api/raw-materials-in/delete/${recordToDelete._id}`, { 
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -210,7 +232,7 @@ export default function ViewRawMaterialInRecords() {
                     isFirst ? (record.invoiceNo || "-") : "",
                     isFirst ? (record.supplierName || "-") : "",
                     { 
-                        content: item.materialName, 
+                        content: `${item.materialName}\n(${item.category})`, 
                         styles: { ...getPdfMaterialColor(item.materialName), fontStyle: 'bold', halign: 'center' } 
                     },
                     `${Number(item.quantity).toFixed(2)}`,
@@ -223,6 +245,8 @@ export default function ViewRawMaterialInRecords() {
     };
 
     const uniqueCode = `INV/RMI/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
+
+    const ALL_SEARCH_ITEMS = [...RAW_MATERIALS, ...FLAVOR_NAMES];
 
     return (
         <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen transition-colors duration-300  dark:bg-zinc-950">
@@ -272,7 +296,6 @@ export default function ViewRawMaterialInRecords() {
                         <input type="date" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} disabled={!startDate} className="w-full border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf]/50 transition-colors disabled:opacity-50" />
                     </div>
                     
-                    {/* CUSTOM SCROLLABLE AUTOCOMPLETE DROPDOWN */}
                     <div className="flex flex-col gap-1.5 relative" ref={dropdownRef}>
                         <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Search Invoice/Supplier/Mat</label>
                         <input 
@@ -288,7 +311,7 @@ export default function ViewRawMaterialInRecords() {
                         />
                         {isDropdownOpen && (
                             <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
-                                {RAW_MATERIALS.filter(t => t.toLowerCase().includes(searchFilter.toLowerCase()))
+                                {ALL_SEARCH_ITEMS.filter(t => t.toLowerCase().includes(searchFilter.toLowerCase()))
                                     .map((mat, idx) => (
                                     <li 
                                         key={idx} 
@@ -332,6 +355,7 @@ export default function ViewRawMaterialInRecords() {
                                         <th className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-500 align-bottom min-w-[120px]"><Calendar size={14} className="inline mr-1"/> Date</th>
                                         <th className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-500 align-bottom"><FileText size={14} className="inline mr-1"/> Invoice Info</th>
                                         <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 align-bottom min-w-[160px]"><Box size={14} className="inline mr-1"/> Material Name</th>
+                                        <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 text-center"><Layers size={14} className="inline mr-1"/> Category</th>
                                         <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 text-center"><Hash size={14} className="inline mr-1"/> Quantity</th>
                                         <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 text-center">Unit</th>
                                         {!isViewer && <th className="px-4 py-3 font-semibold align-bottom text-center bg-gray-50 dark:bg-zinc-950/50">Action</th>}
@@ -373,6 +397,19 @@ export default function ViewRawMaterialInRecords() {
                                                         {record.itemsArray.map((t, i) => (
                                                             <div key={i} className={`flex-1 flex items-center px-4 py-3 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0 ${getMaterialColor(t.materialName)}`}>
                                                                 {t.materialName}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </td>
+
+                                                {/* Category Column in Main Table */}
+                                                <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                    <div className="flex flex-col w-full h-full">
+                                                        {record.itemsArray.map((t, i) => (
+                                                            <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
+                                                                <span className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded tracking-wider ${t.category === 'flavor' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'}`}>
+                                                                    {t.category}
+                                                                </span>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -421,7 +458,7 @@ export default function ViewRawMaterialInRecords() {
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr><td colSpan={isViewer ? "5" : "6"} className="p-16 text-center text-gray-400"><p>No records found</p></td></tr>
+                                        <tr><td colSpan={isViewer ? "6" : "7"} className="p-16 text-center text-gray-400"><p>No records found</p></td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -436,13 +473,13 @@ export default function ViewRawMaterialInRecords() {
                             <h3 className="font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
                                 <Layers size={18} className="text-[#0d9488] dark:text-teal-400" /> Filtered Summary
                             </h3>
-                            <p className="text-[10px] text-gray-500 mt-1 uppercase">Totals by Material & Unit</p>
+                            <p className="text-[10px] text-gray-500 mt-1 uppercase">Totals by Material & Category</p>
                         </div>
                         <div className="p-4 overflow-y-auto max-h-[70vh] custom-scrollbar">
                             <table className="w-full text-sm border border-gray-300 dark:border-zinc-700 border-collapse min-w-full">
                                 <thead>
                                     <tr className="bg-gray-200 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-500">
-                                        <th className="px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-500">Material</th>
+                                        <th className="px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-500">Material/Category</th>
                                         <th className="px-3 py-2 text-right font-bold text-[#0f766e] dark:text-teal-400">Total Qty</th>
                                     </tr>
                                 </thead>
@@ -451,9 +488,17 @@ export default function ViewRawMaterialInRecords() {
                                         summaryArray.map((item, idx) => (
                                             <tr key={idx} className="border-b border-gray-300 dark:border-zinc-500">
                                                 <td className={`px-3 py-2 font-semibold border-r border-gray-300 dark:border-zinc-500 ${getMaterialColor(item.materialName)}`}>
-                                                    {item.materialName}
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="flex items-center gap-1.5">
+                                                            {item.category === 'flavor' ? <Leaf size={12} className="text-emerald-600"/> : <Box size={12} className="text-blue-600"/>}
+                                                            {item.materialName}
+                                                        </span>
+                                                        <span className={`text-[8px] uppercase font-bold px-1.5 py-0.5 rounded w-max ${item.category === 'flavor' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                            {item.category}
+                                                        </span>
+                                                    </div>
                                                 </td>
-                                                <td className="px-3 py-2 text-right font-medium text-[#0f766e] dark:text-teal-400 bg-[#f0fdfa]/50 dark:bg-teal-900/10">
+                                                <td className="px-3 py-2 text-right font-medium text-[#0f766e] dark:text-teal-400 bg-[#f0fdfa]/50 dark:bg-teal-900/10 align-top">
                                                     {item.qty > 0 ? (item.qty % 1 !== 0 ? item.qty.toFixed(2) : item.qty) : '-'} <span className="text-[10px] text-gray-500 ml-0.5">{item.unit}</span>
                                                 </td>
                                             </tr>
