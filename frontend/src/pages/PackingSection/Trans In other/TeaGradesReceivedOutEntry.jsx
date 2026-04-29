@@ -250,15 +250,13 @@ export default function TeaGradesReceivedOutEntry() {
                                     <FileText size={16} className="text-[#0d9488]"/> Ref / Invoice No
                                 </label>
                                 <div className="flex rounded-md shadow-sm">
-                                    <span className="inline-flex items-center px-4 rounded-l-md border border-r-0 border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 sm:text-sm font-bold">
-                                        REC/
-                                    </span>
+                                    
                                     <input 
                                         type="text" 
                                         name="transactionNo" 
                                         value={formData.transactionNo} 
                                         onChange={handleInputChange} 
-                                        placeholder="00125"
+                                        placeholder="ABC/00125"
                                         required 
                                         className="flex-1 block w-full min-w-0 p-3 rounded-none rounded-r-md border border-gray-300 dark:border-zinc-700 focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                                     />

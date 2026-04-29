@@ -116,16 +116,49 @@ export const updateTransaction = async (req, res) => {
     }
 };
 
-// 5. Transaction එකක් Delete කිරීම
 export const deleteTransaction = async (req, res) => {
     try {
-        const deletedTransaction = await TeaTransactionOther.findByIdAndDelete(req.params.id);
+        // 1. Find the transaction BEFORE deleting it
+        const transaction = await TeaTransactionOther.findById(req.params.id);
 
-        if (!deletedTransaction) {
+        if (!transaction) {
             return res.status(404).json({ success: false, message: "Transaction not found" });
         }
 
-        res.status(200).json({ success: true, message: "Transaction deleted successfully" });
+        // 2. Reverse the stock logic
+        if (transaction.items && transaction.items.length > 0) {
+            for (const item of transaction.items) {
+                // Determine the quantity to remove (check your schema for the exact field name)
+                const qtyToRemove = Number(item.qtyKg || item.totalQtyKg || item.quantityKg || 0);
+                
+                if (qtyToRemove <= 0) continue;
+
+                // Find the corresponding stock document
+                const stock = await PackingStock.findOne({ productName: item.grade || item.productName || item.product });
+
+                if (stock) {
+                    // Reduce the quantity from the 'Other' source
+                    const otherSource = stock.stockBySource?.find(s => s.sourceName === 'Other');
+                    if (otherSource) {
+                        otherSource.quantityKg -= qtyToRemove;
+                        if (otherSource.quantityKg < 0) otherSource.quantityKg = 0;
+                    }
+
+                    // Reduce the grand total bulk stock
+                    stock.totalBulkStockKg -= qtyToRemove;
+                    if (stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
+
+                    await stock.save();
+                } else {
+                    console.warn(`Could not find stock for product: ${item.grade} to reverse deletion.`);
+                }
+            }
+        }
+
+        // 3. Delete the transaction record
+        await transaction.deleteOne();
+
+        res.status(200).json({ success: true, message: "Transaction deleted and stock reversed successfully" });
     } catch (error) {
         console.error("Error deleting transaction:", error);
         res.status(500).json({ success: false, message: "Server Error", error: error.message });

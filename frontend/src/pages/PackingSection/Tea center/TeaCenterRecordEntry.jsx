@@ -21,12 +21,12 @@ const FLAVORED_TEAS_WITH_RM = [
     "heen bovitiya - bopf sp"
 ];
 
-// Common Raw Materials list for Autocomplete
-const RAW_MATERIALS = [
-    "50g Silver Pouch", "100g Gold Pouch", "200g Printed Box", "500g Printed Box",
-    "Master Carton (Large)", "Master Carton (Small)", "Barcode Labels", 
-    "Packing Tape (Brown)", "Packing Tape (Clear)", "Glue Bottle", 
-    "Tea Bags Filter Paper", "Cotton Thread", "Inner Polybag"
+// --- FLAVORS LIST FOR FILTERING ---
+const FLAVOR_NAMES = [
+    "Cinnamon", "Chakra", "Ginger", "Masala", "Vanilla", "Mint", 
+    "Moringa", "Curry Leaves", "Gotukola", "Heen Bovitiya", "Cardamom", 
+    "Rose", "Strawberry", "Peach", "Mix Fruit", "Pineapple", "Mango", 
+    "Honey", "Earl Grey", "Lime", "Soursop", "Jasmine", "Flower", "Turmeric", "Black Pepper"
 ];
 
 // --- LOGIC: BASE TEA MAPPING ---
@@ -180,6 +180,11 @@ export default function TeaCenterRecordEntry() {
                 if (teaRes.ok) {
                     const data = await teaRes.json();
                     const aggregatedData = Object.values(data.reduce((acc, curr) => {
+                        
+                        if (curr.productName.toLowerCase().includes('dust')) {
+                            return acc; 
+                        }
+
                         if (!acc[curr.productName]) {
                             acc[curr.productName] = { productName: curr.productName, bulkStockKg: 0 };
                         }
@@ -197,7 +202,15 @@ export default function TeaCenterRecordEntry() {
                 // Process Raw Material Stock
                 if (rmRes.ok) {
                     const rmData = await rmRes.json();
-                    setAvailableRawStock(Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : []);
+                    const allRawMaterials = Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : [];
+                    
+                    // 👇 FILTER ONLY FLAVORS 👇
+                    const flavorsOnly = allRawMaterials.filter(rm => 
+                        rm.category === 'flavor' || 
+                        FLAVOR_NAMES.some(flavor => (rm.materialName || '').toLowerCase().includes(flavor.toLowerCase()))
+                    );
+                    
+                    setAvailableRawStock(flavorsOnly);
                 }
             } catch (error) {
                 console.error("Error fetching stocks:", error);
@@ -380,7 +393,7 @@ export default function TeaCenterRecordEntry() {
         }
 
         if (rmStockWarning) {
-            if(!window.confirm("You are issuing MORE raw materials than currently available in stock. Do you want to proceed anyway?")) {
+            if(!window.confirm("You are issuing MORE flavors than currently available in stock. Do you want to proceed anyway?")) {
                 return;
             }
         }
@@ -402,7 +415,7 @@ export default function TeaCenterRecordEntry() {
                         numberOfBoxes: Number(item.numberOfBoxes),
                         totalQtyKg: Number(item.calculatedQtyKg),
                         baseTeaQtyKg: Number(item.baseTeaQtyKg), 
-                        rawMaterialName: item.rawMaterialName || "", // ADDED THIS
+                        rawMaterialName: item.rawMaterialName || "", 
                         rawMaterialQtyKg: Number(item.rawMaterialQtyKg)
                     }))
                 };
@@ -506,18 +519,18 @@ export default function TeaCenterRecordEntry() {
                     <div className="bg-indigo-700 dark:bg-indigo-800 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
                             <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                                <Layers size={20} /> Current Available Raw Materials
+                                <Layers size={20} /> Current Available Flavors
                             </h3>
-                            <p className="text-white/80 text-xs mt-1">Packaging materials and add-ons inventory.</p>
+                            <p className="text-white/80 text-xs mt-1">Flavor inventory for flavored teas.</p>
                         </div>
                         <div className="bg-white/20 text-white text-sm font-bold px-4 py-2 rounded-lg backdrop-blur-sm shadow-inner border border-white/10 whitespace-nowrap">
-                            {totalAvailableRMCapacity.toFixed(2)} Items
+                            {totalAvailableRMCapacity.toFixed(2)} kg
                         </div>
                     </div>
                     
                     <div className="p-4 flex-1 overflow-y-auto max-h-[220px] custom-scrollbar">
                         {availableRawStock.length === 0 ? (
-                            <div className="h-full flex items-center justify-center text-gray-500 text-sm italic py-8">No raw material stock available.</div>
+                            <div className="h-full flex items-center justify-center text-gray-500 text-sm italic py-8">No flavor stock available.</div>
                         ) : (
                             <div className="flex flex-wrap gap-3">
                                 {availableRawStock.map((rm, idx) => (
@@ -653,7 +666,9 @@ export default function TeaCenterRecordEntry() {
 
                                                 </div>
 
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {/* ROW 2: Pack Size, Items, Raw Material Name, Raw Weight */}
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                    
                                                     <div className="relative" ref={el => dropdownRefs.current[`size-${row.id}`] = el}>
                                                         <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap">Pack (Kg)</label>
                                                         <input type="number" step="any" min="0" value={row.packSizeKg} onChange={(e) => handleItemChange(row.id, 'packSizeKg', e.target.value)} onFocus={() => { if (availableSizes) setOpenDropdownId(`size-${row.id}`); }} onWheel={(e) => e.target.blur()} required placeholder="e.g. 0.025" className="w-full p-2.5 h-[42px] border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
@@ -668,18 +683,16 @@ export default function TeaCenterRecordEntry() {
                                                             </ul>
                                                         )}
                                                     </div>
+
                                                     <div>
                                                         <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap">Items</label>
                                                         <input type="number" step="1" min="0" value={row.numberOfBoxes} onChange={(e) => handleItemChange(row.id, 'numberOfBoxes', e.target.value)} onWheel={(e) => e.target.blur()} required placeholder="e.g. 15" className="w-full p-2.5 h-[42px] border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
                                                     </div>
-                                                 </div>
 
-                                                {/* ROW 2: Pack Size, Items, Raw Material Name, Raw Weight */}
-                                                <div className="grid grid-cols-2  gap-4">
                                                     {/* NEW: RAW MATERIAL NAME DROPDOWN */}
                                                     <div className="relative" ref={el => dropdownRefs.current[`rmName-${row.id}`] = el}>
                                                         <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap">
-                                                            Raw Material
+                                                            Flavor
                                                         </label>
                                                         <input 
                                                             type="text" 
@@ -693,7 +706,7 @@ export default function TeaCenterRecordEntry() {
                                                         />
                                                         {openDropdownId === `rmName-${row.id}` && isFlavoredUI && (
                                                             <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
-                                                                {RAW_MATERIALS
+                                                                {FLAVOR_NAMES
                                                                     .filter(rm => rm.toLowerCase().includes((row.rawMaterialName || '').toLowerCase()))
                                                                     .map((rm, idx) => (
                                                                     <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'rawMaterialName', rm); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0">
@@ -706,7 +719,7 @@ export default function TeaCenterRecordEntry() {
 
                                                     <div>
                                                         <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap" title={isFlavoredUI ? "Auto calculates to 3% for this tea" : "Not applicable for this tea"}>
-                                                            RM Qty (Kg)
+                                                            Flavor Qty (kg)
                                                         </label>
                                                         <input 
                                                             type="number" 
@@ -737,12 +750,12 @@ export default function TeaCenterRecordEntry() {
 
                                                 <div className="flex flex-col md:flex-row items-end md:items-center gap-3">
                                                     {row.product && (
-                                                        <span className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded" title={`Base Grade: ${baseGrade}`}>
+                                                        <span className="text-[12px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded" title={`Base Grade: ${baseGrade}`}>
                                                             Avail {baseGrade}: <span className="text-gray-600 dark:text-gray-300">{availableForProduct.toFixed(2)}</span>
                                                         </span>
                                                     )}
                                                     {row.rawMaterialName && isFlavoredUI && (
-                                                        <span className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded">
+                                                        <span className="text-[12px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded">
                                                             Avail {row.rawMaterialName}: <span className="text-gray-600 dark:text-gray-300">{availableRM.toFixed(2)}</span>
                                                         </span>
                                                     )}
@@ -821,12 +834,7 @@ export default function TeaCenterRecordEntry() {
                                                             <div key={i} className="flex justify-between items-center text-[11px]">
                                                                 <span className={`font-bold border px-2 py-0.5 rounded shadow-sm text-[10px] w-fit ${getTeaColor(item.product)}`}>{item.product}</span>
                                                                 <div className="flex items-center gap-3 text-gray-500">
-                                                                    <span>{item.numberOfBoxes} {item.type} x {item.packSizeKg}kg</span>
-                                                                    {Number(item.rawMaterialQtyKg) > 0 && (
-                                                                        <span className="text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-500 px-1.5 py-0.5 rounded font-bold" title={item.rawMaterialName}>
-                                                                            RM: {item.rawMaterialQtyKg}kg
-                                                                        </span>
-                                                                    )}
+                                                                    <span>{item.numberOfBoxes} x {item.packSizeKg}kg</span>
                                                                     <span className="font-bold text-[#0d9488] w-12 text-right">{item.calculatedQtyKg} kg</span>
                                                                 </div>
                                                             </div>
@@ -835,8 +843,8 @@ export default function TeaCenterRecordEntry() {
                                                     <div className="flex justify-between items-center font-bold">
                                                         <span className="text-gray-500 uppercase text-[10px]">Daily Totals:</span>
                                                         <div className="flex gap-4">
-                                                            <span className="text-gray-600 dark:text-gray-300">{record.totalBoxes} Items</span>
-                                                            <span className="text-[#0f766e] dark:text-teal-400">{record.totalQtyKg.toFixed(3)} Kg</span>
+                                                            <span className="text-gray-600 dark:text-gray-300">{record.totalBoxes} Boxes</span>
+                                                            <span className="text-[#0f766e] dark:text-teal-400">{record.totalQtyKg.toFixed(2)} Kg</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -872,14 +880,14 @@ export default function TeaCenterRecordEntry() {
                                         {summaryArray.map(([prodName, qty], idx) => (
                                             <tr key={idx} className="border-b border-gray-300 dark:border-zinc-700">
                                                 <td className={`px-3 py-2 font-semibold border-r border-gray-300 dark:border-zinc-700 ${getTeaColor(prodName)}`}>{prodName}</td>
-                                                <td className="px-3 py-2 text-right font-medium text-gray-700 dark:text-gray-300">{qty % 1 !== 0 ? qty.toFixed(3) : qty}</td>
+                                                <td className="px-3 py-2 text-right font-medium text-gray-700 dark:text-gray-300">{qty % 1 !== 0 ? qty.toFixed(2) : qty}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                     <tfoot>
                                         <tr className="bg-gray-200 dark:bg-zinc-800 font-bold text-gray-900 dark:text-gray-100 border-t-2 border-gray-400 dark:border-zinc-600">
                                             <td className="px-3 py-2 uppercase border-r border-gray-300 dark:border-zinc-700">PENDING TOTAL</td>
-                                            <td className="px-3 py-2 text-right text-[#0f766e] dark:text-teal-400">{grandPendingQty % 1 !== 0 ? grandPendingQty.toFixed(3) : grandPendingQty}</td>
+                                            <td className="px-3 py-2 text-right text-[#0f766e] dark:text-teal-400">{grandPendingQty % 1 !== 0 ? grandPendingQty.toFixed(2) : grandPendingQty}</td>
                                         </tr>
                                     </tfoot>
                                 </table>

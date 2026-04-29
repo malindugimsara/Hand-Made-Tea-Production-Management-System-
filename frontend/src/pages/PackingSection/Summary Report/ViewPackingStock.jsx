@@ -418,18 +418,15 @@ export default function ViewPackingStock() {
                                     <thead>
                                         <tr className="bg-gray-200 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-500">
                                             <th className="px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-500">Product</th>
-                                            <th className="px-3 py-2 text-center font-bold border-r border-gray-300 dark:border-zinc-500">Boxes</th>
                                             <th className="px-3 py-2 text-right font-bold">Total (Kg)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {summaryArray.length > 0 ? summaryArray.map((product, idx) => {
                                             const totalQty = Number(product.totalBulkStockKg) || Number(product.totalOverallQtyKg) || 0;
-                                            const totalBoxes = product.packedItems?.reduce((sum, item) => sum + (Number(item.numberOfBoxes) || 0), 0) || 0;
                                             return (
                                                 <tr key={idx} className="border-b border-gray-300 dark:border-zinc-500">
                                                     <td className={`px-3 py-2 font-semibold border-r border-gray-300 dark:border-zinc-500 ${getTeaColor(product.productName)}`}>{product.productName || 'Unknown'}</td>
-                                                    <td className="px-3 py-2 text-center font-medium text-gray-700 dark:text-gray-300 border-r border-gray-300 dark:border-zinc-500">{totalBoxes}</td>
                                                     <td className="px-3 py-2 text-right font-medium text-gray-700 dark:text-gray-300">{totalQty % 1 !== 0 ? totalQty.toFixed(2) : totalQty}</td>
                                                 </tr>
                                             );
