@@ -5,7 +5,7 @@ const issueItemSchema = new mongoose.Schema({
         type: String, 
         required: true 
     },
-    type: { // අලුතින් එකතු කළ Packaging Type එක
+    type: { // Packaging Type
         type: String, 
         required: true 
     },
@@ -20,6 +20,19 @@ const issueItemSchema = new mongoose.Schema({
     totalQtyKg: { 
         type: Number, 
         required: true 
+    },
+    baseTeaQtyKg: {
+        type: Number,
+        default: 0
+    },
+    // --- NEWLY ADDED FIELD ---
+    rawMaterialName: {
+        type: String,
+        default: '' // Default to empty string for non-flavored teas
+    },
+    rawMaterialQtyKg: {
+        type: Number,
+        default: 0
     }
 });
 
@@ -38,7 +51,7 @@ const TeaCenterIssueSchema = new mongoose.Schema({
     },
     issueItems: [issueItemSchema],
     
-    // Added tracking fields for edits
+    // Tracking fields for edits
     updatedBy: { 
         type: String, 
         default: '' 

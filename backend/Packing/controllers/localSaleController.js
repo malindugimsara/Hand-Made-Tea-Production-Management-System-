@@ -1,6 +1,5 @@
 import LocalSale from '../models/LocalSaleModel.js';
 import PackingStock from '../models/PackingStock.js';
-
 // @desc    Create a new local sale record
 // @route   POST /api/local-sales
 // @access  Private
@@ -21,25 +20,27 @@ export const createLocalSale = async (req, res) => {
 
         // 👇 AUTOMATED INVENTORY DEDUCTION LOGIC 👇
         for (const item of salesItems) {
-            // 1. Find the specific Factory stock record for this product
-            const stock = await PackingStock.findOne({ 
-                productName: item.product,
-                source: 'Factory' 
-            });
+            // 1. Product Name එකෙන් පමණක් Stock එක හොයන්න
+            const stock = await PackingStock.findOne({ productName: item.product });
 
             if (stock) {
-                // 2. Deduct the total kilograms sold from the Factory bulk stock
-                stock.bulkStockKg -= Number(item.totalQtyKg);
-                
-                // 3. Safety check: prevent negative inventory
-                if (stock.bulkStockKg < 0) {
-                    stock.bulkStockKg = 0; 
+                // 2. stockBySource Array එක ඇතුළෙන් 'Factory' කියන Source එක හොයාගන්න
+                const factorySource = stock.stockBySource.find(s => s.sourceName === 'Factory');
+
+                // 3. Factory Source එකක් තිබේනම් එයින් ප්‍රමාණය අඩු කරන්න
+                if (factorySource) {
+                    factorySource.quantityKg -= Number(item.totalQtyKg);
+                    if (factorySource.quantityKg < 0) factorySource.quantityKg = 0; // Negative වීම වැළැක්වීම
                 }
 
-                // 4. Save the updated stock
+                // 4. මුළු තොගයෙන් (Grand Total) ප්‍රමාණය අඩු කරන්න
+                stock.totalBulkStockKg -= Number(item.totalQtyKg);
+                if (stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
+
+                // 5. Update කළ Stock එක Save කරන්න
                 await stock.save();
             } else {
-                console.warn(`Warning: Product ${item.product} not found in Factory inventory.`);
+                console.warn(`Warning: Product ${item.product} not found in inventory.`);
             }
         }
         // 👆 END OF AUTOMATED INVENTORY DEDUCTION 👆

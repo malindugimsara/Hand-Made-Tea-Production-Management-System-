@@ -60,7 +60,7 @@ export default function LocalRecordEntry() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const [showSpinner, setShowSpinner] = useState(false);
     const [pendingRecords, setPendingRecords] = useState([]);
-    const [factoryStock, setFactoryStock] = useState([]);
+    const [availableStock, setAvailableStock] = useState([]); // Changed from factoryStock
     const navigate = useNavigate();
 
     const [formData, setFormData] = useState({
@@ -95,11 +95,25 @@ export default function LocalRecordEntry() {
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    const factoryData = data.filter(item => item.source === 'Factory');
-                    setFactoryStock(factoryData);
+                    
+                    // --- CHANGED LOGIC: Get Grand Total for all sources ---
+                    const allSourcesData = [];
+                    data.forEach(product => {
+                        // Use totalBulkStockKg (or totalOverallQtyKg as fallback)
+                        const totalBulk = Number(product.totalBulkStockKg) || Number(product.totalOverallQtyKg) || Number(product.bulkStockKg) || 0;
+                        
+                        if (totalBulk > 0) {
+                            allSourcesData.push({
+                                productName: product.productName,
+                                bulkStockKg: totalBulk // This now holds the Grand Total
+                            });
+                        }
+                    });
+                    
+                    setAvailableStock(allSourcesData);
                 }
             } catch (error) {
-                console.error("Error fetching factory stock:", error);
+                console.error("Error fetching available stock:", error);
             }
         };
         fetchStock();
@@ -115,7 +129,7 @@ export default function LocalRecordEntry() {
     const summaryArray = Object.entries(productSummaryMap).sort((a, b) => b[1] - a[1]);
     const grandPendingQty = summaryArray.reduce((sum, [_, qty]) => sum + qty, 0);
 
-    const totalFactoryStock = factoryStock.reduce((sum, item) => sum + (item.bulkStockKg || 0), 0);
+    const totalAvailableStock = availableStock.reduce((sum, item) => sum + (item.bulkStockKg || 0), 0);
 
     const handleAddItemRow = () => {
         setItemsList([...itemsList, { id: Date.now(), product: '', packSizeKg: '', numberOfBoxes: '' }]);
@@ -192,14 +206,14 @@ export default function LocalRecordEntry() {
         let stockWarning = false;
         pendingRecords.forEach(record => {
             record.items.forEach(item => {
-                const stockData = factoryStock.find(s => s.productName === item.product);
+                const stockData = availableStock.find(s => s.productName === item.product);
                 const available = stockData ? stockData.bulkStockKg : 0;
                 if (Number(item.calculatedQtyKg) > available) stockWarning = true;
             });
         });
 
         if (stockWarning) {
-            if(!window.confirm("You are issuing MORE stock than what is currently available. Do you want to proceed anyway?")) {
+            if(!window.confirm("You are issuing MORE stock than what is currently available in the total bulk stock. Do you want to proceed anyway?")) {
                 return;
             }
         }
@@ -278,28 +292,28 @@ export default function LocalRecordEntry() {
                 </div>
             </div>
             
-            {/* AVAILABLE FACTORY STOCK SECTION (View Only) */}
+            {/* AVAILABLE STOCK SECTION (View Only) */}
             <div className="mb-8 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900 transition-colors duration-300">
                 <div className="bg-[#2f7466] px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                            <Calculator size={20} /> Current Available Stock (Factory)
+                            <Calculator size={20} /> Current Available Bulk Stock (All Sources)
                         </h3>
                         <p className="text-white/80 text-xs mt-1">
-                            Use these values to ensure you do not exceed the available factory stock during dispatch.
+                            Use these values to ensure you do not exceed the available bulk stock during dispatch.
                         </p>
                     </div>
                     <div className="bg-white/20 text-white text-sm font-bold px-4 py-2 rounded-lg backdrop-blur-sm shadow-inner border border-white/10">
-                        Total Capacity: {totalFactoryStock.toFixed(2)} KG
+                        Total Capacity: {totalAvailableStock.toFixed(2)} KG
                     </div>
                 </div>
                 
                 <div className="p-6">
-                    {factoryStock.length === 0 ? (
-                        <p className="text-gray-500 text-sm italic">No factory stock is currently available.</p>
+                    {availableStock.length === 0 ? (
+                        <p className="text-gray-500 text-sm italic">No stock is currently available.</p>
                     ) : (
                         <div className="flex flex-wrap gap-4">
-                            {factoryStock.map((item, idx) => (
+                            {availableStock.map((item, idx) => (
                                 <div 
                                     key={idx} 
                                     className="border border-gray-200 dark:border-zinc-700 rounded-xl p-4 min-w-[140px] shadow-sm bg-white dark:bg-zinc-800 transition-all duration-200 hover:shadow-md hover:border-gray-300 dark:hover:border-zinc-600"
@@ -322,6 +336,7 @@ export default function LocalRecordEntry() {
                 {/* --- LEFT SIDE: DATA ENTRY FORM --- */}
                 <div className="lg:col-span-3">
                     <form onSubmit={handleAddToList} className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-lg border border-teal-100 dark:border-zinc-800 transition-colors duration-300">
+                        
                         <div className="mb-6">
                             <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-2">
                                 <Calendar size={16} className="text-[#0d9488]"/> Date
@@ -342,11 +357,19 @@ export default function LocalRecordEntry() {
                                     const availableSizes = getPackSizes(row.product);
                                     
                                     // --- LOGIC: Visual Warning Flags ---
-                                    const stockData = factoryStock.find(s => s.productName === row.product);
+                                    const stockData = availableStock.find(s => s.productName === row.product);
                                     const availableForProduct = stockData ? stockData.bulkStockKg : 0;
+                                    
+                                    const totalIssuedForProductSoFar = itemsList.reduce((sum, currentItem) => {
+                                        if (currentItem.product === row.product) {
+                                             return sum + ((Number(currentItem.packSizeKg) * Number(currentItem.numberOfBoxes)) || 0);
+                                        }
+                                        return sum;
+                                    }, 0);
+
                                     const issuedNum = (Number(row.packSizeKg) * Number(row.numberOfBoxes)) || 0;
-                                    const isOverCapacity = row.product && issuedNum > availableForProduct;
-                                    const remaining = Math.max(0, availableForProduct - issuedNum);
+                                    const isOverCapacity = row.product && totalIssuedForProductSoFar > availableForProduct;
+                                    const remaining = Math.max(0, availableForProduct - totalIssuedForProductSoFar);
 
                                     return (
                                         <div key={row.id} className={`relative bg-white dark:bg-zinc-950 p-4 rounded-xl border transition-colors shadow-sm ${isOverCapacity ? 'border-amber-400 dark:border-amber-500/50 bg-amber-50/30 dark:bg-amber-900/10' : 'border-teal-100 dark:border-teal-900/40'}`}>
@@ -365,12 +388,12 @@ export default function LocalRecordEntry() {
                                                     </label>
                                                     <input 
                                                         type="text" 
-                                                        placeholder="Type or select..."
+                                                        placeholder="Select..."
                                                         value={row.product}
                                                         onChange={(e) => handleItemChange(row.id, 'product', e.target.value)}
                                                         onFocus={() => setOpenDropdownId(`product-${row.id}`)}
                                                         required
-                                                        className={`w-full p-2.5 border rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none transition-colors ${row.product ? getTeaColor(row.product) : 'bg-white dark:bg-zinc-950 dark:text-gray-100'} ${isOverCapacity ? 'border-amber-300' : 'border-teal-200 dark:border-teal-800/50'}`}
+                                                        className={`w-full p-2.5 border rounded-md text-sm focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none transition-colors ${row.product ? getTeaColor(row.product) : 'bg-white dark:bg-zinc-950 dark:text-gray-100'} ${isOverCapacity ? 'border-amber-300' : 'border-teal-200 dark:border-teal-800/50'}`}
                                                     />
                                                     
                                                     {openDropdownId === `product-${row.id}` && (
@@ -394,7 +417,7 @@ export default function LocalRecordEntry() {
                                                         onChange={(e) => handleItemChange(row.id, 'packSizeKg', e.target.value)}
                                                         onFocus={() => { if (availableSizes) setOpenDropdownId(`size-${row.id}`); }}
                                                         onWheel={(e) => e.target.blur()} required placeholder="e.g. 0.4"
-                                                        className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                                        className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md text-sm focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                                                     />
                                                     
                                                     {openDropdownId === `size-${row.id}` && availableSizes && (
@@ -409,13 +432,13 @@ export default function LocalRecordEntry() {
                                                 </div>
 
                                                 <div className="lg:col-span-1">
-                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">No. of Box/Packs</label>
+                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase whitespace-nowrap">No. of Boxes</label>
                                                     <input 
                                                         type="number" step="1" min="0"
                                                         value={row.numberOfBoxes} 
                                                         onChange={(e) => handleItemChange(row.id, 'numberOfBoxes', e.target.value)}
                                                         onWheel={(e) => e.target.blur()} required placeholder="e.g. 50"
-                                                        className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                                        className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                                                     />
                                                 </div>
 
@@ -430,7 +453,7 @@ export default function LocalRecordEntry() {
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div className={`w-full p-2.5 border font-bold rounded-md text-center transition-colors ${isOverCapacity ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400' : 'border-teal-300 dark:border-teal-700/50 bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400'}`}>
+                                                    <div className={`w-full p-2.5 border font-bold rounded-md text-sm text-center transition-colors ${isOverCapacity ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400' : 'border-teal-300 dark:border-teal-700/50 bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400'}`}>
                                                         {issuedNum > 0 ? issuedNum.toFixed(2) : "0.00"}
                                                     </div>
                                                 </div>
@@ -441,11 +464,11 @@ export default function LocalRecordEntry() {
                                                 {row.product && (
                                                     isOverCapacity ? (
                                                         <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-500 justify-end">
-                                                            <AlertTriangle size={12} /> Exceeds stock by {(issuedNum - availableForProduct).toFixed(2)} kg!
+                                                            <AlertTriangle size={12} /> Exceeds total stock by {(totalIssuedForProductSoFar - availableForProduct).toFixed(2)} kg!
                                                         </div>
                                                     ) : issuedNum > 0 ? (
                                                         <div className="flex items-center gap-1 text-[10px] font-bold text-teal-600 dark:text-teal-400 justify-end">
-                                                            <ArrowRight size={12} /> Remaining stock will be: {remaining.toFixed(2)} kg
+                                                            <ArrowRight size={12} /> Remaining total stock will be: {remaining.toFixed(2)} kg
                                                         </div>
                                                     ) : null
                                                 )}
@@ -457,16 +480,14 @@ export default function LocalRecordEntry() {
                             </div>
                             
                             <div className="flex justify-end w-full">
-                                <button type="button" onClick={handleAddItemRow} className="mt-4 text-sm font-bold bg-teal-100 hover:bg-teal-200 dark:bg-teal-900/40 dark:hover:bg-teal-800/60 text-[#0f766e] dark:text-teal-400 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+                                <button type="button" onClick={handleAddItemRow} className="mt-4 text-sm font-bold bg-teal-100 hover:bg-teal-200 dark:bg-teal-900/40 dark:hover:bg-teal-800/60 text-[#0f766e] dark:text-teal-400 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors ml-auto">
                                     <PlusCircle size={16} /> Add Product
                                 </button>
                             </div>
-
                             <div className="mt-4 flex flex-col sm:flex-row justify-end gap-6 border-t border-teal-200/50 dark:border-teal-800/30 pt-4">
                                 <div className="text-sm font-medium text-[#0f766e] dark:text-teal-300">
-                                    Total Packs: <span className="font-bold">{totalBoxes}</span>
+                                    Total Boxes: <span className="font-bold">{totalBoxes}</span>
                                 </div>
-                                
                                 <div className="text-sm font-medium text-[#0f766e] dark:text-teal-300 flex items-center gap-1">
                                     <Package size={16}/> Total Weight: <span className="font-bold text-lg">{totalQtyKg.toFixed(2)} Kg</span>
                                 </div>
@@ -479,6 +500,7 @@ export default function LocalRecordEntry() {
                     </form>
                 </div>
 
+                {/* --- RIGHT SIDE: PENDING LIST & SUMMARY --- */}
                 <div className="lg:col-span-2 flex flex-col gap-6">
                     <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-lg border border-teal-100 dark:border-teal-900/50 flex flex-col max-h-[60vh] transition-colors duration-300">
                         <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-zinc-800 pb-4">
@@ -547,7 +569,7 @@ export default function LocalRecordEntry() {
                                     <thead>
                                         <tr className="bg-gray-200 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-700">
                                             <th className="px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-700 text-gray-800 dark:text-gray-200">Product</th>
-                                            <th className="px-3 py-2 text-right font-bold text-gray-800 dark:text-gray-200">Qty (Kg)</th>
+                                            <th className="px-3 py-2 text-right font-bold text-gray-800 dark:text-gray-200">Qty (KG)</th>
                                         </tr>
                                     </thead>
                                     <tbody>

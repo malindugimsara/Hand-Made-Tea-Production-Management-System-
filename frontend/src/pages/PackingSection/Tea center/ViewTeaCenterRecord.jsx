@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
-import { AlertCircle, Calendar, RefreshCw, Package, ShoppingCart, Weight, Tag, FilterX, Box } from "lucide-react";
+import { AlertCircle, Calendar, RefreshCw, Package, ShoppingCart, Weight, Tag, FilterX, Box, Droplet, Leaf, Layers } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
 
 import {
@@ -22,7 +22,6 @@ import { useNavigate } from 'react-router-dom';
 const getTeaColor = (product) => {
     const p = product.toLowerCase();
     
-    // 1. Grade/Type strict matching (Order matters!)
     if (p.includes('ff ex sp')) return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800/50';
     if (p.includes('ff sp')) return 'bg-orange-200 dark:bg-orange-900/40 text-orange-900 dark:text-orange-200 border-orange-300 dark:border-orange-800/50';
     if (p.includes('bopf sp')) return 'bg-[#bef264] text-lime-900 border-lime-500'; 
@@ -33,7 +32,6 @@ const getTeaColor = (product) => {
     if (p.includes('pekoe')) return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/50';
     if (p.includes('dust')) return 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-800 dark:text-cyan-200 border-cyan-200 dark:border-cyan-800/50';
     
-    // 2. Specialty/Flavor/Color matching
     if (p.includes('pink')) return 'bg-pink-100 dark:bg-pink-900/30 text-pink-800 dark:text-pink-200 border-pink-200 dark:border-pink-800/50';
     if (p.includes('purple')) return 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-800/50';
     if (p.includes('silver')) return 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700';
@@ -51,11 +49,9 @@ const getTeaColor = (product) => {
     if (p.includes('labour')) return 'bg-stone-200 dark:bg-stone-800 text-stone-800 dark:text-stone-200 border-stone-300 dark:border-stone-700';
     if (p.includes('other purchasing')) return 'bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200 border-teal-200 dark:border-teal-800/50';
     
-    // Default fallback
     return 'bg-gray-50 dark:bg-zinc-900 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-zinc-700'; 
 };
 
-// Comprehensive PDF Colors
 const getPdfTeaColor = (product) => {
     const p = product.toLowerCase();
     
@@ -89,7 +85,6 @@ const getPdfTeaColor = (product) => {
     return { fillColor: [249, 250, 251], textColor: [31, 41, 55] }; 
 };
 
-// All Tea Center specific products
 const TEA_TYPES = [
     "Green tea", "G/T Lemangrass", "Guide Issue-BOPF", "Silver tips can", "FBOP chest", 
     "FF SP chest", "FF EX SP Pack", "Cinnamon can", "OP1 pack", 
@@ -166,8 +161,6 @@ export default function ViewTeaCenterRecords() {
                 const itemsArray = rec.issueItems || [];
 
                 const searchString = itemsArray.map(item => item.product).join(' ');
-                
-                // Type is extracted here, but primarily handled in PDF generation and table rendering directly
                 
                 return {
                     ...rec, itemsArray, searchString, isEdited, lastUpdatedDate,
@@ -261,7 +254,10 @@ export default function ViewTeaCenterRecords() {
                     item.type || "-", 
                     `${item.packSizeKg} kg`,
                     item.numberOfBoxes.toString(),
-                    `${item.totalQtyKg.toFixed(3)} kg`,
+                    `${(item.totalQtyKg || 0).toFixed(3)} kg`,
+                    item.rawMaterialName || "-",
+                    item.rawMaterialQtyKg ? `${Number(item.rawMaterialQtyKg).toFixed(3)} kg` : "-",
+                    item.baseTeaQtyKg ? `${Number(item.baseTeaQtyKg).toFixed(3)} kg` : "-",
                     isFirst ? record.totalBoxes.toString() : "",
                     isFirst ? `${record.totalQtyKg.toFixed(3)} kg` : "" 
                 ]);
@@ -270,7 +266,7 @@ export default function ViewTeaCenterRecords() {
 
         tableRows.push([
             { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' } },
-            "-", "-", "-", "-", "-",
+            "-", "-", "-", "-", "-", "-", "-", "-",
             { content: grandTotalBoxes.toString(), styles: { fontStyle: 'bold' } },
             { content: `${grandTotalQty.toFixed(3)} kg`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } } 
         ]);
@@ -294,7 +290,7 @@ export default function ViewTeaCenterRecords() {
                     <PDFDownloader 
                         title="Tea Center Issue Records"
                         subtitle={`Filters -> Month: ${filterMonth || 'All'} | Date: ${startDate || 'All'} to ${endDate || 'All'} | Product: ${productFilter || 'All'}`}
-                        headers={["Date", "Product", "Type", "Pack Size", "No. of Items", "Qty", "Daily Items", "Daily Qty"]}
+                        headers={["Date", "Product", "Type", "Pack Size", "Items", "Gross Qty", "RM Name", "RM Qty", "Base Qty", "Daily Items", "Daily Gross"]}
                         data={getPdfData()}
                         uniqueCode={uniqueCode}
                         fileName={`Tea_Center_Records_${new Date().toISOString().split('T')[0]}.pdf`}
@@ -381,10 +377,15 @@ export default function ViewTeaCenterRecords() {
                                     <th className="px-4 py-3 font-bold text-green-600 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 align-bottom min-w-[160px]"><Tag size={14} className="inline mr-1"/> Product</th>
                                     <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Box size={14} className="inline mr-1"/> Type</th>
                                     <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> Pack (Kg)</th>
-                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Package size={14} className="inline mr-1"/> No. of Items</th>
-                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> Qty (Kg)</th>
+                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Package size={14} className="inline mr-1"/> Items</th>
+                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> Gross Qty (Kg)</th>
+                                    {/* --- NEW COLUMNS --- */}
+                                    <th className="px-4 py-3 font-bold text-amber-700 dark:text-amber-500 border-r border-gray-200 dark:border-zinc-600 bg-yellow-50 dark:bg-yellow-950/20 text-center"><Layers size={14} className="inline mr-1"/> RM Name</th>
+                                    <th className="px-4 py-3 font-bold text-amber-700 dark:text-amber-500 border-r border-gray-200 dark:border-zinc-600 bg-yellow-50 dark:bg-yellow-950/20 text-center"><Droplet size={14} className="inline mr-1"/> RM (Kg)</th>
+                                    <th className="px-4 py-3 font-bold text-teal-700 dark:text-teal-500 border-r border-gray-200 dark:border-zinc-600 bg-teal-50 dark:bg-teal-950/20 text-center"><Leaf size={14} className="inline mr-1"/> Base (Kg)</th>
+                                    {/* ------------------- */}
                                     <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Items</th>
-                                    <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Qty (Kg)</th>
+                                    <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Gross (Kg)</th>
                                     {!isViewer && <th className="px-4 py-3 font-semibold align-bottom text-center bg-gray-50 dark:bg-zinc-950/50">Action</th>}
                                 </tr>
                             </thead>
@@ -453,6 +454,39 @@ export default function ViewTeaCenterRecords() {
                                                 </div>
                                             </td>
 
+                                            {/* --- NEW COLUMN RENDERING: RAW MATERIAL NAME --- */}
+                                            <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                <div className="flex flex-col w-full h-full">
+                                                    {record.itemsArray.map((t, i) => (
+                                                        <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-amber-700 dark:text-amber-500 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
+                                                            {t.rawMaterialName || '-'}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </td>
+
+                                            {/* --- NEW COLUMN RENDERING: RAW MATERIAL QTY --- */}
+                                            <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                <div className="flex flex-col w-full h-full">
+                                                    {record.itemsArray.map((t, i) => (
+                                                        <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-amber-700 dark:text-amber-500 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
+                                                            {t.rawMaterialQtyKg ? Number(t.rawMaterialQtyKg).toFixed(3) : '-'}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </td>
+
+                                            {/* --- NEW COLUMN RENDERING: BASE TEA QTY --- */}
+                                            <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                <div className="flex flex-col w-full h-full">
+                                                    {record.itemsArray.map((t, i) => (
+                                                        <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-teal-700 dark:text-teal-500 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
+                                                            {t.baseTeaQtyKg ? Number(t.baseTeaQtyKg).toFixed(3) : '-'}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </td>
+
                                             <td className="px-3 py-4 text-center border-r border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 align-top">
                                                 <span className="font-bold text-gray-700 dark:text-gray-300 text-lg">{record.totalBoxes}</span>
                                             </td>
@@ -484,13 +518,13 @@ export default function ViewTeaCenterRecords() {
                                         </tr>
                                     ))
                                 ) : (
-                                    <tr><td colSpan={isViewer ? "8" : "9"} className="p-16 text-center text-gray-400"><p>No records found</p></td></tr>
+                                    <tr><td colSpan={isViewer ? "11" : "12"} className="p-16 text-center text-gray-400"><p>No records found</p></td></tr>
                                 )}
                             </tbody>
                             {filteredRecords.length > 0 && (
                                 <tfoot className="bg-gray-100/90 dark:bg-zinc-900/90 border-t-2 border-gray-200 dark:border-zinc-700">
                                     <tr>
-                                        <td colSpan="6" className="px-4 py-4 text-right font-bold tracking-wider uppercase border-r border-gray-200 dark:border-zinc-800">MONTHLY TOTAL</td>
+                                        <td colSpan="9" className="px-4 py-4 text-right font-bold tracking-wider uppercase border-r border-gray-200 dark:border-zinc-800">MONTHLY TOTAL</td>
                                         <td className="px-3 py-4 text-center font-black text-xl border-r border-gray-200 dark:border-zinc-800">{grandTotalBoxes}</td>
                                         <td className="px-3 py-4 text-center font-black text-[#0f766e] dark:text-teal-500 text-xl border-r border-gray-200 dark:border-zinc-800">{grandTotalQty.toFixed(3)} kg</td>
                                         {!isViewer && <td></td>}

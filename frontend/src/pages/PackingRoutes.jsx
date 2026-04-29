@@ -14,6 +14,13 @@ import EditTeaReceivedRecord from "./PackingSection/Trans In Factory/EditTeaRece
 import ViewTeaGradesReceivedRecords from "./PackingSection/Trans In Factory/ViewTeaGradesReceivedRecords";
 import ProductIssueSummary from "./PackingSection/Summary report/ProductIssueSummary";
 import ViewPackingStock from "./PackingSection/Summary Report/ViewPackingStock";
+import TeaGradesReceivedOutEntry from "./PackingSection/Trans In other/TeaGradesReceivedOutEntry";
+import ViewTeaGradesReceivedOutRecords from "./PackingSection/Trans In other/ViewTeaGradesReceivedOutRecords";
+import RawMaterialInEntry from "./PackingSection/Trans In RawMaterial/RawMaterialInEntry";
+import ViewRawMaterialInRecords from "./PackingSection/Trans In RawMaterial/ViewRawMaterialInRecords";
+import EditTeaReceivedOutRecord from "./PackingSection/Trans In other/EditTeaReceivedOutRecord";
+import EditRawMaterialIn from "./PackingSection/Trans In RawMaterial/EditRawMaterialIn";
+
 
 
 export const PackingRoutes = () => (
@@ -33,5 +40,14 @@ export const PackingRoutes = () => (
     <Route path="product-issue-summary" element={<ProductIssueSummary />} />    
     <Route path="summary-reports" element={<ViewPackingStock />} />
 
+    //Trans in other
+    <Route path="trans-in-other" element={<TeaGradesReceivedOutEntry />} />
+    <Route path="trans-in-view-other" element={<ViewTeaGradesReceivedOutRecords />} />
+    <Route path="edit-received-out-record" element={<EditTeaReceivedOutRecord />} />
+
+    //Raw Material
+    <Route path="trans-in-raw-material" element={<RawMaterialInEntry />} />
+    <Route path="trans-in-view-raw-material" element={<ViewRawMaterialInRecords />} />
+    <Route path="edit-raw-material-in" element={<EditRawMaterialIn />} />
   </Route>
 );

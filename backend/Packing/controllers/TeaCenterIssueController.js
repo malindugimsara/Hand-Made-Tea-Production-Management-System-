@@ -1,5 +1,6 @@
 import TeaCenterIssue from '../models/TeaCenterIssueModel.js';
 import PackingStock from '../models/PackingStock.js'; 
+import RawMaterialStock from '../models/RawMaterialStock.js'; // <-- අලුතින් IMPORT කරන්න
 
 // --- NEW LOGIC: BASE TEA MAPPING (Must match frontend) ---
 const getBaseTeaGrade = (productName) => {
@@ -56,32 +57,63 @@ export const createTeaCenterIssue = async (req, res) => {
 
         // 👇 AUTOMATED INVENTORY DEDUCTION LOGIC 👇
         for (const item of issueItems) {
-            let remainingToDeduct = Number(item.totalQtyKg);
-            
-            // MAP THE FLAVORED TEA TO THE BASE GRADE! (e.g. Ginger Tea -> BOPF)
+            // ==========================================
+            // 1. DEDUCT FROM TEA STOCK (PackingStock)
+            // ==========================================
+            let remainingToDeduct = Number(item.baseTeaQtyKg) || Number(item.totalQtyKg);
             const baseGradeName = getBaseTeaGrade(item.product);
-            
-            // Find ALL stock rows for this Base Grade (Combines Factory AND Handmade)
-            const stocks = await PackingStock.find({ productName: baseGradeName });
+            const stock = await PackingStock.findOne({ productName: baseGradeName });
 
-            for (let stock of stocks) {
-                if (remainingToDeduct <= 0) break; // Finished deducting this item
+            if (stock) {
+                const originalDeductAmount = remainingToDeduct;
 
-                if (stock.bulkStockKg >= remainingToDeduct) {
-                    // This row has enough to cover the rest of the deduction
-                    stock.bulkStockKg -= remainingToDeduct;
-                    remainingToDeduct = 0;
-                } else {
-                    // This row doesn't have enough, so drain it to 0 and keep deducting from the next row
-                    remainingToDeduct -= stock.bulkStockKg;
-                    stock.bulkStockKg = 0;
+                if (stock.stockBySource && stock.stockBySource.length > 0) {
+                    for (let source of stock.stockBySource) {
+                        if (remainingToDeduct <= 0) break; 
+                        
+                        if (source.quantityKg >= remainingToDeduct) {
+                            source.quantityKg -= remainingToDeduct;
+                            remainingToDeduct = 0;
+                        } else {
+                            remainingToDeduct -= source.quantityKg;
+                            source.quantityKg = 0;
+                        }
+                    }
                 }
-                
+
+                const successfullyDeducted = originalDeductAmount - remainingToDeduct;
+                stock.totalBulkStockKg -= successfullyDeducted;
+                if (stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
+
                 await stock.save();
+
+                if (remainingToDeduct > 0) {
+                    console.warn(`Warning: Issued ${item.totalQtyKg}kg of ${item.product} (Base: ${baseGradeName}) but bulk stock was short by ${remainingToDeduct}kg.`);
+                }
+            } else {
+                console.warn(`Warning: Base product ${baseGradeName} not found in inventory.`);
             }
 
-            if (remainingToDeduct > 0) {
-                console.warn(`Warning: Issued ${item.totalQtyKg}kg of ${item.product} (Base: ${baseGradeName}) but bulk stock was short by ${remainingToDeduct}kg.`);
+            // ==========================================
+            // 2. DEDUCT FROM RAW MATERIAL STOCK (RawMaterialStock)
+            // ==========================================
+            // Frontend එකෙන් Raw Material නමක් සහ ප්‍රමාණයක් (0 ට වඩා වැඩි) එවලා තියෙනවද කියලා බලනවා
+            if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
+                const rmDeductAmount = Number(item.rawMaterialQtyKg);
+                
+                // RawMaterialStock Collection එකෙන් අදාළ Material එක හොයනවා
+                const rmStock = await RawMaterialStock.findOne({ materialName: item.rawMaterialName });
+
+                if (rmStock) {
+                    rmStock.totalQuantity -= rmDeductAmount;
+                    
+                    // සෘණ (Negative) අගයක් වීම වැළැක්වීම
+                    if (rmStock.totalQuantity < 0) rmStock.totalQuantity = 0; 
+                    
+                    await rmStock.save();
+                } else {
+                    console.warn(`Warning: Raw Material ${item.rawMaterialName} not found in stock.`);
+                }
             }
         }
         // 👆 END OF AUTOMATED INVENTORY DEDUCTION 👆

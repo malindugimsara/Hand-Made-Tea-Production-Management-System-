@@ -48,7 +48,6 @@ const stockTransferSchema = new mongoose.Schema({
         type: String,
         enum: ['Factory', 'Handmade', 'Other'],
         required: true,
-        default: 'Factory' // You can default it to whatever is most common
     },
     issuedBy: {
         type: String,
