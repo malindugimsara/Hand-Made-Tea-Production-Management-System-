@@ -1,5 +1,42 @@
 import LocalSale from '../models/LocalSaleModel.js';
 import PackingStock from '../models/PackingStock.js';
+import RawMaterialStock from '../models/RawMaterialStock.js';
+
+// --- NEW LOGIC: BASE TEA MAPPING (Should match frontend) ---
+const getBaseTeaGrade = (productName) => {
+    if (!productName) return "";
+    const p = productName.toLowerCase().trim();
+
+    const bopf = ["lemongrass - bopf", "cinnamon tea - bopf", "ginger tea - bopf", "masala tea - bopf", "pineapple tea", "mix fruit", "peach", "strawberry", "jasmin - bopf", "mango tea", "carmel", "honey", "earl grey", "lime", "soursop - bopf", "cardamom", "gift pack", "guide issue-bopf"];
+    const bopfSp = ["english breakfast", "cinnamon tea - bopf sp", "ginger tea - bopf sp", "masala tea - bopf sp", "vanilla", "mint - bopf sp", "moringa - bopf sp", "curry leaves - bopf sp", "gotukola - bopf sp", "heen bovitiya - bopf sp", "black t/b", "english afternoon"];
+    const greenTea = ["lemongrass - green tea", "g/t lemangrass", "mint - green tea", "soursop - green tea", "moringa - green tea", "curry leaves - green tea", "heen bovitiya - green tea", "gotukola - green tea", "jasmin - green tea", "green tea t/b"];
+    const pekoe = ["pekoe", "rose tea"];
+    const ff = ["ceylon premium - ff"];
+    const op = ["op", "hibiscus"];
+    const fbop = ["ceylon supreme"];
+
+    const standaloneMap = {
+        "opa": "OPA", "bop": "BOP", "bop pack": "BOP", "pink tea": "Pink Tea", "pink tea can": "Pink Tea", "pink tea pack": "Pink Tea",
+        "op 1": "OP 1", "op1 pack": "OP 1", "ff ex sp": "FF EX SP", "ff ex sp pack": "FF EX SP", "ff ex sp box": "FF EX SP",
+        "white tea": "White Tea", "white tea can": "White Tea", "purple tea": "Purple Tea", "purple tea can": "Purple Tea",
+        "purple pack": "Purple Tea", "slim beauty": "Slim Beauty", "slim beauty can": "Slim Beauty", "vita glow": "Vita Glow",
+        "silver green": "Silver Green", "premium": "Premium", "ceylon premium": "FF", "black pepper": "Black Pepper",
+        "black pepar": "Black Pepper", "cinnamon stick": "Cinnamon Stick", "turmeric": "Turmeric", "silver tips": "Silver Tips",
+        "golden tips": "Golden Tips", "flower": "Flower", "chakra": "Chakra", "green tea": "Green Tea"
+    };
+
+    if (bopf.includes(p)) return "BOPF";
+    if (bopfSp.includes(p)) return "BOPF SP";
+    if (greenTea.includes(p)) return "Green Tea";
+    if (pekoe.includes(p)) return "Pekoe";
+    if (ff.includes(p)) return "FF";
+    if (op.includes(p)) return "OP";
+    if (fbop.includes(p)) return "FBOP";
+    if (standaloneMap[p]) return standaloneMap[p];
+    
+    return productName; 
+};
+
 // @desc    Create a new local sale record
 // @route   POST /api/local-sales
 // @access  Private
@@ -20,27 +57,68 @@ export const createLocalSale = async (req, res) => {
 
         // 👇 AUTOMATED INVENTORY DEDUCTION LOGIC 👇
         for (const item of salesItems) {
-            // 1. Product Name එකෙන් පමණක් Stock එක හොයන්න
-            const stock = await PackingStock.findOne({ productName: item.product });
+            // ==========================================
+            // 1. DEDUCT FROM TEA STOCK (PackingStock)
+            // ==========================================
+            let remainingToDeduct = Number(item.baseTeaQtyKg) || Number(item.totalQtyKg);
+            const baseGradeName = getBaseTeaGrade(item.product);
+            const stock = await PackingStock.findOne({ productName: baseGradeName });
 
             if (stock) {
-                // 2. stockBySource Array එක ඇතුළෙන් 'Factory' කියන Source එක හොයාගන්න
-                const factorySource = stock.stockBySource.find(s => s.sourceName === 'Factory');
+                const originalDeductAmount = remainingToDeduct;
 
-                // 3. Factory Source එකක් තිබේනම් එයින් ප්‍රමාණය අඩු කරන්න
-                if (factorySource) {
-                    factorySource.quantityKg -= Number(item.totalQtyKg);
-                    if (factorySource.quantityKg < 0) factorySource.quantityKg = 0; // Negative වීම වැළැක්වීම
+                if (stock.stockBySource && stock.stockBySource.length > 0) {
+                    for (let source of stock.stockBySource) {
+                        if (remainingToDeduct <= 0) break; 
+                        
+                        let amountDeductedFromThisSource = 0;
+                        if (source.quantityKg >= remainingToDeduct) {
+                            amountDeductedFromThisSource = remainingToDeduct;
+                            source.quantityKg -= remainingToDeduct;
+                            remainingToDeduct = 0;
+                        } else {
+                            amountDeductedFromThisSource = source.quantityKg;
+                            remainingToDeduct -= source.quantityKg;
+                            source.quantityKg = 0;
+                        }
+
+                        // TEA ISSUE AMOUNT Update
+                        source.issueAmount = (source.issueAmount || 0) + amountDeductedFromThisSource;
+                    }
                 }
 
-                // 4. මුළු තොගයෙන් (Grand Total) ප්‍රමාණය අඩු කරන්න
-                stock.totalBulkStockKg -= Number(item.totalQtyKg);
+                const successfullyDeducted = originalDeductAmount - remainingToDeduct;
+                stock.totalBulkStockKg -= successfullyDeducted;
                 if (stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
 
-                // 5. Update කළ Stock එක Save කරන්න
                 await stock.save();
+
+                if (remainingToDeduct > 0) {
+                    console.warn(`Warning: Local Sale issued ${item.totalQtyKg}kg of ${item.product} (Base: ${baseGradeName}) but bulk stock was short by ${remainingToDeduct}kg.`);
+                }
             } else {
-                console.warn(`Warning: Product ${item.product} not found in inventory.`);
+                console.warn(`Warning: Base product ${baseGradeName} not found in inventory.`);
+            }
+
+            // ==========================================
+            // 2. DEDUCT FROM RAW MATERIAL STOCK (RawMaterialStock)
+            // ==========================================
+            if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
+                const rmDeductAmount = Number(item.rawMaterialQtyKg);
+                
+                const rmStock = await RawMaterialStock.findOne({ materialName: item.rawMaterialName });
+
+                if (rmStock) {
+                    rmStock.totalQuantity -= rmDeductAmount;
+                    
+                    // 👇 අලුතින්: RAW MATERIAL ISSUE AMOUNT Update කිරීම 👇
+                    rmStock.issueAmount = (rmStock.issueAmount || 0) + rmDeductAmount;
+
+                    if (rmStock.totalQuantity < 0) rmStock.totalQuantity = 0; 
+                    await rmStock.save();
+                } else {
+                    console.warn(`Warning: Raw Material ${item.rawMaterialName} not found in stock.`);
+                }
             }
         }
         // 👆 END OF AUTOMATED INVENTORY DEDUCTION 👆
@@ -80,13 +158,11 @@ export const updateLocalSale = async (req, res) => {
             return res.status(404).json({ message: "Record not found." });
         }
 
-        // Update the fields with the new data from the frontend
         if (date) saleRecord.date = date;
         if (totalBoxes !== undefined) saleRecord.totalBoxes = totalBoxes;
         if (totalQtyKg !== undefined) saleRecord.totalQtyKg = totalQtyKg;
         if (salesItems) saleRecord.salesItems = salesItems;
         
-        // 👇 Username Update Fallback 👇
         if (updatedBy) {
             saleRecord.updatedBy = updatedBy;
         } else if (editorName) {
@@ -109,14 +185,54 @@ export const updateLocalSale = async (req, res) => {
 export const deleteLocalSale = async (req, res) => {
     try {
         const { id } = req.params;
+        const saleRecord = await LocalSale.findById(id);
 
-        const deletedSale = await LocalSale.findByIdAndDelete(id);
-
-        if (!deletedSale) {
+        if (!saleRecord) {
             return res.status(404).json({ message: 'Local sale record not found.' });
         }
 
-        res.status(200).json({ message: 'Local sale record deleted successfully.' });
+        // 👇 AUTOMATED STOCK REVERSAL LOGIC 👇
+        for (const item of saleRecord.salesItems) {
+            
+            // 1. REVERSE TEA STOCK
+            let amountToReturn = Number(item.baseTeaQtyKg) || Number(item.totalQtyKg);
+            const baseGradeName = getBaseTeaGrade(item.product);
+            const stock = await PackingStock.findOne({ productName: baseGradeName });
+
+            if (stock) {
+                if (stock.stockBySource && stock.stockBySource.length > 0) {
+                    let targetSource = stock.stockBySource.find(s => s.sourceName === 'Factory') || stock.stockBySource[0];
+                    
+                    targetSource.quantityKg += amountToReturn;
+                    
+                    targetSource.issueAmount -= amountToReturn;
+                    if(targetSource.issueAmount < 0) targetSource.issueAmount = 0;
+                }
+                
+                stock.totalBulkStockKg += amountToReturn;
+                await stock.save();
+            }
+
+            // 2. REVERSE RAW MATERIAL STOCK
+            if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
+                const rmReturnAmount = Number(item.rawMaterialQtyKg);
+                const rmStock = await RawMaterialStock.findOne({ materialName: item.rawMaterialName });
+
+                if (rmStock) {
+                    rmStock.totalQuantity += rmReturnAmount;
+
+                    // 👇 අලුතින්: RAW MATERIAL ISSUE AMOUNT REVERSAL 👇
+                    rmStock.issueAmount -= rmReturnAmount;
+                    if (rmStock.issueAmount < 0) rmStock.issueAmount = 0;
+
+                    await rmStock.save();
+                }
+            }
+        }
+        // 👆 END OF AUTOMATED STOCK REVERSAL 👆
+
+        await saleRecord.deleteOne();
+        res.status(200).json({ message: 'Local sale record deleted and stock reversed successfully.' });
 
     } catch (error) {
         console.error('Error deleting local sale:', error);

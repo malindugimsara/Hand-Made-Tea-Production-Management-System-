@@ -1,13 +1,16 @@
 import mongoose from 'mongoose';
 
-// Source එක සහ අදාළ ප්‍රමාණය ගබඩා කිරීමට උප-ස්කීමාවක් (Sub-schema)
 const sourceStockSchema = new mongoose.Schema({
     sourceName: { 
         type: String, 
         required: true,
-        enum: ['Factory', 'Other', 'Handmade'] // ඔබට අවශ්‍ය sources මෙහි දෙන්න
+        enum: ['Factory', 'Other', 'Handmade']
     }, 
-    quantityKg: { type: Number, default: 0 }
+    // 👇 මේ අලුත් Fields දෙක දාන්න ඕනේ 👇
+    transInAmount: { type: Number, default: 0 }, // ආපු මුළු ගාණ
+    issueAmount: { type: Number, default: 0 },   // නිකුත් කරපු මුළු ගාණ
+    // ------------------------------------
+    quantityKg: { type: Number, default: 0 }     // දැනට ඉතිරි ගාණ
 }, { _id: false });
 
 const packingStockSchema = new mongoose.Schema({

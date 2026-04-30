@@ -75,6 +75,7 @@ export default function ViewRawMaterialInRecords() {
     const isViewer = userRole.toLowerCase() === 'viewer';
 
     // --- FILTER STATES ---
+    const [filterCategory, setFilterCategory] = useState('all'); // NEW: Category Filter
     const [filterMonth, setFilterMonth] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -121,7 +122,6 @@ export default function ViewRawMaterialInRecords() {
                 
                 const itemsArray = (rec.items || []).map(item => ({
                     ...item,
-                    // Dynamically calculate category here
                     category: getCategory(item.materialName)
                 }));
                 
@@ -149,10 +149,12 @@ export default function ViewRawMaterialInRecords() {
     };
 
     const filteredRecords = records.filter(record => {
+        const categoryMatch = filterCategory === 'all' || record.itemsArray.some(item => (item.category || 'other') === filterCategory);
         const monthMatch = !filterMonth || record.date.startsWith(filterMonth);
         const dateMatch = (!startDate || record.date >= startDate) && (!endDate || record.date <= endDate);
         const searchMatch = !searchFilter || record.searchString.toLowerCase().includes(searchFilter.toLowerCase());
-        return monthMatch && dateMatch && searchMatch;
+        
+        return categoryMatch && monthMatch && dateMatch && searchMatch;
     });
 
     // --- GENERATE DATA FOR SUMMARY TABLE ---
@@ -160,12 +162,15 @@ export default function ViewRawMaterialInRecords() {
 
     filteredRecords.forEach(record => {
         record.itemsArray.forEach(item => {
+            // Apply category filter to the summary items as well
+            if (filterCategory !== 'all' && (item.category || 'other') !== filterCategory) return;
+
             const key = `${item.materialName}_|_${item.unit}`;
             if (!summaryMap[key]) {
                 summaryMap[key] = { 
                     materialName: item.materialName, 
                     unit: item.unit, 
-                    category: item.category, // Uses the dynamically calculated category
+                    category: item.category,
                     qty: 0 
                 };
             }
@@ -202,6 +207,7 @@ export default function ViewRawMaterialInRecords() {
     };
 
     const clearFilters = () => {
+        setFilterCategory('all');
         setFilterMonth('');
         setStartDate('');
         setEndDate('');
@@ -225,6 +231,9 @@ export default function ViewRawMaterialInRecords() {
             const pdfDateCell = record.isEdited ? `${baseDate}\n(Edited by ${record.editedBy})` : baseDate;
 
             record.itemsArray.forEach((item, index) => {
+                // Skip items that don't match the selected category (if a specific category is filtered)
+                if (filterCategory !== 'all' && (item.category || 'other') !== filterCategory) return;
+
                 const isFirst = index === 0;
 
                 tableRows.push([
@@ -262,7 +271,7 @@ export default function ViewRawMaterialInRecords() {
                     <div className="w-full sm:w-auto">
                         <PDFDownloader 
                             title="Raw Material Inward Records"
-                            subtitle={`Filters -> Month: ${filterMonth || 'All'} | Search: ${searchFilter || 'All'}`}
+                            subtitle={`Filters -> Category: ${filterCategory === 'all' ? 'All' : filterCategory} | Month: ${filterMonth || 'All'} | Search: ${searchFilter || 'All'}`}
                             headers={["Date", "Invoice No", "Supplier", "Material Name", "Quantity", "Unit"]}
                             data={getPdfData()}
                             uniqueCode={uniqueCode}
@@ -279,8 +288,22 @@ export default function ViewRawMaterialInRecords() {
 
             {/* --- FILTER SECTION --- */}
             <div className="mb-6 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-colors duration-300">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
                     
+                    {/* NEW: CATEGORY FILTER */}
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Category</label>
+                        <select 
+                            value={filterCategory} 
+                            onChange={(e) => setFilterCategory(e.target.value)} 
+                            className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf]/50 transition-colors cursor-pointer"
+                        >
+                            <option value="all">All Categories</option>
+                            <option value="flavor">Flavors Only</option>
+                            <option value="other">Other Materials</option>
+                        </select>
+                    </div>
+
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Month</label>
                         <input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf]/50 transition-colors" />
@@ -297,10 +320,10 @@ export default function ViewRawMaterialInRecords() {
                     </div>
                     
                     <div className="flex flex-col gap-1.5 relative" ref={dropdownRef}>
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Search Invoice/Supplier/Mat</label>
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Search Details</label>
                         <input 
                             type="text" 
-                            placeholder="Type to search..." 
+                            placeholder="Invoice/Supplier/Mat..." 
                             value={searchFilter} 
                             onChange={(e) => {
                                 setSearchFilter(e.target.value);
@@ -330,7 +353,7 @@ export default function ViewRawMaterialInRecords() {
                     </div>
 
                     <div className="flex items-end lg:justify-end">
-                        <button onClick={clearFilters} disabled={!filterMonth && !startDate && !endDate && !searchFilter} className={`w-full lg:w-auto px-4 py-2.5 text-sm font-bold rounded-md transition-colors flex items-center justify-center gap-2 ${filterMonth || startDate || endDate || searchFilter ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 border border-red-200 dark:border-red-800' : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-gray-600 cursor-not-allowed border border-transparent'}`}>
+                        <button onClick={clearFilters} disabled={filterCategory === 'all' && !filterMonth && !startDate && !endDate && !searchFilter} className={`w-full lg:w-auto px-4 py-2.5 text-sm font-bold rounded-md transition-colors flex items-center justify-center gap-2 ${filterCategory !== 'all' || filterMonth || startDate || endDate || searchFilter ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 border border-red-200 dark:border-red-800' : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-gray-600 cursor-not-allowed border border-transparent'}`}>
                             <FilterX size={16} /> Clear
                         </button>
                     </div>
@@ -363,100 +386,108 @@ export default function ViewRawMaterialInRecords() {
                                 </thead>
                                 <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
                                     {filteredRecords.length > 0 ? (
-                                        filteredRecords.map((record) => (
-                                            <tr key={record._id} className="hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors group">
-                                                
-                                                <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
-                                                    {record.isEdited && (
-                                                        <div className="mt-1.5 text-[10px] bg-[#f0fdfa] dark:bg-teal-900 text-[#0f766e] dark:text-teal-400 border border-[#99f6e4] dark:border-teal-700 px-2 py-1 rounded font-medium w-max leading-tight">
-                                                            <span className="font-bold">Edited by {record.editedBy}</span><br />
-                                                            <span className="opacity-100">{record.lastUpdatedDate}</span>
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                
-                                                <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                    <div className="flex flex-col gap-1.5">
-                                                        <span className="font-black text-gray-800 dark:text-gray-200 text-base">{record.invoiceNo}</span>
-                                                        {record.supplierName && (
-                                                            <div className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 font-medium mt-0.5">
-                                                                <Truck size={12} className="text-[#0d9488] dark:text-teal-400"/> {record.supplierName}
+                                        filteredRecords.map((record) => {
+                                            // Pre-filter items to show only if they match the selected category
+                                            const displayItems = filterCategory === 'all' 
+                                                ? record.itemsArray 
+                                                : record.itemsArray.filter(item => (item.category || 'other') === filterCategory);
+
+                                            if (displayItems.length === 0) return null; // Edge case safety
+
+                                            return (
+                                                <tr key={record._id} className="hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors group">
+                                                    
+                                                    <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                        <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
+                                                        {record.isEdited && (
+                                                            <div className="mt-1.5 text-[10px] bg-[#f0fdfa] dark:bg-teal-900 text-[#0f766e] dark:text-teal-400 border border-[#99f6e4] dark:border-teal-700 px-2 py-1 rounded font-medium w-max leading-tight">
+                                                                <span className="font-bold">Edited by {record.editedBy}</span><br />
+                                                                <span className="opacity-100">{record.lastUpdatedDate}</span>
                                                             </div>
                                                         )}
-                                                        {record.remarks && (
-                                                            <div className="text-[10px] text-gray-500 italic mt-1 max-w-[180px] truncate" title={record.remarks}>
-                                                                * {record.remarks}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                
-                                                <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px">
-                                                    <div className="flex flex-col w-full h-full">
-                                                        {record.itemsArray.map((t, i) => (
-                                                            <div key={i} className={`flex-1 flex items-center px-4 py-3 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0 ${getMaterialColor(t.materialName)}`}>
-                                                                {t.materialName}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </td>
-
-                                                {/* Category Column in Main Table */}
-                                                <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                    <div className="flex flex-col w-full h-full">
-                                                        {record.itemsArray.map((t, i) => (
-                                                            <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                                <span className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded tracking-wider ${t.category === 'flavor' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'}`}>
-                                                                    {t.category}
-                                                                </span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </td>
-                                                
-                                                <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                    <div className="flex flex-col w-full h-full">
-                                                        {record.itemsArray.map((t, i) => (
-                                                            <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-800 dark:text-gray-200 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                                <span className="text-[#0f766e] dark:text-teal-400">{Number(t.quantity).toFixed(2)}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </td>
-
-                                                <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                    <div className="flex flex-col w-full h-full">
-                                                        {record.itemsArray.map((t, i) => (
-                                                            <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-600 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                                {t.unit}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </td>
-                                                
-                                                {!isViewer && (
-                                                    <td className="px-3 py-4 text-center align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                        <div className="flex flex-wrap items-center justify-center gap-1 mt-1">
-                                                            <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-[#0f766e] rounded transition-colors"><MdOutlineEdit size={20} /></button>
-                                                            <AlertDialog>
-                                                                <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 rounded transition-colors"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
-                                                                <AlertDialogContent className="bg-white rounded-2xl max-w-md w-[90vw] max-w-[425px]">
-                                                                    <AlertDialogHeader>
-                                                                        <AlertDialogTitle className="text-xl font-bold">Delete Record</AlertDialogTitle>
-                                                                        <AlertDialogDescription>Are you sure you want to delete this record?</AlertDialogDescription>
-                                                                    </AlertDialogHeader>
-                                                                    <AlertDialogFooter>
-                                                                        <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
-                                                                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700">Delete</AlertDialogAction>
-                                                                    </AlertDialogFooter>
-                                                                </AlertDialogContent>
-                                                            </AlertDialog>
+                                                    </td>
+                                                    
+                                                    <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                        <div className="flex flex-col gap-1.5">
+                                                            <span className="font-black text-gray-800 dark:text-gray-200 text-base">{record.invoiceNo}</span>
+                                                            {record.supplierName && (
+                                                                <div className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 font-medium mt-0.5">
+                                                                    <Truck size={12} className="text-[#0d9488] dark:text-teal-400"/> {record.supplierName}
+                                                                </div>
+                                                            )}
+                                                            {record.remarks && (
+                                                                <div className="text-[10px] text-gray-500 italic mt-1 max-w-[180px] truncate" title={record.remarks}>
+                                                                    * {record.remarks}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </td>
-                                                )}
-                                            </tr>
-                                        ))
+                                                    
+                                                    <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px">
+                                                        <div className="flex flex-col w-full h-full">
+                                                            {displayItems.map((t, i) => (
+                                                                <div key={i} className={`flex-1 flex items-center px-4 py-3 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0 ${getMaterialColor(t.materialName)}`}>
+                                                                    {t.materialName}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </td>
+
+                                                    <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                        <div className="flex flex-col w-full h-full">
+                                                            {displayItems.map((t, i) => (
+                                                                <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
+                                                                    <span className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded tracking-wider ${t.category === 'flavor' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'}`}>
+                                                                        {t.category}
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </td>
+                                                    
+                                                    <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                        <div className="flex flex-col w-full h-full">
+                                                            {displayItems.map((t, i) => (
+                                                                <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-800 dark:text-gray-200 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
+                                                                    <span className="text-[#0f766e] dark:text-teal-400">{Number(t.quantity).toFixed(2)}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </td>
+
+                                                    <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                        <div className="flex flex-col w-full h-full">
+                                                            {displayItems.map((t, i) => (
+                                                                <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-600 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
+                                                                    {t.unit}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </td>
+                                                    
+                                                    {!isViewer && (
+                                                        <td className="px-3 py-4 text-center align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                            <div className="flex flex-wrap items-center justify-center gap-1 mt-1">
+                                                                <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-[#0f766e] rounded transition-colors"><MdOutlineEdit size={20} /></button>
+                                                                <AlertDialog>
+                                                                    <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 rounded transition-colors"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
+                                                                    <AlertDialogContent className="bg-white rounded-2xl max-w-md w-[90vw] max-w-[425px]">
+                                                                        <AlertDialogHeader>
+                                                                            <AlertDialogTitle className="text-xl font-bold">Delete Record</AlertDialogTitle>
+                                                                            <AlertDialogDescription>Are you sure you want to delete this record?</AlertDialogDescription>
+                                                                        </AlertDialogHeader>
+                                                                        <AlertDialogFooter>
+                                                                            <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
+                                                                            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700">Delete</AlertDialogAction>
+                                                                        </AlertDialogFooter>
+                                                                    </AlertDialogContent>
+                                                                </AlertDialog>
+                                                            </div>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+                                        })
                                     ) : (
                                         <tr><td colSpan={isViewer ? "6" : "7"} className="p-16 text-center text-gray-400"><p>No records found</p></td></tr>
                                     )}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { PlusCircle, Save, Calendar, FileText, Truck, Box, X, Hash, PackagePlus, ArrowLeft } from "lucide-react";
+import { PlusCircle, Save, Calendar, FileText, Truck, Box, X, Hash, PackagePlus, ArrowLeft, Leaf, Layers } from "lucide-react";
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const RAW_MATERIALS = [
@@ -8,6 +8,13 @@ const RAW_MATERIALS = [
     "Master Carton (Large)", "Master Carton (Small)", "Barcode Labels", 
     "Packing Tape (Brown)", "Packing Tape (Clear)", "Glue Bottle", 
     "Tea Bags Filter Paper", "Cotton Thread", "Inner Polybag"
+];
+
+const FLAVOR_NAMES = [
+    "Cinnamon", "Chakra", "Ginger", "Masala", "Vanilla", "Mint", 
+    "Moringa", "Curry Leaves", "Gotukola", "Heen Bovitiya", "Cardamom", 
+    "Rose", "Strawberry", "Peach", "Mix Fruit", "Pineapple", "Mango", 
+    "Honey", "Earl Grey", "Lime", "Soursop", "Jasmine", "Flower", "Turmeric", "Black Pepper"
 ];
 
 const UNITS = ["kg", "pcs", "rolls", "bundles", "boxes", "meters"];
@@ -19,6 +26,9 @@ export default function EditRawMaterialIn() {
     
     const [showSpinner, setShowSpinner] = useState(false);
     const [recordId, setRecordId] = useState(null);
+
+    // Type state (flavor | other)
+    const [entryType, setEntryType] = useState('other');
 
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
@@ -37,7 +47,7 @@ export default function EditRawMaterialIn() {
         
         if (!recordData) {
             toast.error("No record data found! Redirecting...");
-            navigate('/inventory/raw-materials-view'); 
+            navigate('/packing/raw-material-view'); 
             return;
         }
 
@@ -52,15 +62,27 @@ export default function EditRawMaterialIn() {
             remarks: recordData.remarks || ''
         });
 
+        // Determine Entry Type based on the first item in the record
+        let initialType = 'other';
+        if (recordData.itemsArray && recordData.itemsArray.length > 0) {
+            const firstItem = recordData.itemsArray[0];
+            if (firstItem.category === 'flavor') {
+                initialType = 'flavor';
+            } else if (FLAVOR_NAMES.some(f => (firstItem.materialName || '').toLowerCase().includes(f.toLowerCase()))) {
+                initialType = 'flavor';
+            }
+        }
+        setEntryType(initialType);
+
         if (recordData.itemsArray && recordData.itemsArray.length > 0) {
             setItemsList(recordData.itemsArray.map((item, index) => ({
                 id: Date.now() + index, 
                 materialName: item.materialName,
                 quantity: item.quantity,
-                unit: item.unit || 'pcs'
+                unit: initialType === 'flavor' ? 'kg' : (item.unit || 'pcs')
             })));
         } else {
-            setItemsList([{ id: Date.now(), materialName: '', quantity: '', unit: 'pcs' }]);
+            setItemsList([{ id: Date.now(), materialName: '', quantity: '', unit: initialType === 'flavor' ? 'kg' : 'pcs' }]);
         }
     }, [location.state, navigate]);
 
@@ -76,8 +98,18 @@ export default function EditRawMaterialIn() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    const handleTypeChange = (e) => {
+        const val = e.target.value;
+        setEntryType(val);
+        // Ensure units are switched to kg if changed to flavor
+        setItemsList(itemsList.map(item => ({
+            ...item,
+            unit: val === 'flavor' ? 'kg' : item.unit
+        })));
+    };
+
     const handleAddItemRow = () => {
-        setItemsList([...itemsList, { id: Date.now(), materialName: '', quantity: '', unit: 'pcs' }]);
+        setItemsList([...itemsList, { id: Date.now(), materialName: '', quantity: '', unit: entryType === 'flavor' ? 'kg' : 'pcs' }]);
     };
 
     const handleRemoveItemRow = (idToRemove) => {
@@ -134,7 +166,8 @@ export default function EditRawMaterialIn() {
                 items: itemsList.map(item => ({
                     materialName: item.materialName,
                     quantity: Number(item.quantity),
-                    unit: item.unit
+                    unit: entryType === 'flavor' ? 'kg' : item.unit,
+                    category: entryType // Send the correct category back to DB
                 }))
             };
 
@@ -167,13 +200,15 @@ export default function EditRawMaterialIn() {
         navigate(-1);
     };
 
+    const currentAutocompleteList = entryType === 'flavor' ? FLAVOR_NAMES : RAW_MATERIALS;
+
     return (
         <div className="p-4 sm:p-8 max-w-[1000px] mx-auto font-sans  dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
             
             <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-[#0f766e] dark:text-teal-400 flex items-center gap-2">
-                        <PackagePlus size={28} /> Edit Raw Material Record
+                        <PackagePlus size={28} /> Edit Record
                     </h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Update incoming packaging and raw material details</p>
                 </div>
@@ -184,6 +219,23 @@ export default function EditRawMaterialIn() {
             
             <form onSubmit={handleUpdate} className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-lg border border-[#99f6e4] dark:border-zinc-800 transition-colors duration-300">
                 
+                {/* --- ENTRY TYPE SELECTOR --- */}
+                <div className="mb-8 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/50">
+                    <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider">Select Category</label>
+                    <div className="flex flex-wrap gap-4">
+                        <label className={`flex items-center gap-2 px-5 py-3 rounded-lg border-2 cursor-pointer transition-all ${entryType === 'flavor' ? 'border-[#0d9488] bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 shadow-sm' : 'border-gray-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 text-gray-500 dark:text-gray-400'}`}>
+                            <input type="radio" name="entryType" value="flavor" checked={entryType === 'flavor'} onChange={handleTypeChange} className="hidden" />
+                            <Leaf size={20} className={entryType === 'flavor' ? 'animate-pulse' : ''} /> 
+                            <span className="font-bold">Flavors (Kg Only)</span>
+                        </label>
+                        <label className={`flex items-center gap-2 px-5 py-3 rounded-lg border-2 cursor-pointer transition-all ${entryType === 'other' ? 'border-[#0d9488] bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 shadow-sm' : 'border-gray-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 text-gray-500 dark:text-gray-400'}`}>
+                            <input type="radio" name="entryType" value="other" checked={entryType === 'other'} onChange={handleTypeChange} className="hidden" />
+                            <Box size={20} /> 
+                            <span className="font-bold">Other Raw Materials</span>
+                        </label>
+                    </div>
+                </div>
+
                 <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                         <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-2">
@@ -217,7 +269,7 @@ export default function EditRawMaterialIn() {
                 <div className="mb-8 bg-[#f0fdfa] dark:bg-teal-950/20 border border-[#99f6e4] dark:border-teal-800/50 rounded-lg p-6 transition-colors duration-300">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-bold text-[#0f766e] dark:text-teal-500 flex items-center gap-2">
-                            <Box size={20} /> Received Items
+                            <Layers size={20} /> {entryType === 'flavor' ? 'Flavors Received' : 'Materials Received'}
                         </h3>
                     </div>
 
@@ -234,7 +286,8 @@ export default function EditRawMaterialIn() {
                                     {/* Material Name */}
                                     <div className="md:col-span-2 relative" ref={el => dropdownRefs.current[`mat-${row.id}`] = el}>
                                         <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
-                                            <Box size={12} className="text-[#0d9488]"/> Material Name
+                                            {entryType === 'flavor' ? <Leaf size={12} className="text-[#0d9488]"/> : <Box size={12} className="text-[#0d9488]"/>} 
+                                            {entryType === 'flavor' ? 'Flavor Name' : 'Material Name'}
                                         </label>
                                         <input 
                                             type="text" placeholder="Type or Select..." value={row.materialName} 
@@ -244,7 +297,7 @@ export default function EditRawMaterialIn() {
                                         />
                                         {openDropdownId === `mat-${row.id}` && (
                                             <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
-                                                {RAW_MATERIALS.filter(m => m.toLowerCase().includes(row.materialName.toLowerCase())).map((mat, idx) => (
+                                                {currentAutocompleteList.filter(m => m.toLowerCase().includes(row.materialName.toLowerCase())).map((mat, idx) => (
                                                     <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'materialName', mat); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0">
                                                         {mat}
                                                     </li>
@@ -258,15 +311,24 @@ export default function EditRawMaterialIn() {
                                         <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
                                             <Hash size={12} className="text-[#0d9488]"/> Quantity
                                         </label>
-                                        <input type="number" step="any" min="0" value={row.quantity} onChange={(e) => handleItemChange(row.id, 'quantity', e.target.value)} onWheel={(e) => e.target.blur()} required placeholder="e.g. 5000" className="w-full p-2.5 border border-[#99f6e4] dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
+                                        <input type="number" step="any" min="0" value={row.quantity} onChange={(e) => handleItemChange(row.id, 'quantity', e.target.value)} onWheel={(e) => e.target.blur()} required placeholder={entryType === 'flavor' ? "e.g. 50" : "e.g. 5000"} className="w-full p-2.5 border border-[#99f6e4] dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
                                     </div>
 
                                     {/* Unit */}
                                     <div className="md:col-span-1">
                                         <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Unit</label>
-                                        <select value={row.unit} onChange={(e) => handleItemChange(row.id, 'unit', e.target.value)} className="w-full p-2.5 border border-[#99f6e4] dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors cursor-pointer">
-                                            {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                                        </select>
+                                        {entryType === 'flavor' ? (
+                                            <input 
+                                                type="text" 
+                                                value="kg" 
+                                                disabled 
+                                                className="w-full p-2.5 border border-[#99f6e4] dark:border-teal-800/50 rounded-md bg-teal-50 dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 font-bold cursor-not-allowed transition-colors text-center" 
+                                            />
+                                        ) : (
+                                            <select value={row.unit} onChange={(e) => handleItemChange(row.id, 'unit', e.target.value)} className="w-full p-2.5 border border-[#99f6e4] dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors cursor-pointer">
+                                                {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                                            </select>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -275,7 +337,7 @@ export default function EditRawMaterialIn() {
                     
                     <div className="flex justify-end w-full">
                         <button type="button" onClick={handleAddItemRow} className="mt-4 text-sm font-bold bg-[#f0fdfa] hover:bg-[#99f6e4]/50 dark:bg-teal-900/40 text-[#0f766e] dark:text-teal-400 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors ml-auto border border-[#99f6e4] dark:border-transparent">
-                            <PlusCircle size={16} /> Add Another Material
+                            <PlusCircle size={16} /> {entryType === 'flavor' ? 'Add Another Flavor' : 'Add Another Material'}
                         </button>
                     </div>
                 </div>

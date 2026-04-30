@@ -1,14 +1,6 @@
 import RawMaterialIn from '../models/RawMaterialIn.js';
 import RawMaterialStock from '../models/RawMaterialStock.js';
 
-// අමුද්‍රව්‍ය Flavor එකක්ද කියලා අඳුරගන්න පාවිච්චි කරන නම් ලිස්ට් එක
-const FLAVOR_NAMES = [
-    "Cinnamon", "Chakra", "Ginger", "Masala", "Vanilla", "Mint", 
-    "Moringa", "Curry Leaves", "Gotukola", "Heen Bovitiya", "Cardamom", 
-    "Rose", "Strawberry", "Peach", "Mix Fruit", "Pineapple", "Mango", 
-    "Honey", "Earl Grey", "Lime", "Soursop", "Jasmine", "Flower", "Turmeric", "Black Pepper"
-];
-
 // 1. අලුත් Raw Material තොගයක් ඇතුළත් කිරීම (Create & Update Stock)
 export const createRawMaterialIn = async (req, res) => {
     try {
@@ -19,7 +11,6 @@ export const createRawMaterialIn = async (req, res) => {
         }
 
         // Transaction වාර්තාව නිර්මාණය කිරීම 
-        // (Frontend එකෙන් එවන items ඇතුළේ දැන් category එකත් තියෙනවා)
         const newRecord = new RawMaterialIn({
             date,
             invoiceNo,
@@ -41,17 +32,22 @@ export const createRawMaterialIn = async (req, res) => {
                 // දැනටමත් තිබේ නම් එයට අලුත් ප්‍රමාණය එකතු කරයි
                 stock.totalQuantity += qty;
                 
-                // කෝකටත් Frontend එකෙන් එන අලුත් Category එකෙන් Stock එක Update කරනවා
+                // 👇 අලුතින්: Trans-In Amount එකටත් එකතු කිරීම 👇
+                stock.transInAmount = (stock.transInAmount || 0) + qty;
+                
+                // Frontend එකෙන් එන අලුත් Category එකෙන් Stock එක Update කරනවා
                 if(item.category) stock.category = item.category; 
                 
                 await stock.save();
             } else {
-                // අලුතින් Stock එකක් සාදයි (Frontend එකෙන් ආපු Category එක කෙළින්ම පාවිච්චි කරයි)
+                // අලුතින් Stock එකක් සාදයි
                 const newStock = new RawMaterialStock({
                     materialName: item.materialName,
                     totalQuantity: qty,
+                    transInAmount: qty,  // 👇 අලුතින්: පළමු වතාවට එද්දිත් Trans-In එක සටහන් කරයි
+                    issueAmount: 0,      // අලුතින්
                     unit: item.unit,
-                    category: item.category || 'other' // 👈 Frontend එකේ Select කරපු එක
+                    category: item.category || 'other' // Frontend එකේ Select කරපු එක
                 });
                 await newStock.save();
             }
@@ -126,10 +122,12 @@ export const deleteRawMaterialInRecord = async (req, res) => {
                 // Stock එකට එකතු වෙලා තිබුණු ප්‍රමාණය ආපහු අඩු කරනවා
                 stock.totalQuantity -= qtyToRemove;
                 
+                // 👇 අලුතින්: Trans-In Amount එකෙන් මේ ගාණ අඩු කරන්න ඕනේ 👇
+                stock.transInAmount -= qtyToRemove;
+                
                 // සෘණ (Negative) වීම වැළැක්වීම
-                if (stock.totalQuantity < 0) {
-                    stock.totalQuantity = 0;
-                }
+                if (stock.totalQuantity < 0) stock.totalQuantity = 0;
+                if (stock.transInAmount < 0) stock.transInAmount = 0;
                 
                 await stock.save();
             }

@@ -1,6 +1,6 @@
 import TeaCenterIssue from '../models/TeaCenterIssueModel.js';
 import PackingStock from '../models/PackingStock.js'; 
-import RawMaterialStock from '../models/RawMaterialStock.js'; // <-- අලුතින් IMPORT කරන්න
+import RawMaterialStock from '../models/RawMaterialStock.js'; 
 
 // --- NEW LOGIC: BASE TEA MAPPING (Must match frontend) ---
 const getBaseTeaGrade = (productName) => {
@@ -71,13 +71,19 @@ export const createTeaCenterIssue = async (req, res) => {
                     for (let source of stock.stockBySource) {
                         if (remainingToDeduct <= 0) break; 
                         
+                        let amountDeductedFromThisSource = 0;
                         if (source.quantityKg >= remainingToDeduct) {
+                            amountDeductedFromThisSource = remainingToDeduct;
                             source.quantityKg -= remainingToDeduct;
                             remainingToDeduct = 0;
                         } else {
+                            amountDeductedFromThisSource = source.quantityKg;
                             remainingToDeduct -= source.quantityKg;
                             source.quantityKg = 0;
                         }
+
+                        // TEA ISSUE AMOUNT Update
+                        source.issueAmount = (source.issueAmount || 0) + amountDeductedFromThisSource;
                     }
                 }
 
@@ -97,19 +103,18 @@ export const createTeaCenterIssue = async (req, res) => {
             // ==========================================
             // 2. DEDUCT FROM RAW MATERIAL STOCK (RawMaterialStock)
             // ==========================================
-            // Frontend එකෙන් Raw Material නමක් සහ ප්‍රමාණයක් (0 ට වඩා වැඩි) එවලා තියෙනවද කියලා බලනවා
             if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
                 const rmDeductAmount = Number(item.rawMaterialQtyKg);
                 
-                // RawMaterialStock Collection එකෙන් අදාළ Material එක හොයනවා
                 const rmStock = await RawMaterialStock.findOne({ materialName: item.rawMaterialName });
 
                 if (rmStock) {
                     rmStock.totalQuantity -= rmDeductAmount;
                     
-                    // සෘණ (Negative) අගයක් වීම වැළැක්වීම
+                    // 👇 අලුතින්: RAW MATERIAL ISSUE AMOUNT Update කිරීම 👇
+                    rmStock.issueAmount = (rmStock.issueAmount || 0) + rmDeductAmount;
+
                     if (rmStock.totalQuantity < 0) rmStock.totalQuantity = 0; 
-                    
                     await rmStock.save();
                 } else {
                     console.warn(`Warning: Raw Material ${item.rawMaterialName} not found in stock.`);
@@ -170,6 +175,9 @@ export const updateTeaCenterIssue = async (req, res) => {
     }
 };
 
+// @desc    Delete a tea center issue record
+// @route   DELETE /api/tea-center-issues/:id
+// @access  Private
 export const deleteTeaCenterIssue = async (req, res) => {
     try {
         const issue = await TeaCenterIssue.findById(req.params.id);
@@ -177,6 +185,45 @@ export const deleteTeaCenterIssue = async (req, res) => {
         if (!issue) {
             return res.status(404).json({ message: 'Record not found' });
         }
+
+        // 👇 AUTOMATED STOCK REVERSAL LOGIC 👇
+        for (const item of issue.issueItems) {
+            
+            // 1. REVERSE TEA STOCK
+            let amountToReturn = Number(item.baseTeaQtyKg) || Number(item.totalQtyKg);
+            const baseGradeName = getBaseTeaGrade(item.product);
+            const stock = await PackingStock.findOne({ productName: baseGradeName });
+
+            if (stock) {
+                if (stock.stockBySource && stock.stockBySource.length > 0) {
+                    let targetSource = stock.stockBySource.find(s => s.sourceName === 'Factory') || stock.stockBySource[0];
+                    targetSource.quantityKg += amountToReturn;
+                    
+                    targetSource.issueAmount -= amountToReturn;
+                    if(targetSource.issueAmount < 0) targetSource.issueAmount = 0;
+                }
+                
+                stock.totalBulkStockKg += amountToReturn;
+                await stock.save();
+            }
+
+            // 2. REVERSE RAW MATERIAL STOCK
+            if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
+                const rmReturnAmount = Number(item.rawMaterialQtyKg);
+                const rmStock = await RawMaterialStock.findOne({ materialName: item.rawMaterialName });
+
+                if (rmStock) {
+                    rmStock.totalQuantity += rmReturnAmount;
+
+                    // 👇 අලුතින්: RAW MATERIAL ISSUE AMOUNT REVERSAL 👇
+                    rmStock.issueAmount -= rmReturnAmount;
+                    if (rmStock.issueAmount < 0) rmStock.issueAmount = 0;
+
+                    await rmStock.save();
+                }
+            }
+        }
+        // 👆 END OF AUTOMATED STOCK REVERSAL 👆
 
         await issue.deleteOne();
         res.status(200).json({ message: 'Record deleted successfully' });

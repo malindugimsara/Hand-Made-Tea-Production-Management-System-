@@ -1,5 +1,5 @@
 import TeaReceived from '../models/TeaReceivedModel.js'; 
-import PackingStock from '../models/PackingStock.js'; // <-- Import the stock model!
+import PackingStock from '../models/PackingStock.js'; 
 
 // @desc    Create new tea received record
 // @route   POST /api/tea-received
@@ -21,38 +21,41 @@ export const createTeaReceivedRecord = async (req, res) => {
 
         // 👇 AUTOMATED INVENTORY ADDITION LOGIC (FACTORY) 👇
         for (const item of receivedItems) {
-            // Find the product name 
             const productName = item.product || item.grade || item.productName;
-            
-            // Get the incoming weight securely
             const incomingQty = Number(item.qtyKg || item.weight || item.receivedQtyKg || 0);
 
-            if (incomingQty <= 0) continue; // Skip empty rows
+            if (incomingQty <= 0) continue; 
 
-            // වෙනස 1: නමින් පමණක් Stock එක සොයයි (Unique නිසා)
             let stock = await PackingStock.findOne({ productName: productName });
 
             if (stock) {
-                // කලින් මේ නමින් තේ එකක් Database එකේ තිබේ නම් 'Factory' කියන source එක ඒකෙ තියෙනවද බලනවා
                 let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Factory');
                 
                 if (sourceObj) {
-                    // 'Factory' එක දැනටමත් තිබේ නම් එයට අලුත් ප්‍රමාණය එකතු කරයි
                     sourceObj.quantityKg += incomingQty;
+                    // අලුතින් Trans-In Amount එකට එකතු කරයි
+                    sourceObj.transInAmount = (sourceObj.transInAmount || 0) + incomingQty;
                 } else {
-                    // 'Factory' එකෙන් මේ තේ ජාතිය එන පළමු වතාව නම් අලුතින් Array එකට දමයි
-                    stock.stockBySource.push({ sourceName: 'Factory', quantityKg: incomingQty });
+                    stock.stockBySource.push({ 
+                        sourceName: 'Factory', 
+                        quantityKg: incomingQty,
+                        transInAmount: incomingQty, // පළමු වතාවට එද්දිත් Trans-In එක සටහන් කරයි
+                        issueAmount: 0 
+                    });
                 }
                 
-                // මුළු ප්‍රමාණයටත් (Grand Total) එකතු කරයි
                 stock.totalBulkStockKg += incomingQty;
                 await stock.save();
 
             } else {
-                // මේ නමින් කිසිම තේ එකක් කලින් තිබිලා නැත්නම් අලුතින් සාදයි
                 const newStock = new PackingStock({
                     productName: productName,
-                    stockBySource: [{ sourceName: 'Factory', quantityKg: incomingQty }],
+                    stockBySource: [{ 
+                        sourceName: 'Factory', 
+                        quantityKg: incomingQty,
+                        transInAmount: incomingQty, // පළමු වතාවට එද්දිත් Trans-In එක සටහන් කරයි
+                        issueAmount: 0
+                    }],
                     totalBulkStockKg: incomingQty,
                     packedItems: []
                 });
@@ -88,12 +91,44 @@ export const getTeaReceivedRecords = async (req, res) => {
 // @access  Private
 export const deleteTeaReceivedRecord = async (req, res) => {
     try {
+        // මකන්න කලින් Record එක හොයාගන්නවා
         const record = await TeaReceived.findById(req.params.id);
 
         if (!record) {
             return res.status(404).json({ message: 'Record not found' });
         }
 
+        // 👇 AUTOMATED STOCK REVERSAL LOGIC 👇
+        for (const item of record.receivedItems) {
+            const productName = item.product || item.grade || item.productName;
+            const qtyToRemove = Number(item.qtyKg || item.weight || item.receivedQtyKg || 0);
+
+            if (qtyToRemove <= 0) continue;
+
+            let stock = await PackingStock.findOne({ productName: productName });
+
+            if (stock) {
+                let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Factory');
+                
+                if (sourceObj) {
+                    // ගාණ ආපහු අඩු කරනවා
+                    sourceObj.quantityKg -= qtyToRemove;
+                    sourceObj.transInAmount -= qtyToRemove; 
+                    
+                    // සෘණ වීම වැළැක්වීම
+                    if(sourceObj.quantityKg < 0) sourceObj.quantityKg = 0;
+                    if(sourceObj.transInAmount < 0) sourceObj.transInAmount = 0;
+                }
+                
+                stock.totalBulkStockKg -= qtyToRemove;
+                if(stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
+                
+                await stock.save();
+            }
+        }
+        // 👆 END OF AUTOMATED STOCK REVERSAL 👆
+
+        // Stock එක Reverse කළාට පස්සේ අදාළ Record එක මකා දමනවා
         await record.deleteOne();
         res.status(200).json({ message: 'Record removed successfully' });
     } catch (error) {
@@ -115,13 +150,14 @@ export const updateTeaReceivedRecord = async (req, res) => {
             return res.status(404).json({ message: 'Record not found' });
         }
 
-        // Update the fields with new data from the frontend
+        // Note: Update කරද්දීත් Stock එක Reverse කරලා අලුත් ගාණ දාන්න ඕනේ නම් ඒක ලියන්න වෙනවා.
+        // දැනට පරණ විදියටම Update වෙනවා. (මෙය සංකීර්ණ නිසා සාමාන්‍යයෙන් Update කරන්නේ නැතුව Delete කරලා ආයේ දාන්න කියනවා.)
+
         record.date = date;
         record.transactionNo = transactionNo;
         record.totalQtyKg = totalQtyKg;
         record.receivedItems = receivedItems;
 
-        // Track who updated it if you are sending this from the frontend
         if (updatedBy) record.updatedBy = updatedBy;
 
         const updatedRecord = await record.save();
