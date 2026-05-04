@@ -12,8 +12,8 @@ const labourSchema = new mongoose.Schema({
     }, // Number of workers employed for Selection that day
     rollingType: {
         type: String,
-        enum: ['Machine Rolling', 'Hand Rolling', 'Other'],
-        default: 'Machine Rolling'
+        enum: ['Machine Rolling1', 'Machine Rolling2', 'Machine Rolling3', 'Hand Rolling', 'Other'],
+        default: 'Machine Rolling1'
     }, // Type of rolling method used
     rollingWorkerCount: {
         type: Number,
