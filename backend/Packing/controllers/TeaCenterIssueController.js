@@ -101,7 +101,7 @@ export const createTeaCenterIssue = async (req, res) => {
             }
 
             // ==========================================
-            // 2. DEDUCT FROM RAW MATERIAL STOCK (RawMaterialStock)
+            // 2. DEDUCT FROM RAW MATERIAL STOCK (FLAVORS)
             // ==========================================
             if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
                 const rmDeductAmount = Number(item.rawMaterialQtyKg);
@@ -110,14 +110,33 @@ export const createTeaCenterIssue = async (req, res) => {
 
                 if (rmStock) {
                     rmStock.totalQuantity -= rmDeductAmount;
-                    
-                    // 👇 අලුතින්: RAW MATERIAL ISSUE AMOUNT Update කිරීම 👇
                     rmStock.issueAmount = (rmStock.issueAmount || 0) + rmDeductAmount;
 
                     if (rmStock.totalQuantity < 0) rmStock.totalQuantity = 0; 
                     await rmStock.save();
                 } else {
                     console.warn(`Warning: Raw Material ${item.rawMaterialName} not found in stock.`);
+                }
+            }
+
+            // ==========================================
+            // 3. DEDUCT FROM PACKING MATERIALS (Boxes, Pouches, Labels)
+            // ==========================================
+            if (item.packingMaterials && item.packingMaterials.length > 0) {
+                for (const pm of item.packingMaterials) {
+                    if (pm.name && Number(pm.qty) > 0) {
+                        const pmStock = await RawMaterialStock.findOne({ materialName: pm.name });
+                        
+                        if (pmStock) {
+                            pmStock.totalQuantity -= Number(pm.qty);
+                            pmStock.issueAmount = (pmStock.issueAmount || 0) + Number(pm.qty);
+                            
+                            if (pmStock.totalQuantity < 0) pmStock.totalQuantity = 0;
+                            await pmStock.save();
+                        } else {
+                            console.warn(`Warning: Packing Material ${pm.name} not found in stock.`);
+                        }
+                    }
                 }
             }
         }
@@ -207,19 +226,34 @@ export const deleteTeaCenterIssue = async (req, res) => {
                 await stock.save();
             }
 
-            // 2. REVERSE RAW MATERIAL STOCK
+            // 2. REVERSE RAW MATERIAL STOCK (FLAVORS)
             if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
                 const rmReturnAmount = Number(item.rawMaterialQtyKg);
                 const rmStock = await RawMaterialStock.findOne({ materialName: item.rawMaterialName });
 
                 if (rmStock) {
                     rmStock.totalQuantity += rmReturnAmount;
-
-                    // 👇 අලුතින්: RAW MATERIAL ISSUE AMOUNT REVERSAL 👇
                     rmStock.issueAmount -= rmReturnAmount;
                     if (rmStock.issueAmount < 0) rmStock.issueAmount = 0;
 
                     await rmStock.save();
+                }
+            }
+
+            // 3. REVERSE PACKING MATERIALS (Boxes, Pouches, Labels)
+            if (item.packingMaterials && item.packingMaterials.length > 0) {
+                for (const pm of item.packingMaterials) {
+                    if (pm.name && Number(pm.qty) > 0) {
+                        const pmStock = await RawMaterialStock.findOne({ materialName: pm.name });
+                        
+                        if (pmStock) {
+                            pmStock.totalQuantity += Number(pm.qty);
+                            pmStock.issueAmount -= Number(pm.qty);
+                            
+                            if (pmStock.issueAmount < 0) pmStock.issueAmount = 0;
+                            await pmStock.save();
+                        }
+                    }
                 }
             }
         }

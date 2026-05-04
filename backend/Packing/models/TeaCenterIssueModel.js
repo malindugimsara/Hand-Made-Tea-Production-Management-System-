@@ -1,13 +1,18 @@
 import mongoose from 'mongoose';
 
+// Packing Materials (Label, Pouch, Box etc.) සඳහා වෙනම කුඩා Schema එකක්
+const packingMaterialSchema = new mongoose.Schema({
+    name: { type: String },
+    qty: { type: Number }
+});
+
 const issueItemSchema = new mongoose.Schema({
     product: { 
         type: String, 
         required: true 
     },
-    type: { // Packaging Type
-        type: String, 
-        required: true 
+    type: { // Packaging Type (E/L Pack, Box, etc.)
+        type: String 
     },
     packSizeKg: { 
         type: Number, 
@@ -21,19 +26,21 @@ const issueItemSchema = new mongoose.Schema({
         type: Number, 
         required: true 
     },
-    baseTeaQtyKg: {
-        type: Number,
-        default: 0
+    
+    // 👇 අලුතින් එකතු කළ යුතු Fields (For Stock Reversal) 👇
+    baseTeaQtyKg: { 
+        type: Number, 
+        default: 0 
     },
-    // --- NEWLY ADDED FIELD ---
-    rawMaterialName: {
-        type: String,
-        default: '' // Default to empty string for non-flavored teas
+    rawMaterialName: { // Flavor Name
+        type: String, 
+        default: "" 
     },
-    rawMaterialQtyKg: {
-        type: Number,
-        default: 0
-    }
+    rawMaterialQtyKg: { // Flavor Qty
+        type: Number, 
+        default: 0 
+    },
+    packingMaterials: [packingMaterialSchema] // Multiple Packing Materials Array
 });
 
 const TeaCenterIssueSchema = new mongoose.Schema({

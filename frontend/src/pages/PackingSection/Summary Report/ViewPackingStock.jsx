@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { RefreshCw, PackageSearch, Warehouse, FilterX, Box, Weight, Layers, PackagePlus, ArrowDownToLine, ArrowUpFromLine, Leaf } from "lucide-react";
+import { RefreshCw, PackageSearch, Warehouse, FilterX, ArrowDownToLine, ArrowUpFromLine, Droplet, Package, Weight } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
 
 // --- COLOR MAPPINGS ---
@@ -48,16 +48,27 @@ const getPdfColor = (name, type) => {
     return { fillColor: [249, 250, 251], textColor: [31, 41, 55] }; 
 };
 
+// Formatting Helper
+const formatQty = (qty, unit) => {
+    const numQty = Number(qty) || 0;
+    const u = unit?.toLowerCase() || '';
+    if (u === 'kg' || u === 'm') {
+        return numQty.toFixed(2);
+    }
+    return Math.round(numQty).toString(); // Return whole numbers for items/pcs
+};
+
 export default function ViewPackingStock() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-    const [activeTab, setActiveTab] = useState('tea'); 
+    const [activeTab, setActiveTab] = useState('tea'); // 'tea', 'flavor', 'packing'
     
     // --- TEA STOCK STATES ---
     const [rawStocks, setRawStocks] = useState([]);
     const [flattenedStocks, setFlattenedStocks] = useState([]);
     
     // --- RAW MATERIAL STOCK STATES ---
-    const [rawMatStocks, setRawMatStocks] = useState([]);
+    const [flavorStocks, setFlavorStocks] = useState([]);
+    const [packingStocks, setPackingStocks] = useState([]);
 
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -127,7 +138,13 @@ export default function ViewPackingStock() {
             // --- 2. PROCESS RAW MATERIAL STOCK ---
             if (rawMatRes.ok) {
                 const rmData = await rawMatRes.json();
-                setRawMatStocks(Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : []);
+                const allRm = Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : [];
+                
+                const flavors = allRm.filter(rm => (rm.category || '').toLowerCase() === 'flavor');
+                const packings = allRm.filter(rm => (rm.category || '').toLowerCase() !== 'flavor');
+                
+                setFlavorStocks(flavors);
+                setPackingStocks(packings);
             }
 
         } catch (error) {
@@ -156,8 +173,14 @@ export default function ViewPackingStock() {
         return matchesSearch;
     });
 
-    // --- RAW MATERIAL FILTERING ---
-    const filteredRawMatStocks = rawMatStocks.filter(rm => {
+    // --- FLAVOR FILTERING ---
+    const filteredFlavorStocks = flavorStocks.filter(rm => {
+        const rmName = rm.materialName || '';
+        return !searchQuery || rmName.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+
+    // --- PACKING FILTERING ---
+    const filteredPackingStocks = packingStocks.filter(rm => {
         const rmName = rm.materialName || '';
         return !searchQuery || rmName.toLowerCase().includes(searchQuery.toLowerCase());
     });
@@ -167,10 +190,15 @@ export default function ViewPackingStock() {
     const totalIssue = filteredTeaStocks.reduce((sum, stock) => sum + (Number(stock.issueAmount) || 0), 0);
     const totalCurrentStock = filteredTeaStocks.reduce((sum, stock) => sum + (Number(stock.currentStock) || 0), 0);
     
-    // Raw Material Totals
-    const grandTotalRawTransIn = filteredRawMatStocks.reduce((sum, rm) => sum + (Number(rm.transInAmount) || 0), 0);
-    const grandTotalRawIssue = filteredRawMatStocks.reduce((sum, rm) => sum + (Number(rm.issueAmount) || 0), 0);
-    const grandTotalRawStock = filteredRawMatStocks.reduce((sum, rm) => sum + (Number(rm.totalQuantity) || 0), 0);
+    // Flavor Totals (assuming flavors are always in kg, but we'll use formatQty just in case)
+    const grandTotalFlavorTransIn = filteredFlavorStocks.reduce((sum, rm) => sum + (Number(rm.transInAmount) || 0), 0);
+    const grandTotalFlavorIssue = filteredFlavorStocks.reduce((sum, rm) => sum + (Number(rm.issueAmount) || 0), 0);
+    const grandTotalFlavorStock = filteredFlavorStocks.reduce((sum, rm) => sum + (Number(rm.totalQuantity) || 0), 0);
+
+    // Packing Totals (items/pcs)
+    const grandTotalPackingTransIn = filteredPackingStocks.reduce((sum, rm) => sum + (Number(rm.transInAmount) || 0), 0);
+    const grandTotalPackingIssue = filteredPackingStocks.reduce((sum, rm) => sum + (Number(rm.issueAmount) || 0), 0);
+    const grandTotalPackingStock = filteredPackingStocks.reduce((sum, rm) => sum + (Number(rm.totalQuantity) || 0), 0);
 
     const summaryArray = [...filteredRawTeaStocks].sort((a, b) => {
         const qtyA = Number(a.totalBulkStockKg) || 0;
@@ -216,26 +244,49 @@ export default function ViewPackingStock() {
                 { content: `${totalIssue.toFixed(2)} kg`, styles: { fontStyle: 'bold', textColor: [180, 83, 9] } },
                 { content: `${totalCurrentStock.toFixed(2)} kg`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } }
             ]);
-        } else {
-            filteredRawMatStocks.forEach(rm => {
+        } else if (activeTab === 'flavor') {
+            filteredFlavorStocks.forEach(rm => {
                 tableRows.push([
                     { content: rm.materialName || 'Unknown', styles: { ...getPdfColor(rm.materialName, 'raw'), fontStyle: 'bold' } },
-                    (rm.category || 'other').toUpperCase(),
-                    `${(Number(rm.transInAmount) || 0).toFixed(2)}`,
-                    `${(Number(rm.issueAmount) || 0).toFixed(2)}`,
-                    { content: `${(Number(rm.totalQuantity) || 0).toFixed(2)}`, styles: { fontStyle: 'bold' } },
+                    `${formatQty(rm.transInAmount, rm.unit)}`,
+                    `${formatQty(rm.issueAmount, rm.unit)}`,
+                    { content: `${formatQty(rm.totalQuantity, rm.unit)}`, styles: { fontStyle: 'bold' } },
                     rm.unit || '-'
                 ]);
             });
             tableRows.push([
-                { content: "GRAND TOTALS", styles: { fontStyle: 'bold', halign: 'right' }, colSpan: 2 },
-                { content: `${grandTotalRawTransIn.toFixed(2)}`, styles: { fontStyle: 'bold', textColor: [29, 78, 216] } },
-                { content: `${grandTotalRawIssue.toFixed(2)}`, styles: { fontStyle: 'bold', textColor: [180, 83, 9] } },
-                { content: `${grandTotalRawStock.toFixed(2)}`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } },
+                { content: "GRAND TOTALS", styles: { fontStyle: 'bold', halign: 'right' } },
+                { content: `${grandTotalFlavorTransIn.toFixed(2)}`, styles: { fontStyle: 'bold', textColor: [29, 78, 216] } },
+                { content: `${grandTotalFlavorIssue.toFixed(2)}`, styles: { fontStyle: 'bold', textColor: [180, 83, 9] } },
+                { content: `${grandTotalFlavorStock.toFixed(2)}`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } },
+                ""
+            ]);
+        } else {
+            // Packing tab
+            filteredPackingStocks.forEach(rm => {
+                tableRows.push([
+                    { content: rm.materialName || 'Unknown', styles: { ...getPdfColor(rm.materialName, 'raw'), fontStyle: 'bold' } },
+                    `${formatQty(rm.transInAmount, rm.unit)}`,
+                    `${formatQty(rm.issueAmount, rm.unit)}`,
+                    { content: `${formatQty(rm.totalQuantity, rm.unit)}`, styles: { fontStyle: 'bold' } },
+                    rm.unit || '-'
+                ]);
+            });
+            tableRows.push([
+                { content: "GRAND TOTALS", styles: { fontStyle: 'bold', halign: 'right' } },
+                { content: `${grandTotalPackingTransIn.toString()}`, styles: { fontStyle: 'bold', textColor: [29, 78, 216] } },
+                { content: `${grandTotalPackingIssue.toString()}`, styles: { fontStyle: 'bold', textColor: [180, 83, 9] } },
+                { content: `${grandTotalPackingStock.toString()}`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } },
                 ""
             ]);
         }
         return tableRows;
+    };
+
+    const getPdfTitle = () => {
+        if (activeTab === 'tea') return "Tea Inventory Stock";
+        if (activeTab === 'flavor') return "Flavor Inventory Stock";
+        return "Packing Materials Inventory Stock";
     };
 
     const uniqueCode = `INV/STK/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
@@ -255,14 +306,21 @@ export default function ViewPackingStock() {
                 
                 <div className="flex items-center gap-3">
                     <PDFDownloader 
-                        title={activeTab === 'tea' ? "Tea Inventory Stock" : "Raw Materials Inventory Stock"}
+                        title={getPdfTitle()}
                         subtitle={`Filters -> Search: ${searchQuery || 'All'}`}
-                        headers={activeTab === 'tea' ? ["Product Name", "Source", "Trans-In Amount", "Issue Amount", "Current Stock"] : ["Material Name", "Category", "Trans-In Qty", "Issue Qty", "Current Stock", "Unit"]}
+                        headers={
+                            activeTab === 'tea' ? ["Product Name", "Source", "Trans-In Amount", "Issue Amount", "Current Stock"] 
+                            : ["Material Name", "Trans-In Qty", "Issue Qty", "Current Stock", "Unit"]
+                        }
                         data={getPdfData()}
                         uniqueCode={uniqueCode}
                         fileName={`${activeTab}_Inventory_${new Date().toISOString().split('T')[0]}.pdf`}
                         orientation={activeTab === 'tea' ? "portrait" : "landscape"}
-                        disabled={loading || (activeTab === 'tea' ? filteredTeaStocks.length === 0 : filteredRawMatStocks.length === 0)}
+                        disabled={loading || 
+                            (activeTab === 'tea' && filteredTeaStocks.length === 0) || 
+                            (activeTab === 'flavor' && filteredFlavorStocks.length === 0) ||
+                            (activeTab === 'packing' && filteredPackingStocks.length === 0)
+                        }
                     />
                     <button onClick={fetchStocks} disabled={loading} className={`px-4 py-2.5 bg-white dark:bg-zinc-900 text-[#0f766e] dark:text-teal-400 border border-[#0d9488] dark:border-teal-800 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-50 dark:hover:bg-zinc-800'}`}>
                         <RefreshCw size={18} className={loading ? 'animate-spin' : ''} /> Sync Current Stock
@@ -280,8 +338,8 @@ export default function ViewPackingStock() {
                     <div>
                         <p className="text-[12px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Trans-In Total</p>
                         <h3 className="text-3xl font-black text-gray-800 dark:text-gray-100 mt-1">
-                            {activeTab === 'tea' ? totalTransIn.toFixed(2) : grandTotalRawTransIn.toFixed(2)} 
-                            <span className="text-base font-semibold text-gray-500"> {activeTab === 'tea' ? 'kg' : 'Items'}</span>
+                            {activeTab === 'tea' ? totalTransIn.toFixed(2) : activeTab === 'flavor' ? grandTotalFlavorTransIn.toFixed(2) : grandTotalPackingTransIn.toString()} 
+                            <span className="text-base font-semibold text-gray-500"> {activeTab === 'tea' || activeTab === 'flavor' ? 'kg' : 'Items'}</span>
                         </h3>
                     </div>
                 </div>
@@ -294,8 +352,8 @@ export default function ViewPackingStock() {
                     <div>
                         <p className="text-[12px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Issued Total</p>
                         <h3 className="text-3xl font-black text-gray-800 dark:text-gray-100 mt-1">
-                            {activeTab === 'tea' ? totalIssue.toFixed(2) : grandTotalRawIssue.toFixed(2)} 
-                            <span className="text-base font-semibold text-gray-500"> {activeTab === 'tea' ? 'kg' : 'Items'}</span>
+                            {activeTab === 'tea' ? totalIssue.toFixed(2) : activeTab === 'flavor' ? grandTotalFlavorIssue.toFixed(2) : grandTotalPackingIssue.toString()} 
+                            <span className="text-base font-semibold text-gray-500"> {activeTab === 'tea' || activeTab === 'flavor' ? 'kg' : 'Items'}</span>
                         </h3>
                     </div>
                 </div>
@@ -309,15 +367,15 @@ export default function ViewPackingStock() {
                     <div className="z-10">
                         <p className="text-[12px] font-bold text-[#0f766e] dark:text-teal-500 uppercase tracking-wide">Current Stock Available</p>
                         <h3 className="text-3xl font-black text-[#0f766e] dark:text-teal-400 mt-1">
-                            {activeTab === 'tea' ? totalCurrentStock.toFixed(2) : grandTotalRawStock.toFixed(2)} 
-                            <span className="text-base font-semibold opacity-70"> {activeTab === 'tea' ? 'kg' : 'Items'}</span>
+                            {activeTab === 'tea' ? totalCurrentStock.toFixed(2) : activeTab === 'flavor' ? grandTotalFlavorStock.toFixed(2) : grandTotalPackingStock.toString()} 
+                            <span className="text-base font-semibold opacity-70"> {activeTab === 'tea' || activeTab === 'flavor' ? 'kg' : 'Items'}</span>
                         </h3>
                     </div>
                 </div>
             </div>
 
             {/* --- TABS --- */}
-            <div className="flex gap-4 mb-6 border-b border-gray-200 dark:border-zinc-800 pb-2">
+            <div className="flex flex-wrap gap-4 mb-6 border-b border-gray-200 dark:border-zinc-800 pb-2">
                 <button 
                     onClick={() => setActiveTab('tea')} 
                     className={`px-6 py-2.5 rounded-t-lg font-bold transition-colors ${activeTab === 'tea' ? 'bg-[#0f766e] text-white' : 'bg-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
@@ -325,10 +383,16 @@ export default function ViewPackingStock() {
                     Tea Products Stock
                 </button>
                 <button 
-                    onClick={() => setActiveTab('raw')} 
-                    className={`px-6 py-2.5 rounded-t-lg font-bold transition-colors flex items-center gap-2 ${activeTab === 'raw' ? 'bg-indigo-600 text-white' : 'bg-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+                    onClick={() => setActiveTab('flavor')} 
+                    className={`px-6 py-2.5 rounded-t-lg font-bold transition-colors flex items-center gap-2 ${activeTab === 'flavor' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
                 >
-                    Raw Materials Stock
+                    <Droplet size={18} /> Flavor Stock
+                </button>
+                <button 
+                    onClick={() => setActiveTab('packing')} 
+                    className={`px-6 py-2.5 rounded-t-lg font-bold transition-colors flex items-center gap-2 ${activeTab === 'packing' ? 'bg-orange-600 text-white' : 'bg-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+                >
+                    <Package size={18} /> Packing Materials Stock
                 </button>
             </div>
 
@@ -339,7 +403,7 @@ export default function ViewPackingStock() {
                         <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Search {activeTab === 'tea' ? 'Product' : 'Material'}</label>
                         <input 
                             type="text" 
-                            placeholder={activeTab === 'tea' ? "e.g. BOPF, Premium..." : "e.g. Pouch, Box..."}
+                            placeholder={activeTab === 'tea' ? "e.g. BOPF, Premium..." : "e.g. Vanilla, Pouch, Box..."}
                             value={searchQuery} 
                             onChange={(e) => setSearchQuery(e.target.value)} 
                             className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors" 
@@ -360,7 +424,7 @@ export default function ViewPackingStock() {
                             </select>
                         </div>
                     )}
-                    <div className={`flex items-end ${activeTab === 'raw' ? 'justify-start' : 'lg:justify-end'}`}>
+                    <div className={`flex items-end ${activeTab !== 'tea' ? 'justify-start' : 'lg:justify-end'}`}>
                         <button onClick={clearFilters} disabled={!searchQuery && !sourceFilter} className={`w-full lg:w-auto px-4 py-2.5 text-sm font-bold rounded-md transition-colors flex items-center justify-center gap-2 ${searchQuery || sourceFilter ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 border border-red-200 dark:border-red-800' : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 border-transparent cursor-not-allowed'}`}>
                             <FilterX size={16} /> Clear Filters
                         </button>
@@ -466,49 +530,43 @@ export default function ViewPackingStock() {
                 </div>
             )}
 
-            {/* --- TAB CONTENT: RAW MATERIALS STOCK --- */}
-            {activeTab === 'raw' && (
-                <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-indigo-200 dark:border-indigo-900/50 overflow-hidden w-full transition-colors duration-300 self-start">
+            {/* --- TAB CONTENT: FLAVOR STOCK --- */}
+            {activeTab === 'flavor' && (
+                <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-blue-200 dark:border-blue-900/50 overflow-hidden w-full transition-colors duration-300 self-start">
                     {loading ? (
                         <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center h-64">
-                            <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-                            <p className="font-medium">Loading raw materials...</p>
+                            <div className="w-8 h-8 border-4 border-blue-400 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+                            <p className="font-medium">Loading flavor stock...</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
                             <table className="w-full text-sm text-left border-collapse whitespace-nowrap min-w-full">
                                 <thead>
-                                    <tr className="bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-800 dark:text-indigo-300 uppercase text-xs tracking-wider border-b border-indigo-200 dark:border-indigo-800">
-                                        <th className="px-6 py-4 font-bold border-r border-indigo-100 dark:border-indigo-800 min-w-[250px]">Material Name</th>
-                                        <th className="px-6 py-4 font-bold border-r border-indigo-100 dark:border-indigo-800 text-center">Category</th>
-                                        <th className="px-6 py-4 font-bold text-blue-700 dark:text-blue-500 border-r border-indigo-100 dark:border-indigo-800 text-center bg-blue-50/50 dark:bg-blue-950/20"><ArrowDownToLine size={14} className="inline mr-1"/> Trans-In Amount</th>
-                                        <th className="px-6 py-4 font-bold text-amber-700 dark:text-amber-500 border-r border-indigo-100 dark:border-indigo-800 text-center bg-amber-50/50 dark:bg-amber-950/20"><ArrowUpFromLine size={14} className="inline mr-1"/> Issue Amount</th>
-                                        <th className="px-6 py-4 font-bold text-indigo-700 dark:text-indigo-400 text-center border-r border-indigo-100 dark:border-indigo-800 bg-indigo-100/30 dark:bg-indigo-950/30"><Warehouse size={14} className="inline mr-1"/> Current Stock</th>
+                                    <tr className="bg-blue-50/50 dark:bg-blue-950/30 text-blue-800 dark:text-blue-300 uppercase text-xs tracking-wider border-b border-blue-200 dark:border-blue-800">
+                                        <th className="px-6 py-4 font-bold border-r border-blue-100 dark:border-blue-800 min-w-[250px]">Flavor Name</th>
+                                        <th className="px-6 py-4 font-bold text-blue-700 dark:text-blue-500 border-r border-blue-100 dark:border-blue-800 text-center"><ArrowDownToLine size={14} className="inline mr-1"/> Trans-In Amount</th>
+                                        <th className="px-6 py-4 font-bold text-amber-700 dark:text-amber-500 border-r border-blue-100 dark:border-blue-800 text-center"><ArrowUpFromLine size={14} className="inline mr-1"/> Issue Amount</th>
+                                        <th className="px-6 py-4 font-bold text-blue-700 dark:text-blue-400 text-center border-r border-blue-100 dark:border-blue-800 bg-blue-100/30 dark:bg-blue-950/30"><Warehouse size={14} className="inline mr-1"/> Current Stock</th>
                                         <th className="px-6 py-4 font-bold text-center">Unit</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
-                                    {filteredRawMatStocks.length > 0 ? (
-                                        filteredRawMatStocks.map((rm, idx) => (
-                                            <tr key={idx} className="hover:bg-indigo-50/30 dark:hover:bg-indigo-900/20 transition-colors group">
+                                    {filteredFlavorStocks.length > 0 ? (
+                                        filteredFlavorStocks.map((rm, idx) => (
+                                            <tr key={idx} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-colors group">
                                                 <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700">
-                                                    <span className={`px-3 py-1.5 rounded-md text-sm font-bold shadow-sm border border-black/5 dark:border-white/5 ${getMaterialColor(rm.materialName)}`}>
+                                                    <span className={`px-3 py-1.5 rounded-md text-sm font-bold shadow-sm border border-black/5 dark:border-white/5 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400`}>
                                                         {rm.materialName || 'Unknown Material'}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 text-center">
-                                                    <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded tracking-wider ${(rm.category || 'other') === 'flavor' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'}`}>
-                                                        {rm.category || 'other'}
-                                                    </span>
-                                                </td>
                                                 <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 text-center bg-blue-50/10 dark:bg-blue-950/5">
-                                                    <span className="font-bold text-blue-700 dark:text-blue-500 text-base">{(Number(rm.transInAmount) || 0).toFixed(2)}</span>
+                                                    <span className="font-bold text-blue-700 dark:text-blue-500 text-base">{formatQty(rm.transInAmount, rm.unit)}</span>
                                                 </td>
                                                 <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 text-center bg-amber-50/10 dark:bg-amber-950/5">
-                                                    <span className="font-bold text-amber-700 dark:text-amber-500 text-base">{(Number(rm.issueAmount) || 0).toFixed(2)}</span>
+                                                    <span className="font-bold text-amber-700 dark:text-amber-500 text-base">{formatQty(rm.issueAmount, rm.unit)}</span>
                                                 </td>
-                                                <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 text-center bg-indigo-50/10 dark:bg-indigo-950/10">
-                                                    <span className="font-black text-indigo-700 dark:text-indigo-400 text-lg">{(Number(rm.totalQuantity) || 0).toFixed(2)}</span>
+                                                <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 text-center bg-blue-50/10 dark:bg-blue-950/10">
+                                                    <span className="font-black text-blue-700 dark:text-blue-400 text-lg">{formatQty(rm.totalQuantity, rm.unit)}</span>
                                                 </td>
                                                 <td className="px-6 py-4 text-center font-bold text-gray-600 dark:text-gray-400 uppercase">
                                                     {rm.unit || '-'}
@@ -516,7 +574,60 @@ export default function ViewPackingStock() {
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr><td colSpan="6" className="p-16 text-center text-gray-400"><p>No raw material records found</p></td></tr>
+                                        <tr><td colSpan="5" className="p-16 text-center text-gray-400"><p>No flavor records found</p></td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* --- TAB CONTENT: PACKING MATERIALS STOCK --- */}
+            {activeTab === 'packing' && (
+                <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-orange-200 dark:border-orange-900/50 overflow-hidden w-full transition-colors duration-300 self-start">
+                    {loading ? (
+                        <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center h-64">
+                            <div className="w-8 h-8 border-4 border-orange-400 border-t-orange-600 rounded-full animate-spin mb-4"></div>
+                            <p className="font-medium">Loading packing materials...</p>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
+                            <table className="w-full text-sm text-left border-collapse whitespace-nowrap min-w-full">
+                                <thead>
+                                    <tr className="bg-orange-50/50 dark:bg-orange-950/30 text-orange-800 dark:text-orange-300 uppercase text-xs tracking-wider border-b border-orange-200 dark:border-orange-800">
+                                        <th className="px-6 py-4 font-bold border-r border-orange-100 dark:border-orange-800 min-w-[250px]">Material Name</th>
+                                        <th className="px-6 py-4 font-bold text-blue-700 dark:text-blue-500 border-r border-orange-100 dark:border-orange-800 text-center bg-blue-50/50 dark:bg-blue-950/20"><ArrowDownToLine size={14} className="inline mr-1"/> Trans-In Amount</th>
+                                        <th className="px-6 py-4 font-bold text-amber-700 dark:text-amber-500 border-r border-orange-100 dark:border-orange-800 text-center bg-amber-50/50 dark:bg-amber-950/20"><ArrowUpFromLine size={14} className="inline mr-1"/> Issue Amount</th>
+                                        <th className="px-6 py-4 font-bold text-orange-700 dark:text-orange-400 text-center border-r border-orange-100 dark:border-orange-800 bg-orange-100/30 dark:bg-orange-950/30"><Warehouse size={14} className="inline mr-1"/> Current Stock</th>
+                                        <th className="px-6 py-4 font-bold text-center">Unit</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
+                                    {filteredPackingStocks.length > 0 ? (
+                                        filteredPackingStocks.map((rm, idx) => (
+                                            <tr key={idx} className="hover:bg-orange-50/30 dark:hover:bg-orange-900/20 transition-colors group">
+                                                <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700">
+                                                    <span className={`px-3 py-1.5 rounded-md text-sm font-bold shadow-sm border border-black/5 dark:border-white/5 ${getMaterialColor(rm.materialName)}`}>
+                                                        {rm.materialName || 'Unknown Material'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 text-center bg-blue-50/10 dark:bg-blue-950/5">
+                                                    <span className="font-bold text-blue-700 dark:text-blue-500 text-base">{formatQty(rm.transInAmount, rm.unit)}</span>
+                                                </td>
+                                                <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 text-center bg-amber-50/10 dark:bg-amber-950/5">
+                                                    <span className="font-bold text-amber-700 dark:text-amber-500 text-base">{formatQty(rm.issueAmount, rm.unit)}</span>
+                                                </td>
+                                                <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 text-center bg-orange-50/10 dark:bg-orange-950/10">
+                                                    <span className="font-black text-orange-700 dark:text-orange-400 text-lg">{formatQty(rm.totalQuantity, rm.unit)}</span>
+                                                </td>
+                                                <td className="px-6 py-4 text-center font-bold text-gray-600 dark:text-gray-400 uppercase">
+                                                    {rm.unit || '-'}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr><td colSpan="5" className="p-16 text-center text-gray-400"><p>No packing material records found</p></td></tr>
                                     )}
                                 </tbody>
                             </table>
