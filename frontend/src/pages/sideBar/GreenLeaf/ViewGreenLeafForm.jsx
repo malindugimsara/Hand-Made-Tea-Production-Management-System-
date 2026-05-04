@@ -145,9 +145,13 @@ export default function GreenLeafForm() {
                     }
                 }
 
-                let rType = 'M/R';
+                let rType = '-';
                 if (lab && lab.rollingType) {
-                    if (lab.rollingType === 'Machine Rolling') rType = 'M/R';
+                    if (lab.rollingType === 'Machine Rolling1') rType = 'M/R 1';
+                    else if (lab.rollingType === 'Machine Rolling2') rType = 'M/R 2';
+                    else if (lab.rollingType === 'Machine Rolling3') rType = 'M/R 3';
+                    // කලින් තිබුණ 'Machine Rolling' එකත් තියාගන්නවා පරණ data වලට support කරන්න
+                    else if (lab.rollingType === 'Machine Rolling') rType = 'M/R';
                     else if (lab.rollingType === 'Hand Rolling') rType = 'H/R';
                     else rType = lab.rollingType;
                 }
@@ -326,7 +330,6 @@ export default function GreenLeafForm() {
             }
             
             const rollingText = record.rollingType === 'H/R' && record.rollingWorkerCount > 0 ? `H/R\n(${record.rollingWorkerCount} wkrs)` : record.rollingType;
-
             return {
                 data: [
                     pdfDateCell, 
@@ -580,7 +583,7 @@ export default function GreenLeafForm() {
                                                                 <td className={`px-3 ${paddingY} text-center border-r border-gray-200 dark:border-zinc-800 align-middle ${cellBottomBorder}`}>
                                                                     <div className="flex flex-col items-center gap-0.5">
                                                                         <span className="font-medium text-sm text-blue-700 dark:text-blue-400">
-                                                                            {record.rollingType === 'Hand Rolling' ? 'H/R' : record.rollingType.startsWith('Machine') ? `M/R` : record.rollingType}
+                                                                            {record.rollingType} 
                                                                         </span>
                                                                         {record.rollingWorkerCount > 0 && (
                                                                             <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
