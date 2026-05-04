@@ -401,7 +401,7 @@ export default function GreenLeafForm() {
         outputs: [{ teaType: '', madeTeaWeight: '' }], 
         expectedDryerDate: '', 
         workerCount: '',
-        rollingType: 'Machine Rolling',
+        rollingType: 'Machine Rolling1', 
         rollingWorkerCount: ''
     });
 
