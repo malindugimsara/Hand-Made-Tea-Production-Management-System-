@@ -1,5 +1,5 @@
-import StockTransfer from "../../models/StockTransfer.js";
-import PackingStock from "../models/PackingStock.js"; // <-- Import the Packing Stock model
+import PackingStock from "../models/PackingStock.js"; 
+
 // @desc    Get all packing stock records
 // @route   GET /api/packing-stock
 export const getAllPackingStocks = async (req, res) => {
@@ -26,12 +26,17 @@ export const getPackingStockById = async (req, res) => {
 
 // @desc    Create a new packing stock record
 // @route   POST /api/packing-stock
-// 👇 THIS IS THE FUNCTION YOUR ROUTE WAS LOOKING FOR 👇
 export const createPackingStock = async (req, res) => {
     try {
         const existingStock = await PackingStock.findOne({ productName: req.body.productName });
         if (existingStock) {
             return res.status(400).json({ message: `Inventory record for ${req.body.productName} already exists.` });
+        }
+
+        // 👇 AUTOMATED GRAND TOTAL CALCULATION 👇
+        // අලුතින් Stock එකක් හදද්දී, ඒකෙ Source වල තියෙන ගණන් ඔක්කොම එකතු කරලා Grand Total එක හදනවා
+        if (req.body.stockBySource && Array.isArray(req.body.stockBySource)) {
+            req.body.totalBulkStockKg = req.body.stockBySource.reduce((sum, src) => sum + (Number(src.quantityKg) || 0), 0);
         }
 
         const newStock = new PackingStock(req.body);
@@ -50,6 +55,12 @@ export const updatePackingStock = async (req, res) => {
         
         if (!stock) {
             return res.status(404).json({ message: "Stock record not found" });
+        }
+
+        // 👇 AUTOMATED GRAND TOTAL RE-CALCULATION 👇
+        // Stock එක Update කරද්දීත් Grand Total එක අලුත් වෙනවා
+        if (req.body.stockBySource && Array.isArray(req.body.stockBySource)) {
+            req.body.totalBulkStockKg = req.body.stockBySource.reduce((sum, src) => sum + (Number(src.quantityKg) || 0), 0);
         }
 
         Object.assign(stock, req.body);

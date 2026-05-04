@@ -5,10 +5,8 @@ import { useNavigate } from 'react-router-dom';
 
 // Common Raw Materials list for Autocomplete
 const RAW_MATERIALS = [
-    "50g Silver Pouch", "100g Gold Pouch", "200g Printed Box", "500g Printed Box",
-    "Master Carton (Large)", "Master Carton (Small)", "Barcode Labels", 
-    "Packing Tape (Brown)", "Packing Tape (Clear)", "Glue Bottle", 
-    "Tea Bags Filter Paper", "Cotton Thread", "Inner Polybag"
+    "Coil Bag (100g)", "Coil Bag (200g)", "Cloth Bag", "Paper Bag", "Standard Bag",
+    "Chest Box", "Paper Can", "Wooden Cylinder", "Sticker", "Label", "Barcode", "Box", "Label Bag", "Coil Bag"
 ];
 
 // Flavors list for Autocomplete

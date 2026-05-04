@@ -135,7 +135,8 @@ export default function TeaCenterRecordEntry() {
     
     // --- STOCKS STATES ---
     const [availableTeaStock, setAvailableTeaStock] = useState([]);
-    const [availableRawStock, setAvailableRawStock] = useState([]);
+    const [availableRawStock, setAvailableRawStock] = useState([]); // For Flavors
+    const [availablePackingStock, setAvailablePackingStock] = useState([]); // For Other Raw Materials
     
     const navigate = useNavigate();
     const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0] });
@@ -146,8 +147,9 @@ export default function TeaCenterRecordEntry() {
         type: '', 
         packSizeKg: '', 
         numberOfBoxes: '', 
-        rawMaterialName: '', // NEW FIELD
-        rawMaterialWeight: '' 
+        rawMaterialName: '', // FLAVOR
+        rawMaterialWeight: '', // FLAVOR QTY
+        packingMaterials: [] // MULTIPLE RAW MATERIALS ARRAY
     }]);
 
     const [openDropdownId, setOpenDropdownId] = useState(null);
@@ -170,7 +172,6 @@ export default function TeaCenterRecordEntry() {
             try {
                 const token = localStorage.getItem('token');
                 
-                // Fetch both Tea Stock AND Raw Material Stock simultaneously
                 const [teaRes, rmRes] = await Promise.all([
                     fetch(`${BACKEND_URL}/api/packing-stock`, { headers: { 'Authorization': `Bearer ${token}` } }),
                     fetch(`${BACKEND_URL}/api/raw-materials-in/stock`, { headers: { 'Authorization': `Bearer ${token}` } }).catch(() => ({ ok: false }))
@@ -180,11 +181,9 @@ export default function TeaCenterRecordEntry() {
                 if (teaRes.ok) {
                     const data = await teaRes.json();
                     const aggregatedData = Object.values(data.reduce((acc, curr) => {
-                        
                         if (curr.productName.toLowerCase().includes('dust')) {
                             return acc; 
                         }
-
                         if (!acc[curr.productName]) {
                             acc[curr.productName] = { productName: curr.productName, bulkStockKg: 0 };
                         }
@@ -204,13 +203,20 @@ export default function TeaCenterRecordEntry() {
                     const rmData = await rmRes.json();
                     const allRawMaterials = Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : [];
                     
-                    // 👇 FILTER ONLY FLAVORS 👇
+                    // Filter Flavors
                     const flavorsOnly = allRawMaterials.filter(rm => 
                         rm.category === 'flavor' || 
                         FLAVOR_NAMES.some(flavor => (rm.materialName || '').toLowerCase().includes(flavor.toLowerCase()))
                     );
                     
+                    // Filter Other Packing / Raw Materials
+                    const packingOnly = allRawMaterials.filter(rm => 
+                        rm.category !== 'flavor' && 
+                        !FLAVOR_NAMES.some(flavor => (rm.materialName || '').toLowerCase().includes(flavor.toLowerCase()))
+                    );
+                    
                     setAvailableRawStock(flavorsOnly);
+                    setAvailablePackingStock(packingOnly);
                 }
             } catch (error) {
                 console.error("Error fetching stocks:", error);
@@ -231,14 +237,47 @@ export default function TeaCenterRecordEntry() {
 
     const totalAvailableTeaCapacity = availableTeaStock.reduce((sum, item) => sum + (item.bulkStockKg || 0), 0);
     const totalAvailableRMCapacity = availableRawStock.reduce((sum, item) => sum + (item.totalQuantity || 0), 0);
+    const totalAvailablePackingCapacity = availablePackingStock.reduce((sum, item) => sum + (item.totalQuantity || 0), 0);
 
     const handleAddItemRow = () => {
-        setItemsList([...itemsList, { id: Date.now(), product: '', type: '', packSizeKg: '', numberOfBoxes: '', rawMaterialName: '', rawMaterialWeight: '' }]);
+        setItemsList([...itemsList, { id: Date.now(), product: '', type: '', packSizeKg: '', numberOfBoxes: '', rawMaterialName: '', rawMaterialWeight: '', packingMaterials: [] }]);
     };
 
     const handleRemoveItemRow = (idToRemove) => {
         if (itemsList.length === 1) return; 
         setItemsList(itemsList.filter(row => row.id !== idToRemove));
+    };
+
+    const handleAddPackingMaterial = (rowId) => {
+        setItemsList(itemsList.map(row => {
+            if (row.id === rowId) {
+                return { ...row, packingMaterials: [...(row.packingMaterials || []), { name: '', qty: '' }] };
+            }
+            return row;
+        }));
+    };
+
+    const handleRemovePackingMaterial = (rowId, pmIndex) => {
+        setItemsList(itemsList.map(row => {
+            if (row.id === rowId) {
+                const updatedMats = [...row.packingMaterials];
+                updatedMats.splice(pmIndex, 1);
+                return { ...row, packingMaterials: updatedMats };
+            }
+            return row;
+        }));
+    };
+
+    const handlePackingMaterialChange = (rowId, pmIndex, field, value) => {
+        if (field === 'qty' && value !== '' && (Number(value) < 0 || value.includes('-'))) return;
+        setItemsList(itemsList.map(row => {
+            if (row.id === rowId) {
+                const updatedMats = [...row.packingMaterials];
+                updatedMats[pmIndex] = { ...updatedMats[pmIndex], [field]: value };
+                return { ...row, packingMaterials: updatedMats };
+            }
+            return row;
+        }));
     };
 
     const handleItemChange = (id, field, value) => {
@@ -271,7 +310,7 @@ export default function TeaCenterRecordEntry() {
                         }
                     } else {
                         newRow.rawMaterialWeight = '';
-                        newRow.rawMaterialName = ''; // Reset name if not flavored
+                        newRow.rawMaterialName = '';
                     }
                 }
 
@@ -297,7 +336,6 @@ export default function TeaCenterRecordEntry() {
         e.preventDefault();
         const hasEmptyItem = itemsList.some(row => {
             const isFlavored = FLAVORED_TEAS_WITH_RM.includes(row.product?.toLowerCase()?.trim());
-            // If flavored, require raw material name. Otherwise just product, type, size, boxes.
             if (isFlavored) {
                 return !row.product || !row.type || row.packSizeKg === '' || row.numberOfBoxes === '' || !row.rawMaterialName;
             }
@@ -305,7 +343,7 @@ export default function TeaCenterRecordEntry() {
         });
 
         if (hasEmptyItem) {
-            toast.error("Please fill out all required details (including Raw Material Name for flavored teas)!");
+            toast.error("Please fill out all required details (including Flavor Name for flavored teas)!");
             return;
         }
 
@@ -322,7 +360,9 @@ export default function TeaCenterRecordEntry() {
                     ...item,
                     calculatedQtyKg: total.toFixed(3),
                     baseTeaQtyKg: baseTeaQty.toFixed(3),
-                    rawMaterialQtyKg: rawMatQty.toFixed(3)
+                    rawMaterialQtyKg: rawMatQty.toFixed(3),
+                    // Keep packing materials array
+                    packingMaterials: item.packingMaterials ? item.packingMaterials.filter(pm => pm.name && Number(pm.qty) > 0) : []
                 }
             }),
             totalBoxes,
@@ -331,7 +371,7 @@ export default function TeaCenterRecordEntry() {
 
         setPendingRecords([...pendingRecords, newRecord]);
         toast.success(`Record added to list!`);
-        setItemsList([{ id: Date.now(), product: '', type: '', packSizeKg: '', numberOfBoxes: '', rawMaterialName: '', rawMaterialWeight: '' }]);
+        setItemsList([{ id: Date.now(), product: '', type: '', packSizeKg: '', numberOfBoxes: '', rawMaterialName: '', rawMaterialWeight: '', packingMaterials: [] }]);
     };
 
     const handleRemoveFromList = (indexToRemove) => {
@@ -347,9 +387,11 @@ export default function TeaCenterRecordEntry() {
 
         let stockWarning = false;
         let rmStockWarning = false;
+        let packingStockWarning = false;
 
         const requestedByBaseGrade = {};
         const requestedRM = {};
+        const requestedPacking = {};
         
         pendingRecords.forEach(record => {
             record.items.forEach(item => {
@@ -358,45 +400,45 @@ export default function TeaCenterRecordEntry() {
                 if (!requestedByBaseGrade[baseGrade]) requestedByBaseGrade[baseGrade] = 0;
                 requestedByBaseGrade[baseGrade] += Number(item.baseTeaQtyKg); 
 
-                // Raw Material Warning Check
+                // Flavor Warning Check
                 if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
                     if (!requestedRM[item.rawMaterialName]) requestedRM[item.rawMaterialName] = 0;
                     requestedRM[item.rawMaterialName] += Number(item.rawMaterialQtyKg);
                 }
+
+                // Generic Raw Material / Packing Warning Check
+                if (item.packingMaterials && item.packingMaterials.length > 0) {
+                    item.packingMaterials.forEach(pm => {
+                        if (pm.name && Number(pm.qty) > 0) {
+                            if (!requestedPacking[pm.name]) requestedPacking[pm.name] = 0;
+                            requestedPacking[pm.name] += Number(pm.qty);
+                        }
+                    });
+                }
             });
         });
 
-        // Check Tea
         for (const [baseGrade, requestedQty] of Object.entries(requestedByBaseGrade)) {
             const stockData = availableTeaStock.find(s => s.productName === baseGrade);
             const available = stockData ? stockData.bulkStockKg : 0;
-            if (requestedQty > available) {
-                stockWarning = true;
-                break;
-            }
+            if (requestedQty > available) stockWarning = true;
         }
 
-        // Check RM
         for (const [rmName, requestedQty] of Object.entries(requestedRM)) {
             const rmStockData = availableRawStock.find(s => s.materialName === rmName);
             const available = rmStockData ? rmStockData.totalQuantity : 0;
-            if (requestedQty > available) {
-                rmStockWarning = true;
-                break;
-            }
+            if (requestedQty > available) rmStockWarning = true;
         }
 
-        if (stockWarning) {
-            if(!window.confirm("You are issuing MORE stock than what is currently available across the base tea grades. Do you want to proceed anyway?")) {
-                return;
-            }
+        for (const [pmName, requestedQty] of Object.entries(requestedPacking)) {
+            const pmStockData = availablePackingStock.find(s => s.materialName === pmName);
+            const available = pmStockData ? pmStockData.totalQuantity : 0;
+            if (requestedQty > available) packingStockWarning = true;
         }
 
-        if (rmStockWarning) {
-            if(!window.confirm("You are issuing MORE flavors than currently available in stock. Do you want to proceed anyway?")) {
-                return;
-            }
-        }
+        if (stockWarning && !window.confirm("You are issuing MORE stock than what is currently available across the base tea grades. Proceed anyway?")) return;
+        if (rmStockWarning && !window.confirm("You are issuing MORE flavors than currently available in stock. Proceed anyway?")) return;
+        if (packingStockWarning && !window.confirm("You are issuing MORE raw materials (packaging) than currently available in stock. Proceed anyway?")) return;
 
         setShowSpinner(true);
         const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
@@ -416,7 +458,9 @@ export default function TeaCenterRecordEntry() {
                         totalQtyKg: Number(item.calculatedQtyKg),
                         baseTeaQtyKg: Number(item.baseTeaQtyKg), 
                         rawMaterialName: item.rawMaterialName || "", 
-                        rawMaterialQtyKg: Number(item.rawMaterialQtyKg)
+                        rawMaterialQtyKg: Number(item.rawMaterialQtyKg),
+                        // Array of packing materials for backend
+                        packingMaterials: item.packingMaterials || []
                     }))
                 };
 
@@ -477,17 +521,17 @@ export default function TeaCenterRecordEntry() {
                 </div>
             </div>
             
-            {/* --- AVAILABLE STOCKS (SIDE BY SIDE GRID) --- */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+            {/* --- AVAILABLE STOCKS (3 COLUMN GRID) --- */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
                 
                 {/* 1. TEA STOCK CONTAINER */}
                 <div className="rounded-2xl shadow-sm border border-teal-200 dark:border-teal-900 overflow-hidden bg-white dark:bg-zinc-900 flex flex-col h-full">
                     <div className="bg-[#2f7466] px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
                             <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                                <Calculator size={20} /> Current Available Tea Stock
+                                <Calculator size={20} /> Current Tea Stock
                             </h3>
-                            <p className="text-white/80 text-xs mt-1">Base Grades. Flavored teas deduct from these.</p>
+                            <p className="text-white/80 text-xs mt-1">Base Grades available for packing</p>
                         </div>
                         <div className="bg-white/20 text-white text-sm font-bold px-4 py-2 rounded-lg backdrop-blur-sm shadow-inner border border-white/10 whitespace-nowrap">
                             {totalAvailableTeaCapacity.toFixed(2)} KG
@@ -514,12 +558,12 @@ export default function TeaCenterRecordEntry() {
                     </div>
                 </div>
 
-                {/* 2. RAW MATERIAL STOCK CONTAINER */}
+                {/* 2. FLAVOR STOCK CONTAINER */}
                 <div className="rounded-2xl shadow-sm border border-indigo-200 dark:border-indigo-900 overflow-hidden bg-white dark:bg-zinc-900 flex flex-col h-full">
                     <div className="bg-indigo-700 dark:bg-indigo-800 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
                             <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                                <Layers size={20} /> Current Available Flavors
+                                <Layers size={20} /> Current Flavors
                             </h3>
                             <p className="text-white/80 text-xs mt-1">Flavor inventory for flavored teas.</p>
                         </div>
@@ -539,6 +583,40 @@ export default function TeaCenterRecordEntry() {
                                             {rm.materialName}
                                         </h4>
                                         <div className="text-lg font-black text-indigo-700 dark:text-indigo-400">
+                                            {Number(rm.totalQuantity).toFixed(2)} <span className="text-xs font-semibold text-gray-500">{rm.unit}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* 3. OTHER RAW MATERIALS STOCK CONTAINER */}
+                <div className="rounded-2xl shadow-sm border border-amber-200 dark:border-amber-900 overflow-hidden bg-white dark:bg-zinc-900 flex flex-col h-full">
+                    <div className="bg-amber-600 dark:bg-amber-700 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                                <Package size={20} /> Raw Materials (Stock)
+                            </h3>
+                            <p className="text-white/80 text-xs mt-1">Other materials (Pouches, Labels, etc)</p>
+                        </div>
+                        <div className="bg-white/20 text-white text-sm font-bold px-4 py-2 rounded-lg backdrop-blur-sm shadow-inner border border-white/10 whitespace-nowrap">
+                            {totalAvailablePackingCapacity.toFixed(2)}
+                        </div>
+                    </div>
+                    
+                    <div className="p-4 flex-1 overflow-y-auto max-h-[220px] custom-scrollbar">
+                        {availablePackingStock.length === 0 ? (
+                            <div className="h-full flex items-center justify-center text-gray-500 text-sm italic py-8">No raw material stock available.</div>
+                        ) : (
+                            <div className="flex flex-wrap gap-3">
+                                {availablePackingStock.map((rm, idx) => (
+                                    <div key={idx} className={`border rounded-lg p-3 min-w-[120px] shadow-sm bg-white dark:bg-zinc-950 ${getMaterialColor(rm.materialName).replace('bg-', 'border-').split(' ')[2]}`}>
+                                        <h4 className="text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-wider mb-1 truncate max-w-[130px]" title={rm.materialName}>
+                                            {rm.materialName}
+                                        </h4>
+                                        <div className="text-lg font-black text-amber-700 dark:text-amber-500">
                                             {Number(rm.totalQuantity).toFixed(2)} <span className="text-xs font-semibold text-gray-500">{rm.unit}</span>
                                         </div>
                                     </div>
@@ -592,7 +670,7 @@ export default function TeaCenterRecordEntry() {
                                     const isOverCapacity = row.product && totalIssuedForBaseGradeSoFar > availableForProduct;
                                     const remaining = Math.max(0, availableForProduct - totalIssuedForBaseGradeSoFar);
 
-                                    // Raw Material logic check
+                                    // Flavor logic check
                                     const rmStockData = availableRawStock.find(s => s.materialName === row.rawMaterialName);
                                     const availableRM = rmStockData ? rmStockData.totalQuantity : 0;
                                     const isRMOverCapacity = isFlavoredUI && row.rawMaterialName && Number(row.rawMaterialWeight) > availableRM;
@@ -629,9 +707,9 @@ export default function TeaCenterRecordEntry() {
                                                                 {TEA_TYPES
                                                                     .filter(tea => tea.toLowerCase().includes(row.product.toLowerCase()))
                                                                     .map((tea, idx) => (
-                                                                    <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'product', tea); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex items-center gap-2">
-                                                                        <div className={`w-3 h-3 rounded-full ${getTeaColor(tea)} border border-white/20`}></div> {tea}
-                                                                    </li>
+                                                                        <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'product', tea); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex items-center gap-2">
+                                                                            <div className={`w-3 h-3 rounded-full ${getTeaColor(tea)} border border-white/20`}></div> {tea}
+                                                                        </li>
                                                                 ))}
                                                             </ul>
                                                         )}
@@ -656,19 +734,17 @@ export default function TeaCenterRecordEntry() {
                                                                 {PACKAGING_TYPES
                                                                     .filter(type => type.toLowerCase().includes(row.type.toLowerCase()))
                                                                     .map((type, idx) => (
-                                                                    <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'type', type); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0">
-                                                                        {type}
-                                                                    </li>
+                                                                        <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'type', type); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0">
+                                                                            {type}
+                                                                        </li>
                                                                 ))}
                                                             </ul>
                                                         )}
                                                     </div>
-
                                                 </div>
 
-                                                {/* ROW 2: Pack Size, Items, Raw Material Name, Raw Weight */}
-                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                    
+                                                {/* ROW 2: Pack Size, Items */}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div className="relative" ref={el => dropdownRefs.current[`size-${row.id}`] = el}>
                                                         <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap">Pack (Kg)</label>
                                                         <input type="number" step="any" min="0" value={row.packSizeKg} onChange={(e) => handleItemChange(row.id, 'packSizeKg', e.target.value)} onFocus={() => { if (availableSizes) setOpenDropdownId(`size-${row.id}`); }} onWheel={(e) => e.target.blur()} required placeholder="e.g. 0.025" className="w-full p-2.5 h-[42px] border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
@@ -688,30 +764,30 @@ export default function TeaCenterRecordEntry() {
                                                         <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap">Items</label>
                                                         <input type="number" step="1" min="0" value={row.numberOfBoxes} onChange={(e) => handleItemChange(row.id, 'numberOfBoxes', e.target.value)} onWheel={(e) => e.target.blur()} required placeholder="e.g. 15" className="w-full p-2.5 h-[42px] border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
                                                     </div>
+                                                </div>
 
-                                                    {/* NEW: RAW MATERIAL NAME DROPDOWN */}
+                                                {/* ROW 3: Flavors (Moved Down) */}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-zinc-800/50">
                                                     <div className="relative" ref={el => dropdownRefs.current[`rmName-${row.id}`] = el}>
-                                                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap">
-                                                            Flavor
-                                                        </label>
+                                                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap">Flavor</label>
                                                         <input 
                                                             type="text" 
                                                             value={row.rawMaterialName} 
                                                             onChange={(e) => handleItemChange(row.id, 'rawMaterialName', e.target.value)} 
                                                             onFocus={() => { if(isFlavoredUI) setOpenDropdownId(`rmName-${row.id}`); }}
                                                             disabled={!isFlavoredUI}
-                                                            placeholder={isFlavoredUI ? "Select..." : "N/A"} 
+                                                            placeholder={isFlavoredUI ? "Select Flavor..." : "Not applicable"} 
                                                             className={`w-full p-2.5 h-[42px] border text-sm rounded-md outline-none transition-colors 
                                                             ${!isFlavoredUI ? 'bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 cursor-not-allowed opacity-60' : isRMOverCapacity ? 'border-amber-400 focus:ring-2 focus:ring-amber-500/50' : 'bg-white dark:bg-zinc-950 border-teal-200 dark:border-teal-800/50 focus:ring-2 focus:ring-[#2dd4bf]/50'}`} 
                                                         />
                                                         {openDropdownId === `rmName-${row.id}` && isFlavoredUI && (
-                                                            <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
+                                                            <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar z-20">
                                                                 {FLAVOR_NAMES
                                                                     .filter(rm => rm.toLowerCase().includes((row.rawMaterialName || '').toLowerCase()))
                                                                     .map((rm, idx) => (
-                                                                    <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'rawMaterialName', rm); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0">
-                                                                        {rm}
-                                                                    </li>
+                                                                        <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'rawMaterialName', rm); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0">
+                                                                            {rm}
+                                                                        </li>
                                                                 ))}
                                                             </ul>
                                                         )}
@@ -734,8 +810,78 @@ export default function TeaCenterRecordEntry() {
                                                             ${!isFlavoredUI ? 'bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 cursor-not-allowed opacity-60' : isRMOverCapacity ? 'border-amber-400 focus:ring-2 focus:ring-amber-500/50' : 'bg-white dark:bg-zinc-950 border-teal-200 dark:border-teal-800/50 focus:ring-2 focus:ring-[#2dd4bf]/50'}`} 
                                                         />
                                                     </div>
-
                                                 </div>
+
+                                                {/* ROW 4: MULTIPLE RAW MATERIALS (PACKING MATERIALS) */}
+                                                <div className="pt-4 border-t border-gray-100 dark:border-zinc-800/50">
+                                                    <div className="flex justify-between items-center mb-3">
+                                                        <label className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase flex items-center gap-1">
+                                                            <Package size={12}/> Raw Materials (Optional)
+                                                        </label>
+                                                        <button type="button" onClick={() => handleAddPackingMaterial(row.id)} className="text-[10px] bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 dark:hover:bg-amber-800/60 text-amber-700 dark:text-amber-400 px-3 py-1.5 rounded flex items-center gap-1 transition-colors font-bold shadow-sm">
+                                                            <PlusCircle size={12} /> Add Material
+                                                        </button>
+                                                    </div>
+
+                                                    {row.packingMaterials && row.packingMaterials.map((pm, pmIdx) => {
+                                                        const pmStockData = availablePackingStock.find(s => s.materialName === pm.name);
+                                                        const availablePM = pmStockData ? pmStockData.totalQuantity : 0;
+                                                        const isPMOverCapacity = pm.name && Number(pm.qty) > availablePM;
+
+                                                        return (
+                                                            <div key={pmIdx} className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-3 items-end bg-gray-50 dark:bg-zinc-900/50 p-3 rounded-lg border border-gray-100 dark:border-zinc-800 relative">
+                                                                <div className="md:col-span-7 relative" ref={el => dropdownRefs.current[`packingName-${row.id}-${pmIdx}`] = el}>
+                                                                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Material Name</label>
+                                                                    <input 
+                                                                        type="text" 
+                                                                        placeholder="Select from available stock..."
+                                                                        value={pm.name}
+                                                                        onChange={(e) => handlePackingMaterialChange(row.id, pmIdx, 'name', e.target.value)}
+                                                                        onFocus={() => setOpenDropdownId(`packingName-${row.id}-${pmIdx}`)}
+                                                                        className={`w-full p-2 h-[38px] border rounded-md text-sm outline-none transition-colors ${isPMOverCapacity ? 'border-amber-400 focus:ring-2 focus:ring-amber-500/50 bg-white dark:bg-zinc-950' : 'bg-white dark:bg-zinc-950 dark:text-gray-100 border-gray-200 dark:border-zinc-700 focus:ring-2 focus:ring-[#2dd4bf]/50'}`}
+                                                                    />
+                                                                    
+                                                                    {openDropdownId === `packingName-${row.id}-${pmIdx}` && (
+                                                                        <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[200px] custom-scrollbar">
+                                                                            {availablePackingStock
+                                                                                .filter(rm => rm.totalQuantity > 0 && rm.materialName.toLowerCase().includes((pm.name || '').toLowerCase()))
+                                                                                .map((rm, idx) => (
+                                                                                    <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handlePackingMaterialChange(row.id, pmIdx, 'name', rm.materialName); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex justify-between">
+                                                                                        <span>{rm.materialName}</span> 
+                                                                                        <span className="text-[10px] text-gray-400 font-bold bg-gray-100 dark:bg-zinc-700 px-1.5 py-0.5 rounded">{rm.totalQuantity} avail</span>
+                                                                                    </li>
+                                                                            ))}
+                                                                            {availablePackingStock.filter(rm => rm.totalQuantity > 0 && rm.materialName.toLowerCase().includes((pm.name || '').toLowerCase())).length === 0 && (
+                                                                                <li className="px-4 py-2 text-xs text-red-500 italic">No available stock matches.</li>
+                                                                            )}
+                                                                        </ul>
+                                                                    )}
+                                                                </div>
+
+                                                                <div className="md:col-span-4">
+                                                                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Qty</label>
+                                                                    <input 
+                                                                        type="number" 
+                                                                        step="any" 
+                                                                        min="0" 
+                                                                        value={pm.qty} 
+                                                                        onChange={(e) => handlePackingMaterialChange(row.id, pmIdx, 'qty', e.target.value)} 
+                                                                        onWheel={(e) => e.target.blur()} 
+                                                                        placeholder="Qty..." 
+                                                                        className={`w-full p-2 h-[38px] border text-sm rounded-md outline-none transition-colors ${isPMOverCapacity ? 'border-amber-400 focus:ring-2 focus:ring-amber-500/50 bg-white dark:bg-zinc-950' : 'bg-white dark:bg-zinc-950 dark:text-gray-100 border-gray-200 dark:border-zinc-700 focus:ring-2 focus:ring-[#2dd4bf]/50'}`} 
+                                                                    />
+                                                                </div>
+
+                                                                <div className="md:col-span-1 flex justify-center mb-1">
+                                                                    <button type="button" onClick={() => handleRemovePackingMaterial(row.id, pmIdx)} className="text-gray-400 hover:text-red-500 transition-colors p-1" title="Remove Material">
+                                                                        <Trash2 size={18} />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
                                             </div>
 
                                             {/* Bottom Details/Warning Area */}
@@ -748,18 +894,19 @@ export default function TeaCenterRecordEntry() {
                                                     )}
                                                 </div>
 
-                                                <div className="flex flex-col md:flex-row items-end md:items-center gap-3">
+                                                <div className="flex flex-col md:flex-row items-end md:items-center gap-3 flex-wrap justify-end">
                                                     {row.product && (
-                                                        <span className="text-[12px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded" title={`Base Grade: ${baseGrade}`}>
+                                                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded" title={`Base Grade: ${baseGrade}`}>
                                                             Avail {baseGrade}: <span className="text-gray-600 dark:text-gray-300">{availableForProduct.toFixed(2)}</span>
                                                         </span>
                                                     )}
                                                     {row.rawMaterialName && isFlavoredUI && (
-                                                        <span className="text-[12px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded">
+                                                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded">
                                                             Avail {row.rawMaterialName}: <span className="text-gray-600 dark:text-gray-300">{availableRM.toFixed(2)}</span>
                                                         </span>
                                                     )}
-
+                                                    
+                                                    {/* Warnings */}
                                                     {row.product && (
                                                         isOverCapacity ? (
                                                             <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
@@ -767,7 +914,11 @@ export default function TeaCenterRecordEntry() {
                                                             </div>
                                                         ) : isRMOverCapacity ? (
                                                             <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
-                                                                <AlertTriangle size={11} /> Exceeds RM Stock!
+                                                                <AlertTriangle size={11} /> Exceeds Flavor Stock!
+                                                            </div>
+                                                        ) : (row.packingMaterials && row.packingMaterials.some(pm => pm.name && Number(pm.qty) > (availablePackingStock.find(s => s.materialName === pm.name)?.totalQuantity || 0))) ? (
+                                                            <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
+                                                                <AlertTriangle size={11} /> Exceeds Material Stock!
                                                             </div>
                                                         ) : issuedNum > 0 ? (
                                                             <div className="flex items-center gap-1 text-[10px] font-bold text-teal-600 dark:text-teal-400 bg-[#f0fdfa] dark:bg-teal-900/20 px-2 py-1 rounded">
@@ -785,7 +936,7 @@ export default function TeaCenterRecordEntry() {
                             
                             <div className="flex justify-end w-full">
                                 <button type="button" onClick={handleAddItemRow} className="mt-4 text-sm font-bold bg-teal-100 hover:bg-teal-200 dark:bg-teal-900/40 dark:hover:bg-teal-800/60 text-[#0f766e] dark:text-teal-400 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors ml-auto">
-                                    <PlusCircle size={16} /> Add Product
+                                    <PlusCircle size={16} /> Add Product Row
                                 </button>
                             </div>
                             <div className="mt-4 flex flex-col sm:flex-row justify-end gap-6 border-t border-teal-200/50 dark:border-teal-800/30 pt-4">

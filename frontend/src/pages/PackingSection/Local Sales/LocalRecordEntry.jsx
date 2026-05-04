@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
-import { PlusCircle, Trash2, ListChecks, Save, Package, ShoppingCart, Calendar, Weight, Tag, X, Calculator, AlertTriangle, ArrowRight } from "lucide-react"; 
+import { PlusCircle, Trash2, ListChecks, Save, Package, ShoppingCart, Calendar, Weight, Tag, X, Calculator, AlertTriangle, ArrowRight, Layers } from "lucide-react"; 
 import { useNavigate } from 'react-router-dom';
 import PDFDownloader from '@/components/PDFDownloader';
 
@@ -18,6 +18,17 @@ const getTeaColor = (product) => {
     if (p.includes('green')) return 'bg-[#4ade80] text-green-900 border-green-600'; 
     if (p.includes('labour')) return 'bg-gray-200 text-gray-800 border-gray-400'; 
     return 'bg-white dark:bg-zinc-800 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-zinc-700'; 
+};
+
+// Material Color
+const getMaterialColor = (material) => {
+    const m = material?.toLowerCase() || '';
+    if (m.includes('pouch')) return 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-800/50';
+    if (m.includes('box') || m.includes('carton')) return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/50';
+    if (m.includes('label') || m.includes('tape')) return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/50';
+    if (m.includes('paper') || m.includes('polybag')) return 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-800/50';
+    if (m.includes('thread') || m.includes('glue')) return 'bg-rose-100 dark:bg-rose-900/30 text-rose-800 dark:text-rose-200 border-rose-200 dark:border-rose-800/50';
+    return 'bg-gray-100 dark:bg-zinc-800/80 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700';
 };
 
 const getPdfTeaColor = (product) => {
@@ -60,7 +71,10 @@ export default function LocalRecordEntry() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const [showSpinner, setShowSpinner] = useState(false);
     const [pendingRecords, setPendingRecords] = useState([]);
-    const [availableStock, setAvailableStock] = useState([]); 
+    
+    const [availableStock, setAvailableStock] = useState([]); // Tea Stock
+    const [availablePackingStock, setAvailablePackingStock] = useState([]); // Raw Material (Packing) Stock
+
     const navigate = useNavigate();
 
     const [formData, setFormData] = useState({
@@ -68,7 +82,7 @@ export default function LocalRecordEntry() {
     });
 
     const [itemsList, setItemsList] = useState([
-        { id: Date.now(), product: '', packSizeKg: '', numberOfBoxes: '' }
+        { id: Date.now(), product: '', packSizeKg: '', numberOfBoxes: '', packingMaterials: [] }
     ]);
 
     const [openDropdownId, setOpenDropdownId] = useState(null); 
@@ -90,40 +104,49 @@ export default function LocalRecordEntry() {
         const fetchStock = async () => {
             try {
                 const token = localStorage.getItem('token');
-                const res = await fetch(`${BACKEND_URL}/api/packing-stock`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    
-                    // --- CHANGED LOGIC: ONLY get Factory and Other sources ---
+                
+                const [teaRes, rmRes] = await Promise.all([
+                    fetch(`${BACKEND_URL}/api/packing-stock`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch(`${BACKEND_URL}/api/raw-materials-in/stock`, { headers: { 'Authorization': `Bearer ${token}` } }).catch(() => ({ ok: false }))
+                ]);
+
+                // Fetch Tea Stock
+                if (teaRes.ok) {
+                    const data = await teaRes.json();
                     const factoryAndOtherData = [];
                     data.forEach(product => {
                         let validStock = 0;
-
                         if (product.stockBySource && product.stockBySource.length > 0) {
                             const factoryStock = product.stockBySource.find(s => s.sourceName === 'Factory')?.quantityKg || 0;
                             const otherStock = product.stockBySource.find(s => s.sourceName === 'Other')?.quantityKg || 0;
                             validStock = factoryStock + otherStock;
                         } else {
-                            // Fallback for old data structures without array
                             if (product.source === 'Factory' || product.source === 'Other') {
                                 validStock = Number(product.bulkStockKg) || 0;
                             }
                         }
-
                         if (validStock > 0) {
                             factoryAndOtherData.push({
                                 productName: product.productName,
-                                bulkStockKg: validStock // Holds the sum of Factory + Other
+                                bulkStockKg: validStock 
                             });
                         }
                     });
-                    
                     setAvailableStock(factoryAndOtherData);
                 }
+
+                // Fetch Packing Material Stock
+                if (rmRes.ok) {
+                    const rmData = await rmRes.json();
+                    const allRawMaterials = Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : [];
+                    
+                    // Exclude flavors, keep only packing/other materials
+                    const packingOnly = allRawMaterials.filter(rm => (rm.category || '').toLowerCase() !== 'flavor');
+                    setAvailablePackingStock(packingOnly);
+                }
+
             } catch (error) {
-                console.error("Error fetching available stock:", error);
+                console.error("Error fetching stock:", error);
             }
         };
         fetchStock();
@@ -140,9 +163,11 @@ export default function LocalRecordEntry() {
     const grandPendingQty = summaryArray.reduce((sum, [_, qty]) => sum + qty, 0);
 
     const totalAvailableStock = availableStock.reduce((sum, item) => sum + (item.bulkStockKg || 0), 0);
+    const totalAvailablePackingCapacity = availablePackingStock.reduce((sum, item) => sum + (item.totalQuantity || 0), 0);
 
+    // --- ITEM ROW HANDLERS ---
     const handleAddItemRow = () => {
-        setItemsList([...itemsList, { id: Date.now(), product: '', packSizeKg: '', numberOfBoxes: '' }]);
+        setItemsList([...itemsList, { id: Date.now(), product: '', packSizeKg: '', numberOfBoxes: '', packingMaterials: [] }]);
     };
 
     const handleRemoveItemRow = (idToRemove) => {
@@ -162,6 +187,39 @@ export default function LocalRecordEntry() {
                     }
                 }
                 return { ...row, [field]: value };
+            }
+            return row;
+        }));
+    };
+
+    // --- PACKING MATERIAL HANDLERS ---
+    const handleAddPackingMaterial = (rowId) => {
+        setItemsList(itemsList.map(row => {
+            if (row.id === rowId) {
+                return { ...row, packingMaterials: [...(row.packingMaterials || []), { name: '', qty: '' }] };
+            }
+            return row;
+        }));
+    };
+
+    const handleRemovePackingMaterial = (rowId, pmIndex) => {
+        setItemsList(itemsList.map(row => {
+            if (row.id === rowId) {
+                const updatedMats = [...row.packingMaterials];
+                updatedMats.splice(pmIndex, 1);
+                return { ...row, packingMaterials: updatedMats };
+            }
+            return row;
+        }));
+    };
+
+    const handlePackingMaterialChange = (rowId, pmIndex, field, value) => {
+        if (field === 'qty' && value !== '' && (Number(value) < 0 || value.includes('-'))) return;
+        setItemsList(itemsList.map(row => {
+            if (row.id === rowId) {
+                const updatedMats = [...row.packingMaterials];
+                updatedMats[pmIndex] = { ...updatedMats[pmIndex], [field]: value };
+                return { ...row, packingMaterials: updatedMats };
             }
             return row;
         }));
@@ -191,14 +249,15 @@ export default function LocalRecordEntry() {
             date: formData.date,
             items: itemsList.map(item => ({
                 ...item,
-                calculatedQtyKg: (Number(item.packSizeKg) * Number(item.numberOfBoxes)).toFixed(2)
+                calculatedQtyKg: (Number(item.packSizeKg) * Number(item.numberOfBoxes)).toFixed(2),
+                packingMaterials: item.packingMaterials ? item.packingMaterials.filter(pm => pm.name && Number(pm.qty) > 0) : []
             })),
             totalBoxes,
             totalQtyKg
         };
         setPendingRecords([...pendingRecords, newRecord]);
         toast.success(`Record added to list!`);
-        setItemsList([{ id: Date.now(), product: '', packSizeKg: '', numberOfBoxes: '' }]);
+        setItemsList([{ id: Date.now(), product: '', packSizeKg: '', numberOfBoxes: '', packingMaterials: [] }]);
     };
 
     const handleRemoveFromList = (indexToRemove) => {
@@ -212,20 +271,42 @@ export default function LocalRecordEntry() {
             return;
         }
 
-        // Check overall stock capacity before saving
+        // WARNING LOGIC
         let stockWarning = false;
+        let packingStockWarning = false;
+        const requestedPacking = {};
+
         pendingRecords.forEach(record => {
             record.items.forEach(item => {
+                // Check tea capacity
                 const stockData = availableStock.find(s => s.productName === item.product);
                 const available = stockData ? stockData.bulkStockKg : 0;
                 if (Number(item.calculatedQtyKg) > available) stockWarning = true;
+
+                // Sum requested packing materials
+                if (item.packingMaterials && item.packingMaterials.length > 0) {
+                    item.packingMaterials.forEach(pm => {
+                        if (pm.name && Number(pm.qty) > 0) {
+                            if (!requestedPacking[pm.name]) requestedPacking[pm.name] = 0;
+                            requestedPacking[pm.name] += Number(pm.qty);
+                        }
+                    });
+                }
             });
         });
 
+        // Check packing materials capacity
+        for (const [pmName, requestedQty] of Object.entries(requestedPacking)) {
+            const pmStockData = availablePackingStock.find(s => s.materialName === pmName);
+            const available = pmStockData ? pmStockData.totalQuantity : 0;
+            if (requestedQty > available) packingStockWarning = true;
+        }
+
         if (stockWarning) {
-            if(!window.confirm("You are issuing MORE stock than what is currently available in the Factory & Other bulk stock. Do you want to proceed anyway?")) {
-                return;
-            }
+            if(!window.confirm("You are issuing MORE tea stock than available in the Factory & Other bulk stock. Do you want to proceed anyway?")) return;
+        }
+        if (packingStockWarning) {
+            if(!window.confirm("You are issuing MORE packing materials than currently available in stock. Do you want to proceed anyway?")) return;
         }
 
         setShowSpinner(true);
@@ -242,7 +323,8 @@ export default function LocalRecordEntry() {
                         product: item.product,
                         packSizeKg: Number(item.packSizeKg),
                         numberOfBoxes: Number(item.numberOfBoxes),
-                        totalQtyKg: Number(item.calculatedQtyKg)
+                        totalQtyKg: Number(item.calculatedQtyKg),
+                        packingMaterials: item.packingMaterials || [] 
                     }))
                 };
 
@@ -282,18 +364,8 @@ export default function LocalRecordEntry() {
         }
     };
 
-    const handleCancel = () => {
-        if (pendingRecords.length > 0) {
-            if (window.confirm("You have unsaved records in the list. Are you sure you want to leave?")) {
-                navigate(-1);
-            }
-        } else {
-            navigate(-1);
-        }
-    };
-
     return (
-        <div className="p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
+        <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
             
             <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
@@ -302,43 +374,77 @@ export default function LocalRecordEntry() {
                 </div>
             </div>
             
-            {/* AVAILABLE STOCK SECTION (View Only) */}
-            <div className="mb-8 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900 transition-colors duration-300">
-                <div className="bg-[#2f7466] px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                            <Calculator size={20} /> Current Available Stock (Factory & Other)
-                        </h3>
-                        <p className="text-white/80 text-xs mt-1">
-                            Use these values to ensure you do not exceed the available bulk stock during dispatch.
-                        </p>
-                    </div>
-                    <div className="bg-white/20 text-white text-sm font-bold px-4 py-2 rounded-lg backdrop-blur-sm shadow-inner border border-white/10">
-                        Total Capacity: {totalAvailableStock.toFixed(2)} KG
-                    </div>
-                </div>
+            {/* --- AVAILABLE STOCKS (2 COLUMN GRID) --- */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 
-                <div className="p-6">
-                    {availableStock.length === 0 ? (
-                        <p className="text-gray-500 text-sm italic">No stock is currently available from Factory or Other sources.</p>
-                    ) : (
-                        <div className="flex flex-wrap gap-4">
-                            {availableStock.map((item, idx) => (
-                                <div 
-                                    key={idx} 
-                                    className="border border-gray-200 dark:border-zinc-700 rounded-xl p-4 min-w-[140px] shadow-sm bg-white dark:bg-zinc-800 transition-all duration-200 hover:shadow-md hover:border-gray-300 dark:hover:border-zinc-600"
-                                >
-                                    <h4 className="text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-wider mb-1 transition-colors">
-                                        {item.productName}
-                                    </h4>
-                                    <div className="text-xl font-black text-gray-800 dark:text-gray-100">
-                                        {Number(item.bulkStockKg).toFixed(2)} <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">kg</span>
-                                    </div>
-                                </div>
-                            ))}
+                {/* 1. TEA STOCK CONTAINER */}
+                <div className="rounded-2xl shadow-sm border border-teal-200 dark:border-teal-900 overflow-hidden bg-white dark:bg-zinc-900 flex flex-col h-full">
+                    <div className="bg-[#2f7466] px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                                <Calculator size={20} /> Current Tea Stock
+                            </h3>
+                            <p className="text-white/80 text-xs mt-1">Factory & Other bulk stock</p>
                         </div>
-                    )}
+                        <div className="bg-white/20 text-white text-sm font-bold px-4 py-2 rounded-lg backdrop-blur-sm shadow-inner border border-white/10 whitespace-nowrap">
+                            Total: {totalAvailableStock.toFixed(2)} KG
+                        </div>
+                    </div>
+                    
+                    <div className="p-4 flex-1 overflow-y-auto max-h-[220px] custom-scrollbar">
+                        {availableStock.length === 0 ? (
+                            <div className="h-full flex items-center justify-center text-gray-500 text-sm italic py-8">No tea stock available.</div>
+                        ) : (
+                            <div className="flex flex-wrap gap-3">
+                                {availableStock.map((item, idx) => (
+                                    <div key={idx} className="border border-gray-200 dark:border-zinc-700 rounded-lg p-3 min-w-[120px] shadow-sm bg-gray-50 dark:bg-zinc-800">
+                                        <h4 className="text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-wider mb-1 truncate max-w-[120px]" title={item.productName}>
+                                            {item.productName}
+                                        </h4>
+                                        <div className="text-lg font-black text-[#0d9488] dark:text-teal-400">
+                                            {Number(item.bulkStockKg).toFixed(2)} <span className="text-xs font-semibold text-gray-500">kg</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
+
+                {/* 2. PACKING MATERIALS STOCK CONTAINER */}
+                <div className="rounded-2xl shadow-sm border border-amber-200 dark:border-amber-900 overflow-hidden bg-white dark:bg-zinc-900 flex flex-col h-full">
+                    <div className="bg-amber-600 dark:bg-amber-700 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                                <Package size={20} /> Packing Materials Stock
+                            </h3>
+                            <p className="text-white/80 text-xs mt-1">Available packaging inventory</p>
+                        </div>
+                        <div className="bg-white/20 text-white text-sm font-bold px-4 py-2 rounded-lg backdrop-blur-sm shadow-inner border border-white/10 whitespace-nowrap">
+                            Total: {totalAvailablePackingCapacity.toFixed(2)} Items
+                        </div>
+                    </div>
+                    
+                    <div className="p-4 flex-1 overflow-y-auto max-h-[220px] custom-scrollbar">
+                        {availablePackingStock.length === 0 ? (
+                            <div className="h-full flex items-center justify-center text-gray-500 text-sm italic py-8">No packing material stock available.</div>
+                        ) : (
+                            <div className="flex flex-wrap gap-3">
+                                {availablePackingStock.map((rm, idx) => (
+                                    <div key={idx} className={`border rounded-lg p-3 min-w-[120px] shadow-sm bg-white dark:bg-zinc-950 ${getMaterialColor(rm.materialName).replace('bg-', 'border-').split(' ')[2]}`}>
+                                        <h4 className="text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-wider mb-1 truncate max-w-[130px]" title={rm.materialName}>
+                                            {rm.materialName}
+                                        </h4>
+                                        <div className="text-lg font-black text-amber-700 dark:text-amber-500">
+                                            {Number(rm.totalQuantity).toFixed(2)} <span className="text-xs font-semibold text-gray-500">{rm.unit || ''}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -359,14 +465,12 @@ export default function LocalRecordEntry() {
                                 <h3 className="text-lg font-bold text-[#0f766e] dark:text-teal-500 flex items-center gap-2">
                                     <ShoppingCart size={20} /> Products Issued
                                 </h3>
-                                
                             </div>
 
                             <div className="space-y-6">
                                 {itemsList.map((row) => {
                                     const availableSizes = getPackSizes(row.product);
                                     
-                                    // --- LOGIC: Visual Warning Flags ---
                                     const stockData = availableStock.find(s => s.productName === row.product);
                                     const availableForProduct = stockData ? stockData.bulkStockKg : 0;
                                     
@@ -392,6 +496,7 @@ export default function LocalRecordEntry() {
 
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                                 
+                                                {/* Custom Product Autocomplete Input */}
                                                 <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`product-${row.id}`] = el}>
                                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
                                                         <Tag size={12} className={isOverCapacity ? "text-amber-500" : "text-[#0d9488] dark:text-teal-400"}/> Product
@@ -403,22 +508,32 @@ export default function LocalRecordEntry() {
                                                         onChange={(e) => handleItemChange(row.id, 'product', e.target.value)}
                                                         onFocus={() => setOpenDropdownId(`product-${row.id}`)}
                                                         required
-                                                        className={`w-full p-2.5 border rounded-md text-sm focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none transition-colors ${row.product ? getTeaColor(row.product) : 'bg-white dark:bg-zinc-950 dark:text-gray-100'} ${isOverCapacity ? 'border-amber-300' : 'border-teal-200 dark:border-teal-800/50'}`}
+                                                        className={`w-full p-2.5 h-[42px] border rounded-md text-sm focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none transition-colors ${row.product ? getTeaColor(row.product) : 'bg-white dark:bg-zinc-950 dark:text-gray-100'} ${isOverCapacity ? 'border-amber-300' : 'border-teal-200 dark:border-teal-800/50'}`}
                                                     />
                                                     
+                                                    {/* Dropdown Menu */}
                                                     {openDropdownId === `product-${row.id}` && (
                                                         <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
                                                             {TEA_TYPES
                                                                 .filter(tea => tea.toLowerCase().includes(row.product.toLowerCase()))
                                                                 .map((tea, idx) => (
-                                                                <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'product', tea); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 flex items-center gap-2">
-                                                                    <div className={`w-3 h-3 rounded-full ${getTeaColor(tea)} border border-white/20`}></div> {tea}
+                                                                <li 
+                                                                    key={idx} 
+                                                                    onMouseDown={(e) => e.preventDefault()} 
+                                                                    onClick={() => {
+                                                                        handleItemChange(row.id, 'product', tea);
+                                                                        setOpenDropdownId(null);
+                                                                    }}
+                                                                    className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex items-center gap-2"
+                                                                >
+                                                                    <div className={`w-3 h-3 rounded-full ${getTeaColor(tea).split(' ')[0]} border border-white/20`}></div> {tea}
                                                                 </li>
                                                             ))}
                                                         </ul>
                                                     )}
                                                 </div>
 
+                                                {/* Dynamic Pack Size Input */}
                                                 <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`size-${row.id}`] = el}>
                                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Pack Size (Kg)</label>
                                                     <input 
@@ -427,13 +542,21 @@ export default function LocalRecordEntry() {
                                                         onChange={(e) => handleItemChange(row.id, 'packSizeKg', e.target.value)}
                                                         onFocus={() => { if (availableSizes) setOpenDropdownId(`size-${row.id}`); }}
                                                         onWheel={(e) => e.target.blur()} required placeholder="e.g. 0.4"
-                                                        className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 rounded-md text-sm focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                                        className="w-full p-2.5 h-[42px] border border-teal-200 dark:border-teal-800/50 rounded-md text-sm focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                                                     />
                                                     
                                                     {openDropdownId === `size-${row.id}` && availableSizes && (
                                                         <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-hidden">
                                                             {availableSizes.map((size, idx) => (
-                                                                <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'packSizeKg', size); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50">
+                                                                <li 
+                                                                    key={idx} 
+                                                                    onMouseDown={(e) => e.preventDefault()} 
+                                                                    onClick={() => {
+                                                                        handleItemChange(row.id, 'packSizeKg', size);
+                                                                        setOpenDropdownId(null);
+                                                                    }}
+                                                                    className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0"
+                                                                >
                                                                     {size} kg
                                                                 </li>
                                                             ))}
@@ -441,47 +564,111 @@ export default function LocalRecordEntry() {
                                                     )}
                                                 </div>
 
+                                                {/* Number of Boxes Input */}
                                                 <div className="lg:col-span-1">
-                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase whitespace-nowrap">No. of Boxes</label>
+                                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">No. of Box/Packs</label>
                                                     <input 
                                                         type="number" step="1" min="0"
                                                         value={row.numberOfBoxes} 
                                                         onChange={(e) => handleItemChange(row.id, 'numberOfBoxes', e.target.value)}
                                                         onWheel={(e) => e.target.blur()} required placeholder="e.g. 50"
-                                                        className="w-full p-2.5 border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                                        className="w-full p-2.5 h-[42px] border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                                                     />
                                                 </div>
 
+                                                {/* Auto-Calculated Total Qty */}
                                                 <div className="lg:col-span-1">
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase flex items-center gap-1">
-                                                            Qty (Kg) <Weight size={12} className={isOverCapacity ? "text-amber-500" : "text-[#0d9488] dark:text-teal-400"}/>
-                                                        </label>
+                                                    <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase flex items-center justify-between gap-1">
+                                                        <span>Qty (Kg) <Weight size={12} className={isOverCapacity ? "text-amber-500 inline" : "text-[#0d9488] dark:text-teal-400 inline"}/></span>
                                                         {row.product && (
-                                                            <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">
-                                                                Avail: <span className="text-gray-800 dark:text-gray-200">{availableForProduct.toFixed(2)}</span>
+                                                            <span className="text-[10px] font-bold text-gray-400">
+                                                                Avail: <span className="text-gray-700 dark:text-gray-300">{availableForProduct.toFixed(2)}</span>
                                                             </span>
                                                         )}
-                                                    </div>
-                                                    <div className={`w-full p-2.5 border font-bold rounded-md text-sm text-center transition-colors ${isOverCapacity ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400' : 'border-teal-300 dark:border-teal-700/50 bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400'}`}>
-                                                        {issuedNum > 0 ? issuedNum.toFixed(2) : "0.00"}
+                                                    </label>
+                                                    <div className={`w-full p-2.5 border font-bold text-sm rounded-md text-center transition-colors ${isOverCapacity ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400' : 'border-teal-300 dark:border-teal-700/50 bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400'}`}>
+                                                        {(Number(row.packSizeKg) * Number(row.numberOfBoxes)) > 0 
+                                                            ? (Number(row.packSizeKg) * Number(row.numberOfBoxes)).toFixed(2) 
+                                                            : "0.00"}
                                                     </div>
                                                 </div>
                                             </div>
 
                                             {/* Stock Warning Messages */}
-                                            <div className="mt-2 h-4">
-                                                {row.product && (
-                                                    isOverCapacity ? (
-                                                        <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-500 justify-end">
-                                                            <AlertTriangle size={12} /> Exceeds total stock by {(totalIssuedForProductSoFar - availableForProduct).toFixed(2)} kg!
+                                            {isOverCapacity && (
+                                                <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-500 justify-end">
+                                                    <AlertTriangle size={12} /> Exceeds total tea stock by {(totalIssuedForProductSoFar - availableForProduct).toFixed(2)} kg!
+                                                </div>
+                                            )}
+
+                                            {/* --- PACKING MATERIALS SUB-SECTION --- */}
+                                            <div className="pt-4 mt-3 border-t border-gray-100 dark:border-zinc-800/50">
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <label className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase flex items-center gap-1">
+                                                        <Layers size={12}/> Packing Materials (Optional)
+                                                    </label>
+                                                    <button type="button" onClick={() => handleAddPackingMaterial(row.id)} className="text-[10px] bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 dark:hover:bg-amber-800/60 text-amber-700 dark:text-amber-400 px-3 py-1.5 rounded flex items-center gap-1 transition-colors font-bold shadow-sm">
+                                                        <PlusCircle size={12} /> Add Material
+                                                    </button>
+                                                </div>
+
+                                                {row.packingMaterials && row.packingMaterials.map((pm, pmIdx) => {
+                                                    const pmStockData = availablePackingStock.find(s => s.materialName === pm.name);
+                                                    const availablePM = pmStockData ? pmStockData.totalQuantity : 0;
+                                                    const isPMOverCapacity = pm.name && Number(pm.qty) > availablePM;
+
+                                                    return (
+                                                        <div key={pmIdx} className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-3 items-end bg-gray-50 dark:bg-zinc-900/50 p-3 rounded-lg border border-gray-100 dark:border-zinc-800 relative">
+                                                            <div className="md:col-span-7 relative" ref={el => dropdownRefs.current[`packingName-${row.id}-${pmIdx}`] = el}>
+                                                                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Material Name</label>
+                                                                <input 
+                                                                    type="text" 
+                                                                    placeholder="Select from available stock..."
+                                                                    value={pm.name}
+                                                                    onChange={(e) => handlePackingMaterialChange(row.id, pmIdx, 'name', e.target.value)}
+                                                                    onFocus={() => setOpenDropdownId(`packingName-${row.id}-${pmIdx}`)}
+                                                                    className={`w-full p-2 h-[38px] border rounded-md text-sm outline-none transition-colors ${isPMOverCapacity ? 'border-amber-400 focus:ring-2 focus:ring-amber-500/50 bg-white dark:bg-zinc-950' : 'bg-white dark:bg-zinc-950 dark:text-gray-100 border-gray-200 dark:border-zinc-700 focus:ring-2 focus:ring-[#2dd4bf]/50'}`}
+                                                                />
+                                                                
+                                                                {openDropdownId === `packingName-${row.id}-${pmIdx}` && (
+                                                                    <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[200px] custom-scrollbar z-20">
+                                                                        {availablePackingStock
+                                                                            .filter(rm => rm.totalQuantity > 0 && rm.materialName.toLowerCase().includes((pm.name || '').toLowerCase()))
+                                                                            .map((rm, idx) => (
+                                                                            <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handlePackingMaterialChange(row.id, pmIdx, 'name', rm.materialName); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex justify-between items-center">
+                                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getMaterialColor(rm.materialName).replace('bg-', 'border-')}`}>{rm.materialName}</span> 
+                                                                                <span className="text-[10px] text-gray-500 font-semibold">{rm.totalQuantity} avail</span>
+                                                                            </li>
+                                                                        ))}
+                                                                        {availablePackingStock.filter(rm => rm.totalQuantity > 0 && rm.materialName.toLowerCase().includes((pm.name || '').toLowerCase())).length === 0 && (
+                                                                            <li className="px-4 py-2 text-xs text-red-500 italic">No available stock matches.</li>
+                                                                        )}
+                                                                    </ul>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="md:col-span-4">
+                                                                <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Qty</label>
+                                                                <input 
+                                                                    type="number" 
+                                                                    step="any" 
+                                                                    min="0" 
+                                                                    value={pm.qty} 
+                                                                    onChange={(e) => handlePackingMaterialChange(row.id, pmIdx, 'qty', e.target.value)} 
+                                                                    onWheel={(e) => e.target.blur()} 
+                                                                    placeholder="Qty..." 
+                                                                    className={`w-full p-2 h-[38px] border text-sm rounded-md outline-none transition-colors ${isPMOverCapacity ? 'border-amber-400 focus:ring-2 focus:ring-amber-500/50 bg-white dark:bg-zinc-950' : 'bg-white dark:bg-zinc-950 dark:text-gray-100 border-gray-200 dark:border-zinc-700 focus:ring-2 focus:ring-[#2dd4bf]/50'}`} 
+                                                                />
+                                                            </div>
+
+                                                            <div className="md:col-span-1 flex justify-center mb-1">
+                                                                <button type="button" onClick={() => handleRemovePackingMaterial(row.id, pmIdx)} className="text-gray-400 hover:text-red-500 transition-colors p-1" title="Remove Material">
+                                                                    <Trash2 size={18} />
+                                                                </button>
+                                                            </div>
                                                         </div>
-                                                    ) : issuedNum > 0 ? (
-                                                        <div className="flex items-center gap-1 text-[14px] font-bold text-teal-600 dark:text-teal-400 justify-end">
-                                                            <ArrowRight size={12} /> Remaining total stock will be: {remaining.toFixed(2)} kg
-                                                        </div>
-                                                    ) : null
-                                                )}
+                                                    );
+                                                })}
                                             </div>
 
                                         </div>
@@ -496,7 +683,7 @@ export default function LocalRecordEntry() {
                             </div>
                             <div className="mt-4 flex flex-col sm:flex-row justify-end gap-6 border-t border-teal-200/50 dark:border-teal-800/30 pt-4">
                                 <div className="text-sm font-medium text-[#0f766e] dark:text-teal-300">
-                                    Total Boxes: <span className="font-bold">{totalBoxes}</span>
+                                    Total Items: <span className="font-bold">{totalBoxes}</span>
                                 </div>
                                 <div className="text-sm font-medium text-[#0f766e] dark:text-teal-300 flex items-center gap-1">
                                     <Package size={16}/> Total Weight: <span className="font-bold text-lg">{totalQtyKg.toFixed(2)} Kg</span>
@@ -537,19 +724,30 @@ export default function LocalRecordEntry() {
                                                 <div className="bg-white dark:bg-zinc-900 p-2.5 rounded border border-gray-100 dark:border-zinc-700/50 text-xs mt-1">
                                                     <div className="space-y-2 mb-2 pb-2 border-b border-gray-100 dark:border-zinc-800">
                                                         {record.items.map((item, i) => (
-                                                            <div key={i} className="flex justify-between items-center text-[11px]">
-                                                                <span className={`font-bold border px-2 py-0.5 rounded shadow-sm text-[10px] w-fit ${getTeaColor(item.product)}`}>{item.product}</span>
-                                                                <div className="flex items-center gap-3 text-gray-500">
-                                                                    <span>{item.numberOfBoxes} x {item.packSizeKg}kg</span>
-                                                                    <span className="font-bold text-[#0d9488] w-12 text-right">{item.calculatedQtyKg} kg</span>
+                                                            <div key={i} className="flex flex-col gap-1 pb-1 border-b border-gray-50 dark:border-zinc-800/50 last:border-0 last:pb-0">
+                                                                <div className="flex justify-between items-center text-[11px]">
+                                                                    <span className={`font-bold border px-2 py-0.5 rounded shadow-sm text-[10px] w-fit ${getTeaColor(item.product)}`}>{item.product}</span>
+                                                                    <div className="flex items-center gap-3 text-gray-500">
+                                                                        <span>{item.numberOfBoxes} x {item.packSizeKg}kg</span>
+                                                                        <span className="font-bold text-[#0d9488] w-12 text-right">{item.calculatedQtyKg} kg</span>
+                                                                    </div>
                                                                 </div>
+                                                                {item.packingMaterials && item.packingMaterials.length > 0 && (
+                                                                    <div className="text-[10px] text-gray-500 flex flex-wrap gap-x-2 gap-y-1">
+                                                                        {item.packingMaterials.map((pm, pmIdx) => (
+                                                                            <span key={pmIdx} className="bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-amber-700 dark:text-amber-500 font-medium">
+                                                                                {pm.name}: {pm.qty}
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ))}
                                                     </div>
-                                                    <div className="flex justify-between items-center font-bold">
+                                                    <div className="flex justify-between items-center font-bold mt-2">
                                                         <span className="text-gray-500 uppercase text-[10px]">Daily Totals:</span>
                                                         <div className="flex gap-4">
-                                                            <span className="text-gray-600 dark:text-gray-300">{record.totalBoxes} Boxes</span>
+                                                            <span className="text-gray-600 dark:text-gray-300">{record.totalBoxes} Items</span>
                                                             <span className="text-[#0f766e] dark:text-teal-400">{record.totalQtyKg.toFixed(2)} Kg</span>
                                                         </div>
                                                     </div>
@@ -562,7 +760,6 @@ export default function LocalRecordEntry() {
                         </div>
 
                         <div className="mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800 space-y-3">
-                            <button type="button" onClick={handleCancel} disabled={showSpinner} className="w-full py-3 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl transition-colors disabled:opacity-50">Cancel</button>
                             <button onClick={handleSaveAll} disabled={showSpinner || pendingRecords.length === 0} className={`w-full py-4 rounded-xl text-white text-lg font-bold flex justify-center items-center gap-2 shadow-lg transition-all ${showSpinner || pendingRecords.length === 0 ? 'bg-gray-400 dark:bg-zinc-700 cursor-not-allowed' : 'bg-gradient-to-r from-[#0f766e] to-[#34d399] hover:shadow-[#0d9488]/40 hover:-translate-y-1'}`}>
                                 <Save size={20} /> {showSpinner ? "Saving..." : `Save All`}
                             </button>
