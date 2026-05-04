@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
-import { AlertCircle, Calendar, RefreshCw, Package, ShoppingCart, Weight, Tag, FilterX } from "lucide-react";
+import { AlertCircle, Calendar, RefreshCw, Package, ShoppingCart, Weight, Tag, FilterX, Box, Layers, Droplet, Leaf } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
-
 import {
     AlertDialog,
     AlertDialogAction,
@@ -15,35 +14,34 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-
 import { useNavigate } from 'react-router-dom';
 
-// Updated Colors: Softer/Dull Pastel Backgrounds with dark mode support
+
+// Exact Colors for Tea
 const getTeaColor = (product) => {
     const p = product.toLowerCase();
-    
-    if (p === 'bopf') 
-        return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800/50'; 
-    if (p.includes('bopf sp')) 
-        return 'bg-lime-200 dark:bg-lime-900/30 text-lime-800 dark:text-lime-200 border-lime-200 dark:border-lime-800/50'; 
-    if (p === 'dust') 
-        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/50'; 
-    if (p === 'dust 1') 
-        return 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-800 dark:text-cyan-200 border-cyan-200 dark:border-cyan-800/50'; 
-    if (p.includes('premium')) 
-        return 'bg-pink-100 dark:bg-pink-900/30 text-pink-800 dark:text-pink-200 border-pink-200 dark:border-pink-800/50'; 
-    if (p.includes('awuru')) 
-        return 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-800/50'; 
-    if (p === 't/b 25') 
-        return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800/50'; 
-    if (p === 't/b 100') 
-        return 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800/50'; 
-    if (p.includes('green')) 
-        return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800/50'; 
-    if (p.includes('labour')) 
-        return 'bg-gray-100 dark:bg-zinc-800/80 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700'; 
-        
-    return 'bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-zinc-700'; 
+    if (p === 'bopf') return 'bg-[#fde047] text-yellow-900 border-yellow-500'; 
+    if (p.includes('bopf sp')) return 'bg-[#bef264] text-lime-900 border-lime-500'; 
+    if (p === 'dust') return 'bg-[#3b82f6] text-white border-blue-600'; 
+    if (p === 'dust 1') return 'bg-[#06b6d4] text-white border-cyan-500'; 
+    if (p.includes('premium')) return 'bg-[#f472b6] text-white border-pink-500'; 
+    if (p.includes('awuru')) return 'bg-[#c084fc] text-white border-purple-500'; 
+    if (p === 't/b 25') return 'bg-[#ef4444] text-white border-red-600'; 
+    if (p === 't/b 100') return 'bg-[#78350f] text-white border-amber-900'; 
+    if (p.includes('green')) return 'bg-[#4ade80] text-green-900 border-green-600'; 
+    if (p.includes('labour')) return 'bg-gray-200 text-gray-800 border-gray-400'; 
+    return 'bg-white dark:bg-zinc-800 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-zinc-700'; 
+};
+
+// Material Color for Packing
+const getMaterialColor = (material) => {
+    const m = material?.toLowerCase() || '';
+    if (m.includes('pouch')) return 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-800/50';
+    if (m.includes('box') || m.includes('carton')) return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/50';
+    if (m.includes('label') || m.includes('tape')) return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/50';
+    if (m.includes('paper') || m.includes('polybag')) return 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-800/50';
+    if (m.includes('thread') || m.includes('glue')) return 'bg-rose-100 dark:bg-rose-900/30 text-rose-800 dark:text-rose-200 border-rose-200 dark:border-rose-800/50';
+    return 'bg-gray-100 dark:bg-zinc-800/80 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700';
 };
 
 const getPdfTeaColor = (product) => {
@@ -61,13 +59,12 @@ const getPdfTeaColor = (product) => {
     return { fillColor: [244, 244, 245], textColor: [31, 41, 55] }; 
 };
 
-// All Tea Types for the filter dropdown
 const TEA_TYPES = [
     "BOPF", "BOPF SP", "OPA", "OP 1", "OP", "Pekoe", "BOP", "FBOP", 
     "FF SP", "FF EX SP", "Dust", "Dust 1", "Premium", "Green tea", 
-    "Green tea (25)", "New edition", "Pitigala tea bags(100)", 
-    "Pitigala tea bags(50)", "T/B 25", "T/B 100", "Pitigala tea 400g", 
-    "Awuru pack", "Labour drinking tea"
+    "Green tea bag (25)", "New edition", "Pitigala tea bags", 
+    "Pitigala tea 400g",
+    "Awurudu Special", "Labour drinking tea"
 ];
 
 export default function ViewLocalSaleRecords() {
@@ -94,7 +91,6 @@ export default function ViewLocalSaleRecords() {
     useEffect(() => {
         fetchRecords();
         
-        // Handle outside click for dropdown
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
                 setIsDropdownOpen(false);
@@ -124,17 +120,12 @@ export default function ViewLocalSaleRecords() {
                 const updatedTime = rec.updatedAt ? new Date(rec.updatedAt).getTime() : 0;
                 const isEdited = createdTime > 0 && updatedTime > 0 && (updatedTime - createdTime) > 5000;
                 const lastUpdatedDate = isEdited ? new Date(rec.updatedAt).toISOString().split('T')[0] : '';
+                
                 const itemsArray = rec.salesItems || [];
-
                 const searchString = itemsArray.map(item => item.product).join(' ');
-                const productsPDF = itemsArray.map(item => item.product).join('\n');
-                const packSizesPDF = itemsArray.map(item => `${item.packSizeKg} kg`).join('\n');
-                const boxesPDF = itemsArray.map(item => `${item.numberOfBoxes}`).join('\n');
-                const qtysPDF = itemsArray.map(item => `${item.totalQtyKg} kg`).join('\n');
 
                 return {
-                    ...rec, itemsArray, searchString, productsPDF, packSizesPDF, 
-                    boxesPDF, qtysPDF, isEdited, lastUpdatedDate,
+                    ...rec, itemsArray, searchString, isEdited, lastUpdatedDate,
                     editedBy: rec.updatedBy || rec.editorName || 'Unknown User' 
                 };
             });
@@ -211,11 +202,30 @@ export default function ViewLocalSaleRecords() {
 
         pdfSortedRecords.forEach(record => {
             const baseDate = new Date(record.date).toISOString().split('T')[0];
-            // Include Edited By details in PDF
             const pdfDateCell = record.isEdited ? `${baseDate}\n(Edited by ${record.editedBy} on ${record.lastUpdatedDate})` : baseDate;
 
             record.itemsArray.forEach((item, index) => {
                 const isFirst = index === 0;
+
+                // Combine raw materials for PDF
+                const rmNames = [];
+                const rmQtys = [];
+
+                if (item.rawMaterialName) {
+                    rmNames.push(`${item.rawMaterialName} (Flavor)`);
+                    rmQtys.push(item.rawMaterialQtyKg ? `${Number(item.rawMaterialQtyKg).toFixed(3)} kg` : "-");
+                }
+                if (item.packingMaterials && item.packingMaterials.length > 0) {
+                    item.packingMaterials.forEach(pm => {
+                        if (pm.name) {
+                            rmNames.push(`${pm.name} (Packing)`);
+                            rmQtys.push(pm.qty ? `${Number(pm.qty).toFixed(3)}` : "-");
+                        }
+                    });
+                }
+
+                const rmNameCell = rmNames.length > 0 ? rmNames.join('\n') : "-";
+                const rmQtyCell = rmQtys.length > 0 ? rmQtys.join('\n') : "-";
 
                 tableRows.push([
                     isFirst ? pdfDateCell : "",
@@ -223,20 +233,24 @@ export default function ViewLocalSaleRecords() {
                         content: item.product, 
                         styles: { ...getPdfTeaColor(item.product), fontStyle: 'bold', halign: 'center' } 
                     },
+                    item.type || "-", 
                     `${item.packSizeKg} kg`,
                     item.numberOfBoxes.toString(),
-                    `${item.totalQtyKg.toFixed(2)} kg`,
+                    `${(item.totalQtyKg || 0).toFixed(3)} kg`,
+                    rmNameCell,
+                    rmQtyCell,
+                    item.baseTeaQtyKg ? `${Number(item.baseTeaQtyKg).toFixed(3)} kg` : "-",
                     isFirst ? record.totalBoxes.toString() : "",
-                    isFirst ? `${record.totalQtyKg.toFixed(2)} kg` : ""
+                    isFirst ? `${record.totalQtyKg.toFixed(3)} kg` : ""
                 ]);
             });
         });
 
         tableRows.push([
             { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' } },
-            "-", "-", "-", "-",
+            "-", "-", "-", "-", "-", "-", "-", "-",
             { content: grandTotalBoxes.toString(), styles: { fontStyle: 'bold' } },
-            { content: `${grandTotalQty.toFixed(2)} kg`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } } // Teal color
+            { content: `${grandTotalQty.toFixed(3)} kg`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } } 
         ]);
 
         return tableRows;
@@ -258,11 +272,11 @@ export default function ViewLocalSaleRecords() {
                     <PDFDownloader 
                         title="Local Sale Records"
                         subtitle={`Filters -> Month: ${filterMonth || 'All'} | Date: ${startDate || 'All'} to ${endDate || 'All'} | Product: ${productFilter || 'All'}`}
-                        headers={["Date", "Product", "Pack Size", "No. of Boxes", "Qty", "Daily Boxes", "Daily Qty"]}
+                        headers={["Date", "Product", "Type", "Pack Size", "Items", "Gross Qty", "RM Name", "RM Qty", "Base Qty", "Daily Items", "Daily Gross"]}
                         data={getPdfData()}
                         uniqueCode={uniqueCode}
                         fileName={`Local_Sale_Records_${new Date().toISOString().split('T')[0]}.pdf`}
-                        orientation="portrait" 
+                        orientation="landscape" 
                         disabled={loading || filteredRecords.length === 0}
                     />
                     <button onClick={fetchRecords} disabled={loading} className={`px-4 py-2.5 bg-white dark:bg-zinc-900 text-[#0f766e] dark:text-teal-400 border border-[#0d9488] dark:border-teal-800 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-50 dark:hover:bg-zinc-800'}`}>
@@ -343,11 +357,19 @@ export default function ViewLocalSaleRecords() {
                                 <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-500">
                                     <th className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-500 align-bottom min-w-[120px]"><Calendar size={14} className="inline mr-1"/> Date</th>
                                     <th className="px-4 py-3 font-bold text-green-600 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 align-bottom min-w-[160px]"><Tag size={14} className="inline mr-1"/> Product</th>
-                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> (Kg)</th>
-                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Package size={14} className="inline mr-1"/> Box/Packs</th>
-                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> Qty (Kg)</th>
-                                    <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Boxes</th>
-                                    <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Qty (Kg)</th>
+                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Box size={14} className="inline mr-1"/> Type</th>
+                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> Pack (Kg)</th>
+                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Package size={14} className="inline mr-1"/> Items</th>
+                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> Gross Qty (Kg)</th>
+                                    
+                                    {/* --- COMBINED RAW MATERIAL COLUMNS --- */}
+                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-amber-500 border-r border-gray-200 dark:border-zinc-600 bg-yellow-50 dark:bg-yellow-950/20 text-center"><Layers size={14} className="inline mr-1"/> RM Name</th>
+                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-amber-500 border-r border-gray-200 dark:border-zinc-600 bg-yellow-50 dark:bg-yellow-950/20 text-center"><Droplet size={14} className="inline mr-1"/> RM (QTY)</th>
+                                    
+                                    <th className="px-4 py-3 font-bold text-teal-700 dark:text-teal-500 border-r border-gray-200 dark:border-zinc-600 bg-teal-50 dark:bg-teal-950/20 text-center"><Leaf size={14} className="inline mr-1"/> Base (Kg)</th>
+                                    
+                                    <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Items</th>
+                                    <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Gross (Kg)</th>
                                     {!isViewer && <th className="px-4 py-3 font-semibold align-bottom text-center bg-gray-50 dark:bg-zinc-950/50">Action</th>}
                                 </tr>
                             </thead>
@@ -368,41 +390,150 @@ export default function ViewLocalSaleRecords() {
                                             
                                             <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px">
                                                 <div className="flex flex-col w-full h-full">
-                                                    {record.itemsArray.map((t, i) => (
-                                                        <div key={i} className={`flex-1 flex items-center px-4 py-3 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0 ${getTeaColor(t.product)}`}>
-                                                            {t.product}
-                                                        </div>
-                                                    ))}
+                                                    {record.itemsArray.map((t, i) => {
+                                                        const rmCount = (t.rawMaterialName ? 1 : 0) + (t.packingMaterials ? t.packingMaterials.length : 0);
+                                                        const hasAnyRm = rmCount > 0;
+                                                        return (
+                                                            <div key={i} className={`flex flex-col justify-center px-4 py-3 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0 ${getTeaColor(t.product)}`} style={{ minHeight: hasAnyRm ? `${(rmCount * 20) + 24}px` : '48px' }}>
+                                                                {t.product}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </td>
+
+                                            <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                <div className="flex flex-col w-full h-full">
+                                                    {record.itemsArray.map((t, i) => {
+                                                        const rmCount = (t.rawMaterialName ? 1 : 0) + (t.packingMaterials ? t.packingMaterials.length : 0);
+                                                        const hasAnyRm = rmCount > 0;
+                                                        return (
+                                                            <div key={i} className="flex flex-col justify-center items-center px-3 py-3 text-gray-600 dark:text-gray-300 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0" style={{ minHeight: hasAnyRm ? `${(rmCount * 20) + 24}px` : '48px' }}>
+                                                                {t.type || '-'}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </td>
                                             
                                             <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
                                                 <div className="flex flex-col w-full h-full">
-                                                    {record.itemsArray.map((t, i) => (
-                                                        <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-600 dark:text-gray-300 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                            {t.packSizeKg}
-                                                        </div>
-                                                    ))}
+                                                    {record.itemsArray.map((t, i) => {
+                                                        const rmCount = (t.rawMaterialName ? 1 : 0) + (t.packingMaterials ? t.packingMaterials.length : 0);
+                                                        const hasAnyRm = rmCount > 0;
+                                                        return (
+                                                            <div key={i} className="flex flex-col justify-center items-center px-3 py-3 text-gray-600 dark:text-gray-300 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0" style={{ minHeight: hasAnyRm ? `${(rmCount * 20) + 24}px` : '48px' }}>
+                                                                {t.packSizeKg}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </td>
 
                                             <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
                                                 <div className="flex flex-col w-full h-full">
-                                                    {record.itemsArray.map((t, i) => (
-                                                        <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-600 dark:text-gray-300 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                            {t.numberOfBoxes}
-                                                        </div>
-                                                    ))}
+                                                    {record.itemsArray.map((t, i) => {
+                                                        const rmCount = (t.rawMaterialName ? 1 : 0) + (t.packingMaterials ? t.packingMaterials.length : 0);
+                                                        const hasAnyRm = rmCount > 0;
+                                                        return (
+                                                            <div key={i} className="flex flex-col justify-center items-center px-3 py-3 text-gray-600 dark:text-gray-300 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0" style={{ minHeight: hasAnyRm ? `${(rmCount * 20) + 24}px` : '48px' }}>
+                                                                {t.numberOfBoxes}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </td>
 
                                             <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
                                                 <div className="flex flex-col w-full h-full">
-                                                    {record.itemsArray.map((t, i) => (
-                                                        <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-800 dark:text-gray-200 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                            <span className="text-gray-600 dark:text-green-500">{t.totalQtyKg?.toFixed(2)}</span>
-                                                        </div>
-                                                    ))}
+                                                    {record.itemsArray.map((t, i) => {
+                                                        const rmCount = (t.rawMaterialName ? 1 : 0) + (t.packingMaterials ? t.packingMaterials.length : 0);
+                                                        const hasAnyRm = rmCount > 0;
+                                                        return (
+                                                            <div key={i} className="flex flex-col justify-center items-center px-3 py-3 text-gray-800 dark:text-gray-200 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0" style={{ minHeight: hasAnyRm ? `${(rmCount * 20) + 24}px` : '48px' }}>
+                                                                <span className="text-gray-600 dark:text-green-500">{(t.totalQtyKg || 0).toFixed(3)}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </td>
+
+                                            {/* --- COMBINED COLUMN: RM NAME --- */}
+                                            <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                <div className="flex flex-col w-full h-full">
+                                                    {record.itemsArray.map((t, i) => {
+                                                        const hasFlavor = !!t.rawMaterialName;
+                                                        const packingMats = t.packingMaterials || [];
+                                                        const hasPacking = packingMats.length > 0;
+                                                        const hasNothing = !hasFlavor && !hasPacking;
+                                                        const rmCount = (hasFlavor ? 1 : 0) + packingMats.length;
+
+                                                        return (
+                                                            <div key={i} className="flex flex-col justify-center px-3 py-2 text-amber-700 dark:text-amber-500 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0" style={{ minHeight: rmCount > 0 ? `${(rmCount * 20) + 24}px` : '48px' }}>
+                                                                {hasNothing && <div className="text-center">-</div>}
+                                                                
+                                                                {hasFlavor && (
+                                                                    <div className="flex items-center gap-1.5 justify-center leading-tight min-h-[20px]">
+                                                                        <span>{t.rawMaterialName}</span>
+                                                                        <span className="text-[10px] text-amber-600/70 dark:text-amber-400/70 font-semibold">(Flavor)</span>
+                                                                    </div>
+                                                                )}
+                                                                
+                                                                {packingMats.map((pm, pmIdx) => (
+                                                                    <div key={pmIdx} className="flex items-center gap-1.5 justify-center leading-tight min-h-[20px]">
+                                                                        <span>{pm.name}</span>
+                                                                        <span className="text-[10px] text-amber-600/70 dark:text-amber-400/70 font-semibold">(Packing)</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </td>
+
+                                            {/* --- COMBINED COLUMN: RM QTY --- */}
+                                            <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                <div className="flex flex-col w-full h-full">
+                                                    {record.itemsArray.map((t, i) => {
+                                                        const hasFlavor = !!t.rawMaterialName;
+                                                        const packingMats = t.packingMaterials || [];
+                                                        const hasPacking = packingMats.length > 0;
+                                                        const hasNothing = !hasFlavor && !hasPacking;
+                                                        const rmCount = (hasFlavor ? 1 : 0) + packingMats.length;
+
+                                                        return (
+                                                            <div key={i} className="flex flex-col justify-center px-3 py-2 text-amber-700 dark:text-amber-500 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0" style={{ minHeight: rmCount > 0 ? `${(rmCount * 20) + 24}px` : '48px' }}>
+                                                                {hasNothing && <div className="text-center">-</div>}
+                                                                
+                                                                {hasFlavor && (
+                                                                    <div className="text-center leading-tight min-h-[20px] flex items-center justify-center">
+                                                                        {t.rawMaterialQtyKg ? Number(t.rawMaterialQtyKg).toFixed(3) : '-'}
+                                                                    </div>
+                                                                )}
+                                                                
+                                                                {packingMats.map((pm, pmIdx) => (
+                                                                    <div key={pmIdx} className="text-center leading-tight min-h-[20px] flex items-center justify-center">
+                                                                        {pm.qty ? Number(pm.qty).toFixed(3) : '-'}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </td>
+
+                                            {/* --- BASE TEA QTY --- */}
+                                            <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                <div className="flex flex-col w-full h-full">
+                                                    {record.itemsArray.map((t, i) => {
+                                                        const rmCount = (t.rawMaterialName ? 1 : 0) + (t.packingMaterials ? t.packingMaterials.length : 0);
+                                                        const hasAnyRm = rmCount > 0;
+                                                        return (
+                                                            <div key={i} className="flex flex-col justify-center items-center px-3 py-3 text-teal-700 dark:text-teal-500 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0" style={{ minHeight: hasAnyRm ? `${(rmCount * 20) + 24}px` : '48px' }}>
+                                                                {t.baseTeaQtyKg ? Number(t.baseTeaQtyKg).toFixed(3) : '-'}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </td>
 
@@ -411,7 +542,7 @@ export default function ViewLocalSaleRecords() {
                                             </td>
 
                                             <td className="px-3 py-4 text-center border-r border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 align-top">
-                                                <span className="font-bold text-green-700 dark:text-green-400 text-lg">{record.totalQtyKg?.toFixed(2)}</span>
+                                                <span className="font-bold text-green-700 dark:text-green-400 text-lg">{record.totalQtyKg?.toFixed(3)}</span>
                                             </td>
                                             
                                             {!isViewer && (
@@ -437,15 +568,15 @@ export default function ViewLocalSaleRecords() {
                                         </tr>
                                     ))
                                 ) : (
-                                    <tr><td colSpan={isViewer ? "7" : "8"} className="p-16 text-center text-gray-400"><p>No records found</p></td></tr>
+                                    <tr><td colSpan={isViewer ? "11" : "12"} className="p-16 text-center text-gray-400"><p>No records found</p></td></tr>
                                 )}
                             </tbody>
                             {filteredRecords.length > 0 && (
                                 <tfoot className="bg-gray-100/90 dark:bg-zinc-900/90 border-t-2 border-gray-200 dark:border-zinc-700">
                                     <tr>
-                                        <td colSpan="5" className="px-4 py-4 text-right font-bold tracking-wider uppercase border-r border-gray-200 dark:border-zinc-800">MONTHLY TOTAL</td>
+                                        <td colSpan="9" className="px-4 py-4 text-right font-bold tracking-wider uppercase border-r border-gray-200 dark:border-zinc-800">MONTHLY TOTAL</td>
                                         <td className="px-3 py-4 text-center font-black text-xl border-r border-gray-200 dark:border-zinc-800">{grandTotalBoxes}</td>
-                                        <td className="px-3 py-4 text-center font-black text-[#0f766e] dark:text-teal-500 text-xl border-r border-gray-200 dark:border-zinc-800">{grandTotalQty.toFixed(2)} kg</td>
+                                        <td className="px-3 py-4 text-center font-black text-[#0f766e] dark:text-teal-500 text-xl border-r border-gray-200 dark:border-zinc-800">{grandTotalQty.toFixed(3)} kg</td>
                                         {!isViewer && <td></td>}
                                     </tr>
                                 </tfoot>
