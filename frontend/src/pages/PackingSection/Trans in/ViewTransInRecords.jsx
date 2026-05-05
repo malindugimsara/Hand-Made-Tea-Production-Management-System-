@@ -116,13 +116,35 @@ export default function ViewTransInRecords() {
         }
     };
 
-    const filteredRecords = records.filter(record => {
-        const rDate = new Date(record.dateReceived).toISOString().split('T')[0];
-        const monthMatch = !filterMonth || rDate.startsWith(filterMonth);
-        const dateMatch = (!startDate || rDate >= startDate) && (!endDate || rDate <= endDate);
-        const productMatch = !productFilter || record.searchString.toLowerCase().includes(productFilter.toLowerCase());
-        return monthMatch && dateMatch && productMatch;
-    });
+  const filteredRecords = records.reduce((acc, record) => {
+    // Date එක අරගෙන මාසය සහ දිනය ගැලපෙනවද කියලා බලනවා
+    const rDate = new Date(record.dateReceived || record.date).toISOString().split('T')[0];
+    const monthMatch = !filterMonth || rDate.startsWith(filterMonth);
+    const dateMatch = (!startDate || rDate >= startDate) && (!endDate || rDate <= endDate);
+    
+    // මාසය හෝ දිනය ගැලපෙන්නේ නැත්නම් මේ record එක අතහරින්න
+    if (!monthMatch || !dateMatch) return acc;
+
+    // record එක ඇතුලේ තියෙන items ටික ගන්න. (undefined ආවොත් crash නොවෙන්න || [] දාලා තියෙනවා)
+    let matchedItems = record.items || []; 
+    
+    if (productFilter) {
+        // exact match (===) භාවිතා කර ෆිල්ටර් කරයි. (උදා: BOPF සෙවූ විට BOPF SP අහුවෙන්නේ නැත)
+        matchedItems = matchedItems.filter(
+            item => item.product?.toLowerCase() === productFilter.toLowerCase()
+        );
+    }
+
+    // ගැලපෙන items එකක් හෝ තියෙනවා නම් පමණක් එය පෙන්නන්න
+    if (matchedItems.length > 0) {
+        acc.push({
+            ...record,
+            items: matchedItems // මුළු දවසේම දත්ත වෙනුවට, සෙවුමට ගැලපෙන items පමණක් replace කරයි
+        });
+    }
+
+    return acc;
+}, []);
 
     const grandTotalReceivedQty = filteredRecords.reduce((sum, record) => {
         const recTotal = record.items.reduce((itemSum, item) => itemSum + (Number(item.receivedQtyKg) || 0), 0);

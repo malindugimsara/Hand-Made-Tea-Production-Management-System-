@@ -111,6 +111,8 @@ export default function ViewTeaCenterRecords() {
 
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer';
+    // Add this new line right below them:
+    const isAdmin = userRole.toLowerCase() === 'admin';
 
     // --- FILTER STATES ---
     const [filterMonth, setFilterMonth] = useState('');
@@ -183,13 +185,39 @@ export default function ViewTeaCenterRecords() {
         }
     };
 
-    const filteredRecords = records.filter(record => {
+    const filteredRecords = records.reduce((acc, record) => {
+        // 1. Date සහ Month filters චෙක් කිරීම
         const monthMatch = !filterMonth || record.date.startsWith(filterMonth);
         const dateMatch = (!startDate || record.date >= startDate) && (!endDate || record.date <= endDate);
-        const productMatch = !productFilter || record.searchString.toLowerCase().includes(productFilter.toLowerCase());
-        return monthMatch && dateMatch && productMatch;
-    });
+        
+        if (!monthMatch || !dateMatch) return acc;
 
+        // 2. Product filter එකක් දීලා තියෙනවා නම්, ඒකට ගැලපෙන items විතරක් වෙන් කිරීම
+        let matchedItems = record.itemsArray;
+        if (productFilter) {
+            // exact match (===) භාවිතා කරන නිසා 'BOPF' සෙවුමකට 'BOPF SP' අහුවෙන්නේ නැත.
+            matchedItems = record.itemsArray.filter(
+                item => item.product.toLowerCase() === productFilter.toLowerCase()
+            );
+        }
+
+        // 3. ගැලපෙන items තියෙනවා නම් විතරක් ඒ දවස පෙන්නන්න එකතු කිරීම
+        if (matchedItems.length > 0) {
+            // Filter වුන items වලට අදාලව Daily Items සහ Daily Gross අලුතෙන් එකතු කිරීම 
+            // (එවිට පල්ලෙහා තියෙන Grand Total එකත් නිවැරදිව හැදේවි)
+            const filteredTotalBoxes = matchedItems.reduce((sum, item) => sum + (Number(item.numberOfBoxes) || 0), 0);
+            const filteredTotalQtyKg = matchedItems.reduce((sum, item) => sum + (Number(item.totalQtyKg) || 0), 0);
+
+            acc.push({
+                ...record,
+                itemsArray: matchedItems,
+                totalBoxes: filteredTotalBoxes,
+                totalQtyKg: filteredTotalQtyKg
+            });
+        }
+
+        return acc;
+    }, []);
     const grandTotalBoxes = filteredRecords.reduce((sum, record) => sum + (Number(record.totalBoxes) || 0), 0);
     const grandTotalQty = filteredRecords.reduce((sum, record) => sum + (Number(record.totalQtyKg) || 0), 0);
 
@@ -587,19 +615,21 @@ export default function ViewTeaCenterRecords() {
                                                 <td className="px-3 py-4 text-center align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
                                                     <div className="flex items-center justify-center gap-1">
                                                         <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-teal-600 rounded transition-colors"><MdOutlineEdit size={20} /></button>
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 rounded transition-colors"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
-                                                            <AlertDialogContent className="bg-white rounded-2xl max-w-md">
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle className="text-xl font-bold">Delete Record</AlertDialogTitle>
-                                                                    <AlertDialogDescription>Are you sure you want to delete this record?</AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700">Delete</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
+                                                        {isAdmin && (
+                                                            <AlertDialog>
+                                                                <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 rounded transition-colors"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
+                                                                <AlertDialogContent className="bg-white rounded-2xl max-w-md">
+                                                                    <AlertDialogHeader>
+                                                                        <AlertDialogTitle className="text-xl font-bold">Delete Record</AlertDialogTitle>
+                                                                        <AlertDialogDescription>Are you sure you want to delete this record?</AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <AlertDialogFooter>
+                                                                        <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
+                                                                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700">Delete</AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
+                                                        )}
                                                     </div>
                                                 </td>
                                             )}

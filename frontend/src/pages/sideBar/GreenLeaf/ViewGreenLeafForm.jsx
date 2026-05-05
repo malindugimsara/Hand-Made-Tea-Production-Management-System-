@@ -66,6 +66,8 @@ export default function GreenLeafForm() {
 
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
+    // Add this new line right below them:
+    const isAdmin = userRole.toLowerCase() === 'admin';
 
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -597,21 +599,23 @@ export default function GreenLeafForm() {
                                                                     <td className={`px-3 ${paddingY} text-center align-middle bg-white dark:bg-zinc-950 ${cellBottomBorder}`}>
                                                                         <div className="flex items-center justify-center gap-1">
                                                                             <button onClick={() => handleEditClick(record)} className="p-1 text-gray-400 hover:text-[#1B6A31] transition-all"><MdOutlineEdit size={18} /></button>
-                                                                            <AlertDialog>
-                                                                                <AlertDialogTrigger asChild>
-                                                                                    <button onClick={() => setRecordToDelete(record)} className="p-1 text-gray-400 hover:text-red-500 transition-all"><MdOutlineDeleteOutline size={18} /></button>
-                                                                                </AlertDialogTrigger>
-                                                                                <AlertDialogContent className="bg-white rounded-2xl max-w-md">
-                                                                                    <AlertDialogHeader>
-                                                                                        <AlertDialogTitle className="text-xl font-bold">Delete Record</AlertDialogTitle>
-                                                                                        <AlertDialogDescription>Permanently delete data for {record.date}?</AlertDialogDescription>
-                                                                                    </AlertDialogHeader>
-                                                                                    <AlertDialogFooter>
-                                                                                        <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
-                                                                                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
-                                                                                    </AlertDialogFooter>
-                                                                                </AlertDialogContent>
-                                                                            </AlertDialog>
+                                                                            {isAdmin && (
+                                                                                <AlertDialog>
+                                                                                    <AlertDialogTrigger asChild>
+                                                                                        <button onClick={() => setRecordToDelete(record)} className="p-1 text-gray-400 hover:text-red-500 transition-all"><MdOutlineDeleteOutline size={18} /></button>
+                                                                                    </AlertDialogTrigger>
+                                                                                    <AlertDialogContent className="bg-white rounded-2xl max-w-md">
+                                                                                        <AlertDialogHeader>
+                                                                                            <AlertDialogTitle className="text-xl font-bold">Delete Record</AlertDialogTitle>
+                                                                                            <AlertDialogDescription>Permanently delete data for {record.date}?</AlertDialogDescription>
+                                                                                        </AlertDialogHeader>
+                                                                                        <AlertDialogFooter>
+                                                                                            <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
+                                                                                            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
+                                                                                        </AlertDialogFooter>
+                                                                                    </AlertDialogContent>
+                                                                                </AlertDialog>
+                                                                            )}
                                                                         </div>
                                                                     </td>
                                                                 )}
