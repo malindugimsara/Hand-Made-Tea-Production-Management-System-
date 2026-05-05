@@ -3,7 +3,6 @@ import { Labour } from '../models/Labour.js'; // Adjust the path if your model f
 // Create a new Labour record
 export const createLabour = async (req, res) => {
     try {
-        // අලුතින් එකතු කළ rollingType සහ rollingWorkerCount ලබා ගැනීම
         const { date, workerCount, rollingType, rollingWorkerCount } = req.body;
         
         const newRecord = new Labour({
@@ -36,7 +35,6 @@ export const updateLabour = async (req, res) => {
         const { id } = req.params;
         const updatedData = req.body;
 
-        // findByIdAndUpdate එකේදී සම්පූර්ණ body එකම යන නිසා මෙතන වෙනසක් කරන්න අවශ්‍ය නැහැ
         const record = await Labour.findByIdAndUpdate(id, updatedData, { new: true });
         
         if (!record) {

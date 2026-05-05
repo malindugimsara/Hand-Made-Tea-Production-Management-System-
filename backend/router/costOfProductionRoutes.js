@@ -8,7 +8,7 @@ const costOfProductionRouter = express.Router();
 // POST: Save or Update
 costOfProductionRouter.post('/', verifyToken, authorizeRoles('Admin', 'HandMade Officer'), saveCostOfProduction);
 
-// GET: Fetch by Month (URL එකේ අගට මාසය එනවා)
+// GET: Fetch by Month 
 costOfProductionRouter.get('/:month', verifyToken, authorizeRoles('Admin', 'HandMade Officer', 'Viewer'), getCostOfProductionByMonth);
 
 export default costOfProductionRouter;

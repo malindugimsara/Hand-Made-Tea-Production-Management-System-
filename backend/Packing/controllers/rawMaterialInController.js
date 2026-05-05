@@ -10,7 +10,6 @@ export const createRawMaterialIn = async (req, res) => {
             return res.status(400).json({ success: false, message: 'No items provided' });
         }
 
-        // Transaction වාර්තාව නිර්මාණය කිරීම 
         const newRecord = new RawMaterialIn({
             date,
             invoiceNo,
@@ -25,17 +24,13 @@ export const createRawMaterialIn = async (req, res) => {
             const qty = Number(item.quantity || 0);
             if (qty <= 0) continue;
 
-            // අමුද්‍රව්‍යයේ නමින් තොගය සොයයි
             let stock = await RawMaterialStock.findOne({ materialName: item.materialName });
 
             if (stock) {
-                // දැනටමත් තිබේ නම් එයට අලුත් ප්‍රමාණය එකතු කරයි
                 stock.totalQuantity += qty;
                 
-                // 👇 අලුතින්: Trans-In Amount එකටත් එකතු කිරීම 👇
                 stock.transInAmount = (stock.transInAmount || 0) + qty;
                 
-                // Frontend එකෙන් එන අලුත් Category එකෙන් Stock එක Update කරනවා
                 if(item.category) stock.category = item.category; 
                 
                 await stock.save();
@@ -44,10 +39,10 @@ export const createRawMaterialIn = async (req, res) => {
                 const newStock = new RawMaterialStock({
                     materialName: item.materialName,
                     totalQuantity: qty,
-                    transInAmount: qty,  // 👇 අලුතින්: පළමු වතාවට එද්දිත් Trans-In එක සටහන් කරයි
-                    issueAmount: 0,      // අලුතින්
+                    transInAmount: qty,  
+                    issueAmount: 0,      
                     unit: item.unit,
-                    category: item.category || 'other' // Frontend එකේ Select කරපු එක
+                    category: item.category || 'other' 
                 });
                 await newStock.save();
             }
@@ -63,10 +58,8 @@ export const createRawMaterialIn = async (req, res) => {
     }
 };
 
-// 5. දැනට තියෙන සම්පූර්ණ අමුද්‍රව්‍ය තොගය (Current Raw Material Stock) ලබා ගැනීම
 export const getRawMaterialStock = async (req, res) => {
     try {
-        // RawMaterialStock model එකෙන් මුළු තොගයම ගන්නවා
         const stock = await RawMaterialStock.find().sort({ materialName: 1 }); 
         
         res.status(200).json({ success: true, data: stock });
@@ -76,7 +69,6 @@ export const getRawMaterialStock = async (req, res) => {
     }
 };
 
-// 2. සියලුම වාර්තා ලබා ගැනීම (Get All History)
 export const getAllRawMaterialInRecords = async (req, res) => {
     try {
         const records = await RawMaterialIn.find().sort({ date: -1, createdAt: -1 });
@@ -87,7 +79,6 @@ export const getAllRawMaterialInRecords = async (req, res) => {
     }
 };
 
-// 3. නිශ්චිත වාර්තාවක් ID එක මගින් ලබා ගැනීම
 export const getRawMaterialInById = async (req, res) => {
     try {
         const record = await RawMaterialIn.findById(req.params.id);
@@ -100,10 +91,8 @@ export const getRawMaterialInById = async (req, res) => {
     }
 };
 
-// 4. වාර්තාවක් මකා දැමීම (Delete & Auto Stock Reversal)
 export const deleteRawMaterialInRecord = async (req, res) => {
     try {
-        // 1. මුලින්ම මකන්න ඕනේ Record එක මොකක්ද කියලා DB එකෙන් හොයාගන්නවා (මකන්න කලින්)
         const record = await RawMaterialIn.findById(req.params.id);
         
         if (!record) {
@@ -111,7 +100,6 @@ export const deleteRawMaterialInRecord = async (req, res) => {
         }
 
         // 👇 AUTOMATED STOCK REVERSAL LOGIC 👇
-        // Record එකේ තිබුණ Items ටික එකින් එක අරගෙන Stock එකෙන් අඩු කරනවා
         for (const item of record.items) {
             const qtyToRemove = Number(item.quantity || 0);
             if (qtyToRemove <= 0) continue;
@@ -119,13 +107,12 @@ export const deleteRawMaterialInRecord = async (req, res) => {
             let stock = await RawMaterialStock.findOne({ materialName: item.materialName });
 
             if (stock) {
-                // Stock එකට එකතු වෙලා තිබුණු ප්‍රමාණය ආපහු අඩු කරනවා
                 stock.totalQuantity -= qtyToRemove;
                 
-                // 👇 අලුතින්: Trans-In Amount එකෙන් මේ ගාණ අඩු කරන්න ඕනේ 👇
+        
                 stock.transInAmount -= qtyToRemove;
                 
-                // සෘණ (Negative) වීම වැළැක්වීම
+               
                 if (stock.totalQuantity < 0) stock.totalQuantity = 0;
                 if (stock.transInAmount < 0) stock.transInAmount = 0;
                 
@@ -134,7 +121,6 @@ export const deleteRawMaterialInRecord = async (req, res) => {
         }
         // 👆 END OF AUTOMATED STOCK REVERSAL 👆
 
-        // 2. Stock එක අඩු කළාට පස්සේ අදාළ Record එක සම්පූර්ණයෙන්ම මකා දමනවා
         await record.deleteOne();
 
         res.status(200).json({ success: true, message: "Record deleted and stock reversed successfully" });

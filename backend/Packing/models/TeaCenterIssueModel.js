@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-// Packing Materials (Label, Pouch, Box etc.) සඳහා වෙනම කුඩා Schema එකක්
+// Packing Materials (Label, Pouch, Box etc.) 
 const packingMaterialSchema = new mongoose.Schema({
     name: { type: String },
     qty: { type: Number }
@@ -27,7 +27,6 @@ const issueItemSchema = new mongoose.Schema({
         required: true 
     },
     
-    // 👇 අලුතින් එකතු කළ යුතු Fields (For Stock Reversal) 👇
     baseTeaQtyKg: { 
         type: Number, 
         default: 0 

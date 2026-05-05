@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 
-// පොදු Item Schema එකක් (Trans-in සහ Trans-out දෙකටම ගැලපෙන්න)
 const transactionItemSchema = new mongoose.Schema({
     grade: { 
         type: String, 
@@ -32,14 +31,12 @@ const teaTransactionSchema = new mongoose.Schema({
         type: String,
         required: false 
     },
-    // Optional: වාර්තාව වෙනස් කළ පුද්ගලයා
     updatedBy: { type: String },
     createdBy: { type: String }
 }, { 
     timestamps: true 
 });
 
-// Model එකේ නම TeaTransaction ලෙස වෙනස් කිරීම වඩාත් අර්ථවත් වේ
 const TeaTransactionOther = mongoose.model('TeaTransactionOther', teaTransactionSchema);
 
 export default TeaTransactionOther;

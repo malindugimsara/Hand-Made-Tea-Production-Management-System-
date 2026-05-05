@@ -5,7 +5,7 @@ export const saveCostOfProduction = async (req, res) => {
     try {
         const { month, monthlyGlRate, labourRate, electricityRate, teaCosts, grandTotal } = req.body;
 
-        // අදාළ මාසය සඳහා record එකක් ඩේටාබේස් එකේ ඇත්දැයි බැලීම
+        
         let record = await CostOfProduction.findOne({ month });
 
         if (record) {
@@ -19,7 +19,7 @@ export const saveCostOfProduction = async (req, res) => {
             await record.save();
             return res.status(200).json({ message: 'Record updated successfully', record });
         } else {
-            // නැතිනම්, අලුත් record එකක් සෑදීම (Create)
+            
             record = new CostOfProduction({
                 month, 
                 monthlyGlRate, 
@@ -38,7 +38,7 @@ export const saveCostOfProduction = async (req, res) => {
     }
 };
 
-// Get Cost of Production by Month (Optional: ඔබට පසුව අවශ්‍ය වුවහොත්)
+// Get Cost of Production by Month 
 export const getCostOfProductionByMonth = async (req, res) => {
     try {
         const { month } = req.params;

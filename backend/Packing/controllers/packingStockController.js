@@ -34,7 +34,6 @@ export const createPackingStock = async (req, res) => {
         }
 
         // 👇 AUTOMATED GRAND TOTAL CALCULATION 👇
-        // අලුතින් Stock එකක් හදද්දී, ඒකෙ Source වල තියෙන ගණන් ඔක්කොම එකතු කරලා Grand Total එක හදනවා
         if (req.body.stockBySource && Array.isArray(req.body.stockBySource)) {
             req.body.totalBulkStockKg = req.body.stockBySource.reduce((sum, src) => sum + (Number(src.quantityKg) || 0), 0);
         }
@@ -58,7 +57,6 @@ export const updatePackingStock = async (req, res) => {
         }
 
         // 👇 AUTOMATED GRAND TOTAL RE-CALCULATION 👇
-        // Stock එක Update කරද්දීත් Grand Total එක අලුත් වෙනවා
         if (req.body.stockBySource && Array.isArray(req.body.stockBySource)) {
             req.body.totalBulkStockKg = req.body.stockBySource.reduce((sum, src) => sum + (Number(src.quantityKg) || 0), 0);
         }
