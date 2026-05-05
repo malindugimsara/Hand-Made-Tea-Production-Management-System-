@@ -33,13 +33,13 @@ export const createTeaReceivedRecord = async (req, res) => {
                 
                 if (sourceObj) {
                     sourceObj.quantityKg += incomingQty;
-                    // අලුතින් Trans-In Amount එකට එකතු කරයි
+                
                     sourceObj.transInAmount = (sourceObj.transInAmount || 0) + incomingQty;
                 } else {
                     stock.stockBySource.push({ 
                         sourceName: 'Factory', 
                         quantityKg: incomingQty,
-                        transInAmount: incomingQty, // පළමු වතාවට එද්දිත් Trans-In එක සටහන් කරයි
+                        transInAmount: incomingQty, 
                         issueAmount: 0 
                     });
                 }
@@ -53,7 +53,7 @@ export const createTeaReceivedRecord = async (req, res) => {
                     stockBySource: [{ 
                         sourceName: 'Factory', 
                         quantityKg: incomingQty,
-                        transInAmount: incomingQty, // පළමු වතාවට එද්දිත් Trans-In එක සටහන් කරයි
+                        transInAmount: incomingQty, 
                         issueAmount: 0
                     }],
                     totalBulkStockKg: incomingQty,
@@ -91,7 +91,7 @@ export const getTeaReceivedRecords = async (req, res) => {
 // @access  Private
 export const deleteTeaReceivedRecord = async (req, res) => {
     try {
-        // මකන්න කලින් Record එක හොයාගන්නවා
+        
         const record = await TeaReceived.findById(req.params.id);
 
         if (!record) {
@@ -111,11 +111,11 @@ export const deleteTeaReceivedRecord = async (req, res) => {
                 let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Factory');
                 
                 if (sourceObj) {
-                    // ගාණ ආපහු අඩු කරනවා
+                   
                     sourceObj.quantityKg -= qtyToRemove;
                     sourceObj.transInAmount -= qtyToRemove; 
                     
-                    // සෘණ වීම වැළැක්වීම
+                    
                     if(sourceObj.quantityKg < 0) sourceObj.quantityKg = 0;
                     if(sourceObj.transInAmount < 0) sourceObj.transInAmount = 0;
                 }
@@ -128,7 +128,6 @@ export const deleteTeaReceivedRecord = async (req, res) => {
         }
         // 👆 END OF AUTOMATED STOCK REVERSAL 👆
 
-        // Stock එක Reverse කළාට පස්සේ අදාළ Record එක මකා දමනවා
         await record.deleteOne();
         res.status(200).json({ message: 'Record removed successfully' });
     } catch (error) {
@@ -151,8 +150,7 @@ export const updateTeaReceivedRecord = async (req, res) => {
         }
 
         // Note: Update කරද්දීත් Stock එක Reverse කරලා අලුත් ගාණ දාන්න ඕනේ නම් ඒක ලියන්න වෙනවා.
-        // දැනට පරණ විදියටම Update වෙනවා. (මෙය සංකීර්ණ නිසා සාමාන්‍යයෙන් Update කරන්නේ නැතුව Delete කරලා ආයේ දාන්න කියනවා.)
-
+        
         record.date = date;
         record.transactionNo = transactionNo;
         record.totalQtyKg = totalQtyKg;

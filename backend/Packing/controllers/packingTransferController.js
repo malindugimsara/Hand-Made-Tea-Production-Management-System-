@@ -62,16 +62,12 @@ export const receiveTransferInPacking = async (req, res) => {
             let stock = await PackingStock.findOne({ productName: productName });
 
             if (stock) {
-                // Product එක කලින් තියෙනවා නම්, අදාළ Source එක Array එකේ තියෙනවද බලනවා
                 let sourceObj = stock.stockBySource.find(s => s.sourceName === incomingSource);
                 
                 if (sourceObj) {
-                    // Source එකත් තියෙනවා නම් quantity එකතු කරනවා
                     sourceObj.quantityKg += incomingQty;
-                    // 👇 අලුතින්: Trans-In Amount එකට එකතු කිරීම 👇
                     sourceObj.transInAmount = (sourceObj.transInAmount || 0) + incomingQty;
                 } else {
-                    // අලුත් Source එකක් නම් අලුතින් Array එකට දානවා (Trans-In එකත් එක්කම)
                     stock.stockBySource.push({ 
                         sourceName: incomingSource, 
                         quantityKg: incomingQty,
@@ -80,18 +76,16 @@ export const receiveTransferInPacking = async (req, res) => {
                     });
                 }
                 
-                // මුළු ප්‍රමාණයටත් එකතු කරනවා
                 stock.totalBulkStockKg += incomingQty;
                 await stock.save();
                 
             } else {
-                // සම්පූර්ණයෙන්ම අලුත් Product එකක් නම්
                 const newStock = new PackingStock({
                     productName: productName,
                     stockBySource: [{ 
                         sourceName: incomingSource, 
                         quantityKg: incomingQty,
-                        transInAmount: incomingQty, // අලුතින් එකතු විය
+                        transInAmount: incomingQty, 
                         issueAmount: 0
                     }],
                     totalBulkStockKg: incomingQty,

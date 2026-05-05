@@ -1,7 +1,6 @@
 import TeaTransactionOther from '../models/TeaTransactionOther.js';
 import PackingStock from '../models/PackingStock.js'; // <-- PackingStock model එක අනිවාර්යයෙන් import කරන්න
 
-// 1. අලුත් Transaction එකක් ඇතුළත් කිරීම (Create)
 export const createTransaction = async (req, res) => {
     try {
         const { date, transactionNo, totalQtyKg, items, partyName, createdBy } = req.body;
@@ -26,19 +25,14 @@ export const createTransaction = async (req, res) => {
 
             if (incomingQty <= 0) continue; 
 
-            // නමින් පමණක් Stock එක සොයයි
             let stock = await PackingStock.findOne({ productName: productName });
 
             if (stock) {
-                // කලින් මේ නමින් තේ එකක් Database එකේ තිබේ නම්:
                 let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Other');
                 if (sourceObj) {
-                    // 'Other' කියන source එක දැනටමත් තිබේ නම් එයට අලුත් ප්‍රමාණය එකතු කරයි
                     sourceObj.quantityKg += incomingQty;
-                    // අලුතින්: Trans-In Amount එකට එකතු කරයි
                     sourceObj.transInAmount = (sourceObj.transInAmount || 0) + incomingQty;
                 } else {
-                    // 'Other' එකෙන් එන පළමු වතාව නම් අලුතින් Array එකට දමයි (Trans-In එකත් එක්කම)
                     stock.stockBySource.push({ 
                         sourceName: 'Other', 
                         quantityKg: incomingQty,
@@ -46,18 +40,18 @@ export const createTransaction = async (req, res) => {
                         issueAmount: 0 
                     });
                 }
-                // Grand Total එකටත් එකතු කරයි
+               
                 stock.totalBulkStockKg += incomingQty;
                 await stock.save();
 
             } else {
-                // මේ නමින් කිසිම තේ එකක් කලින් තිබිලා නැත්නම් අලුතින් සාදයි
+             
                 const newStock = new PackingStock({
                     productName: productName,
                     stockBySource: [{ 
                         sourceName: 'Other', 
                         quantityKg: incomingQty,
-                        transInAmount: incomingQty, // අලුතින් එකතු විය
+                        transInAmount: incomingQty, 
                         issueAmount: 0 
                     }],
                     totalBulkStockKg: incomingQty,
@@ -68,7 +62,7 @@ export const createTransaction = async (req, res) => {
         }
         // 👆 END OF AUTOMATED INVENTORY ADDITION 👆
 
-        // Transaction record එක save කිරීම
+
         const savedTransaction = await newTransaction.save();
         res.status(201).json({ success: true, data: savedTransaction });
 
@@ -78,10 +72,10 @@ export const createTransaction = async (req, res) => {
     }
 };
 
-// 2. සියලුම Transactions ලබා ගැනීම (Get All)
+
 export const getAllTransactions = async (req, res) => {
     try {
-        // අලුත්ම ඒවා මුලින්ම එන විදිහට sort කර ඇත
+    
         const transactions = await TeaTransactionOther.find().sort({ date: -1 });
         res.status(200).json({ success: true, data: transactions });
     } catch (error) {
@@ -90,7 +84,6 @@ export const getAllTransactions = async (req, res) => {
     }
 };
 
-// 3. නිශ්චිත Transaction එකක් ID එක මගින් ලබා ගැනීම (Get by ID)
 export const getTransactionById = async (req, res) => {
     try {
         const transaction = await TeaTransactionOther.findById(req.params.id);
@@ -106,7 +99,7 @@ export const getTransactionById = async (req, res) => {
     }
 };
 
-// 4. Transaction එකක් Update කිරීම
+
 export const updateTransaction = async (req, res) => {
     try {
         const { date, transactionNo, totalQtyKg, items, partyName, updatedBy } = req.body;
@@ -153,10 +146,10 @@ export const deleteTransaction = async (req, res) => {
                     const otherSource = stock.stockBySource?.find(s => s.sourceName === 'Other');
                     if (otherSource) {
                         otherSource.quantityKg -= qtyToRemove;
-                        // අලුතින්: Trans-In Amount එක ආපසු අඩු කිරීම (Reverse)
+                        
                         otherSource.transInAmount -= qtyToRemove; 
 
-                        // සෘණ වීම වැළැක්වීම
+                        
                         if (otherSource.quantityKg < 0) otherSource.quantityKg = 0;
                         if (otherSource.transInAmount < 0) otherSource.transInAmount = 0;
                     }

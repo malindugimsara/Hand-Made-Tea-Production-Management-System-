@@ -7,7 +7,6 @@ import {
     getRawMaterialStock
 } from '../controllers/rawMaterialInController.js'; 
 
-// ඔබ middleware (e.g., protect) භාවිතා කරනවා නම් මෙතනට import කරගන්න
 
 const rawMaterialInRouter = express.Router();
 

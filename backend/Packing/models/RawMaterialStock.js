@@ -21,7 +21,7 @@ const rawMaterialStockSchema = new mongoose.Schema({
         default: 0 
     },
     // ----------------------------
-    totalQuantity: { // මේක Current Stock එක විදියට ක්‍රියා කරයි
+    totalQuantity: { 
         type: Number, 
         default: 0 
     },
