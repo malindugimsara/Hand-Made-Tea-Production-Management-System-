@@ -542,7 +542,7 @@ export default function ViewTeaCenterRecords() {
                                                                 {hasFlavor && (
                                                                     <div className="flex items-center gap-1.5 justify-center leading-tight min-h-[20px]">
                                                                         <span className='text-blue-600'>{t.rawMaterialName}</span>
-                                                                        <span className="text-[10px] text-blue-600/70 dark:text-amber-400/70 font-semibold">(Flavor)</span>
+                                                                        <span className="text-[10px] text-blue-600/70 dark:text-amber-400/70 font-semibold">(spicy)</span>
                                                                     </div>
                                                                 )}
                                                                 

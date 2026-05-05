@@ -5,8 +5,8 @@ import { useNavigate } from 'react-router-dom';
 
 // Common Raw Materials list for Autocomplete
 const RAW_MATERIALS = [
-    "Coil Bag (100g)", "Coil Bag (200g)", "Cloth Bag", "Paper Bag", "Standard Bag",
-    "Chest Box", "Paper Can", "Wooden Cylinder", "Sticker", "Label", "Barcode", "Box", "Label Bag", "Coil Bag"
+    "Alfoil Bag (100g)", "Alfoil Bag (200g)", "Cloth Bag", "Paper Bag", "Standard Bag","Price Sticker",
+    "Chest Box", "Paper Can", "Wooden Cylinder", "Sticker", "Label", "Barcode", "Box", "Label Bag", "Alfoil Bag"
 ];
 
 // Flavors list for Autocomplete
@@ -209,8 +209,8 @@ export default function RawMaterialInEntry() {
             
             <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold text-[#0f766e] dark:text-teal-400">Raw Material & Flavors Inward Entry</h2>
-                    <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Record incoming flavors, packaging, and raw materials</p>
+                    <h2 className="text-3xl font-bold text-[#0f766e] dark:text-teal-400">Raw Material & Spicy Inward Entry</h2>
+                    <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Record incoming spices, packaging, and raw materials</p>
                 </div>
             </div>
             
@@ -227,7 +227,7 @@ export default function RawMaterialInEntry() {
                                 <label className={`flex items-center gap-2 px-5 py-3 rounded-lg border-2 cursor-pointer transition-all ${entryType === 'flavor' ? 'border-[#0d9488] bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 shadow-sm' : 'border-gray-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 text-gray-500 dark:text-gray-400'}`}>
                                     <input type="radio" name="entryType" value="flavor" checked={entryType === 'flavor'} onChange={handleTypeChange} className="hidden" />
                                     <Leaf size={20} className={entryType === 'flavor' ? 'animate-pulse' : ''} /> 
-                                    <span className="font-bold">Flavors (Kg Only)</span>
+                                    <span className="font-bold">Spicy (Kg Only)</span>
                                 </label>
                                 <label className={`flex items-center gap-2 px-5 py-3 rounded-lg border-2 cursor-pointer transition-all ${entryType === 'other' ? 'border-[#0d9488] bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 shadow-sm' : 'border-gray-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 text-gray-500 dark:text-gray-400'}`}>
                                     <input type="radio" name="entryType" value="other" checked={entryType === 'other'} onChange={handleTypeChange} className="hidden" />
@@ -263,7 +263,7 @@ export default function RawMaterialInEntry() {
                         <div className="mb-8 bg-[#f0fdfa] dark:bg-teal-950/20 border border-[#99f6e4] dark:border-teal-800/50 rounded-lg p-6 transition-colors duration-300">
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="text-lg font-bold text-[#0f766e] dark:text-teal-500 flex items-center gap-2">
-                                    <Layers size={20} /> {entryType === 'flavor' ? 'Flavors Received' : 'Materials Received'}
+                                    <Layers size={20} /> {entryType === 'flavor' ? 'Spicy Received' : 'Materials Received'}
                                 </h3>
                             </div>
 
@@ -281,7 +281,7 @@ export default function RawMaterialInEntry() {
                                             <div className="md:col-span-2 relative" ref={el => dropdownRefs.current[`mat-${row.id}`] = el}>
                                                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
                                                     {entryType === 'flavor' ? <Leaf size={12} className="text-[#0d9488]"/> : <Box size={12} className="text-[#0d9488]"/>} 
-                                                    {entryType === 'flavor' ? 'Flavor Name' : 'Material Name'}
+                                                    {entryType === 'flavor' ? 'Spicy Name' : 'Material Name'}
                                                 </label>
                                                 <input 
                                                     type="text" placeholder="Type or Select..." value={row.materialName} 
@@ -335,7 +335,7 @@ export default function RawMaterialInEntry() {
                             
                             <div className="flex justify-end w-full">
                                 <button type="button" onClick={handleAddItemRow} className="mt-4 text-sm font-bold bg-[#f0fdfa] hover:bg-[#99f6e4]/50 dark:bg-teal-900/40 text-[#0f766e] dark:text-teal-400 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors ml-auto border border-[#99f6e4] dark:border-transparent">
-                                    <PlusCircle size={16} /> {entryType === 'flavor' ? 'Add Another Flavor' : 'Add Another Material'}
+                                    <PlusCircle size={16} /> {entryType === 'flavor' ? 'Add Another Spicy' : 'Add Another Material'}
                                 </button>
                             </div>
                         </div>
@@ -418,7 +418,7 @@ export default function RawMaterialInEntry() {
                                 <table className="w-full text-sm border border-gray-300 dark:border-zinc-700 border-collapse">
                                     <thead>
                                         <tr className="bg-gray-200 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-700">
-                                            <th className="px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-700 text-gray-800 dark:text-gray-200">Material/Flavor</th>
+                                            <th className="px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-700 text-gray-800 dark:text-gray-200">Material/Spicy</th>
                                             <th className="px-3 py-2 text-right font-bold text-gray-800 dark:text-gray-200">Category</th>
                                             <th className="px-3 py-2 text-right font-bold text-gray-800 dark:text-gray-200">Total Qty</th>
                                         </tr>

@@ -285,7 +285,7 @@ export default function ViewPackingStock() {
 
     const getPdfTitle = () => {
         if (activeTab === 'tea') return "Tea Inventory Stock";
-        if (activeTab === 'flavor') return "Flavor Inventory Stock";
+        if (activeTab === 'flavor') return "Spicy Inventory Stock";
         return "Packing Materials Inventory Stock";
     };
 
@@ -386,7 +386,7 @@ export default function ViewPackingStock() {
                     onClick={() => setActiveTab('flavor')} 
                     className={`px-6 py-2.5 rounded-t-lg font-bold transition-colors flex items-center gap-2 ${activeTab === 'flavor' ? 'bg-blue-600 text-white' : 'bg-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
                 >
-                    <Droplet size={18} /> Flavor Stock
+                    <Droplet size={18} /> Spicy Stock
                 </button>
                 <button 
                     onClick={() => setActiveTab('packing')} 
@@ -536,14 +536,14 @@ export default function ViewPackingStock() {
                     {loading ? (
                         <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center h-64">
                             <div className="w-8 h-8 border-4 border-blue-400 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-                            <p className="font-medium">Loading flavor stock...</p>
+                            <p className="font-medium">Loading spicy stock...</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
                             <table className="w-full text-sm text-left border-collapse whitespace-nowrap min-w-full">
                                 <thead>
                                     <tr className="bg-blue-50/50 dark:bg-blue-950/30 text-blue-800 dark:text-blue-300 uppercase text-xs tracking-wider border-b border-blue-200 dark:border-blue-800">
-                                        <th className="px-6 py-4 font-bold border-r border-blue-100 dark:border-blue-800 min-w-[250px]">Flavor Name</th>
+                                        <th className="px-6 py-4 font-bold border-r border-blue-100 dark:border-blue-800 min-w-[250px]">Spicy Name</th>
                                         <th className="px-6 py-4 font-bold text-blue-700 dark:text-blue-500 border-r border-blue-100 dark:border-blue-800 text-center"><ArrowDownToLine size={14} className="inline mr-1"/> Trans-In Amount</th>
                                         <th className="px-6 py-4 font-bold text-amber-700 dark:text-amber-500 border-r border-blue-100 dark:border-blue-800 text-center"><ArrowUpFromLine size={14} className="inline mr-1"/> Issue Amount</th>
                                         <th className="px-6 py-4 font-bold text-blue-700 dark:text-blue-400 text-center border-r border-blue-100 dark:border-blue-800 bg-blue-100/30 dark:bg-blue-950/30"><Warehouse size={14} className="inline mr-1"/> Current Stock</th>
@@ -574,7 +574,7 @@ export default function ViewPackingStock() {
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr><td colSpan="5" className="p-16 text-center text-gray-400"><p>No flavor records found</p></td></tr>
+                                        <tr><td colSpan="5" className="p-16 text-center text-gray-400"><p>No spicy records found</p></td></tr>
                                     )}
                                 </tbody>
                             </table>

@@ -199,14 +199,13 @@ export default function EditLocalRecord() {
                 const formattedItems = recordData.salesItems.map((item, idx) => ({
                     id: Date.now() + idx,
                     product: item.product,
-                    type: item.type || '',
                     packSizeKg: item.packSizeKg,
                     numberOfBoxes: item.numberOfBoxes,
                     packingMaterials: item.packingMaterials || []
                 }));
                 setItemsList(formattedItems);
             } else {
-                setItemsList([{ id: Date.now(), product: '', type: '', packSizeKg: '', numberOfBoxes: '', packingMaterials: [] }]);
+                setItemsList([{ id: Date.now(), product: '', packSizeKg: '', numberOfBoxes: '', packingMaterials: [] }]);
             }
         } else {
             toast.error("No record data found!");
@@ -219,7 +218,7 @@ export default function EditLocalRecord() {
 
     // --- DYNAMIC FIELD HANDLERS ---
     const handleAddItemRow = () => {
-        setItemsList([...itemsList, { id: Date.now(), product: '', type: '', packSizeKg: '', numberOfBoxes: '', packingMaterials: [] }]);
+        setItemsList([...itemsList, { id: Date.now(), product: '', packSizeKg: '', numberOfBoxes: '', packingMaterials: [] }]);
     };
 
     const handleRemoveItemRow = (idToRemove) => {
@@ -260,7 +259,7 @@ export default function EditLocalRecord() {
     };
 
     const handleItemChange = (id, field, value) => {
-        if (field !== 'product' && field !== 'type' && value !== '' && (Number(value) < 0 || value.includes('-'))) return;
+        if (field !== 'product' &&  value !== '' && (Number(value) < 0 || value.includes('-'))) return;
         
         setItemsList(itemsList.map(row => {
             if (row.id === id) {
@@ -293,7 +292,7 @@ export default function EditLocalRecord() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        const hasEmptyItem = itemsList.some(row => !row.product || !row.type || row.packSizeKg === '' || row.numberOfBoxes === '');
+        const hasEmptyItem = itemsList.some(row => !row.product || row.packSizeKg === '' || row.numberOfBoxes === '');
         if (hasEmptyItem) {
             toast.error("Please fill out all Product, Type, Pack Size, and Box details completely!");
             return;
@@ -369,7 +368,6 @@ export default function EditLocalRecord() {
                 
                 return {
                     product: item.product,
-                    type: item.type,
                     packSizeKg: Number(item.packSizeKg),
                     numberOfBoxes: Number(item.numberOfBoxes),
                     totalQtyKg: Number(total.toFixed(3)),
@@ -575,7 +573,7 @@ export default function EditLocalRecord() {
                                             </button>
                                         )}
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                             
                                             {/* Custom Product Autocomplete Input */}
                                             <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`product-${row.id}`] = el}>
@@ -614,33 +612,7 @@ export default function EditLocalRecord() {
                                                 )}
                                             </div>
 
-                                            {/* Type Input */}
-                                            <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`type-${row.id}`] = el}>
-                                                <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase flex items-center gap-1">
-                                                    <Box size={12} className="text-[#0d9488] dark:text-teal-400"/> Pack Type
-                                                </label>
-                                                <input 
-                                                    type="text" 
-                                                    placeholder="Type..."
-                                                    value={row.type}
-                                                    onChange={(e) => handleItemChange(row.id, 'type', e.target.value)}
-                                                    onFocus={() => setOpenDropdownId(`type-${row.id}`)}
-                                                    required
-                                                    className="w-full p-2.5 h-[42px] border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
-                                                />
-                                                
-                                                {openDropdownId === `type-${row.id}` && (
-                                                    <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar z-20">
-                                                        {PACKAGING_TYPES
-                                                            .filter(type => type.toLowerCase().includes((row.type || '').toLowerCase()))
-                                                            .map((type, idx) => (
-                                                            <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'type', type); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0">
-                                                                {type}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                )}
-                                            </div>
+                                            
 
                                             {/* Dynamic Pack Size Input */}
                                             <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`size-${row.id}`] = el}>

@@ -43,7 +43,7 @@ const getPdfMaterialColor = (material) => {
 };
 
 const RAW_MATERIALS = [
-    "Coil Bag (100g)", "Coil Bag (200g)", "Cloth Bag", "Paper Bag", "Standard Bag",
+    "Coil Bag (100g)", "Coil Bag (200g)", "Cloth Bag", "Paper Bag", "Standard Bag", "Price Sticker",
     "Chest Box", "Paper Can", "Wooden Cylinder", "Sticker", "Label", "Barcode", "Box", "Label Bag", "Coil Bag"
 ];
 
@@ -60,7 +60,7 @@ const getCategory = (materialName) => {
     const isFlavor = FLAVOR_NAMES.some(flavor => 
         (materialName || "").toLowerCase().includes(flavor.toLowerCase())
     );
-    return isFlavor ? 'flavor' : 'other';
+    return isFlavor ? 'spicy' : 'other';
 };
 
 export default function ViewRawMaterialInRecords() {
@@ -334,7 +334,7 @@ export default function ViewRawMaterialInRecords() {
                             className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf]/50 transition-colors cursor-pointer"
                         >
                             <option value="all">All Categories</option>
-                            <option value="flavor">Flavors Only</option>
+                            <option value="flavor">Spicy Only</option>
                             <option value="other">Other Materials</option>
                         </select>
                     </div>
@@ -472,7 +472,7 @@ export default function ViewRawMaterialInRecords() {
                                                         <div className="flex flex-col w-full h-full">
                                                             {displayItems.map((t, i) => (
                                                                 <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                                    <span className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded tracking-wider ${t.category === 'flavor' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'}`}>
+                                                                    <span className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded tracking-wider ${t.category === 'spicy' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'}`}>
                                                                         {t.category}
                                                                     </span>
                                                                 </div>
@@ -561,7 +561,7 @@ export default function ViewRawMaterialInRecords() {
                                                             {item.category === 'flavor' ? <Leaf size={12} className="text-emerald-600"/> : <Box size={12} className="text-blue-600"/>}
                                                             {item.materialName}
                                                         </span>
-                                                        <span className={`text-[8px] uppercase font-bold px-1.5 py-0.5 rounded w-max ${item.category === 'flavor' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                        <span className={`text-[8px] uppercase font-bold px-1.5 py-0.5 rounded w-max ${item.category === 'spicy' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
                                                             {item.category}
                                                         </span>
                                                     </div>
