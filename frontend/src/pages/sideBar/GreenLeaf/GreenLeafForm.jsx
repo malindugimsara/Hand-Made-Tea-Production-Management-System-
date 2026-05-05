@@ -394,16 +394,16 @@ export default function GreenLeafForm() {
                String(today.getDate()).padStart(2, '0');
     };
 
-    const [formData, setFormData] = useState({
-        date: getTodayLocalString(),
-        totalWeight: '',
-        selectedWeight: '',
-        outputs: [{ teaType: '', madeTeaWeight: '' }], 
-        expectedDryerDate: '', 
-        workerCount: '',
-        rollingType: 'Machine Rolling1', 
-        rollingWorkerCount: ''
-    });
+   const [formData, setFormData] = useState({
+    date: getTodayLocalString(),
+    totalWeight: '',
+    selectedWeight: '',
+    outputs: [{ teaType: '', madeTeaWeight: '' }], 
+    expectedDryerDate: '', 
+    workerCount: '',
+    rollingType: 'Machine Rolling1', // dropdown එකේ පළවෙනි option එක
+    rollingWorkerCount: ''
+});
 
     const [existingDates, setExistingDates] = useState([]);
     const [lastReadings, setLastReadings] = useState({ 'Dryer 1': '', 'Dryer 2': '' });

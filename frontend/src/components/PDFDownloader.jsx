@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-
 export default function PDFDownloader({ 
     title = "Document", 
     subtitle = "", 
@@ -37,14 +36,14 @@ export default function PDFDownloader({
                         reader.onloadend = () => resolve(reader.result);
                         reader.readAsDataURL(blob);
                     });
-                    doc.addImage(dataUrl, "PNG", 14, 10, 25, 25); 
+                    doc.addImage(dataUrl, "PNG", 14, 10, 25, 25,"","FAST"); 
                 }
             } catch (err) {
                 console.warn("Logo not found or couldn't be loaded.");
             }
 
             // 2. Add Titles
-            doc.setFontSize(22);
+            doc.setFontSize(16);
             doc.setTextColor(27, 106, 49); // Dark Green
             doc.text(title, 45, 20);
             

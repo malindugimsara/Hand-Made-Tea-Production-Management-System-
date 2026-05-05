@@ -14,6 +14,17 @@ import userRouter from './router/userRouter.js';
 import sellingDetailsRouter from './router/sellingDetailsRoutes.js';
 import productionSummaryRouter from './router/productionSummaryRoute.js';
 
+// Packing Section Routes
+import localSaleRouter from './Packing/Routes/localSaleRoutes.js';
+import teaCenterIssueRouter from './Packing/Routes/TeaCenterIssueRouter.js';
+
+import packingTransferRouter from './Packing/Routes/packingTransferRouter.js';
+import handmadeTransferRouter from './router/handmadeTransferRouter.js';
+import teaReceivedRouter from './Packing/Routes/TeaReceivedRouter.js';
+import packingStockRouter from './Packing/Routes/packingStockRoutes.js';
+import teaTransactionOtherRouter from './Packing/Routes/teaTransactionOtherRouter.js';
+import rawMaterialInRouter from './Packing/Routes/rawMaterialInRouter.js';
+
 dotenv.config();
 const app = express();
 
@@ -44,6 +55,18 @@ app.use('/api/raw-material-cost', rawMaterialCostRoutes);
 app.use('/api/users', userRouter); // User management routes (Admins only)
 app.use('/api/selling-details', sellingDetailsRouter);
 app.use('/api/production-summary', productionSummaryRouter); // Add this line to include the production summary routes
+app.use('/api/handmade/transfers', handmadeTransferRouter);
+
+// Packing Section Routes
+
+app.use('/api/local-sales', localSaleRouter);
+app.use('/api/tea-center-issues', teaCenterIssueRouter);
+app.use('/api/packing/transfers', packingTransferRouter);
+app.use('/api/tea-received', teaReceivedRouter);
+app.use('/api/packing-stock', packingStockRouter);
+app.use('/api/tea-receivedother', teaTransactionOtherRouter);
+app.use('/api/raw-materials-in', rawMaterialInRouter);
+
 
 app.listen(3000, () => {
   console.log('Server is running on port 3000');

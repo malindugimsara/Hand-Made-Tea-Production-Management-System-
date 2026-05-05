@@ -1,7 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import toast from 'react-hot-toast'; // Toaster import එක ඉවත් කර නැත, භාවිතා කරන බැවින්.
+import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { Users, Shield, UserPlus, Edit, Trash2, X } from "lucide-react";
+import { Users, Shield, UserPlus, Edit, Trash2, X, AlertCircle } from "lucide-react";
+
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function ManageUsers() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -14,9 +26,10 @@ export default function ManageUsers() {
     const [editingUser, setEditingUser] = useState(null);
     const [editFormData, setEditFormData] = useState({ username: '', role: '', password: '' });
 
+    // Delete State
+    const [userToDelete, setUserToDelete] = useState(null);
+
     useEffect(() => {
-        // Grab the role using the correct key ('userRole')
-        // We use || localStorage.getItem('role') just as a fallback in case it was saved differently!
         const currentRole = localStorage.getItem('userRole') || localStorage.getItem('role');
 
         if (currentRole !== 'Admin') {
@@ -46,13 +59,13 @@ export default function ManageUsers() {
     };
 
     // --- DELETE LOGIC ---
-    const handleDelete = async (userId, username) => {
-        if (!window.confirm(`Are you sure you want to permanently delete user: ${username}?`)) return;
+    const handleConfirmDelete = async () => {
+        if (!userToDelete) return;
 
         const toastId = toast.loading("Deleting user...");
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/users/${userId}`, {
+            const response = await fetch(`${BACKEND_URL}/api/users/${userToDelete._id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -67,12 +80,15 @@ export default function ManageUsers() {
             }
         } catch (error) {
             toast.error("Network error.", { id: toastId });
+        } finally {
+            setUserToDelete(null);
         }
     };
 
     // --- EDIT LOGIC ---
     const openEditModal = (user) => {
         setEditingUser(user._id);
+        // Backend එක password එක හිස්ව ආවොත් skip කරන නිසා මෙතන password: '' ලෙස තැබීම නිවැරදියි
         setEditFormData({ username: user.username, role: user.role, password: '' });
     };
 
@@ -94,7 +110,7 @@ export default function ManageUsers() {
             const data = await response.json();
 
             if (response.ok) {
-                toast.success("User updated successfully!", { id: toastId });
+                toast.success(data.message || "User updated successfully!", { id: toastId });
                 setEditingUser(null); // Close modal
                 fetchUsers(); // Refresh list
             } else {
@@ -106,7 +122,7 @@ export default function ManageUsers() {
     };
 
     return (
-        <div className="p-8 max-w-5xl mx-auto font-sans relative min-h-screen bg-transparent transition-colors duration-300 border border-gray-200 dark:border-zinc-800 rounded-xl">
+        <div className="p-8 max-w-5xl mx-auto font-sans relative min-h-screen bg-transparent transition-colors duration-300 border border-gray-200 dark:border-zinc-800 rounded-xl mt-5">
 
             
             <div className="flex justify-between items-end mb-8 border-b border-gray-200 dark:border-zinc-800 pb-4 transition-colors">
@@ -144,7 +160,8 @@ export default function ManageUsers() {
                                     <td className="px-6 py-4 border-r border-gray-100 dark:border-zinc-800/60">
                                         <span className={`px-3 py-1 rounded-full text-xs font-bold border flex w-fit items-center gap-1 transition-colors
                                             ${user.role === 'Admin' ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800/50' : 
-                                              user.role === 'Officer' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/50' : 
+                                              user.role === 'HandMade Officer' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800/50' : 
+                                              user.role === 'Packing Officer' ? 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-800/50' :
                                               'bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-zinc-700'}`}
                                         >
                                             {user.role === 'Admin' && <Shield size={12}/>}
@@ -159,13 +176,44 @@ export default function ManageUsers() {
                                         >
                                             <Edit size={18} />
                                         </button>
-                                        <button 
-                                            onClick={() => handleDelete(user._id, user.username)}
-                                            className="p-2 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-md transition-colors"
-                                            title="Delete User"
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
+                                        
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <button 
+                                                    onClick={() => setUserToDelete(user)}
+                                                    className="p-2 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-md transition-colors"
+                                                    title="Delete User"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-md">
+                                                <AlertDialogHeader>
+                                                    <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4 border border-red-200 dark:border-red-800/50">
+                                                        <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                                                    </div>
+                                                    <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-white">Delete User Account</AlertDialogTitle>
+                                                    <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-base">
+                                                        Are you sure you want to permanently delete user <span className="font-bold text-gray-800 dark:text-gray-200">{user.username}</span>? This action cannot be undone.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter className="mt-6">
+                                                    <AlertDialogCancel 
+                                                        onClick={() => setUserToDelete(null)} 
+                                                        className="border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 rounded-lg px-6 font-semibold"
+                                                    >
+                                                        Cancel
+                                                    </AlertDialogCancel>
+                                                    <AlertDialogAction 
+                                                        onClick={handleConfirmDelete} 
+                                                        className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
+                                                    >
+                                                        Delete User
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                        
                                     </td>
                                 </tr>
                             ))}
@@ -205,7 +253,8 @@ export default function ManageUsers() {
                                     className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
                                 >
                                     <option value="Viewer">Viewer</option>
-                                    <option value="Officer">Officer</option>
+                                    <option value="HandMade Officer">HandMade Officer</option>
+                                    <option value="Packing Officer">Packing Officer</option>
                                     <option value="Admin">Admin</option>
                                 </select>
                             </div>
@@ -226,7 +275,6 @@ export default function ManageUsers() {
                     </div>
                 </div>
             )}
-
         </div>
     );
 }

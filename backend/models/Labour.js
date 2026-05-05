@@ -13,7 +13,7 @@ const labourSchema = new mongoose.Schema({
     rollingType: {
         type: String,
         enum: ['Machine Rolling1', 'Machine Rolling2', 'Machine Rolling3', 'Hand Rolling', 'Other'],
-        default: 'Machine Rolling1'
+        default: 'Machine Rolling'
     }, // Type of rolling method used
     rollingWorkerCount: {
         type: Number,

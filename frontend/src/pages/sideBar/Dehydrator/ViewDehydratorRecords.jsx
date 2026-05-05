@@ -26,6 +26,8 @@ export default function ViewDehydratorRecords() {
 
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer';
+    // Add this new line right below them:
+    const isAdmin = userRole.toLowerCase() === 'admin'; 
 
     // --- FILTER STATES ---
     const [filterMonth, setFilterMonth] = useState('');
@@ -402,21 +404,38 @@ export default function ViewDehydratorRecords() {
                                             {!isViewer && (
                                                 <td className="px-3 py-3 text-center align-top pt-3">
                                                     <div className="flex items-center justify-center gap-1">
-                                                        <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-400 hover:bg-[#8CC63F]/20 dark:hover:bg-zinc-800 rounded transition-all"><MdOutlineEdit size={20} /></button>
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
-                                                            <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-md">
-                                                                <AlertDialogHeader>
-                                                                    <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4 border border-red-200 dark:border-red-800"><AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" /></div>
-                                                                    <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-white">Delete Record</AlertDialogTitle>
-                                                                    <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-base">Are you sure you want to delete this batch record?</AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter className="mt-6">
-                                                                    <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
+                                                        
+                                                        {/* Edit Button: Visible to both Admin and HandMade Officer */}
+                                                        <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-400 hover:bg-[#8CC63F]/20 dark:hover:bg-zinc-800 rounded transition-all">
+                                                            <MdOutlineEdit size={20} />
+                                                        </button>
+                                                        
+                                                        {/* Delete Button: Wrapped to ONLY be visible to Admins */}
+                                                        {isAdmin && (
+                                                            <AlertDialog>
+                                                                <AlertDialogTrigger asChild>
+                                                                    <button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all">
+                                                                        <MdOutlineDeleteOutline size={20} />
+                                                                    </button>
+                                                                </AlertDialogTrigger>
+                                                                <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-md">
+                                                                    <AlertDialogHeader>
+                                                                        <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4 border border-red-200 dark:border-red-800">
+                                                                            <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                                                                        </div>
+                                                                        <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-white">Delete Record</AlertDialogTitle>
+                                                                        <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-base">
+                                                                            Are you sure you want to delete this batch record?
+                                                                        </AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <AlertDialogFooter className="mt-6">
+                                                                        <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
+                                                                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
+                                                        )}
+
                                                     </div>
                                                 </td>
                                             )}

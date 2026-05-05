@@ -1,6 +1,6 @@
 import { RawMaterialCost } from '../models/RawMaterialCostModel.js';
 
-// 1. අලුත් රෙකෝඩ් එකක් ඩේටාබේස් එකට Save කිරීම (Create)
+// Create new Raw Material Cost record
 export const createRawMaterialCost = async (req, res) => {
     try {
         const newRecord = new RawMaterialCost(req.body);
@@ -12,10 +12,10 @@ export const createRawMaterialCost = async (req, res) => {
     }
 };
 
-// 2. ඩේටාබේස් එකේ ඇති සියලුම රෙකෝඩ්ස් ලබා ගැනීම (Read - Frontend Table එකට පෙන්වීමට)
+// 2. Get all records 
 export const getAllRawMaterialCosts = async (req, res) => {
     try {
-        // අලුත්ම දත්ත මුලින් එන සේ sort කර ඇත
+        
         const records = await RawMaterialCost.find().sort({ date: -1 }); 
         return res.status(200).json(records);
     } catch (error) {
@@ -23,8 +23,7 @@ export const getAllRawMaterialCosts = async (req, res) => {
         return res.status(500).json({ error: 'Server error while fetching records' });
     }
 };
-
-// 3. රෙකෝඩ් එකක් මකා දැමීම (Delete - අත්වැරදීමකින් දැමූ රෙකෝඩ් මකා දැමීමට)
+// 3. Delete a record
 export const deleteRawMaterialCost = async (req, res) => {
     try {
         const { id } = req.params;
@@ -36,14 +35,14 @@ export const deleteRawMaterialCost = async (req, res) => {
     }
 };
 
-// රෙකෝඩ් එකක් Update කිරීම (Update)
+// 4. Update a record
 export const updateRawMaterialCost = async (req, res) => {
     try {
         const { id } = req.params;
         const updatedRecord = await RawMaterialCost.findByIdAndUpdate(
             id, 
             req.body, 
-            { new: true } // Update වූ අලුත් දත්ත return කිරීමට
+            { new: true } // Return the updated document
         );
 
         if (!updatedRecord) {

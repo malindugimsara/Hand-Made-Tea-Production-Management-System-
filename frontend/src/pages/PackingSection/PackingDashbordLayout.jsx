@@ -6,16 +6,16 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 // --- LUCIDE ICONS ---
 import {
   LayoutDashboard,
-  Leaf,
-  Factory,
   LineChart,
   LogOut,
   ChevronRight,
-  ChevronDown, // Added for the top nav dropdown
-  Shield, 
+  ChevronDown,
   Sun,
   Moon,
-  Sprout, 
+  Store,
+  Coffee,
+  PackagePlus,
+  Proportions, 
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -65,57 +65,61 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const DATA = {
   factory: {
     name: 'Athukorala Group',
-    plan: 'HandMade Tea',
+    plan: 'Packing Section',
     logo: () => <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain" />,
   },
   quickLinks: [
-    { name: 'Dashboard Home', url: '/dashboard', icon: LayoutDashboard },
+    { name: 'Dashboard Home', url: '/packing', icon: LayoutDashboard },
   ],
   navMain: [
     {
-      title: 'Green Leaf',
-      icon: Leaf,
+      title: 'Local Sales',
+      icon: Store,
       items: [
-        { title: 'Record Entry', url: '/green-leaf-form', roles: ['Admin', 'HandMade Officer'] }, 
-        { title: 'View Records', url: '/view-green-leaf', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'Local Record Entry', url: '/packing/local-record-entry', roles: ['Admin', 'Packing Officer'] },
+        { title: 'Local Record View', url: '/packing/local-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
       ],
     },
     {
-      title: 'Dehydrator Machine',
-      icon: Factory,
+      title: 'Tea Center',
+      icon: Coffee,
       items: [
-        { title: 'Record Entry', url: '/dehydrator-record-form', roles: ['Admin', 'HandMade Officer'] },
-        { title: 'View Records', url: '/view-dehydrator-records', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'Tea Center Record Entry', url: '/packing/tea-center-record-entry', roles: ['Admin', 'Packing Officer'] },
+        { title: 'Tea Center Record View', url: '/packing/tea-center-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
       ],
     },
     {
-      title: 'Raw Material',
-      icon: Sprout ,
+        title: 'Summary',
+        icon: LineChart,
+        items: [
+          { title: 'Product-Issue Summary', url: '/packing/product-issue-summary', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+          { title: 'Stock Summary', url: '/packing/summary-reports', roles: ['Admin', 'Packing Officer'] },
+          ],
+    }, 
+    {
+      title: 'Trans In',
+      icon: PackagePlus,
       items: [
-        { title: 'Raw Material Cost', url: '/raw-material-cost', roles: ['Admin', 'HandMade Officer'] },
-        { title: 'View RM Costs', url: '/view-raw-material-cost', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'H/T - Trans In', url: '/packing/trans-in-entry', roles: ['Admin', 'Packing Officer'] },
+        { title: 'Factory - Trans In', url: '/packing/trans-in-factory-entry', roles: ['Admin', 'Packing Officer'] },
+        { title: 'Other - Trans In', url: '/packing/trans-in-other', roles: ['Admin', 'Packing Officer'] },
+        { title: 'Raw Material - Trans In', url: '/packing/trans-in-raw-material', roles: ['Admin', 'Packing Officer'] }
       ],
     },
     {
-      title: 'Summary Reports',
-      icon: LineChart,
-      items: [
-        { title: 'Production Summary', url: '/production-summary', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
-        { title: 'Selling Details', url: '/selling-details-table', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
-        { title: 'Cost of Production', url: '/cost-of-production', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
-      ],
-    },
-    {
-      title: 'System Administration',
-      icon: Shield,
-      items: [
-        { title: 'Manage Users', url: '/manage-users', roles: ['Admin'] },
-      ],
-    },
+        title: 'Trans-In Reports',
+        icon: Proportions,
+        items: [
+          { title: 'H/T - Trans In View', url: '/packing/trans-in-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+          { title: 'Factory - Trans In View', url: '/packing/trans-in-factory-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+          { title: 'Other - Trans In View', url: '/packing/trans-in-view-other', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+          { title: 'Raw Material - Trans In View', url: '/packing/trans-in-view-raw-material', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+        ],
+    }, 
   ],
 };
 
-export default function DashboardLayout() {
+export default function DashboardLayoutP() {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -124,8 +128,15 @@ export default function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
   const sidebarTimeoutRef = React.useRef(null);
 
+  // Close sidebar by default on mobile load
+  React.useEffect(() => {
+    if (isMobile) {
+      setIsSidebarOpen(false);
+    }
+  }, [isMobile]);
+
   const handleSidebarMouseEnter = () => {
-    // Clear the timer if the user brings the mouse back before 5 seconds
+    if (isMobile) return; // Disable hover logic on mobile touch devices
     if (sidebarTimeoutRef.current) {
       clearTimeout(sidebarTimeoutRef.current);
     }
@@ -133,13 +144,12 @@ export default function DashboardLayout() {
   };
 
   const handleSidebarMouseLeave = () => {
-    // Start a 5-second countdown to close the sidebar
+    if (isMobile) return; // Disable hover logic on mobile touch devices
     sidebarTimeoutRef.current = setTimeout(() => {
       setIsSidebarOpen(false);
     }, 100); 
   };
 
-  // Cleanup timer on unmount to prevent memory leaks
   React.useEffect(() => {
     return () => {
       if (sidebarTimeoutRef.current) clearTimeout(sidebarTimeoutRef.current);
@@ -150,7 +160,6 @@ export default function DashboardLayout() {
   const [isDark, setIsDark] = React.useState(false);
 
   React.useEffect(() => {
-    // Check local storage or system preference on load
     const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     
@@ -186,29 +195,38 @@ export default function DashboardLayout() {
 
   const getBreadcrumbTitle = () => {
     switch (location.pathname) {
-      case '/': return 'Dashboard Overview';
-      case '/green-leaf-form': return 'Green Leaf Entry';
-      case '/view-green-leaf': return 'View Green Leaf Records';
-      case '/dehydrator-record-form': return 'Dehydrator Record Entry';
-      case '/view-dehydrator-records': return 'Dehydrator Records';
-      case '/raw-material-cost': return 'Raw Material Cost Entry';
-      case '/view-raw-material-cost': return 'View Raw Material Costs';
-      case '/production-summary': return 'Production Summary';
-      case '/manage-users': return 'User Management'; 
-      case '/create-user': return 'Create User'; 
-      case '/selling-details-table': return 'Selling Details';
-      case '/cost-of-production': return 'Cost of Production';
+      case '/packing/local-record-entry': return 'Local Record Entry';
+      case '/packing/local-record-view': return 'Local Record View';
+      case '/packing/edit-local-sale': return 'Edit Local Sale Record';
+      case '/packing/tea-center-record-entry': return 'Tea Center Record Entry';
+      case '/packing/tea-center-record-view': return 'Tea Center Record View';
+      case '/packing/edit-tea-center-issue': return 'Edit Tea Center Record';
+      case '/packing/trans-in-entry': return 'Trans In Entry';
+      case '/packing/trans-in-view': return 'Trans In View';
+      case '/packing/trans-in-factory-entry': return 'Factory Trans In Entry';
+      case '/packing/trans-in-factory-view': return 'Factory Trans In View';
+      case '/packing/trans-in-other': return 'Other Trans In Entry';
+      case '/packing/trans-in-view-other': return 'Other Trans In View';
+      case '/packing/trans-in-raw-material': return 'Raw Material Entry';
+      case '/packing/trans-in-view-raw-material': return 'Raw Material View';
+      case '/packing/product-issue-summary': return 'Product Issue Summary';
+      case '/packing/summary-reports': return 'Stock Summary Reports';
+      
       default: return 'System';
     }
   };
 
+  const todayDateObj = new Date();
+  const today = todayDateObj.toLocaleDateString('en-US', { 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+    });
+
   return (
     <TooltipProvider delayDuration={0}>
-    {/* SidebarProvider is now controlled via state */}
     <SidebarProvider open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
       <Sidebar 
         collapsible="icon" 
-        className="border-none bg-[#F4F7F5] dark:bg-zinc-950 transition-[width] duration-300 ease-in-out"
+        className="border-none bg-[#F4F7F5] dark:bg-zinc-950 transition-[width] duration-300 ease-in-out z-50"
         onMouseEnter={handleSidebarMouseEnter}
         onMouseLeave={handleSidebarMouseLeave}
       >
@@ -219,7 +237,7 @@ export default function DashboardLayout() {
               <SidebarMenuButton size="lg" className="hover:bg-white/50 dark:hover:bg-zinc-900 cursor-default rounded-2xl transition-all duration-300">
                   <DATA.factory.logo className="size-6" />
                 <div className="grid flex-1 text-left text-sm leading-tight ml-2">
-                  <span className="truncate font-bold tracking-tight text-[#1B6A31] dark:text-green-500 text-[17px]">
+                  <span className="truncate font-bold tracking-tight text-[#1B6A31] dark:text-green-500 text-[15px] md:text-[17px]">
                     {DATA.factory.name}
                   </span>
                   <span className="truncate text-xs font-medium text-[#4A9E46] dark:text-green-600">
@@ -244,7 +262,10 @@ export default function DashboardLayout() {
                       asChild 
                       isActive={isActive}
                       tooltip={item.name}
-                      onClick={() => navigate(item.url)}
+                      onClick={() => {
+                        navigate(item.url);
+                        if (isMobile) setIsSidebarOpen(false); // Auto close on mobile click
+                      }}
                       className={`cursor-pointer transition-all duration-300 py-6 rounded-full mb-1 ${
                         isActive 
                         ? 'bg-white dark:bg-zinc-900 shadow-sm text-[#1B6A31] dark:text-green-500 font-bold ring-1 ring-gray-200/50 dark:ring-zinc-800' 
@@ -262,7 +283,6 @@ export default function DashboardLayout() {
             </SidebarMenu>
           </SidebarGroup>
 
-          {/* NESTED MENU (Dynamically Filtered by Role) */}
           <SidebarGroup className="mt-4">
             <SidebarGroupLabel className="text-xs font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase mb-2 ml-2">Management</SidebarGroupLabel>
             <SidebarMenu>
@@ -299,7 +319,10 @@ export default function DashboardLayout() {
                                 <SidebarMenuSubButton 
                                   asChild 
                                   isActive={isSubActive}
-                                  onClick={() => navigate(subItem.url)}
+                                  onClick={() => {
+                                    navigate(subItem.url);
+                                    if (isMobile) setIsSidebarOpen(false); // Auto close on mobile click
+                                  }}
                                   className={`cursor-pointer py-4 rounded-full transition-all duration-300 ${
                                     isSubActive 
                                     ? 'text-[#1B6A31] dark:text-green-500 font-bold bg-white dark:bg-zinc-900 shadow-sm ring-1 ring-gray-200/50 dark:ring-zinc-800' 
@@ -327,23 +350,24 @@ export default function DashboardLayout() {
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className="bg-[#F4F7F5] dark:bg-zinc-950 relative flex flex-col h-screen overflow-hidden p-2 md:p-4">
+      <SidebarInset className="bg-[#F4F7F5] dark:bg-zinc-950 relative flex flex-col h-screen overflow-hidden p-2 md:p-4 w-full">
         
-        <header className="flex h-14 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-2xl border border-white dark:border-zinc-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl shrink-0 items-center justify-between gap-2 absolute top-4 left-4 right-4 z-50 px-4 transition-all">
+        {/* Adjusted top position and padding for mobile */}
+        <header className="flex h-14 bg-white dark:bg-zinc-900/95 backdrop-blur-2xl border border-white dark:border-zinc-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl shrink-0 items-center justify-between gap-2 absolute top-2 left-2 right-2 md:top-4 md:left-4 md:right-4 z-40 px-3 md:px-4 transition-all">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-500 transition-colors" />
-            <Separator orientation="vertical" className="mr-2 h-5 bg-gray-200 dark:bg-zinc-700" />
+            <Separator orientation="vertical" className="mr-1 md:mr-2 h-5 bg-gray-200 dark:bg-zinc-700" />
             
             <Breadcrumb>
               <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
+                <BreadcrumbItem className="hidden lg:block">
                   <BreadcrumbLink className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 font-medium cursor-pointer transition-colors" onClick={() => navigate('/')}>
                     System
                   </BreadcrumbLink>
                 </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block text-gray-300 dark:text-gray-600" />
+                <BreadcrumbSeparator className="hidden lg:block text-gray-300 dark:text-gray-600" />
                 <BreadcrumbItem>
-                  <BreadcrumbPage className="font-bold text-[#1B6A31] dark:text-green-500 tracking-tight">
+                  <BreadcrumbPage className="font-bold text-[#1B6A31] dark:text-green-500 tracking-tight text-sm md:text-base line-clamp-1 max-w-[150px] sm:max-w-xs md:max-w-none">
                     {getBreadcrumbTitle()}
                   </BreadcrumbPage>
                 </BreadcrumbItem>
@@ -351,14 +375,17 @@ export default function DashboardLayout() {
             </Breadcrumb>
           </div>
 
-          {/* --- TOP RIGHT CONTROLS (Theme + Profile/Logout) --- */}
-          <div className="flex items-center gap-2 sm:gap-4 mr-2">
+          {/* --- TOP RIGHT CONTROLS --- */}
+          <div className="flex items-center gap-2 sm:gap-4 md:mr-2">
+
+            {/* Time - Hidden on small screens to save space */}
+            <p className="hidden md:block text-sm font-medium p-4 dark:text-white">{today}</p>
             
             {/* Theme Toggle */}
             <button 
               onClick={toggleTheme}
               title="Toggle Dark Mode"
-              className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors text-gray-600 dark:text-gray-400 focus:outline-none"
+              className="p-2 flex-shrink-0 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors text-gray-600 dark:text-gray-400 focus:outline-none"
             >
               {isDark ? <Sun size={18} className="text-yellow-500" /> : <Moon size={18} />}
             </button>
@@ -368,17 +395,17 @@ export default function DashboardLayout() {
             {/* User Profile Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 focus:outline-none group">
-                <Avatar className="h-9 w-9 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-transform group-hover:scale-105">
-                  <AvatarFallback className="rounded-xl bg-[#8CC63F]/20 text-[#1B6A31] dark:text-green-400 font-bold text-sm">
+                <Avatar className="h-8 w-8 md:h-9 md:w-9 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-transform group-hover:scale-105">
+                  <AvatarFallback className="rounded-xl bg-[#8CC63F]/20 text-[#1B6A31] dark:text-green-400 font-bold text-xs md:text-sm">
                     {currentUsername.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                {/* Hide text on very small screens, show on medium and up */}
-                <div className="hidden md:grid flex-1 text-left text-sm leading-tight">
+                {/* Hide text on small screens */}
+                <div className="hidden lg:grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-bold text-gray-800 dark:text-gray-200 mb-0.5">{currentUsername}</span>
                   <span className="truncate text-[10px] font-bold tracking-wider text-gray-500 dark:text-gray-400 uppercase leading-none">{currentUserRole}</span>
                 </div>
-                <ChevronDown className="size-4 text-gray-400 hidden md:block transition-transform group-data-[state=open]:rotate-180" />
+                <ChevronDown className="size-4 text-gray-400 hidden lg:block transition-transform group-data-[state=open]:rotate-180" />
               </DropdownMenuTrigger>
               
               <DropdownMenuContent
@@ -410,17 +437,17 @@ export default function DashboardLayout() {
             </DropdownMenu>
 
           </div>
-
         </header>
 
-        <div className="flex-1 mt-16 bg-white dark:bg-zinc-900 rounded-[2rem] shadow-[0_0_40px_rgb(0,0,0,0.02)] border border-gray-100 dark:border-zinc-800 overflow-hidden relative flex flex-col transition-colors duration-300">
-          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-zinc-700 hover:scrollbar-thumb-gray-300 dark:hover:scrollbar-thumb-zinc-600">
+        {/* Adjusted top margin to fit under mobile header */}
+        <div className="flex-1 mt-[4.5rem] md:mt-20 bg-white dark:bg-zinc-900 rounded-[1.5rem] md:rounded-[2rem] shadow-[0_0_40px_rgb(0,0,0,0.02)] border border-gray-100 dark:border-zinc-800 overflow-hidden relative flex flex-col transition-colors duration-300">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-zinc-700 hover:scrollbar-thumb-gray-300 dark:hover:scrollbar-thumb-zinc-600">
             <motion.div
               key={location.pathname}
               initial={{ opacity: 0, y: 15, scale: 0.98, filter: 'blur(8px)' }}
               animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
               transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-              className="h-full"
+              className="h-full w-full"
             >
               <Outlet />
             </motion.div>
@@ -429,6 +456,6 @@ export default function DashboardLayout() {
 
       </SidebarInset>
     </SidebarProvider>
-  </TooltipProvider>
+    </TooltipProvider>
   );
 }

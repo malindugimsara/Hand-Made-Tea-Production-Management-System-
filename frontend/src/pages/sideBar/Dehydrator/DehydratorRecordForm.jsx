@@ -270,13 +270,7 @@ export default function DehydratorRecordForm() {
                                 <h3 className="text-lg font-bold text-teal-700 dark:text-teal-500 flex items-center gap-2">
                                     <Scale size={20} /> Items & Moisture Details
                                 </h3>
-                                <button 
-                                    type="button" 
-                                    onClick={handleAddTrialRow}
-                                    className="text-sm font-bold bg-teal-100 hover:bg-teal-200 dark:bg-teal-900/40 dark:hover:bg-teal-800/60 text-teal-700 dark:text-teal-400 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
-                                >
-                                    <PlusCircle size={16} /> Add Item
-                                </button>
+                                
                             </div>
 
                             <div className="space-y-6">
@@ -360,6 +354,15 @@ export default function DehydratorRecordForm() {
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                            <div className="mt-4 flex justify-end w-full">
+                            <button 
+                                    type="button" 
+                                    onClick={handleAddTrialRow}
+                                    className="text-sm font-bold bg-teal-100 hover:bg-teal-200 dark:bg-teal-900/40 dark:hover:bg-teal-800/60 text-teal-700 dark:text-teal-400 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+                                >
+                                    <PlusCircle size={16} /> Add Item
+                                </button>
                             </div>
 
                             {/* Batch Totals */}
