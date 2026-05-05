@@ -43,13 +43,11 @@ const getPdfMaterialColor = (material) => {
 };
 
 const RAW_MATERIALS = [
-    "50g Silver Pouch", "100g Gold Pouch", "200g Printed Box", "500g Printed Box",
-    "Master Carton (Large)", "Master Carton (Small)", "Barcode Labels", 
-    "Packing Tape (Brown)", "Packing Tape (Clear)", "Glue Bottle", 
-    "Tea Bags Filter Paper", "Cotton Thread", "Inner Polybag"
+    "Coil Bag (100g)", "Coil Bag (200g)", "Cloth Bag", "Paper Bag", "Standard Bag", "Price Sticker",
+    "Chest Box", "Paper Can", "Wooden Cylinder", "Sticker", "Label", "Barcode", "Box", "Label Bag", "Coil Bag"
 ];
 
-// List of Flavors to determine category on the fly
+// Flavors list for Autocomplete
 const FLAVOR_NAMES = [
     "Cinnamon", "Chakra", "Ginger", "Masala", "Vanilla", "Mint", 
     "Moringa", "Curry Leaves", "Gotukola", "Heen Bovitiya", "Cardamom", 
@@ -62,7 +60,7 @@ const getCategory = (materialName) => {
     const isFlavor = FLAVOR_NAMES.some(flavor => 
         (materialName || "").toLowerCase().includes(flavor.toLowerCase())
     );
-    return isFlavor ? 'flavor' : 'other';
+    return isFlavor ? 'spicy' : 'other';
 };
 
 export default function ViewRawMaterialInRecords() {
@@ -73,6 +71,8 @@ export default function ViewRawMaterialInRecords() {
 
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer';
+    // Add this new line right below them:
+    const isAdmin = userRole.toLowerCase() === 'admin';
 
     // --- FILTER STATES ---
     const [filterCategory, setFilterCategory] = useState('all'); // NEW: Category Filter
@@ -148,14 +148,49 @@ export default function ViewRawMaterialInRecords() {
         }
     };
 
-    const filteredRecords = records.filter(record => {
-        const categoryMatch = filterCategory === 'all' || record.itemsArray.some(item => (item.category || 'other') === filterCategory);
-        const monthMatch = !filterMonth || record.date.startsWith(filterMonth);
-        const dateMatch = (!startDate || record.date >= startDate) && (!endDate || record.date <= endDate);
-        const searchMatch = !searchFilter || record.searchString.toLowerCase().includes(searchFilter.toLowerCase());
+    const filteredRecords = records.reduce((acc, record) => {
+    // Date සහ Month filters චෙක් කිරීම
+    const rDate = record.date ? new Date(record.date).toISOString().split('T')[0] : '';
+    const monthMatch = !filterMonth || rDate.startsWith(filterMonth);
+    const dateMatch = (!startDate || rDate >= startDate) && (!endDate || rDate <= endDate);
+    
+    // මාසය හෝ දිනය ගැලපෙන්නේ නැත්නම් මේ record එක අතහරින්න
+    if (!monthMatch || !dateMatch) return acc;
+
+    // record එක ඇතුලේ තියෙන items ටික ගන්න. (undefined ආවොත් crash නොවෙන්න || [] දාලා තියෙනවා)
+    let matchedItems = record.itemsArray || []; 
+
+    // 1. Category Filter එක මෙතනදීම Apply කරනවා
+    if (filterCategory !== 'all') {
+        matchedItems = matchedItems.filter(item => (item.category || 'other') === filterCategory);
+    }
+    
+    // 2. Search Box Filter එක Apply කරනවා
+    if (searchFilter) {
+        const searchVal = searchFilter.toLowerCase();
         
-        return categoryMatch && monthMatch && dateMatch && searchMatch;
-    });
+        // Invoice No හෝ Supplier Name එකට සමානද කියලා බලනවා (Partial Match)
+        const isInvoiceMatch = record.invoiceNo?.toLowerCase().includes(searchVal);
+        const isSupplierMatch = record.supplierName?.toLowerCase().includes(searchVal);
+        
+        // ඒ දෙකටම ගැලපුනේ නැත්නම්, හරියටම Material Name එකට සමාන (Exact Match) items විතරක් ගන්නවා
+        if (!isInvoiceMatch && !isSupplierMatch) {
+            matchedItems = matchedItems.filter(
+                item => item.materialName?.toLowerCase() === searchVal
+            );
+        }
+    }
+
+    // ගැලපෙන items එකක් හෝ තියෙනවා නම් පමණක් එය පෙන්නන්න
+    if (matchedItems.length > 0) {
+        acc.push({
+            ...record,
+            itemsArray: matchedItems // ෆිල්ටර් වුන items පමණක් replace කරයි
+        });
+    }
+
+    return acc;
+}, []);
 
     // --- GENERATE DATA FOR SUMMARY TABLE ---
     const summaryMap = {};
@@ -299,7 +334,7 @@ export default function ViewRawMaterialInRecords() {
                             className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf]/50 transition-colors cursor-pointer"
                         >
                             <option value="all">All Categories</option>
-                            <option value="flavor">Flavors Only</option>
+                            <option value="flavor">Spicy Only</option>
                             <option value="other">Other Materials</option>
                         </select>
                     </div>
@@ -437,7 +472,7 @@ export default function ViewRawMaterialInRecords() {
                                                         <div className="flex flex-col w-full h-full">
                                                             {displayItems.map((t, i) => (
                                                                 <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                                    <span className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded tracking-wider ${t.category === 'flavor' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'}`}>
+                                                                    <span className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded tracking-wider ${t.category === 'spicy' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'}`}>
                                                                         {t.category}
                                                                     </span>
                                                                 </div>
@@ -469,19 +504,21 @@ export default function ViewRawMaterialInRecords() {
                                                         <td className="px-3 py-4 text-center align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
                                                             <div className="flex flex-wrap items-center justify-center gap-1 mt-1">
                                                                 <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-[#0f766e] rounded transition-colors"><MdOutlineEdit size={20} /></button>
-                                                                <AlertDialog>
-                                                                    <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 rounded transition-colors"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
-                                                                    <AlertDialogContent className="bg-white rounded-2xl max-w-md w-[90vw] max-w-[425px]">
-                                                                        <AlertDialogHeader>
-                                                                            <AlertDialogTitle className="text-xl font-bold">Delete Record</AlertDialogTitle>
-                                                                            <AlertDialogDescription>Are you sure you want to delete this record?</AlertDialogDescription>
-                                                                        </AlertDialogHeader>
-                                                                        <AlertDialogFooter>
-                                                                            <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
-                                                                            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700">Delete</AlertDialogAction>
-                                                                        </AlertDialogFooter>
-                                                                    </AlertDialogContent>
-                                                                </AlertDialog>
+                                                                {isAdmin && (
+                                                                    <AlertDialog>
+                                                                        <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 rounded transition-colors"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
+                                                                        <AlertDialogContent className="bg-white rounded-2xl max-w-md w-[90vw] max-w-[425px]">
+                                                                            <AlertDialogHeader>
+                                                                                <AlertDialogTitle className="text-xl font-bold">Delete Record</AlertDialogTitle>
+                                                                                <AlertDialogDescription>Are you sure you want to delete this record?</AlertDialogDescription>
+                                                                            </AlertDialogHeader>
+                                                                            <AlertDialogFooter>
+                                                                                <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
+                                                                                <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700">Delete</AlertDialogAction>
+                                                                            </AlertDialogFooter>
+                                                                        </AlertDialogContent>
+                                                                    </AlertDialog>
+                                                                )}
                                                             </div>
                                                         </td>
                                                     )}
@@ -524,7 +561,7 @@ export default function ViewRawMaterialInRecords() {
                                                             {item.category === 'flavor' ? <Leaf size={12} className="text-emerald-600"/> : <Box size={12} className="text-blue-600"/>}
                                                             {item.materialName}
                                                         </span>
-                                                        <span className={`text-[8px] uppercase font-bold px-1.5 py-0.5 rounded w-max ${item.category === 'flavor' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                        <span className={`text-[8px] uppercase font-bold px-1.5 py-0.5 rounded w-max ${item.category === 'spicy' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
                                                             {item.category}
                                                         </span>
                                                     </div>

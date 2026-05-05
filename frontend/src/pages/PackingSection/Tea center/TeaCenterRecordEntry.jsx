@@ -563,9 +563,9 @@ export default function TeaCenterRecordEntry() {
                     <div className="bg-indigo-700 dark:bg-indigo-800 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
                             <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                                <Layers size={20} /> Current Flavors
+                                <Layers size={20} /> Current Spicy Stock
                             </h3>
-                            <p className="text-white/80 text-xs mt-1">Flavor inventory for flavored teas.</p>
+                            <p className="text-white/80 text-xs mt-1">Spicy inventory for flavored teas.</p>
                         </div>
                         <div className="bg-white/20 text-white text-sm font-bold px-4 py-2 rounded-lg backdrop-blur-sm shadow-inner border border-white/10 whitespace-nowrap">
                             {totalAvailableRMCapacity.toFixed(2)} kg
@@ -574,7 +574,7 @@ export default function TeaCenterRecordEntry() {
                     
                     <div className="p-4 flex-1 overflow-y-auto max-h-[220px] custom-scrollbar">
                         {availableRawStock.length === 0 ? (
-                            <div className="h-full flex items-center justify-center text-gray-500 text-sm italic py-8">No flavor stock available.</div>
+                            <div className="h-full flex items-center justify-center text-gray-500 text-sm italic py-8">No spicy stock available.</div>
                         ) : (
                             <div className="flex flex-wrap gap-3">
                                 {availableRawStock.map((rm, idx) => (
@@ -795,7 +795,7 @@ export default function TeaCenterRecordEntry() {
 
                                                     <div>
                                                         <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap" title={isFlavoredUI ? "Auto calculates to 3% for this tea" : "Not applicable for this tea"}>
-                                                            Flavor Qty (kg)
+                                                            Spicy Qty (kg)
                                                         </label>
                                                         <input 
                                                             type="number" 
@@ -914,7 +914,7 @@ export default function TeaCenterRecordEntry() {
                                                             </div>
                                                         ) : isRMOverCapacity ? (
                                                             <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
-                                                                <AlertTriangle size={11} /> Exceeds Flavor Stock!
+                                                                <AlertTriangle size={11} /> Exceeds Spicy Stock!
                                                             </div>
                                                         ) : (row.packingMaterials && row.packingMaterials.some(pm => pm.name && Number(pm.qty) > (availablePackingStock.find(s => s.materialName === pm.name)?.totalQuantity || 0))) ? (
                                                             <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">

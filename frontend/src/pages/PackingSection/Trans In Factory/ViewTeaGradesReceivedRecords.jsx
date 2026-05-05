@@ -73,6 +73,8 @@ export default function ViewTeaGradesReceivedRecords() {
 
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer';
+    // Add this new line right below them:
+    const isAdmin = userRole.toLowerCase() === 'admin';
 
     // --- FILTER STATES ---
     const [filterMonth, setFilterMonth] = useState('');
@@ -146,12 +148,45 @@ export default function ViewTeaGradesReceivedRecords() {
         }
     };
 
-    const filteredRecords = records.filter(record => {
-        const monthMatch = !filterMonth || record.date.startsWith(filterMonth);
-        const dateMatch = (!startDate || record.date >= startDate) && (!endDate || record.date <= endDate);
-        const gradeMatch = !gradeFilter || record.searchString.toLowerCase().includes(gradeFilter.toLowerCase());
-        return monthMatch && dateMatch && gradeMatch;
-    });
+   const filteredRecords = records.reduce((acc, record) => {
+    // Date සහ Month filters චෙක් කිරීම
+    const rDate = record.date ? new Date(record.date).toISOString().split('T')[0] : '';
+    const monthMatch = !filterMonth || rDate.startsWith(filterMonth);
+    const dateMatch = (!startDate || rDate >= startDate) && (!endDate || rDate <= endDate);
+    
+    // මාසය හෝ දිනය ගැලපෙන්නේ නැත්නම් මේ record එක අතහරින්න
+    if (!monthMatch || !dateMatch) return acc;
+
+    // record එක ඇතුලේ තියෙන items ටික ගන්න. (undefined ආවොත් crash නොවෙන්න || [] දාලා තියෙනවා)
+    let matchedItems = record.itemsArray || []; 
+    
+    if (gradeFilter) {
+        const searchVal = gradeFilter.toLowerCase();
+        // 1. Transaction No එකට සමානද කියලා බලනවා (Partial හෝ Exact)
+        const isTransMatch = record.transactionNo?.toLowerCase().includes(searchVal);
+        
+        // 2. Transaction No එකට ගැලපුනේ නැත්නම්, හරියටම Grade එකට සමාන (Exact Match) items විතරක් ගන්නවා
+        if (!isTransMatch) {
+            matchedItems = matchedItems.filter(
+                item => item.grade?.toLowerCase() === searchVal
+            );
+        }
+    }
+
+    // ගැලපෙන items එකක් හෝ තියෙනවා නම් පමණක් එය පෙන්නන්න
+    if (matchedItems.length > 0) {
+        // Filter වුන items වල එකතුව (Daily Total) අලුතෙන් හදනවා
+        const filteredTotalQty = matchedItems.reduce((sum, item) => sum + (Number(item.qtyKg) || 0), 0);
+
+        acc.push({
+            ...record,
+            itemsArray: matchedItems,
+            totalQtyKg: filteredTotalQty // අලුත් එකතුව replace කරනවා (එතකොට Grand Total එකත් හරියටම හැදෙනවා)
+        });
+    }
+
+    return acc;
+}, []);
 
     const grandTotalQty = filteredRecords.reduce((sum, record) => sum + (Number(record.totalQtyKg) || 0), 0);
 
@@ -398,19 +433,21 @@ export default function ViewTeaGradesReceivedRecords() {
                                                     <td className="px-3 py-4 text-center align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
                                                         <div className="flex flex-wrap items-center justify-center gap-1">
                                                             <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-teal-600 rounded transition-colors"><MdOutlineEdit size={20} /></button>
-                                                            <AlertDialog>
-                                                                <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 rounded transition-colors"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
-                                                                <AlertDialogContent className="bg-white rounded-2xl max-w-md w-[90vw] max-w-[425px]">
-                                                                    <AlertDialogHeader>
-                                                                        <AlertDialogTitle className="text-xl font-bold">Delete Record</AlertDialogTitle>
-                                                                        <AlertDialogDescription>Are you sure you want to delete this record?</AlertDialogDescription>
-                                                                    </AlertDialogHeader>
-                                                                    <AlertDialogFooter>
-                                                                        <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
-                                                                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700">Delete</AlertDialogAction>
-                                                                    </AlertDialogFooter>
-                                                                </AlertDialogContent>
-                                                            </AlertDialog>
+                                                            {isAdmin && (
+                                                                <AlertDialog>
+                                                                    <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 rounded transition-colors"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
+                                                                    <AlertDialogContent className="bg-white rounded-2xl max-w-md w-[90vw] max-w-[425px]">
+                                                                        <AlertDialogHeader>
+                                                                            <AlertDialogTitle className="text-xl font-bold">Delete Record</AlertDialogTitle>
+                                                                            <AlertDialogDescription>Are you sure you want to delete this record?</AlertDialogDescription>
+                                                                        </AlertDialogHeader>
+                                                                        <AlertDialogFooter>
+                                                                            <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
+                                                                            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700">Delete</AlertDialogAction>
+                                                                        </AlertDialogFooter>
+                                                                    </AlertDialogContent>
+                                                                </AlertDialog>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 )}

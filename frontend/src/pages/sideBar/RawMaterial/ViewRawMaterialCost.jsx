@@ -25,6 +25,8 @@ export default function ViewRawMaterialCost() {
     // --- ROLE BASED ACCESS CONTROL ---
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
+    // Add this new line right below them:
+    const isAdmin = userRole.toLowerCase() === 'admin';
 
     const [loading, setLoading] = useState(false);
     const [records, setRecords] = useState([]);
@@ -419,43 +421,44 @@ export default function ViewRawMaterialCost() {
                                                     >
                                                         <MdOutlineEdit size={20} />
                                                     </button>
-                                                    
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <button 
-                                                                onClick={() => setRecordToDelete(rec)} 
-                                                                className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all"
-                                                                title="Delete Record"
-                                                            >
-                                                                <MdOutlineDeleteOutline size={20} />
-                                                            </button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-md">
-                                                            <AlertDialogHeader>
-                                                                <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4 border border-red-200 dark:border-red-800/50">
-                                                                    <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
-                                                                </div>
-                                                                <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-white">Delete Record</AlertDialogTitle>
-                                                                <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-base">
-                                                                    Are you sure you want to permanently delete the <span className="font-bold text-gray-800 dark:text-gray-200 ml-1">{rec.materialType}</span> record for <span className="font-bold text-gray-800 dark:text-gray-200">{new Date(rec.date).toISOString().split('T')[0]}</span>?
-                                                                </AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter className="mt-6">
-                                                                <AlertDialogCancel 
-                                                                    onClick={() => setRecordToDelete(null)} 
-                                                                    className="border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 rounded-lg px-6 font-semibold"
+                                                    {isAdmin && (
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <button 
+                                                                    onClick={() => setRecordToDelete(rec)} 
+                                                                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all"
+                                                                    title="Delete Record"
                                                                 >
-                                                                    Cancel
-                                                                </AlertDialogCancel>
-                                                                <AlertDialogAction 
-                                                                    onClick={handleConfirmDelete} 
-                                                                    className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
-                                                                >
-                                                                    Delete Record
-                                                                </AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
+                                                                    <MdOutlineDeleteOutline size={20} />
+                                                                </button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-md">
+                                                                <AlertDialogHeader>
+                                                                    <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4 border border-red-200 dark:border-red-800/50">
+                                                                        <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                                                                    </div>
+                                                                    <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-white">Delete Record</AlertDialogTitle>
+                                                                    <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-base">
+                                                                        Are you sure you want to permanently delete the <span className="font-bold text-gray-800 dark:text-gray-200 ml-1">{rec.materialType}</span> record for <span className="font-bold text-gray-800 dark:text-gray-200">{new Date(rec.date).toISOString().split('T')[0]}</span>?
+                                                                    </AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter className="mt-6">
+                                                                    <AlertDialogCancel 
+                                                                        onClick={() => setRecordToDelete(null)} 
+                                                                        className="border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 rounded-lg px-6 font-semibold"
+                                                                    >
+                                                                        Cancel
+                                                                    </AlertDialogCancel>
+                                                                    <AlertDialogAction 
+                                                                        onClick={handleConfirmDelete} 
+                                                                        className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-6 font-semibold shadow-sm transition-colors"
+                                                                    >
+                                                                        Delete Record
+                                                                    </AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    )}
                                                 </div>
                                             </td>
                                         )}

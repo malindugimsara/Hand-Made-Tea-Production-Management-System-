@@ -4,12 +4,11 @@ import { PlusCircle, Save, Calendar, FileText, Truck, Box, X, Hash, PackagePlus,
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const RAW_MATERIALS = [
-    "50g Silver Pouch", "100g Gold Pouch", "200g Printed Box", "500g Printed Box",
-    "Master Carton (Large)", "Master Carton (Small)", "Barcode Labels", 
-    "Packing Tape (Brown)", "Packing Tape (Clear)", "Glue Bottle", 
-    "Tea Bags Filter Paper", "Cotton Thread", "Inner Polybag"
+    "Alfoil Bag (100g)", "Alfoil Bag (200g)", "Cloth Bag", "Paper Bag", "Standard Bag","Price Sticker",
+    "Chest Box", "Paper Can", "Wooden Cylinder", "Sticker", "Label", "Barcode", "Box", "Label Bag", "Alfoil Bag"
 ];
 
+// Flavors list for Autocomplete
 const FLAVOR_NAMES = [
     "Cinnamon", "Chakra", "Ginger", "Masala", "Vanilla", "Mint", 
     "Moringa", "Curry Leaves", "Gotukola", "Heen Bovitiya", "Cardamom", 
@@ -226,7 +225,7 @@ export default function EditRawMaterialIn() {
                         <label className={`flex items-center gap-2 px-5 py-3 rounded-lg border-2 cursor-pointer transition-all ${entryType === 'flavor' ? 'border-[#0d9488] bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 shadow-sm' : 'border-gray-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 text-gray-500 dark:text-gray-400'}`}>
                             <input type="radio" name="entryType" value="flavor" checked={entryType === 'flavor'} onChange={handleTypeChange} className="hidden" />
                             <Leaf size={20} className={entryType === 'flavor' ? 'animate-pulse' : ''} /> 
-                            <span className="font-bold">Flavors (Kg Only)</span>
+                            <span className="font-bold">Spicy  (Kg Only)</span>
                         </label>
                         <label className={`flex items-center gap-2 px-5 py-3 rounded-lg border-2 cursor-pointer transition-all ${entryType === 'other' ? 'border-[#0d9488] bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 shadow-sm' : 'border-gray-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 text-gray-500 dark:text-gray-400'}`}>
                             <input type="radio" name="entryType" value="other" checked={entryType === 'other'} onChange={handleTypeChange} className="hidden" />
@@ -269,7 +268,7 @@ export default function EditRawMaterialIn() {
                 <div className="mb-8 bg-[#f0fdfa] dark:bg-teal-950/20 border border-[#99f6e4] dark:border-teal-800/50 rounded-lg p-6 transition-colors duration-300">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-bold text-[#0f766e] dark:text-teal-500 flex items-center gap-2">
-                            <Layers size={20} /> {entryType === 'flavor' ? 'Flavors Received' : 'Materials Received'}
+                            <Layers size={20} /> {entryType === 'flavor' ? 'Spicy Received' : 'Materials Received'}
                         </h3>
                     </div>
 
@@ -287,7 +286,7 @@ export default function EditRawMaterialIn() {
                                     <div className="md:col-span-2 relative" ref={el => dropdownRefs.current[`mat-${row.id}`] = el}>
                                         <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
                                             {entryType === 'flavor' ? <Leaf size={12} className="text-[#0d9488]"/> : <Box size={12} className="text-[#0d9488]"/>} 
-                                            {entryType === 'flavor' ? 'Flavor Name' : 'Material Name'}
+                                            {entryType === 'flavor' ? 'Spicy Name' : 'Material Name'}
                                         </label>
                                         <input 
                                             type="text" placeholder="Type or Select..." value={row.materialName} 
@@ -337,7 +336,7 @@ export default function EditRawMaterialIn() {
                     
                     <div className="flex justify-end w-full">
                         <button type="button" onClick={handleAddItemRow} className="mt-4 text-sm font-bold bg-[#f0fdfa] hover:bg-[#99f6e4]/50 dark:bg-teal-900/40 text-[#0f766e] dark:text-teal-400 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors ml-auto border border-[#99f6e4] dark:border-transparent">
-                            <PlusCircle size={16} /> {entryType === 'flavor' ? 'Add Another Flavor' : 'Add Another Material'}
+                            <PlusCircle size={16} /> {entryType === 'flavor' ? 'Add Another Spicy' : 'Add Another Material'}
                         </button>
                     </div>
                 </div>

@@ -669,14 +669,14 @@ export default function EditTeaCenterRecord() {
                                             {/* ROW 3: Flavors */}
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-zinc-800/50">
                                                 <div className="relative" ref={el => dropdownRefs.current[`rmName-${row.id}`] = el}>
-                                                    <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap">Flavor</label>
+                                                    <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap">Spicy </label>
                                                     <input 
                                                         type="text" 
                                                         value={row.rawMaterialName} 
                                                         onChange={(e) => handleItemChange(row.id, 'rawMaterialName', e.target.value)} 
                                                         onFocus={() => { if(isFlavoredUI) setOpenDropdownId(`rmName-${row.id}`); }}
                                                         disabled={!isFlavoredUI}
-                                                        placeholder={isFlavoredUI ? "Select Flavor..." : "Not applicable"} 
+                                                        placeholder={isFlavoredUI ? "Select spicy..." : "Not applicable"} 
                                                         className={`w-full p-2.5 h-[42px] border text-sm rounded-md outline-none transition-colors 
                                                         ${!isFlavoredUI ? 'bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 cursor-not-allowed opacity-60' : isRMOverCapacity ? 'border-amber-400 focus:ring-2 focus:ring-amber-500/50' : 'bg-white dark:bg-zinc-950 border-teal-200 dark:border-teal-800/50 focus:ring-2 focus:ring-[#2dd4bf]/50'}`} 
                                                     />
@@ -695,7 +695,7 @@ export default function EditTeaCenterRecord() {
 
                                                 <div>
                                                     <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap" title={isFlavoredUI ? "Auto calculates to 3% for this tea" : "Not applicable for this tea"}>
-                                                        Flavor Qty (kg)
+                                                        Spicy Qty (kg)
                                                     </label>
                                                     <input 
                                                         type="number" 
