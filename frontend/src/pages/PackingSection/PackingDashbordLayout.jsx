@@ -93,7 +93,7 @@ const DATA = {
         icon: LineChart,
         items: [
           { title: 'Product-Issue Summary', url: '/packing/product-issue-summary', roles: ['Admin', 'Packing Officer', 'Viewer'] },
-          { title: 'Stock Summary', url: '/packing/summary-reports', roles: ['Admin', 'Packing Officer'] },
+          { title: 'Stock Summary', url: '/packing/summary-reports', roles: ['Admin', 'Packing Officer', 'Viewer'] },
           ],
     }, 
     {
@@ -101,9 +101,9 @@ const DATA = {
       icon: PackagePlus,
       items: [
         { title: 'H/T - Trans In', url: '/packing/trans-in-entry', roles: ['Admin', 'Packing Officer'] },
-        { title: 'Factory - Trans In', url: '/packing/trans-in-factory-entry', roles: ['Admin', 'Packing Officer'] },
-        { title: 'Other - Trans In', url: '/packing/trans-in-other', roles: ['Admin', 'Packing Officer'] },
-        { title: 'Raw Material - Trans In', url: '/packing/trans-in-raw-material', roles: ['Admin', 'Packing Officer'] }
+        { title: 'Factory - Trans In', url: '/packing/trans-in-factory-entry', roles: ['Admin'] },
+        { title: 'Other - Trans In', url: '/packing/trans-in-other', roles: ['Admin'] },
+        { title: 'Raw Material - Trans In', url: '/packing/trans-in-raw-material', roles: ['Admin'] }
       ],
     },
     {
