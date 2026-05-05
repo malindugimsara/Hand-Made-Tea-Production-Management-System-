@@ -234,52 +234,30 @@ export default function Login() {
       let data = {};
       try { data = text ? JSON.parse(text) : {}; } catch {}
 
-      if (res.ok) {
-        
-        // ─────────────────────────────────────────────
-        // ROLE VALIDATION LOGIC (NEW)
-        // ─────────────────────────────────────────────
-        const userRole = data.role ? data.role.toLowerCase() : '';
-        let hasAccess = false;
+            if (res.ok) {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('userRole', data.role);
+                localStorage.setItem('username', data.username);
 
-        // Admin & Viewers have access to both systems
-        if (userRole === 'admin' || userRole === 'viewer' || userRole === 'view') {
-            hasAccess = true;
-        } 
-        // Handmade Officers can only access the Handmade system
-        else if (activeTab === 'handmade' && userRole === 'handmade officer') {
-            hasAccess = true;
-        } 
-        // Packing Officers can only access the Packing system
-        else if (activeTab === 'packing' && userRole === 'packing officer') {
-            hasAccess = true;
-        }
-
-        // If access is denied based on role and tab selection
-        if (!hasAccess) {
-            toast.error(`Access Denied: A ${data.role} cannot log into the ${activeTab === 'handmade' ? 'Handmade Tea' : 'Packing Section'} system.`);
+                // Start Success Animation
+                setIsLoading(false);
+                setIsSuccess(true);
+                
+                setTimeout(() => navigate('/dashboard'), 1500);
+            } else {
+                // Backend එකෙන් 'message' හෝ 'error' ලෙස එවන පණිවිඩය ලබාගැනීම
+                const errorMsg = data.message || data.error || "Incorrect username or password. Please try again.";
+                toast.error(errorMsg);
+                
+                setPassword("");
+                setIsLoading(false);
+            }
+        } catch (error) {
+            console.error("Login Error:", error);
+            toast.error("Network error. Cannot reach the server.");
             setIsLoading(false);
-            return; // Stop the login process
         }
-        // ─────────────────────────────────────────────
-
-        localStorage.setItem('token',        data.token);
-        localStorage.setItem('userRole',     data.role);
-        localStorage.setItem('username',     data.username);
-        localStorage.setItem('activeSystem', activeTab);
-        setIsLoading(false);
-        setIsSuccess(true);
-        setTimeout(() => navigate(activeTab === 'handmade' ? '/dashboard' : '/packing'), 1500);
-      } else {
-        toast.error(data.message || data.error || 'Incorrect username or password.');
-        setPassword('');
-        setIsLoading(false);
-      }
-    } catch {
-      toast.error('Network error. Cannot reach the server.');
-      setIsLoading(false);
-    }
-  };
+    };
 
   return (
     <div
