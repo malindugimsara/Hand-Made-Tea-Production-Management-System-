@@ -16,7 +16,7 @@ import productionSummaryRouter from './router/productionSummaryRoute.js';
 
 // Packing Section Routes
 import localSaleRouter from './Packing/Routes/localSaleRoutes.js';
-import teaCenterIssueRouter from './Packing/Routes/TeaCenterIssueRouter.js';
+import teaCenterIssueRouter from './Packing/Routes/teaCenterIssueRouter.js';
 
 import packingTransferRouter from './Packing/Routes/packingTransferRouter.js';
 import handmadeTransferRouter from './router/handmadeTransferRouter.js';
