@@ -170,223 +170,254 @@ export default function ViewTransOutRecords() {
     const uniqueCode = `HM/TRANS-OUT/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
 
     return (
-        <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
-            <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h2 className="text-2xl font-bold text-indigo-700 dark:text-indigo-400 flex items-center gap-2">
-                        <Send size={28} /> Trans Out Records
-                    </h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">History of bulk stock issued from Handmade section</p>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                    <PDFDownloader 
-                        title="Trans Out (Issued) Records"
-                        subtitle={`Filters -> Month: ${filterMonth || 'All'} | Date: ${startDate || 'All'} to ${endDate || 'All'} | Product: ${productFilter || 'All'}`}
-                        headers={["Transfer ID", "Date Issued", "Product", "Issued Qty", "Received Qty", "Issued By", "Received By"]}
-                        data={getPdfData()}
-                        uniqueCode={uniqueCode}
-                        fileName={`Trans_Out_Records_${new Date().toISOString().split('T')[0]}.pdf`}
-                        orientation="portrait" 
-                        disabled={loading || filteredRecords.length === 0}
-                    />
-                    <button onClick={fetchHistory} disabled={loading} className={`px-4 py-2.5 bg-white dark:bg-zinc-900 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-zinc-700 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-50 dark:hover:bg-zinc-800'}`}>
-                        <RefreshCw size={18} className={loading ? 'animate-spin' : ''} /> Refresh History
-                    </button>
-                </div>
+        <div className="p-3 sm:p-5 md:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
+    
+    {/* --- HEADER SECTION --- */}
+    <div className="mb-5 md:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-indigo-700 dark:text-indigo-400 flex items-center gap-2">
+                <Send className="w-6 h-6 sm:w-7 sm:h-7 md:w-[28px] md:h-[28px]" /> Trans Out Records
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">History of bulk stock issued from Handmade section</p>
+        </div>
+        
+        <div className="flex flex-row flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 w-full md:w-auto">
+            <div className="flex-1 sm:flex-none min-w-[140px]">
+                <PDFDownloader 
+                    title="Trans Out (Issued) Records"
+                    subtitle={`Filters -> Month: ${filterMonth || 'All'} | Date: ${startDate || 'All'} to ${endDate || 'All'} | Product: ${productFilter || 'All'}`}
+                    headers={["Transfer ID", "Date Issued", "Product", "Issued Qty", "Received Qty", "Issued By", "Received By"]}
+                    data={getPdfData()}
+                    uniqueCode={uniqueCode}
+                    fileName={`Trans_Out_Records_${new Date().toISOString().split('T')[0]}.pdf`}
+                    orientation="portrait" 
+                    disabled={loading || filteredRecords.length === 0}
+                    className="w-full text-xs sm:text-sm py-2 sm:py-2.5"
+                />
             </div>
+            <button 
+                onClick={fetchHistory} 
+                disabled={loading} 
+                className={`flex-1 sm:flex-none justify-center px-3 sm:px-4 py-2 sm:py-2.5 bg-white dark:bg-zinc-900 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-zinc-700 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-1.5 sm:gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-50 dark:hover:bg-zinc-800'}`}
+            >
+                <RefreshCw className={`w-4 h-4 sm:w-[18px] sm:h-[18px] ${loading ? 'animate-spin' : ''}`} /> Refresh History
+            </button>
+        </div>
+    </div>
 
-            {/* --- FILTER SECTION --- */}
-            <div className="mb-6 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-700 shadow-sm transition-colors duration-300">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Month Issued</label>
-                        <input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-full border border-gray-300 dark:border-zinc-600 bg-transparent dark:text-gray-100 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400/50 transition-colors" />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">From Date</label>
-                        <input type="date" value={startDate} onChange={handleStartDateChange} className="w-full border border-gray-300 dark:border-zinc-600 bg-transparent dark:text-gray-100 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400/50 transition-colors" />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">To Date</label>
-                        <input type="date" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} disabled={!startDate} className="w-full border border-gray-300 dark:border-zinc-600 bg-transparent dark:text-gray-100 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400/50 transition-colors disabled:opacity-50" />
-                    </div>
-                    
-                    {/* CUSTOM SCROLLABLE AUTOCOMPLETE DROPDOWN */}
-                    <div className="flex flex-col gap-1.5 relative" ref={dropdownRef}>
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Product (Search)</label>
-                        <input 
-                            type="text" 
-                            placeholder="Type to search..." 
-                            value={productFilter} 
-                            onChange={(e) => {
-                                setProductFilter(e.target.value);
-                                setIsDropdownOpen(true);
-                            }} 
-                            onFocus={() => setIsDropdownOpen(true)}
-                            className="w-full border border-gray-300 dark:border-zinc-600 bg-transparent dark:text-gray-100 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400/50 transition-colors" 
-                        />
-                        {isDropdownOpen && (
-                            <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-600 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
-                                {TEA_TYPES.filter(t => t.toLowerCase().includes(productFilter.toLowerCase()))
-                                    .map((tea, idx) => (
-                                    <li 
-                                        key={idx} 
-                                        onMouseDown={(e) => e.preventDefault()}
-                                        onClick={() => {
-                                            setProductFilter(tea);
-                                            setIsDropdownOpen(false);
-                                        }}
-                                        className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-zinc-700 cursor-pointer border-b border-gray-100 dark:border-zinc-700 last:border-0 flex items-center gap-2"
-                                    >
-                                        <div className={`w-3 h-3 rounded-full ${getTeaColor(tea)} border border-white/20`}></div> {tea}
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
-
-                    <div className="flex items-end lg:justify-end">
-                        <button onClick={clearFilters} disabled={!filterMonth && !startDate && !endDate && !productFilter} className={`w-full lg:w-auto px-4 py-2.5 text-sm font-bold rounded-md transition-colors flex items-center justify-center gap-2 ${filterMonth || startDate || endDate || productFilter ? 'bg-gray-200 dark:bg-zinc-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-zinc-600 border border-gray-300 dark:border-zinc-600' : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-600 border border-gray-200 dark:border-zinc-800 cursor-not-allowed'}`}>
-                            <FilterX size={16} /> Clear
-                        </button>
-                    </div>
-                </div>
+    {/* --- FILTER SECTION --- */}
+    <div className="mb-5 md:mb-6 bg-white dark:bg-zinc-900 p-4 sm:p-5 rounded-xl border border-gray-200 dark:border-zinc-700 shadow-sm transition-colors duration-300">
+        <div className="grid grid-cols-1 min-[450px]:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+            <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Month Issued</label>
+                <input 
+                    type="month" 
+                    value={filterMonth} 
+                    onChange={(e) => setFilterMonth(e.target.value)} 
+                    className="w-full border border-gray-300 dark:border-zinc-600 bg-transparent dark:text-gray-100 rounded-md p-2 sm:p-2.5 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-indigo-400/50 transition-colors" 
+                />
+            </div>
+            <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">From Date</label>
+                <input 
+                    type="date" 
+                    value={startDate} 
+                    onChange={handleStartDateChange} 
+                    className="w-full border border-gray-300 dark:border-zinc-600 bg-transparent dark:text-gray-100 rounded-md p-2 sm:p-2.5 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-indigo-400/50 transition-colors" 
+                />
+            </div>
+            <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">To Date</label>
+                <input 
+                    type="date" 
+                    min={startDate} 
+                    value={endDate} 
+                    onChange={(e) => setEndDate(e.target.value)} 
+                    disabled={!startDate} 
+                    className="w-full border border-gray-300 dark:border-zinc-600 bg-transparent dark:text-gray-100 rounded-md p-2 sm:p-2.5 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-indigo-400/50 transition-colors disabled:opacity-50" 
+                />
             </div>
             
-            {/* --- MAIN GRID LAYOUT --- */}
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-                
-                {/* LEFT: MAIN TABLE (Col Span 3) */}
-                <div className="xl:col-span-3 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden self-start w-full transition-colors duration-300">
-                    {loading ? (
-                        <div className="p-12 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center h-64">
-                            <div className="w-8 h-8 border-4 border-indigo-200 dark:border-zinc-700 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin mb-4"></div>
-                            <p className="font-medium">Loading history...</p>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-zinc-600">
-                            <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
-                                <thead>
-                                    <tr className="bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-200 uppercase text-xs tracking-wider border-b border-gray-300 dark:border-zinc-600">
-                                        <th className="px-4 py-3 font-bold border-r border-gray-300 dark:border-zinc-600 align-bottom">Record Details</th>
-                                        <th className="px-4 py-3 font-bold border-r border-gray-300 dark:border-zinc-600 align-bottom"><Tag size={14} className="inline mr-1 text-indigo-600"/> Products Included</th>
-                                        {/* Swapped Highlight: Emphasize Issued for Trans Out */}
-                                        <th className="px-4 py-3 font-bold border-r border-gray-300 dark:border-zinc-600 text-center text-indigo-700 dark:text-indigo-400"><Weight size={14} className="inline mr-1"/> Issued (Kg)</th>
-                                        <th className="px-4 py-3 font-bold border-r border-gray-300 dark:border-zinc-600 text-center"><Weight size={14} className="inline mr-1"/> Received (Kg)</th>
-                                        <th className="px-4 py-3 font-bold border-r border-gray-300 dark:border-zinc-600 text-center">Variance</th>
-                                        <th className="px-4 py-3 font-bold text-center">Involved Staff</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
-                                    {filteredRecords.length > 0 ? (
-                                        filteredRecords.map((record) => (
-                                            <tr key={record._id} className="hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors group">
-                                                
-                                                <td className="px-4 py-3 border-r border-gray-200 dark:border-zinc-700 align-top">
-                                                    <p className="font-black text-gray-900 dark:text-gray-100 text-md">{record.transferId}</p>
-                                                    <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-1">
-                                                        <Calendar size={12} /> Issued: {new Date(record.dateIssued || record.createdAt).toISOString().split('T')[0]}
-                                                    </div>
-                                                </td>
-                                                
-                                                <td className="px-4 py-3 border-r border-gray-200 dark:border-zinc-700 align-top">
-                                                    <div className="flex flex-col gap-2">
-                                                        {record.items.map((t, i) => (
-                                                            <span key={i} className={`block font-bold border px-2 py-0.5 rounded shadow-sm w-fit text-[11px] ${getTeaColor(t.product)}`}>
-                                                                {t.product}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </td>
-                                                
-                                                {/* Highlighted column for Trans Out */}
-                                                <td className="px-3 py-3 text-center border-r border-gray-200 dark:border-zinc-700 font-bold bg-indigo-50/50 dark:bg-indigo-900/10 align-top">
-                                                    <div className="flex flex-col gap-2">
-                                                        {record.items.map((t, i) => <span key={i} className="py-1 text-indigo-700 dark:text-indigo-400">{Number(t.issuedQtyKg).toFixed(2)}</span>)}
-                                                    </div>
-                                                </td>
+            {/* CUSTOM SCROLLABLE AUTOCOMPLETE DROPDOWN */}
+            <div className="flex flex-col gap-1.5 relative min-[450px]:col-span-2 lg:col-span-1" ref={dropdownRef}>
+                <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Product (Search)</label>
+                <input 
+                    type="text" 
+                    placeholder="Type to search..." 
+                    value={productFilter} 
+                    onChange={(e) => {
+                        setProductFilter(e.target.value);
+                        setIsDropdownOpen(true);
+                    }} 
+                    onFocus={() => setIsDropdownOpen(true)}
+                    className="w-full border border-gray-300 dark:border-zinc-600 bg-transparent dark:text-gray-100 rounded-md p-2 sm:p-2.5 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-indigo-400/50 transition-colors" 
+                />
+                {isDropdownOpen && (
+                    <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-600 rounded-md shadow-xl z-50 overflow-y-auto max-h-[200px] sm:max-h-[220px] custom-scrollbar">
+                        {TEA_TYPES.filter(t => t.toLowerCase().includes(productFilter.toLowerCase()))
+                            .map((tea, idx) => (
+                            <li 
+                                key={idx} 
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => {
+                                    setProductFilter(tea);
+                                    setIsDropdownOpen(false);
+                                }}
+                                className="px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-zinc-700 cursor-pointer border-b border-gray-100 dark:border-zinc-700 last:border-0 flex items-center gap-2"
+                            >
+                                <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full ${getTeaColor(tea)} border border-white/20`}></div> {tea}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
 
-                                                <td className="px-3 py-3 text-center border-r border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-300 font-medium align-top">
-                                                    <div className="flex flex-col gap-2">
-                                                        {record.items.map((t, i) => <span key={i} className="py-1">{Number(t.receivedQtyKg || 0).toFixed(2)}</span>)}
-                                                    </div>
-                                                </td>
-
-                                                <td className="px-3 py-3 text-center border-r border-gray-200 dark:border-zinc-700 align-top">
-                                                    <div className="flex flex-col gap-2">
-                                                        {record.items.map((t, i) => {
-                                                            const diff = Number(t.receivedQtyKg || 0) - Number(t.issuedQtyKg);
-                                                            return (
-                                                                <span key={i} className={`py-1 font-bold text-[11px] ${diff === 0 ? 'text-gray-400 dark:text-gray-500' : 'text-orange-500 dark:text-orange-400'}`}>
-                                                                    {diff === 0 ? 'Match' : `${diff > 0 ? '+' : ''}${diff.toFixed(2)}`}
-                                                                </span>
-                                                            )
-                                                        })}
-                                                    </div>
-                                                </td>
-
-                                                <td className="px-3 py-3 text-left align-top text-xs text-gray-600 dark:text-gray-400">
-                                                    <div className="flex flex-col gap-1 mt-1">
-                                                        <div className="flex items-center gap-1.5"><Tag size={12} className="opacity-50"/> <span className="font-semibold text-indigo-700 dark:text-indigo-400">{record.issuedBy}</span> (Out)</div>
-                                                        <div className="flex items-center gap-1.5"><UserCheck size={12} className="opacity-50"/> <span className="font-semibold text-gray-800 dark:text-gray-200">{record.receivedBy || 'Pending'}</span> (In)</div>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr><td colSpan="6" className="p-16 text-center text-gray-400 dark:text-gray-500"><p>No issued records found</p></td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
-
-                {/* RIGHT: SUMMARY TABLE (Col Span 1) */}
-                <div className="xl:col-span-1">
-                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden sticky top-8">
-                        <div className="bg-gray-100 dark:bg-zinc-800 px-4 py-3 border-b border-gray-200 dark:border-zinc-600">
-                            <h3 className="font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                                <Weight size={18} className="text-indigo-600" /> Total Issued Summary
-                            </h3>
-                        </div>
-                        <div className="p-4">
-                            <table className="w-full text-sm border border-gray-300 dark:border-zinc-700 border-collapse">
-                                <thead>
-                                    <tr className="bg-gray-100 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-700">
-                                        <th className="px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-700 dark:text-gray-200">Product</th>
-                                        <th className="px-3 py-2 text-right font-bold dark:text-gray-200">Qty (Kg)</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {summaryArray.length > 0 ? (
-                                        summaryArray.map(([prodName, qty], idx) => (
-                                            <tr key={idx} className="border-b border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800/50">
-                                                <td className={`px-3 py-2 font-semibold border-r border-gray-200 dark:border-zinc-700 ${getTeaColor(prodName)}`}>
-                                                    {prodName}
-                                                </td>
-                                                <td className="px-3 py-2 text-right font-bold text-gray-800 dark:text-gray-200">
-                                                    {qty % 1 !== 0 ? qty.toFixed(2) : qty}
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr><td colSpan="2" className="px-3 py-6 text-center text-gray-400 dark:text-gray-500">No data</td></tr>
-                                    )}
-                                </tbody>
-                                <tfoot>
-                                    <tr className="bg-indigo-50/50 dark:bg-zinc-800 font-bold text-gray-900 dark:text-gray-100 border-t-2 border-indigo-600 dark:border-indigo-500">
-                                        <td className="px-3 py-2 uppercase border-r border-gray-300 dark:border-zinc-700 text-indigo-700 dark:text-indigo-400">TOTAL</td>
-                                        <td className="px-3 py-2 text-right text-indigo-700 dark:text-indigo-400">{grandTotalIssuedQty % 1 !== 0 ? grandTotalIssuedQty.toFixed(2) : grandTotalIssuedQty}</td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
+            <div className="flex items-end lg:justify-end min-[450px]:col-span-2 lg:col-span-1">
+                <button 
+                    onClick={clearFilters} 
+                    disabled={!filterMonth && !startDate && !endDate && !productFilter} 
+                    className={`w-full lg:w-auto px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-md transition-colors flex items-center justify-center gap-2 ${filterMonth || startDate || endDate || productFilter ? 'bg-gray-200 dark:bg-zinc-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-zinc-600 border border-gray-300 dark:border-zinc-600' : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-600 border border-gray-200 dark:border-zinc-800 cursor-not-allowed'}`}
+                >
+                    <FilterX className="w-4 h-4 sm:w-[16px] sm:h-[16px]" /> Clear
+                </button>
             </div>
         </div>
+    </div>
+    
+    {/* --- MAIN GRID LAYOUT --- */}
+    <div className="grid grid-cols-1 xl:grid-cols-4 gap-5 md:gap-6">
+        
+        {/* LEFT: MAIN TABLE (Col Span 3) */}
+        <div className="xl:col-span-3 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden self-start w-full transition-colors duration-300">
+            {loading ? (
+                <div className="p-8 sm:p-12 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center h-48 sm:h-64">
+                    <div className="w-6 sm:w-8 h-6 sm:h-8 border-4 border-indigo-200 dark:border-zinc-700 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin mb-4"></div>
+                    <p className="text-xs sm:text-sm font-medium">Loading history...</p>
+                </div>
+            ) : (
+                <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-zinc-600 w-full">
+                    <table className="w-full text-xs sm:text-sm text-left border-collapse whitespace-nowrap min-w-[700px] lg:min-w-max">
+                        <thead>
+                            <tr className="bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-200 uppercase text-[10px] sm:text-xs tracking-wider border-b border-gray-300 dark:border-zinc-600 transition-colors">
+                                {/* Sticky Record Details Header */}
+                                <th className="sticky left-0 z-20 bg-gray-100 dark:bg-zinc-800 px-3 sm:px-4 py-2 sm:py-3 font-bold border-r border-gray-300 dark:border-zinc-600 align-bottom shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[120px]">Record Details</th>
+                                
+                                <th className="px-3 sm:px-4 py-2 sm:py-3 font-bold border-r border-gray-300 dark:border-zinc-600 align-bottom max-w-[200px]"><Tag className="inline mr-1 text-indigo-600 w-3 h-3 sm:w-[14px] sm:h-[14px]"/> Products Included</th>
+                                <th className="px-3 sm:px-4 py-2 sm:py-3 font-bold border-r border-gray-300 dark:border-zinc-600 text-center text-indigo-700 dark:text-indigo-400"><Weight className="inline mr-1 w-3 h-3 sm:w-[14px] sm:h-[14px]"/> Issued (Kg)</th>
+                                <th className="px-3 sm:px-4 py-2 sm:py-3 font-bold border-r border-gray-300 dark:border-zinc-600 text-center"><Weight className="inline mr-1 w-3 h-3 sm:w-[14px] sm:h-[14px]"/> Received (Kg)</th>
+                                <th className="px-3 sm:px-4 py-2 sm:py-3 font-bold border-r border-gray-300 dark:border-zinc-600 text-center">Variance</th>
+                                <th className="px-3 sm:px-4 py-2 sm:py-3 font-bold text-center">Involved Staff</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
+                            {filteredRecords.length > 0 ? (
+                                filteredRecords.map((record) => (
+                                    <tr key={record._id} className="hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors group">
+                                        
+                                        {/* Sticky Record Details Body */}
+                                        <td className="sticky left-0 z-10 bg-white dark:bg-zinc-900 group-hover:bg-gray-50 dark:group-hover:bg-zinc-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] px-3 sm:px-4 py-2.5 sm:py-3 border-r border-gray-200 dark:border-zinc-700 align-top transition-colors">
+                                            <p className="font-black text-gray-900 dark:text-gray-100 text-xs sm:text-md truncate max-w-[120px] sm:max-w-[150px]">{record.transferId}</p>
+                                            <div className="flex items-center gap-1 text-[9px] sm:text-[11px] text-gray-500 mt-1">
+                                                <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" /> <span className="truncate">Issued: {new Date(record.dateIssued || record.createdAt).toISOString().split('T')[0]}</span>
+                                            </div>
+                                        </td>
+                                        
+                                        <td className="px-3 sm:px-4 py-2.5 sm:py-3 border-r border-gray-200 dark:border-zinc-700 align-top whitespace-normal max-w-[180px] sm:max-w-[200px]">
+                                            <div className="flex flex-col gap-1.5 sm:gap-2">
+                                                {record.items.map((t, i) => (
+                                                    <span key={i} className={`block font-bold border px-1.5 sm:px-2 py-0.5 rounded shadow-sm w-max text-[9px] sm:text-[11px] truncate max-w-full ${getTeaColor(t.product)}`}>
+                                                        {t.product}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </td>
+                                        
+                                        <td className="px-2 sm:px-3 py-2.5 sm:py-3 text-center border-r border-gray-200 dark:border-zinc-700 font-bold bg-indigo-50/50 dark:bg-indigo-900/10 align-top">
+                                            <div className="flex flex-col gap-1.5 sm:gap-2">
+                                                {record.items.map((t, i) => <span key={i} className="py-0.5 sm:py-1 text-indigo-700 dark:text-indigo-400">{Number(t.issuedQtyKg).toFixed(2)}</span>)}
+                                            </div>
+                                        </td>
+
+                                        <td className="px-2 sm:px-3 py-2.5 sm:py-3 text-center border-r border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-300 font-medium align-top">
+                                            <div className="flex flex-col gap-1.5 sm:gap-2">
+                                                {record.items.map((t, i) => <span key={i} className="py-0.5 sm:py-1">{Number(t.receivedQtyKg || 0).toFixed(2)}</span>)}
+                                            </div>
+                                        </td>
+
+                                        <td className="px-2 sm:px-3 py-2.5 sm:py-3 text-center border-r border-gray-200 dark:border-zinc-700 align-top">
+                                            <div className="flex flex-col gap-1.5 sm:gap-2">
+                                                {record.items.map((t, i) => {
+                                                    const diff = Number(t.receivedQtyKg || 0) - Number(t.issuedQtyKg);
+                                                    return (
+                                                        <span key={i} className={`py-0.5 sm:py-1 font-bold text-[9px] sm:text-[11px] ${diff === 0 ? 'text-gray-400 dark:text-gray-500' : 'text-orange-500 dark:text-orange-400'}`}>
+                                                            {diff === 0 ? 'Match' : `${diff > 0 ? '+' : ''}${diff.toFixed(2)}`}
+                                                        </span>
+                                                    )
+                                                })}
+                                            </div>
+                                        </td>
+
+                                        <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-left align-top text-[10px] sm:text-xs text-gray-600 dark:text-gray-400">
+                                            <div className="flex flex-col gap-1 sm:gap-1.5 mt-0.5 sm:mt-1">
+                                                <div className="flex items-center gap-1.5"><Tag className="w-2.5 h-2.5 sm:w-3 sm:h-3 opacity-50 shrink-0"/> <span className="font-semibold text-indigo-700 dark:text-indigo-400 truncate max-w-[80px] sm:max-w-none">{record.issuedBy}</span> <span className="text-[9px] sm:text-[10px] opacity-70">(Out)</span></div>
+                                                <div className="flex items-center gap-1.5"><UserCheck className="w-2.5 h-2.5 sm:w-3 sm:h-3 opacity-50 shrink-0"/> <span className="font-semibold text-gray-800 dark:text-gray-200 truncate max-w-[80px] sm:max-w-none">{record.receivedBy || 'Pending'}</span> <span className="text-[9px] sm:text-[10px] opacity-70">(In)</span></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr><td colSpan="6" className="p-10 sm:p-16 text-center text-gray-400 dark:text-gray-500 text-sm"><p>No issued records found</p></td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+
+        {/* RIGHT: SUMMARY TABLE (Col Span 1) */}
+        <div className="xl:col-span-1">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden sticky top-4 sm:top-8 transition-colors duration-300">
+                <div className="bg-gray-100 dark:bg-zinc-800 px-3 sm:px-4 py-3 border-b border-gray-200 dark:border-zinc-600">
+                    <h3 className="text-sm sm:text-base font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                        <Weight className="w-4 h-4 sm:w-[18px] sm:h-[18px] text-indigo-600" /> Total Issued Summary
+                    </h3>
+                </div>
+                <div className="p-3 sm:p-4">
+                    <table className="w-full text-xs sm:text-sm border border-gray-300 dark:border-zinc-700 border-collapse">
+                        <thead>
+                            <tr className="bg-gray-100 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-700">
+                                <th className="px-2 sm:px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-700 dark:text-gray-200">Product</th>
+                                <th className="px-2 sm:px-3 py-2 text-right font-bold dark:text-gray-200">Qty (Kg)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {summaryArray.length > 0 ? (
+                                summaryArray.map(([prodName, qty], idx) => (
+                                    <tr key={idx} className="border-b border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                        <td className={`px-2 sm:px-3 py-2 font-semibold border-r border-gray-200 dark:border-zinc-700 text-[10px] sm:text-xs truncate max-w-[120px] sm:max-w-none ${getTeaColor(prodName)}`}>
+                                            {prodName}
+                                        </td>
+                                        <td className="px-2 sm:px-3 py-2 text-right font-bold text-gray-800 dark:text-gray-200 text-[10px] sm:text-xs">
+                                            {qty % 1 !== 0 ? qty.toFixed(2) : qty}
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr><td colSpan="2" className="px-3 py-6 text-center text-gray-400 dark:text-gray-500 text-xs sm:text-sm">No data</td></tr>
+                            )}
+                        </tbody>
+                        <tfoot>
+                            <tr className="bg-indigo-50/50 dark:bg-zinc-800 font-bold text-gray-900 dark:text-gray-100 border-t-2 border-indigo-600 dark:border-indigo-500">
+                                <td className="px-2 sm:px-3 py-2 uppercase border-r border-gray-300 dark:border-zinc-700 text-indigo-700 dark:text-indigo-400 text-[10px] sm:text-xs tracking-wider">TOTAL</td>
+                                <td className="px-2 sm:px-3 py-2 text-right text-indigo-700 dark:text-indigo-400 text-[10px] sm:text-xs">{grandTotalIssuedQty % 1 !== 0 ? grandTotalIssuedQty.toFixed(2) : grandTotalIssuedQty}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
     );
 }

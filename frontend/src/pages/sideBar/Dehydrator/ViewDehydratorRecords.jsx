@@ -215,258 +215,270 @@ export default function ViewDehydratorRecords() {
     };
 
     return (
-        <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
-            <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h2 className="text-2xl font-bold text-[#1B6A31] dark:text-green-500 flex items-center gap-2">Dehydrator Machine Records</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Overview of Dehydrator Yield, Electricity, and Labour</p>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                    <PDFDownloader 
-                        title="Dehydrator Machine Records"
-                        subtitle={`Filters -> Month: ${filterMonth || 'All'} | Date: ${startDate || 'All'} to ${endDate || 'All'} | Trial: ${trialFilter || 'All'}`}
-                        headers={["Date", "Trial(s)", "RM-Wt", "Dried-Wt", "Moisture", "Elec Start", "Elec End", "Units", "Elec Cost", "Time (Hrs)", "Lab Hrs", "Lab Cost"]}
-                        data={getPdfData()}
-                        uniqueCode={uniqueCode}
-                        fileName={`Dehydrator_Records_${new Date().toISOString().split('T')[0]}.pdf`}
-                        orientation="landscape" 
-                        disabled={loading || filteredRecords.length === 0}
-                    />
-                    <button onClick={fetchRecords} disabled={loading} className={`px-4 py-2.5 bg-white dark:bg-zinc-900 text-[#1B6A31] dark:text-green-500 border border-[#8CC63F] dark:border-green-800 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F8FAF8] dark:hover:bg-zinc-800'}`}>
-                        <RefreshCw size={18} className={loading ? 'animate-spin' : ''} /> Sync Data
-                    </button>
-                </div>
+        <div className="p-3 sm:p-5 md:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
+    
+    {/* --- HEADER SECTION --- */}
+    <div className="mb-5 md:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#1B6A31] dark:text-green-500 flex items-center gap-2">Dehydrator Machine Records</h2>
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">Overview of Dehydrator Yield, Electricity, and Labour</p>
+        </div>
+        
+        {/* Buttons auto-stack and stretch on mobile, side-by-side on desktop */}
+        <div className="flex flex-row flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 w-full md:w-auto">
+            <div className="flex-1 sm:flex-none min-w-[140px]">
+                <PDFDownloader 
+                    title="Dehydrator Machine Records"
+                    subtitle={`Filters -> Month: ${filterMonth || 'All'} | Date: ${startDate || 'All'} to ${endDate || 'All'} | Trial: ${trialFilter || 'All'}`}
+                    headers={["Date", "Trial(s)", "RM-Wt", "Dried-Wt", "Moisture", "Elec Start", "Elec End", "Units", "Elec Cost", "Time (Hrs)", "Lab Hrs", "Lab Cost"]}
+                    data={getPdfData()}
+                    uniqueCode={uniqueCode}
+                    fileName={`Dehydrator_Records_${new Date().toISOString().split('T')[0]}.pdf`}
+                    orientation="landscape" 
+                    disabled={loading || filteredRecords.length === 0}
+                />
             </div>
+            <button 
+                onClick={fetchRecords} 
+                disabled={loading} 
+                className={`flex-1 sm:flex-none justify-center px-3 sm:px-4 py-2 sm:py-2.5 bg-white dark:bg-zinc-900 text-[#1B6A31] dark:text-green-500 border border-[#8CC63F] dark:border-green-800 rounded-lg text-xs sm:text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#F8FAF8] dark:hover:bg-zinc-800'}`}
+            >
+                <RefreshCw size={16} className={`sm:w-[18px] sm:h-[18px] ${loading ? 'animate-spin' : ''}`} /> Sync Data
+            </button>
+        </div>
+    </div>
 
-            {/* --- REFINED FILTER SECTION --- */}
-            <div className="mb-6 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-colors duration-300">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Month</label>
-                        <input 
-                            type="month" 
-                            value={filterMonth} 
-                            onChange={(e) => setFilterMonth(e.target.value)} 
-                            className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 transition-colors" 
-                        />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">From Date</label>
-                        <input 
-                            type="date" 
-                            value={startDate} 
-                            onChange={handleStartDateChange} 
-                            className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 transition-colors" 
-                        />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">To Date</label>
-                        <input 
-                            type="date" 
-                            min={startDate} 
-                            value={endDate} 
-                            onChange={(e) => setEndDate(e.target.value)} 
-                            disabled={!startDate}
-                            className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
-                        />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Trial (Search Item)</label>
-                        <input 
-                            type="text" 
-                            placeholder="e.g. Mango, Kiwi..." 
-                            value={trialFilter} 
-                            onChange={(e) => setTrialFilter(e.target.value)} 
-                            className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 transition-colors" 
-                        />
-                    </div>
-                    <div className="flex items-end lg:justify-end">
-                        <button 
-                            onClick={clearFilters}
-                            disabled={!filterMonth && !startDate && !endDate && !trialFilter}
-                            className={`w-full lg:w-auto px-4 py-2.5 text-sm font-bold rounded-md transition-colors flex items-center justify-center gap-2 ${
-                                filterMonth || startDate || endDate || trialFilter 
-                                ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-200 dark:border-red-800/50' 
-                                : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500 cursor-not-allowed'
-                            }`}
-                        >
-                            <FilterX size={16} /> Clear Filters
-                        </button>
-                    </div>
-                </div>
+    {/* --- REFINED FILTER SECTION --- */}
+    <div className="mb-5 md:mb-6 bg-white dark:bg-zinc-900 p-4 md:p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-colors duration-300">
+        <div className="grid grid-cols-1 min-[450px]:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+            <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Month</label>
+                <input 
+                    type="month" 
+                    value={filterMonth} 
+                    onChange={(e) => setFilterMonth(e.target.value)} 
+                    className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2 sm:p-2.5 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 transition-colors" 
+                />
             </div>
-            
-            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden self-start w-full max-w-full transition-colors duration-300">
-                {loading ? (
-                    <div className="p-12 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center h-64">
-                        <div className="w-8 h-8 border-4 border-[#8CC63F] dark:border-green-700 border-t-[#1B6A31] dark:border-t-green-400 rounded-full animate-spin mb-4"></div>
-                        <p className="font-medium">Loading dehydrator records...</p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-zinc-700">
-                        <table className="w-full text-sm text-left border-collapse whitespace-nowrap">
-                            <thead>
-                                <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-800 transition-colors">
-                                    <th rowSpan="2" className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-800 align-bottom min-w-[140px]"><div className="flex items-center gap-1"><Calendar size={14}/> Date</div></th>
-                                    <th rowSpan="2" className="px-4 py-3 font-bold text-[#1B6A31] dark:text-green-500 border-r border-gray-200 dark:border-zinc-800 bg-[#8CC63F]/10 dark:bg-green-900/20 align-bottom max-w-[200px]"><div className="flex items-center gap-1"><Fan size={14}/> Trial(s)</div></th>
-                                    
-                                    <th colSpan="3" className="px-4 py-2 font-bold text-teal-700 dark:text-teal-500 border-r border-gray-200 dark:border-zinc-800 bg-teal-50 dark:bg-teal-950/30 text-center"><div className="flex items-center justify-center gap-1"><Scale size={14}/> Yield Details</div></th>
-                                    <th colSpan="4" className="px-4 py-2 font-bold text-orange-700 dark:text-orange-500 border-r border-gray-200 dark:border-zinc-800 bg-orange-50 dark:bg-orange-950/30 text-center"><div className="flex items-center justify-center gap-1"><Zap size={14}/> Electricity</div></th>
-                                    <th colSpan="3" className="px-4 py-2 font-bold text-blue-700 dark:text-blue-400 border-r border-gray-200 dark:border-zinc-800 bg-blue-50 dark:bg-blue-950/30 text-center"><div className="flex items-center justify-center gap-1"><Clock size={14}/> Time & Labour</div></th>
-                                    
-                                    {!isViewer && <th rowSpan="2" className="px-4 py-3 font-semibold align-bottom text-center bg-gray-50 dark:bg-zinc-950/50">Action</th>}
-                                </tr>
-                                <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 text-xs border-b border-gray-200 dark:border-zinc-800 transition-colors">
-                                    <th className="px-3 py-2 font-medium bg-teal-50/50 dark:bg-teal-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">RM Wt</th>
-                                    <th className="px-3 py-2 font-medium bg-teal-50/50 dark:bg-teal-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">Dried Wt</th>
-                                    <th className="px-3 py-2 font-medium bg-teal-50/50 dark:bg-teal-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800"><Droplets size={12} className="inline mr-1"/>Moisture</th>
-                                    <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">Start</th>
-                                    <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">End</th>
-                                    <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">Total Pts</th>
-                                    
-                                    <th className="px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200 dark:border-zinc-800"><Banknote size={12} className="inline mr-1"/>Cost</th>
-                                    
-                                    <th className="px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">Mach. Hrs</th>
-                                    <th className="px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800"><Users size={12} className="inline mr-1"/>Lab. Hrs</th>
-                                    <th className="px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-950/20 text-center border-r border-gray-200 dark:border-zinc-800"><Banknote size={12} className="inline mr-1"/>Cost</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-                                {filteredRecords.length > 0 ? (
-                                    filteredRecords.map((record) => (
-                                        <tr key={record._id} className="hover:bg-gray-50/80 dark:hover:bg-zinc-800/50 transition-colors group">
-                                            <td className="px-4 py-3 border-r border-gray-100 dark:border-zinc-800 align-top">
-                                                <div className="flex flex-col items-start gap-1 mt-1">
-                                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
-                                                    {record.isEdited && (
-                                                        <span className="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 px-1.5 py-0.5 rounded font-medium w-max">
-                                                            Edited : {record.lastUpdatedDate}<br/><span className="text-[10px] opacity-80"> by {record.editedBy}</span>
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            
-                                            {/* Stacked Trial Names */}
-                                            <td className="px-4 py-3 border-r border-gray-100 dark:border-zinc-800 font-medium text-[#1B6A31] dark:text-green-400 whitespace-normal max-w-[200px] align-top">
-                                                <div className="flex flex-col gap-1.5 mt-1">
-                                                    {record.trialsArray.map((t, i) => (
-                                                        <span key={i} className="block whitespace-nowrap">{t.trialName}</span>
-                                                    ))}
-                                                </div>
-                                            </td>
-                                            
-                                            {/* Stacked Start Weights */}
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-teal-700 dark:text-teal-400 font-medium align-top">
-                                                <div className="flex flex-col gap-1.5 mt-1">
-                                                    {record.trialsArray.map((t, i) => (
-                                                        <span key={i} className="block whitespace-nowrap">{t.startWeight} kg</span>
-                                                    ))}
-                                                </div>
-                                                {/* {record.trialsArray.length > 1 && (
-                                                    <div className="mt-2 pt-1 border-t border-teal-100 dark:border-teal-900/50 text-xs font-bold text-teal-800 dark:text-teal-300" title="Batch Total RM Weight">
-                                                        {record.totalStartWt.toFixed(2)} kg
-                                                    </div>
-                                                )} */}
-                                            </td>
-
-                                            {/* Stacked End Weights */}
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-teal-700 dark:text-teal-400 font-medium align-top">
-                                                <div className="flex flex-col gap-1.5 mt-1">
-                                                    {record.trialsArray.map((t, i) => (
-                                                        <span key={i} className="block whitespace-nowrap">{t.endWeight} kg</span>
-                                                    ))}
-                                                </div>
-                                                {/* {record.trialsArray.length > 1 && (
-                                                    <div className="mt-2 pt-1 border-t border-teal-100 dark:border-teal-900/50 text-xs font-bold text-teal-800 dark:text-teal-300" title="Batch Total Dried Weight">
-                                                        {record.totalEndWt.toFixed(2)} kg
-                                                    </div>
-                                                )} */}
-                                            </td>
-                                            
-                                            {/* Stacked Moistures */}
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300 whitespace-normal max-w-[120px] align-top">
-                                                <div className="flex flex-col gap-1.5 mt-1">
-                                                    {record.trialsArray.map((t, i) => (
-                                                        <span key={i} className="block whitespace-nowrap">{t.moisturePercentage}%</span>
-                                                    ))}
-                                                </div>
-                                            </td>
-
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300 align-top pt-4">{record.meterStart}</td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300 align-top pt-4">{record.meterEnd}</td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 align-top pt-4"><span className="font-bold text-orange-600 dark:text-orange-400">{record.totalUnits?.toFixed(2) || 0}</span></td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 align-top pt-4"><span className="font-bold text-orange-700 dark:text-orange-300">{record.totalElectricityCost?.toFixed(2) || '0.00'}</span></td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 align-top pt-4"><span className="font-bold text-blue-700 dark:text-blue-400">{record.timePeriodHours}</span></td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300 font-medium align-top pt-4">{record.labourHours || 0}</td>
-                                            <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 align-top pt-4"><span className="font-bold text-purple-600 dark:text-purple-400">{record.totalLabourCost?.toFixed(2) || '0.00'}</span></td>
-                                            
-                                            {!isViewer && (
-                                                <td className="px-3 py-3 text-center align-top pt-3">
-                                                    <div className="flex items-center justify-center gap-1">
-                                                        
-                                                        {/* Edit Button: Visible to both Admin and HandMade Officer */}
-                                                        <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-400 hover:bg-[#8CC63F]/20 dark:hover:bg-zinc-800 rounded transition-all">
-                                                            <MdOutlineEdit size={20} />
-                                                        </button>
-                                                        
-                                                        {/* Delete Button: Wrapped to ONLY be visible to Admins */}
-                                                        {isAdmin && (
-                                                            <AlertDialog>
-                                                                <AlertDialogTrigger asChild>
-                                                                    <button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all">
-                                                                        <MdOutlineDeleteOutline size={20} />
-                                                                    </button>
-                                                                </AlertDialogTrigger>
-                                                                <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-md">
-                                                                    <AlertDialogHeader>
-                                                                        <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4 border border-red-200 dark:border-red-800">
-                                                                            <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
-                                                                        </div>
-                                                                        <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-white">Delete Record</AlertDialogTitle>
-                                                                        <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-base">
-                                                                            Are you sure you want to delete this batch record?
-                                                                        </AlertDialogDescription>
-                                                                    </AlertDialogHeader>
-                                                                    <AlertDialogFooter className="mt-6">
-                                                                        <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
-                                                                        <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
-                                                                    </AlertDialogFooter>
-                                                                </AlertDialogContent>
-                                                            </AlertDialog>
-                                                        )}
-
-                                                    </div>
-                                                </td>
-                                            )}
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr><td colSpan={isViewer ? "12" : "13"} className="p-16 text-center text-gray-400 dark:text-zinc-600"><AlertCircle size={40} className="mx-auto mb-3 opacity-20" /><p className="text-lg font-medium text-gray-500 dark:text-zinc-500">No records found</p></td></tr>
-                                )}
-                            </tbody>
-                            {filteredRecords.length > 0 && (
-                                <tfoot className="bg-gray-100/90 dark:bg-zinc-900/90 border-t-2 border-gray-200 dark:border-zinc-800 transition-colors duration-300">
-                                    <tr>
-                                        <td colSpan="2" className="px-4 py-4 text-right font-bold text-gray-800 dark:text-gray-200 tracking-wider uppercase border-r border-gray-200 dark:border-zinc-800">GRAND TOTAL</td>
-                                        <td className="px-3 py-4 text-center font-bold text-teal-700 dark:text-teal-500 border-r border-gray-200 dark:border-zinc-800">{totalStartWeight.toFixed(2)} kg</td>
-                                        <td className="px-3 py-4 text-center font-bold text-teal-700 dark:text-teal-500 border-r border-gray-200 dark:border-zinc-800">{totalEndWeight.toFixed(2)} kg</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800 text-center text-gray-500 font-bold">-</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800 text-center text-gray-500 font-bold">-</td>
-                                        <td className="px-3 py-4 border-r border-gray-200 dark:border-zinc-800 text-center text-gray-500 font-bold">-</td>
-                                        <td className="px-3 py-4 text-center font-black text-orange-700 dark:text-orange-500 text-lg border-r border-gray-200 dark:border-zinc-800">{totalUnits.toFixed(2)} Pts</td>
-                                        <td className="px-3 py-4 text-center font-black text-orange-800 dark:text-orange-400 text-lg border-r border-gray-200 dark:border-zinc-800">{totalElecCost.toFixed(2)}</td>
-                                        <td className="px-3 py-4 text-center font-black text-blue-700 dark:text-blue-400 border-r border-gray-200 dark:border-zinc-800">{totalHours.toFixed(1)} Hrs</td>
-                                        <td className="px-3 py-4 text-center font-black text-blue-700 dark:text-blue-400 border-r border-gray-200 dark:border-zinc-800">{totalLabourHours.toFixed(1)} Hrs</td>
-                                        <td className="px-3 py-4 text-center font-black text-purple-700 dark:text-purple-400 border-r border-gray-200 dark:border-zinc-800">{totalLabourCost.toFixed(2)}</td>
-                                        {!isViewer && <td></td>}
-                                    </tr>
-                                </tfoot>
-                            )}
-                        </table>
-                    </div>
-                )}
+            <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">From Date</label>
+                <input 
+                    type="date" 
+                    value={startDate} 
+                    onChange={handleStartDateChange} 
+                    className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2 sm:p-2.5 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 transition-colors" 
+                />
+            </div>
+            <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">To Date</label>
+                <input 
+                    type="date" 
+                    min={startDate} 
+                    value={endDate} 
+                    onChange={(e) => setEndDate(e.target.value)} 
+                    disabled={!startDate}
+                    className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2 sm:p-2.5 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                />
+            </div>
+            <div className="flex flex-col gap-1.5 min-[450px]:col-span-2 lg:col-span-1">
+                <label className="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Trial (Search)</label>
+                <input 
+                    type="text" 
+                    placeholder="e.g. Mango..." 
+                    value={trialFilter} 
+                    onChange={(e) => setTrialFilter(e.target.value)} 
+                    className="w-full border border-gray-300 dark:border-zinc-700 bg-transparent dark:text-gray-200 rounded-md p-2 sm:p-2.5 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 transition-colors" 
+                />
+            </div>
+            <div className="flex items-end lg:justify-end min-[450px]:col-span-2 lg:col-span-1">
+                <button 
+                    onClick={clearFilters}
+                    disabled={!filterMonth && !startDate && !endDate && !trialFilter}
+                    className={`w-full lg:w-auto px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-md transition-colors flex items-center justify-center gap-2 ${
+                        filterMonth || startDate || endDate || trialFilter 
+                        ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-200 dark:border-red-800/50' 
+                        : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500 cursor-not-allowed'
+                    }`}
+                >
+                    <FilterX size={16} /> Clear
+                </button>
             </div>
         </div>
+    </div>
+    
+    {/* --- DATA TABLE SECTION --- */}
+    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden self-start w-full max-w-full transition-colors duration-300">
+        {loading ? (
+            <div className="p-8 sm:p-12 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center h-48 sm:h-64">
+                <div className="w-6 sm:w-8 h-6 sm:h-8 border-4 border-[#8CC63F] dark:border-green-700 border-t-[#1B6A31] dark:border-t-green-400 rounded-full animate-spin mb-4"></div>
+                <p className="text-xs sm:text-sm font-medium">Loading dehydrator records...</p>
+            </div>
+        ) : (
+            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-zinc-700 w-full">
+                <table className="w-full text-xs sm:text-sm text-left border-collapse whitespace-nowrap min-w-[900px] md:min-w-max">
+                    <thead>
+                        <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-[10px] sm:text-xs tracking-wider border-b border-gray-200 dark:border-zinc-800 transition-colors">
+                            {/* Sticky Date Column Header */}
+                            <th rowSpan="2" className="sticky left-0 z-20 bg-gray-50 dark:bg-zinc-950/95 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] px-3 sm:px-4 py-2 sm:py-3 font-semibold border-r border-gray-200 dark:border-zinc-800 align-bottom min-w-[120px] sm:min-w-[140px]">
+                                <div className="flex items-center gap-1"><Calendar size={14}/> Date</div>
+                            </th>
+                            
+                            <th rowSpan="2" className="px-3 sm:px-4 py-2 sm:py-3 font-bold text-[#1B6A31] dark:text-green-500 border-r border-gray-200 dark:border-zinc-800 bg-[#8CC63F]/10 dark:bg-green-900/20 align-bottom max-w-[150px] sm:max-w-[200px]">
+                                <div className="flex items-center gap-1"><Fan size={14}/> Trial(s)</div>
+                            </th>
+                            
+                            <th colSpan="3" className="px-3 sm:px-4 py-2 font-bold text-teal-700 dark:text-teal-500 border-r border-gray-200 dark:border-zinc-800 bg-teal-50 dark:bg-teal-950/30 text-center">
+                                <div className="flex items-center justify-center gap-1"><Scale size={14}/> Yield Details</div>
+                            </th>
+                            <th colSpan="4" className="px-3 sm:px-4 py-2 font-bold text-orange-700 dark:text-orange-500 border-r border-gray-200 dark:border-zinc-800 bg-orange-50 dark:bg-orange-950/30 text-center">
+                                <div className="flex items-center justify-center gap-1"><Zap size={14}/> Electricity</div>
+                            </th>
+                            <th colSpan="3" className="px-3 sm:px-4 py-2 font-bold text-blue-700 dark:text-blue-400 border-r border-gray-200 dark:border-zinc-800 bg-blue-50 dark:bg-blue-950/30 text-center">
+                                <div className="flex items-center justify-center gap-1"><Clock size={14}/> Time & Labour</div>
+                            </th>
+                            
+                            {!isViewer && <th rowSpan="2" className="px-3 sm:px-4 py-2 sm:py-3 font-semibold align-bottom text-center bg-gray-50 dark:bg-zinc-950/50">Action</th>}
+                        </tr>
+                        <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs border-b border-gray-200 dark:border-zinc-800 transition-colors">
+                            <th className="px-2 sm:px-3 py-2 font-medium bg-teal-50/50 dark:bg-teal-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">RM Wt</th>
+                            <th className="px-2 sm:px-3 py-2 font-medium bg-teal-50/50 dark:bg-teal-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">Dried Wt</th>
+                            <th className="px-2 sm:px-3 py-2 font-medium bg-teal-50/50 dark:bg-teal-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800"><Droplets size={12} className="inline mr-1 hidden sm:inline"/>Moist%</th>
+                            <th className="px-2 sm:px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">Start</th>
+                            <th className="px-2 sm:px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">End</th>
+                            <th className="px-2 sm:px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">Pts</th>
+                            <th className="px-2 sm:px-3 py-2 font-medium bg-orange-50/50 dark:bg-orange-950/20 text-center border-r border-gray-200 dark:border-zinc-800"><Banknote size={12} className="inline mr-1 hidden sm:inline"/>Cost</th>
+                            <th className="px-2 sm:px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800">Hrs</th>
+                            <th className="px-2 sm:px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-950/20 text-center border-r border-gray-200/60 dark:border-zinc-800"><Users size={12} className="inline mr-1 hidden sm:inline"/>Lab Hrs</th>
+                            <th className="px-2 sm:px-3 py-2 font-medium bg-blue-50/50 dark:bg-blue-950/20 text-center border-r border-gray-200 dark:border-zinc-800"><Banknote size={12} className="inline mr-1 hidden sm:inline"/>Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
+                        {filteredRecords.length > 0 ? (
+                            filteredRecords.map((record) => (
+                                <tr key={record._id} className="hover:bg-gray-50/80 dark:hover:bg-zinc-800/50 transition-colors group">
+                                    
+                                    {/* Sticky Date Column Body */}
+                                    <td className="sticky left-0 z-10 bg-white dark:bg-zinc-900 group-hover:bg-gray-50 dark:group-hover:bg-zinc-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] px-3 sm:px-4 py-2 sm:py-3 border-r border-gray-100 dark:border-zinc-800 align-top transition-colors">
+                                        <div className="flex flex-col items-start gap-1 mt-1">
+                                            <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
+                                            {record.isEdited && (
+                                                <span className="text-[9px] sm:text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50 px-1 sm:px-1.5 py-0.5 rounded font-medium w-max leading-tight">
+                                                    Edited : {record.lastUpdatedDate}<br/><span className="opacity-80"> by {record.editedBy}</span>
+                                                </span>
+                                            )}
+                                        </div>
+                                    </td>
+                                    
+                                    {/* Stacked Trial Names */}
+                                    <td className="px-3 sm:px-4 py-2 sm:py-3 border-r border-gray-100 dark:border-zinc-800 font-medium text-[#1B6A31] dark:text-green-400 whitespace-normal max-w-[150px] sm:max-w-[200px] align-top">
+                                        <div className="flex flex-col gap-1 sm:gap-1.5 mt-1">
+                                            {record.trialsArray.map((t, i) => (
+                                                <span key={i} className="block whitespace-nowrap truncate">{t.trialName}</span>
+                                            ))}
+                                        </div>
+                                    </td>
+                                    
+                                    {/* Stacked Start Weights */}
+                                    <td className="px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-teal-700 dark:text-teal-400 font-medium align-top">
+                                        <div className="flex flex-col gap-1 sm:gap-1.5 mt-1">
+                                            {record.trialsArray.map((t, i) => (
+                                                <span key={i} className="block whitespace-nowrap">{t.startWeight} kg</span>
+                                            ))}
+                                        </div>
+                                    </td>
+
+                                    {/* Stacked End Weights */}
+                                    <td className="px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-teal-700 dark:text-teal-400 font-medium align-top">
+                                        <div className="flex flex-col gap-1 sm:gap-1.5 mt-1">
+                                            {record.trialsArray.map((t, i) => (
+                                                <span key={i} className="block whitespace-nowrap">{t.endWeight} kg</span>
+                                            ))}
+                                        </div>
+                                    </td>
+                                    
+                                    {/* Stacked Moistures */}
+                                    <td className="px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300 whitespace-normal max-w-[80px] sm:max-w-[120px] align-top">
+                                        <div className="flex flex-col gap-1 sm:gap-1.5 mt-1">
+                                            {record.trialsArray.map((t, i) => (
+                                                <span key={i} className="block whitespace-nowrap">{t.moisturePercentage}%</span>
+                                            ))}
+                                        </div>
+                                    </td>
+
+                                    <td className="px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300 align-top pt-3 sm:pt-4">{record.meterStart}</td>
+                                    <td className="px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300 align-top pt-3 sm:pt-4">{record.meterEnd}</td>
+                                    <td className="px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-100 dark:border-zinc-800 align-top pt-3 sm:pt-4"><span className="font-bold text-orange-600 dark:text-orange-400">{record.totalUnits?.toFixed(2) || 0}</span></td>
+                                    <td className="px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-100 dark:border-zinc-800 align-top pt-3 sm:pt-4"><span className="font-bold text-orange-700 dark:text-orange-300">{record.totalElectricityCost?.toFixed(2) || '0.00'}</span></td>
+                                    <td className="px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-100 dark:border-zinc-800 align-top pt-3 sm:pt-4"><span className="font-bold text-blue-700 dark:text-blue-400">{record.timePeriodHours}</span></td>
+                                    <td className="px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-gray-600 dark:text-gray-300 font-medium align-top pt-3 sm:pt-4">{record.labourHours || 0}</td>
+                                    <td className="px-2 sm:px-3 py-2 sm:py-3 text-center border-r border-gray-100 dark:border-zinc-800 align-top pt-3 sm:pt-4"><span className="font-bold text-purple-600 dark:text-purple-400">{record.totalLabourCost?.toFixed(2) || '0.00'}</span></td>
+                                    
+                                    {!isViewer && (
+                                        <td className="px-2 sm:px-3 py-2 sm:py-3 text-center align-top pt-2 sm:pt-3">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <button onClick={() => handleEditClick(record)} className="p-1 sm:p-1.5 text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-400 hover:bg-[#8CC63F]/20 dark:hover:bg-zinc-800 rounded transition-all">
+                                                    <MdOutlineEdit className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
+                                                </button>
+                                                
+                                                {isAdmin && (
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <button onClick={() => setRecordToDelete(record)} className="p-1 sm:p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all">
+                                                                <MdOutlineDeleteOutline className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
+                                                            </button>
+                                                        </AlertDialogTrigger>
+                                                        {/* Dialog content remains unchanged but naturally responsive */}
+                                                        <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-sm sm:max-w-md w-[90vw]">
+                                                            <AlertDialogHeader>
+                                                                <div className="w-10 sm:w-12 h-10 sm:h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-3 sm:mb-4 border border-red-200 dark:border-red-800">
+                                                                    <AlertCircle className="w-5 sm:w-6 h-5 sm:h-6 text-red-600 dark:text-red-400" />
+                                                                </div>
+                                                                <AlertDialogTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Delete Record</AlertDialogTitle>
+                                                                <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                                                                    Are you sure you want to delete this batch record?
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter className="mt-4 sm:mt-6">
+                                                                <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                )}
+                                            </div>
+                                        </td>
+                                    )}
+                                </tr>
+                            ))
+                        ) : (
+                            <tr><td colSpan={isViewer ? "12" : "13"} className="p-8 sm:p-16 text-center text-gray-400 dark:text-zinc-600"><AlertCircle size={32} className="mx-auto mb-3 opacity-20 sm:w-10 sm:h-10" /><p className="text-sm sm:text-lg font-medium text-gray-500 dark:text-zinc-500">No records found</p></td></tr>
+                        )}
+                    </tbody>
+                    {filteredRecords.length > 0 && (
+                        <tfoot className="bg-gray-100/90 dark:bg-zinc-900/90 border-t-2 border-gray-200 dark:border-zinc-800 transition-colors duration-300">
+                            <tr>
+                                {/* Sticky Date Footers merged */}
+                                <td colSpan="2" className="sticky left-0 z-10 bg-gray-100 dark:bg-zinc-900 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] px-3 sm:px-4 py-3 sm:py-4 text-right font-bold text-gray-800 dark:text-gray-200 tracking-wider uppercase border-r border-gray-200 dark:border-zinc-800 text-[10px] sm:text-xs">
+                                    GRAND TOTAL
+                                </td>
+                                <td className="px-2 sm:px-3 py-3 sm:py-4 text-center font-bold text-teal-700 dark:text-teal-500 border-r border-gray-200 dark:border-zinc-800">{totalStartWeight.toFixed(2)} kg</td>
+                                <td className="px-2 sm:px-3 py-3 sm:py-4 text-center font-bold text-teal-700 dark:text-teal-500 border-r border-gray-200 dark:border-zinc-800">{totalEndWeight.toFixed(2)} kg</td>
+                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-zinc-800 text-center text-gray-500 font-bold">-</td>
+                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-zinc-800 text-center text-gray-500 font-bold">-</td>
+                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-zinc-800 text-center text-gray-500 font-bold">-</td>
+                                <td className="px-2 sm:px-3 py-3 sm:py-4 text-center font-black text-orange-700 dark:text-orange-500 text-sm sm:text-lg border-r border-gray-200 dark:border-zinc-800">{totalUnits.toFixed(2)} Pts</td>
+                                <td className="px-2 sm:px-3 py-3 sm:py-4 text-center font-black text-orange-800 dark:text-orange-400 text-sm sm:text-lg border-r border-gray-200 dark:border-zinc-800">{totalElecCost.toFixed(2)}</td>
+                                <td className="px-2 sm:px-3 py-3 sm:py-4 text-center font-black text-blue-700 dark:text-blue-400 border-r border-gray-200 dark:border-zinc-800">{totalHours.toFixed(1)} Hrs</td>
+                                <td className="px-2 sm:px-3 py-3 sm:py-4 text-center font-black text-blue-700 dark:text-blue-400 border-r border-gray-200 dark:border-zinc-800">{totalLabourHours.toFixed(1)} Hrs</td>
+                                <td className="px-2 sm:px-3 py-3 sm:py-4 text-center font-black text-purple-700 dark:text-purple-400 border-r border-gray-200 dark:border-zinc-800">{totalLabourCost.toFixed(2)}</td>
+                                {!isViewer && <td></td>}
+                            </tr>
+                        </tfoot>
+                    )}
+                </table>
+            </div>
+        )}
+    </div>
+</div>
     );
 }
