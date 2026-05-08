@@ -225,9 +225,11 @@ export default function DashboardLayout() {
     <TooltipProvider delayDuration={0}>
     {/* SidebarProvider is now controlled via state */}
     <SidebarProvider open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+      
+      {/* Added !important background, opacity, and z-index to force solidity on mobile */}
       <Sidebar 
         collapsible="icon" 
-        className="border-none bg-[#F4F7F5] dark:bg-zinc-950 transition-[width] duration-300 ease-in-out"
+        className="border-none !bg-[#F4F7F5] dark:!bg-zinc-950 !opacity-100 z-[60] transition-[width] duration-300 ease-in-out"
         onMouseEnter={handleSidebarMouseEnter}
         onMouseLeave={handleSidebarMouseLeave}
       >
@@ -348,7 +350,8 @@ export default function DashboardLayout() {
 
       <SidebarInset className="bg-[#F4F7F5] dark:bg-zinc-950 relative flex flex-col h-screen overflow-hidden p-2 md:p-4">
         
-        <header className="flex h-14 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-2xl border border-white dark:border-zinc-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl shrink-0 items-center justify-between gap-2 absolute top-4 left-4 right-4 z-50 px-4 transition-all">
+        {/* Changed z-index from z-50 to z-40 so the Sidebar layers over it */}
+        <header className="flex h-14 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-2xl border border-white dark:border-zinc-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl shrink-0 items-center justify-between gap-2 absolute top-4 left-4 right-4 z-40 px-4 transition-all">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-500 transition-colors" />
             <Separator orientation="vertical" className="mr-2 h-5 bg-gray-200 dark:bg-zinc-700" />
@@ -403,7 +406,7 @@ export default function DashboardLayout() {
               </DropdownMenuTrigger>
               
               <DropdownMenuContent
-                className="w-56 rounded-2xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-gray-100 dark:border-zinc-800 shadow-xl p-2 mt-2"
+                className="w-56 rounded-2xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-gray-100 dark:border-zinc-800 shadow-xl p-2 mt-2 z-[70]"
                 align="end"
               >
                 <DropdownMenuLabel className="p-0 font-normal">
