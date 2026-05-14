@@ -66,7 +66,6 @@ export default function GreenLeafForm() {
 
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
-    // Add this new line right below them:
     const isAdmin = userRole.toLowerCase() === 'admin';
 
     const [startDate, setStartDate] = useState('');
@@ -103,90 +102,94 @@ export default function GreenLeafForm() {
             const productionData = await productionRes.json();
             const labourData = await labourRes.json();
 
-            const glUsage = {};
-            const labUsage = {};
+            const uniqueDates = Array.from(new Set([
+                ...greenLeafData.map(g => g.date?.substring(0, 10)),
+                ...productionData.map(p => p.date?.substring(0, 10)),
+                ...labourData.map(l => l.date?.substring(0, 10))
+            ])).filter(Boolean);
 
-            const mergedData = productionData.map(prod => {
-                const dateStr = new Date(prod.date).toISOString().split('T')[0];
-                
-                const glsForDate = greenLeafData.filter(g => new Date(g.date).toISOString().split('T')[0] === dateStr);
-                const labsForDate = labourData.filter(l => new Date(l.date).toISOString().split('T')[0] === dateStr);
+            const mergedData = [];
 
-                if (glUsage[dateStr] === undefined) glUsage[dateStr] = 0;
-                if (labUsage[dateStr] === undefined) labUsage[dateStr] = 0;
+            uniqueDates.forEach(dateStr => {
+                const glsForDate = greenLeafData.filter(g => g.date?.substring(0, 10) === dateStr);
+                const prodsForDate = productionData.filter(p => p.date?.substring(0, 10) === dateStr);
+                const labsForDate = labourData.filter(l => l.date?.substring(0, 10) === dateStr);
 
-                const gl = glsForDate[glUsage[dateStr]] || null;
-                const lab = labsForDate[labUsage[dateStr]] || null;
+                const maxCount = Math.max(glsForDate.length, prodsForDate.length, labsForDate.length);
 
-                glUsage[dateStr]++;
-                labUsage[dateStr]++;
+                for (let i = 0; i < maxCount; i++) {
+                    const gl = glsForDate[i] || null;
+                    const prod = prodsForDate[i] || null;
+                    const lab = labsForDate[i] || null;
 
-                const getSafeTime = (item, field) => item && item[field] ? new Date(item[field]).getTime() : 0;
-                const glCreated = getSafeTime(gl, 'createdAt');
-                const glUpdated = getSafeTime(gl, 'updatedAt');
-                const labCreated = getSafeTime(lab, 'createdAt');
-                const labUpdated = getSafeTime(lab, 'updatedAt');
-                
-                const isGlEdited = glUpdated > 0 && glCreated > 0 && (glUpdated - glCreated > 5000);
-                const isLabEdited = labUpdated > 0 && labCreated > 0 && (labUpdated - labCreated > 5000);
-                
-                const isEdited = isGlEdited || isLabEdited;
+                    // --- Updated Logic for Edit Detection ---
+                    // ඇත්තටම Edit කරලද කියලා බලන්නේ 'updatedBy' field එකේ නමක් තියෙනවද කියලා චෙක් කරලා
+                    const hasUpdater = (item) => item && item.updatedBy && item.updatedBy.trim() !== "";
 
-                let lastUpdatedDate = '';
-                let editedBy = '';
+                    const isGlEdited = hasUpdater(gl);
+                    const isLabEdited = hasUpdater(lab);
+                    const isProdEdited = hasUpdater(prod);
+                    
+                    const isEdited = isGlEdited || isLabEdited || isProdEdited;
 
-                if (isEdited) {
-                    const times = [];
-                    if (isGlEdited) times.push({ time: glUpdated, user: gl.updatedBy || gl.username || 'Admin' });
-                    if (isLabEdited) times.push({ time: labUpdated, user: lab.updatedBy || lab.username || 'Admin' });
+                    let lastUpdatedDate = '';
+                    let editedBy = '';
 
-                    if (times.length > 0) {
-                        times.sort((a, b) => b.time - a.time);
-                        lastUpdatedDate = new Date(times[0].time).toISOString().split('T')[0];
-                        editedBy = times[0].user;
+                    if (isEdited) {
+                        const times = [];
+                        if (isGlEdited) times.push({ time: new Date(gl.updatedAt).getTime(), user: gl.updatedBy });
+                        if (isLabEdited) times.push({ time: new Date(lab.updatedAt).getTime(), user: lab.updatedBy });
+                        if (isProdEdited) times.push({ time: new Date(prod.updatedAt).getTime(), user: prod.updatedBy });
+
+                        if (times.length > 0) {
+                            // අලුත්ම update එක කරපු වෙලාව සහ කෙනා තෝරාගැනීම
+                            times.sort((a, b) => b.time - a.time);
+                            lastUpdatedDate = new Date(times[0].time).toISOString().split('T')[0];
+                            editedBy = times[0].user;
+                        }
                     }
-                }
+                    // ----------------------------------------
 
-                let rType = '-';
-                if (lab && lab.rollingType) {
-                    if (lab.rollingType === 'Machine Rolling1') rType = 'M/R 1';
-                    else if (lab.rollingType === 'Machine Rolling2') rType = 'M/R 2';
-                    else if (lab.rollingType === 'Machine Rolling3') rType = 'M/R 3';
-                    // කලින් තිබුණ 'Machine Rolling' එකත් තියාගන්නවා පරණ data වලට support කරන්න
-                    else if (lab.rollingType === 'Machine Rolling') rType = 'M/R';
-                    else if (lab.rollingType === 'Hand Rolling') rType = 'H/R';
-                    else rType = lab.rollingType;
+                    let rType = 'M/R';
+                    if (lab && lab.rollingType) {
+                        if (lab.rollingType === 'Machine Rolling') rType = 'M/R';
+                        else if (lab.rollingType === 'Hand Rolling') rType = 'H/R';
+                        else rType = lab.rollingType;
+                    } else if (!lab) {
+                        rType = '-';
+                    }
+                    
+                    mergedData.push({
+                        date: dateStr,
+                        isEdited,
+                        lastUpdatedDate,
+                        editedBy, 
+                        greenLeafId: gl ? gl._id : null,
+                        productionId: prod ? prod._id : null, 
+                        labourId: lab ? lab._id : null,
+                        totalWeight: gl ? gl.totalWeight : 0,
+                        selectedWeight: gl ? gl.selectedWeight : 0,
+                        returnedWeight: gl ? gl.returnedWeight : 0,
+                        teaType: prod ? (prod.teaType || '-') : '-',
+                        madeTeaWeight: prod ? (prod.madeTeaWeight || 0) : 0,
+                        dryerName: prod?.dryerDetails?.dryerName || '-',
+                        meterStart: prod?.dryerDetails?.meterStart ?? '-',
+                        meterEnd: prod?.dryerDetails?.meterEnd ?? '-',
+                        units: prod?.dryerDetails?.units ?? 0,
+                        rollerPoints: prod?.dryerDetails?.rollerPoints ?? 0, 
+                        dryerUpdatedDate: (prod?.dryerDetails?.dryerName && prod?.updatedAt) 
+                            ? new Date(prod.updatedAt).toISOString().split('T')[0] 
+                            : '-',
+                        workerCount: lab ? lab.workerCount : 0,
+                        rollingType: rType,
+                        rollingWorkerCount: (lab && lab.rollingType === 'Hand Rolling') ? lab.rollingWorkerCount : 0
+                    });
                 }
-                
-                return {
-                    date: dateStr,
-                    isEdited,
-                    lastUpdatedDate,
-                    editedBy, 
-                    greenLeafId: gl ? gl._id : null,
-                    productionId: prod._id, 
-                    labourId: lab ? lab._id : null,
-                    totalWeight: gl ? gl.totalWeight : 0,
-                    selectedWeight: gl ? gl.selectedWeight : 0,
-                    returnedWeight: gl ? gl.returnedWeight : 0,
-                    teaType: prod.teaType || '-',
-                    madeTeaWeight: prod.madeTeaWeight || 0,
-                    dryerName: prod?.dryerDetails?.dryerName || '-',
-                    meterStart: prod?.dryerDetails?.meterStart ?? '-',
-                    meterEnd: prod?.dryerDetails?.meterEnd ?? '-',
-                    units: prod?.dryerDetails?.units ?? 0,
-                    rollerPoints: prod?.dryerDetails?.rollerPoints ?? 0, 
-                    dryerUpdatedDate: (prod?.dryerDetails?.dryerName && prod.updatedAt) 
-                        ? new Date(prod.updatedAt).toISOString().split('T')[0] 
-                        : '-',
-                    workerCount: lab ? lab.workerCount : 0,
-                    rollingType: rType,
-                    rollingWorkerCount: (lab && lab.rollingType === 'Hand Rolling') ? lab.rollingWorkerCount : 0
-                };
             });
 
             mergedData.sort((a, b) => new Date(b.date) - new Date(a.date));
             setRecords(mergedData);
+            
         } catch (error) {
             console.error("Fetch Error:", error);
             toast.error(error.message || "Could not load data from server.");
@@ -230,6 +233,20 @@ export default function GreenLeafForm() {
         }
     });
 
+    // -------- මේ අලුත් කොටස මෙතැනට එකතු කරන්න --------
+    // Calculate Grouped OutTurn % (By Date and Tea Type)
+    const outTurnGroups = {};
+    filteredRecords.forEach(r => {
+        if (r.teaType !== '-' && r.teaType !== '') {
+            const key = `${r.date}_${r.teaType}`;
+            if (!outTurnGroups[key]) {
+                outTurnGroups[key] = { selectedSum: 0, madeTeaSum: 0 };
+            }
+            outTurnGroups[key].selectedSum += (Number(r.selectedWeight) || 0);
+            outTurnGroups[key].madeTeaSum += (Number(r.madeTeaWeight) || 0);
+        }
+    });
+   
     const highlightColors = [
         { ui: 'bg-green-200/80 dark:bg-green-900/40', pdf: '#bbf7d0' },
         { ui: 'bg-yellow-200/80 dark:bg-yellow-900/40', pdf: '#fef08a' },
@@ -255,6 +272,12 @@ export default function GreenLeafForm() {
     const totalMadeTea = filteredRecords.reduce((sum, r) => sum + (Number(r.madeTeaWeight) || 0), 0);
     const totalSelectionLabour = filteredRecords.reduce((sum, r) => sum + (Number(r.workerCount) || 0), 0);
     const totalHandRollingLabour = filteredRecords.reduce((sum, r) => sum + (Number(r.rollingWorkerCount) || 0), 0);
+
+    // Calculate Total Out Turn % for Footer
+    let totalOutTurnDisplay = "-";
+    if (totalSelectedGL > 0 && totalMadeTea > 0) {
+        totalOutTurnDisplay = ((totalMadeTea / totalSelectedGL) * 100).toFixed(2) + '%';
+    }
 
     const totalUnits = filteredRecords.reduce((sum, r) => {
         if (r.meterStart !== '-' && r.meterEnd !== '-' && r.meterStart !== '' && r.meterEnd !== '') {
@@ -304,6 +327,9 @@ export default function GreenLeafForm() {
 
     const getPdfData = () => {
         let currentGroupDate = null;
+        // අලුතින් එකතු කළ කොටස: PDF එකේ OutTurn එක Track කරන්න
+        const seenPdfOutTurns = new Set(); 
+
         const tableRows = filteredRecords.map(record => {
             let displayUnits = record.units;
             let displayRollerPoints = record.rollerPoints; 
@@ -332,6 +358,25 @@ export default function GreenLeafForm() {
             }
             
             const rollingText = record.rollingType === 'H/R' && record.rollingWorkerCount > 0 ? `H/R\n(${record.rollingWorkerCount} wkrs)` : record.rollingType;
+            
+            // --- අලුත් Out Turn % Calculation එක (PDF) ---
+            let outTurnDisplay = "-";
+            if (record.teaType !== '-' && record.teaType !== '') {
+                const key = `${record.date}_${record.teaType}`;
+                
+                // මේ key එක කලින් පෙන්නලා නැත්තන් විතරක් OutTurn එක හදන්න
+                if (!seenPdfOutTurns.has(key)) {
+                    const groupInfo = outTurnGroups[key];
+                    if (groupInfo && groupInfo.selectedSum > 0 && groupInfo.madeTeaSum > 0) {
+                        outTurnDisplay = ((groupInfo.madeTeaSum / groupInfo.selectedSum) * 100).toFixed(2) + '%';
+                    }
+                    seenPdfOutTurns.add(key); // පෙන්නුවා කියලා සලකුණු කරන්න
+                } else {
+                    outTurnDisplay = ""; // කලින් පෙන්නලා නම් මේ පේළියේ හිස්ව තියන්න
+                }
+            }
+            // ----------------------------------------------
+
             return {
                 data: [
                     pdfDateCell, 
@@ -340,6 +385,7 @@ export default function GreenLeafForm() {
                     Number(record.returnedWeight) === 0 ? '-' : record.returnedWeight,
                     record.teaType, 
                     Number(record.madeTeaWeight) === 0 ? '-' : record.madeTeaWeight, 
+                    outTurnDisplay, // <-- New Out Turn %
                     pdfDryerName,
                     record.meterStart, record.meterEnd,
                     Number(displayUnits) === 0 || displayUnits === '-' ? '-' : displayUnits,
@@ -359,6 +405,7 @@ export default function GreenLeafForm() {
                 totalReturnedGL === 0 ? '-' : totalReturnedGL.toFixed(2), 
                 "-",
                 totalMadeTea === 0 ? '-' : totalMadeTea.toFixed(3), 
+                totalOutTurnDisplay, // <-- Total Out Turn %
                 "-", 
                 "-", 
                 "-",
@@ -393,7 +440,7 @@ export default function GreenLeafForm() {
                     <PDFDownloader 
                         title="Daily Production Log"
                         subtitle={`Filters Applied -> Date: ${startDate || 'All'} to ${endDate || 'All'} | Tea: ${teaType} | Dryer: ${dryerType}`}
-                        headers={["Date", "Received GL", "Selected GL", "Return GL", "Tea Type", "Made Tea", "Dryer", "Start", "End", "Units", "Roller", "Sel. Lab", "Rolling"]}
+                        headers={["Date", "Received GL", "Selected GL", "Return GL", "Tea Type", "Made Tea", "Out Turn %", "Dryer", "Start", "End", "Units", "Roller", "Sel. Lab", "Rolling"]}
                         data={getPdfData()} 
                         uniqueCode={uniqueCode}
                         fileName={`Production_Log_${new Date().toISOString().split('T')[0]}.pdf`}
@@ -471,7 +518,8 @@ export default function GreenLeafForm() {
                                 <th colSpan="3" className="px-3 sm:px-4 py-2 font-bold text-[#1B6A31] dark:text-green-500 border-r border-gray-200 dark:border-zinc-800 bg-[#eef8f2] dark:bg-green-900/20 text-center uppercase tracking-wider text-[10px] sm:text-[11px]">
                                     <div className="flex items-center justify-center gap-1.5"><Leaf size={14} className="hidden sm:inline"/> Raw Material</div>
                                 </th>
-                                <th colSpan="2" className="px-3 sm:px-4 py-2 font-bold text-purple-700 dark:text-purple-400 border-r border-gray-200 dark:border-zinc-800 bg-[#f5f0ff] dark:bg-purple-900/20 text-center uppercase tracking-wider text-[10px] sm:text-[11px]">
+                                {/* Changed colSpan from 2 to 3 for Output section */}
+                                <th colSpan="3" className="px-3 sm:px-4 py-2 font-bold text-purple-700 dark:text-purple-400 border-r border-gray-200 dark:border-zinc-800 bg-[#f5f0ff] dark:bg-purple-900/20 text-center uppercase tracking-wider text-[10px] sm:text-[11px]">
                                     <div className="flex items-center justify-center gap-1.5"><Factory size={14} className="hidden sm:inline"/> Output</div>
                                 </th>
                                 <th colSpan="5" className="px-3 sm:px-4 py-2 font-bold text-orange-700 dark:text-orange-400 border-r border-gray-200 dark:border-zinc-800 bg-[#fff5eb] dark:bg-orange-900/20 text-center uppercase tracking-wider text-[10px] sm:text-[11px]">
@@ -491,6 +539,8 @@ export default function GreenLeafForm() {
                                 
                                 <th className="px-2 sm:px-3 py-2 font-semibold bg-[#f5f0ff]/50 dark:bg-purple-900/10 text-center border-r border-gray-200 dark:border-zinc-800">Type</th>
                                 <th className="px-2 sm:px-3 py-2 font-semibold bg-[#f5f0ff]/50 dark:bg-purple-900/10 text-center border-r border-gray-200 dark:border-zinc-800">Made (kg)</th>
+                                {/* Added Out Turn % Header */}
+                                <th className="px-2 sm:px-3 py-2 font-semibold bg-[#f5f0ff]/50 dark:bg-purple-900/10 text-center border-r border-gray-200 dark:border-zinc-800">OutTurn %</th>
                                 
                                 <th className="px-2 sm:px-3 py-2 font-semibold bg-[#fff5eb]/50 dark:bg-orange-900/10 text-center border-r border-gray-200 dark:border-zinc-800">Dryer</th>
                                 <th className="px-2 sm:px-3 py-2 font-semibold bg-[#fff5eb]/50 dark:bg-orange-900/10 text-center border-r border-gray-200 dark:border-zinc-800">Start</th>
@@ -509,6 +559,9 @@ export default function GreenLeafForm() {
                                     const isMulti = dayRecords.length > 1;
                                     const totalRowSpan = dayRecords.length;
                                     const paddingY = isMulti ? 'py-1 sm:py-1.5' : 'py-2 sm:py-3';
+
+                                    // මේ දවස ඇතුළෙ UI එකේ පෙන්නපු Tea Types Track කරන්න අලුත් Set එකක්
+                                    const seenTeaTypes = new Set();
 
                                     return (
                                         <React.Fragment key={date}>
@@ -531,8 +584,23 @@ export default function GreenLeafForm() {
                                                     }
                                                 }
 
+                                                // Calculate Grouped Out Turn % for Row (එක් තේ වර්ගයකට එක පාරක් පමණයි පෙන්වන්නේ)
+                                                let outTurnDisplay = "-";
+                                                if (record.teaType !== '-' && record.teaType !== '') {
+                                                    if (!seenTeaTypes.has(record.teaType)) {
+                                                        const key = `${record.date}_${record.teaType}`;
+                                                        const groupInfo = outTurnGroups[key];
+                                                        if (groupInfo && groupInfo.selectedSum > 0 && groupInfo.madeTeaSum > 0) {
+                                                            outTurnDisplay = ((groupInfo.madeTeaSum / groupInfo.selectedSum) * 100).toFixed(2) + '%';
+                                                        }
+                                                        seenTeaTypes.add(record.teaType); // පෙන්නුවා කියලා සලකුණු කරන්න
+                                                    } else {
+                                                        outTurnDisplay = ""; // කලින් පෙන්නලා නම් මේ පේළියේ හිස්ව තියන්න
+                                                    }
+                                                }
+
                                                 return (
-                                                    <tr key={record.productionId} className={`transition-colors group hover:bg-gray-50/50 dark:hover:bg-zinc-800/20`}>
+                                                    <tr key={record.productionId || index} className={`transition-colors group hover:bg-gray-50/50 dark:hover:bg-zinc-800/20`}>
                                                         {index === 0 && (
                                                             /* Sticky Date Body */
                                                             <td rowSpan={totalRowSpan} className="sticky left-0 z-10 bg-gray-50/90 dark:bg-zinc-900/90 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] px-3 sm:px-4 py-2 sm:py-3 border-r border-b border-gray-200 dark:border-zinc-800 align-top">
@@ -563,6 +631,10 @@ export default function GreenLeafForm() {
                                                         </td>
                                                         <td className={`px-2 sm:px-3 ${paddingY} text-center border-r border-gray-200 dark:border-zinc-800 align-middle ${cellBottomBorder}`}>
                                                             <div className="font-bold">{Number(record.madeTeaWeight) === 0 ? '-' : record.madeTeaWeight}</div>
+                                                        </td>
+                                                        {/* Updated Out Turn % Cell */}
+                                                        <td className={`px-2 sm:px-3 ${paddingY} text-center border-r border-gray-200 dark:border-zinc-800 align-middle ${cellBottomBorder}`}>
+                                                            <div className="font-bold text-purple-600 dark:text-purple-400">{outTurnDisplay}</div>
                                                         </td>
                                                         
                                                         <td className={`px-2 sm:px-3 ${paddingY} text-center border-r border-gray-200 dark:border-zinc-800 align-middle ${cellBottomBorder}`}>
@@ -637,7 +709,7 @@ export default function GreenLeafForm() {
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan={isViewer ? "13" : "14"} className="p-8 sm:p-16 text-center text-gray-400 dark:text-gray-500">
+                                    <td colSpan={isViewer ? "14" : "15"} className="p-8 sm:p-16 text-center text-gray-400 dark:text-gray-500">
                                         <AlertCircle className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-3 opacity-20" />
                                         <p className="text-sm sm:text-lg font-medium">No records found matching filters</p>
                                     </td>
@@ -666,6 +738,10 @@ export default function GreenLeafForm() {
                                     
                                     <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-zinc-800 text-purple-700 dark:text-purple-400">
                                         {totalMadeTea === 0 ? '-' : totalMadeTea.toFixed(3)}
+                                    </td>
+                                    {/* Added Total Out Turn % Cell */}
+                                    <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-zinc-800 text-purple-700 dark:text-purple-400">
+                                        {totalOutTurnDisplay}
                                     </td>
                                     
                                     <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-zinc-800">-</td>

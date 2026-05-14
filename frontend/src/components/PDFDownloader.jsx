@@ -8,12 +8,14 @@ export default function PDFDownloader({
     title = "Document", 
     subtitle = "", 
     headers = [], 
-    data = [], // Now accepts either an array of arrays OR an array of objects { data: [], fillColor: [r,g,b], isFooter: boolean }
+    data = [], 
     fileName = "document.pdf",
-    orientation = "portrait", // 'portrait' or 'landscape'
+    orientation = "portrait", 
     disabled = false,
     className = "",
-    uniqueCode = ""
+    uniqueCode = "",
+    userName, // New prop for user's name
+    userRole  // New prop for user's role
 }) {
     
     const handleDownload = async () => {
@@ -53,25 +55,75 @@ export default function PDFDownloader({
                 doc.text(subtitle, 45, 27);
             }
 
+            // --- Generate Current Date & Time ---
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            let hours = now.getHours();
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'p.m.' : 'a.m.';
+            hours = hours % 12 || 12; // Convert 24h to 12h format
+            
+            const generatedDateTime = `${year}/${month}/${day} ${hours}.${minutes}${ampm}`;
+            // ------------------------------------
+
             doc.setFontSize(10);
             doc.setTextColor(150); // Light gray for the code
             const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            
+            // Add Doc Ref
             doc.text(`Doc Ref: ${uniqueCode}`, pageWidth - 14, 12, { align: 'right' });
+            
+            // Add Generated Date & Time just below Doc Ref
+            doc.text(`Generated: ${generatedDateTime}`, pageWidth - 14, 17, { align: 'right' });
 
-            const getDate = (row) => {
-                const item = Array.isArray(row) ? row : row.data;
-                return new Date(item[0]).getTime();
-            };
+            // --- Advanced Sorting: Ascending (Oldest to Newest) with Grouping ---
+            let totalRow = null;
+            const groups = [];
+            let currentGroup = null;
 
-            const sortedData = [...data].sort((a, b) => {
-                const dateA = Array.isArray(a) ? a[0] : a.data[0];
-                const dateB = Array.isArray(b) ? b[0] : b.data[0];
-                return new Date(dateA) - new Date(dateB);
+            data.forEach((row) => {
+                const val = Array.isArray(row) ? row[0] : row.data[0];
+                const strVal = String(val || '').trim();
+
+                // Separate the TOTAL row
+                if (strVal.toUpperCase().includes("TOTAL")) {
+                    totalRow = row;
+                    return;
+                }
+
+                // Match YYYY-MM-DD pattern
+                const dateMatch = strVal.match(/\d{4}-\d{2}-\d{2}/);
+                
+                if (dateMatch) {
+                    currentGroup = {
+                        dateValue: new Date(dateMatch[0]).getTime(),
+                        rows: [row]
+                    };
+                    groups.push(currentGroup);
+                } else {
+                    if (currentGroup) {
+                        currentGroup.rows.push(row);
+                    } else {
+                        currentGroup = { dateValue: 0, rows: [row] };
+                        groups.push(currentGroup);
+                    }
+                }
             });
 
-            // --- Pre-process data for autoTable ---
-            // Extract just the array of strings/numbers for the body
-           const processedBody = sortedData.map(item =>
+            groups.sort((a, b) => a.dateValue - b.dateValue);
+
+            const sortedData = [];
+            groups.forEach(g => sortedData.push(...g.rows));
+            
+            if (totalRow) {
+                sortedData.push(totalRow);
+            }
+            // -------------------------------------------------------------------
+
+            const processedBody = sortedData.map(item =>
                 Array.isArray(item) ? item : item.data
             );  
 
@@ -87,18 +139,13 @@ export default function PDFDownloader({
                 didParseCell: function(dataInfo) {
                     if (dataInfo.section === 'body') {
                         const rowIndex = dataInfo.row.index;
-                        const originalRowData = data[rowIndex];
+                        const originalRowData = sortedData[rowIndex]; 
 
-                        // If the row was passed as an object with specific configurations
                         if (!Array.isArray(originalRowData)) {
-                            
-                            // Apply custom fillColor if provided (for highlighted rows)
                             if (originalRowData.fillColor) {
                                 dataInfo.cell.styles.fillColor = originalRowData.fillColor;
-                                dataInfo.cell.styles.fontStyle = 'bold'; // Optional: make highlighted rows bold
+                                dataInfo.cell.styles.fontStyle = 'bold'; 
                             }
-
-                            // Footer row styling (Grand Total)
                             if (originalRowData.isFooter) {
                                 dataInfo.cell.styles.fillColor = [230, 240, 230];
                                 dataInfo.cell.styles.fontStyle = 'bold';
@@ -106,9 +153,8 @@ export default function PDFDownloader({
                                 if(dataInfo.column.index === 0) dataInfo.cell.styles.halign = 'right';
                             }
                         } else {
-                            // Fallback for simple arrays (Legacy support)
-                            if (rowIndex === data.length - 1) {
-                                const firstCellText = String(data[data.length - 1][0] || '').toUpperCase();
+                            if (rowIndex === sortedData.length - 1) {
+                                const firstCellText = String(sortedData[sortedData.length - 1][0] || '').toUpperCase();
                                 if (firstCellText.includes("TOTAL")) {
                                     dataInfo.cell.styles.fillColor = [230, 240, 230];
                                     dataInfo.cell.styles.fontStyle = 'bold';
@@ -121,16 +167,46 @@ export default function PDFDownloader({
                 }
             });
 
-            // Footer
+            // --- ADD SIGNATURE BLOCK AT THE END OF THE TABLE ---
+            // doc.lastAutoTable.finalY gives the Y position where the table ended
+            let finalY = (doc.lastAutoTable.finalY || 40) + 25; 
+
+            // If the table ends too close to the bottom, add a new page for signatures
+            if (finalY > pageHeight - 30) {
+                doc.addPage();
+                finalY = 30;
+            }
+
+            // Retrieve User Info (Fallbacks to localStorage if props are not passed)
+            const finalUserName = userName || localStorage.getItem('username') || localStorage.getItem('userName') || 'System User';
+            const finalUserRole = userRole || localStorage.getItem('userRole') || localStorage.getItem('role') || 'Authorized User';
+
+            doc.setFontSize(10);
+            
+            // Left Side: Generator Name & Role
+            doc.setTextColor(100, 100, 100); // Gray color for labels
+            doc.text("Generated By:", 14, finalY);
+            doc.setTextColor(30, 30, 30); // Darker color for actual name
+            doc.setFont(undefined, 'bold');
+            doc.text(`${finalUserName} (${finalUserRole})`, 14, finalY + 6);
+            doc.setFont(undefined, 'normal');
+
+            // Right Side: Signature Area
+            doc.setTextColor(100, 100, 100);
+            doc.text(".................................................................", pageWidth - 14, finalY, { align: 'right' });
+            doc.text("Checked By / Signature", pageWidth - 26, finalY + 6, { align: 'right' });
+            // ---------------------------------------------------
+
+            // Footer (Page numbers)
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
                 doc.setFontSize(8);
                 doc.setTextColor(128, 128, 128);
                 doc.text(
-                    `Page ${i} of ${pageCount} - Generated by HandMade Tea Factory`,
-                    doc.internal.pageSize.getWidth() / 2,
-                    doc.internal.pageSize.getHeight() - 10,
+                    `Page ${i} of ${pageCount} - Generated by Unified Management System`,
+                    pageWidth / 2,
+                    pageHeight - 10,
                     { align: 'center' }
                 );
             }
