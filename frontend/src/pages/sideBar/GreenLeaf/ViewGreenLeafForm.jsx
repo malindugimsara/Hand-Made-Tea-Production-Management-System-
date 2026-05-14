@@ -326,8 +326,14 @@ export default function GreenLeafForm() {
     };
 
     const getPdfData = () => {
-        let currentGroupDate = null;
-        // අලුතින් එකතු කළ කොටස: PDF එකේ OutTurn එක Track කරන්න
+        // 1. මුලින්ම එකම දිනය තියෙන records කීයක් තියෙනවද කියලා rowSpan ගණන් කරගන්න (Pre-calculate row spans)
+        const dateRowSpans = {};
+        filteredRecords.forEach(record => {
+            const d = record.date;
+            dateRowSpans[d] = (dateRowSpans[d] || 0) + 1;
+        });
+
+        const seenDates = new Set();
         const seenPdfOutTurns = new Set(); 
 
         const tableRows = filteredRecords.map(record => {
@@ -349,50 +355,63 @@ export default function GreenLeafForm() {
             }
 
             const pdfDryerName = record.dryerName !== '-' ? `${record.dryerName}\n(${record.dryerUpdatedDate})` : '-';
-            let pdfDateCell = record.isEdited ? `${record.date}\n(Edited: ${record.lastUpdatedDate} by ${record.editedBy})` : record.date;
-
-            if (currentGroupDate === record.date) {
-                pdfDateCell = ''; 
-            } else {
-                currentGroupDate = record.date;
-            }
             
+            // --- දිනය Merge කිරීම සඳහා Cell Object එකක් සෑදීම ---
+            let pdfDateCell = null; // '' වෙනුවට null භාවිතා කරන්න
+            const dateKey = record.date;
+            let dateText = record.isEdited ? `${record.date}\n(Edited: ${record.lastUpdatedDate} by ${record.editedBy})` : record.date;
+
+            if (!seenDates.has(dateKey)) {
+                // මේ දිනය හමුවූ පළමු වතාව නම්: rowSpan එක සහ දිනය ඇතුළත් කරන්න
+                pdfDateCell = {
+                    content: dateText,
+                    rowSpan: dateRowSpans[dateKey]
+                };
+                seenDates.add(dateKey);
+            }
+            // else block එකක් අවශ්‍ය නැත. ඊළඟ පේළි සඳහා මෙය array එකට ඇතුලත් නොකළ යුතුය.
+
             const rollingText = record.rollingType === 'H/R' && record.rollingWorkerCount > 0 ? `H/R\n(${record.rollingWorkerCount} wkrs)` : record.rollingType;
             
-            // --- අලුත් Out Turn % Calculation එක (PDF) ---
+            // --- Out Turn % Calculation එක ---
             let outTurnDisplay = "-";
             if (record.teaType !== '-' && record.teaType !== '') {
                 const key = `${record.date}_${record.teaType}`;
                 
-                // මේ key එක කලින් පෙන්නලා නැත්තන් විතරක් OutTurn එක හදන්න
                 if (!seenPdfOutTurns.has(key)) {
                     const groupInfo = outTurnGroups[key];
                     if (groupInfo && groupInfo.selectedSum > 0 && groupInfo.madeTeaSum > 0) {
                         outTurnDisplay = ((groupInfo.madeTeaSum / groupInfo.selectedSum) * 100).toFixed(2) + '%';
                     }
-                    seenPdfOutTurns.add(key); // පෙන්නුවා කියලා සලකුණු කරන්න
+                    seenPdfOutTurns.add(key);
                 } else {
-                    outTurnDisplay = ""; // කලින් පෙන්නලා නම් මේ පේළියේ හිස්ව තියන්න
+                    outTurnDisplay = ""; // මෙය rowSpan භාවිතා නොකරන නිසා මෙලෙස හිස් කිරීම නිවැරදියි
                 }
             }
-            // ----------------------------------------------
+
+            // Date cell එක නොමැතිව Data array එක සාදාගන්න
+            const rowData = [
+                Number(record.totalWeight) === 0 ? '-' : record.totalWeight, 
+                Number(record.selectedWeight) === 0 ? '-' : record.selectedWeight,
+                Number(record.returnedWeight) === 0 ? '-' : record.returnedWeight,
+                record.teaType, 
+                Number(record.madeTeaWeight) === 0 ? '-' : record.madeTeaWeight, 
+                outTurnDisplay,
+                pdfDryerName,
+                record.meterStart, record.meterEnd,
+                Number(displayUnits) === 0 || displayUnits === '-' ? '-' : displayUnits,
+                Number(displayRollerPoints) === 0 || displayRollerPoints === '-' ? '-' : displayRollerPoints, 
+                Number(record.workerCount) === 0 || record.workerCount === '-' ? '-' : record.workerCount,
+                rollingText
+            ];
+
+            // Date cell එකක් ඇත්නම් පමණක් එය array එකේ මුලට (unshift) එකතු කරන්න
+            if (pdfDateCell) {
+                rowData.unshift(pdfDateCell);
+            }
 
             return {
-                data: [
-                    pdfDateCell, 
-                    Number(record.totalWeight) === 0 ? '-' : record.totalWeight, 
-                    Number(record.selectedWeight) === 0 ? '-' : record.selectedWeight,
-                    Number(record.returnedWeight) === 0 ? '-' : record.returnedWeight,
-                    record.teaType, 
-                    Number(record.madeTeaWeight) === 0 ? '-' : record.madeTeaWeight, 
-                    outTurnDisplay, // <-- New Out Turn %
-                    pdfDryerName,
-                    record.meterStart, record.meterEnd,
-                    Number(displayUnits) === 0 || displayUnits === '-' ? '-' : displayUnits,
-                    Number(displayRollerPoints) === 0 || displayRollerPoints === '-' ? '-' : displayRollerPoints, 
-                    Number(record.workerCount) === 0 || record.workerCount === '-' ? '-' : record.workerCount,
-                    rollingText
-                ],
+                data: rowData,
                 fillColor: rowColor 
             };
         });
@@ -405,7 +424,7 @@ export default function GreenLeafForm() {
                 totalReturnedGL === 0 ? '-' : totalReturnedGL.toFixed(2), 
                 "-",
                 totalMadeTea === 0 ? '-' : totalMadeTea.toFixed(3), 
-                totalOutTurnDisplay, // <-- Total Out Turn %
+                totalOutTurnDisplay, 
                 "-", 
                 "-", 
                 "-",
