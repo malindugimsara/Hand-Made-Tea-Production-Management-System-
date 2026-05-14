@@ -542,7 +542,14 @@ export default function CostOfProduction() {
                     const m_totalCost = m_glCost + m_selectionCost + m_handRollingCost + m_electricityCost + m_supCost;
                     const m_costPerKg = m_madeTeaWeight > 0 ? (m_totalCost / m_madeTeaWeight) : 0;
 
-                    glCostRow.push({content: m_glCost > 0 ? m_glCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: rowStyle});
+                    // --- Updated G/L Cost formatting to show quantity and price ---
+                    const glCellContent = m_glCost > 0 
+                        ? `${m_selectedWeight.toFixed(2)} kg @ Rs.${m_glRate}\nRs. ${m_glCost.toLocaleString(undefined, {minimumFractionDigits: 2})}`
+                        : "-";
+
+                    glCostRow.push({content: glCellContent, styles: rowStyle});
+                    // -------------------------------------------------------------
+                    
                     selCostRow.push({content: m_selectionCost > 0 ? m_selectionCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: rowStyle});
                     hrCostRow.push({content: m_handRollingCost > 0 ? m_handRollingCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: rowStyle});
                     elecCostRow.push({content: m_electricityCost > 0 ? m_electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: rowStyle});

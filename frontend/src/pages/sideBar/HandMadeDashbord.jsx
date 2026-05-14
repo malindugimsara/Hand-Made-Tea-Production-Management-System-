@@ -72,32 +72,47 @@ export default function Home() {
             currentMonthDays.push(`${year}-${String(month).padStart(2, '0')}-${dayStr}`);
         }
 
+        // --- CURRENT MONTH CALCULATION ---
         const pChartData = currentMonthDays.map(date => {
-            const glSum = glData
-                .filter(g => g.date && g.date.startsWith(date))
-                .reduce((sum, g) => sum + (Number(g.selectedWeight) || 0), 0);
+            const prodsForDay = prodData.filter(p => p.date && p.date.startsWith(date));
+            const glsForDay = glData.filter(g => g.date && g.date.startsWith(date));
 
-            const filteredProd = prodData.filter(p => {
-                const dateMatch = p.date && p.date.startsWith(date);
-                const typeMatch = teaTypeFilter === 'All' || p.teaType === teaTypeFilter;
-                return dateMatch && typeMatch;
+            let dayGlSum = 0;
+            let dayMtSum = 0;
+
+            // Index mapping (Production record එකට අදාළ Green Leaf record එක සම්බන්ධ කිරීම)
+            prodsForDay.forEach((prod, index) => {
+                if (teaTypeFilter === 'All' || prod.teaType === teaTypeFilter) {
+                    dayMtSum += (Number(prod.madeTeaWeight) || 0);
+                    
+                    const correspondingGl = glsForDay[index];
+                    if (correspondingGl) {
+                        dayGlSum += (Number(correspondingGl.selectedWeight) || 0);
+                    }
+                }
             });
 
-            const mtSum = filteredProd.reduce((sum, p) => sum + (Number(p.madeTeaWeight) || 0), 0);
-            const yieldPercentage = glSum > 0 ? (mtSum / glSum) * 100 : 0;
+            // 'All' තෝරලා තියෙද්දි, Production වලට වඩා GL Records වැඩියෙන් තිබ්බොත් ඒවත් එකතු කිරීම
+            if (teaTypeFilter === 'All' && glsForDay.length > prodsForDay.length) {
+                for(let i = prodsForDay.length; i < glsForDay.length; i++) {
+                    dayGlSum += (Number(glsForDay[i].selectedWeight) || 0);
+                }
+            }
+
+            const yieldPercentage = dayGlSum > 0 ? (dayMtSum / dayGlSum) * 100 : 0;
 
             return {
                 name: date.slice(8, 10),
                 fullDate: date,
-                GreenLeaf: glSum,
-                MadeTea: mtSum,
+                GreenLeaf: parseFloat(dayGlSum.toFixed(2)),
+                MadeTea: parseFloat(dayMtSum.toFixed(2)),
                 YieldPercentage: parseFloat(yieldPercentage.toFixed(2))
             };
         });
 
         setProdChartData(pChartData);
 
-        // --- Previous Month Setup ---
+        // --- PREVIOUS MONTH CALCULATION ---
         let prevMonth = month - 1;
         let prevYear = year;
         if (prevMonth === 0) {
@@ -106,57 +121,65 @@ export default function Home() {
         }
         const prevMonthStr = `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
 
-        // --- 1. Made Tea Average (active days only) ---
-        const prevMonthProd = prodData.filter(p => {
-            const dateMatch = p.date && p.date.startsWith(prevMonthStr);
-            const typeMatch = teaTypeFilter === 'All' || p.teaType === teaTypeFilter;
-            return dateMatch && typeMatch;
+        let prevMonthTotalMt = 0;
+        let prevMonthTotalGl = 0;
+        
+        const prevMtByDay = {};
+        const prevGlByDay = {};
+
+        const prevMonthProds = prodData.filter(p => p.date && p.date.startsWith(prevMonthStr));
+        const prevMonthGls = glData.filter(g => g.date && g.date.startsWith(prevMonthStr));
+        
+        const prevProdGrouped = {};
+        const prevGlGrouped = {};
+        
+        prevMonthProds.forEach(p => {
+            const day = p.date.substring(0, 10);
+            if (!prevProdGrouped[day]) prevProdGrouped[day] = [];
+            prevProdGrouped[day].push(p);
+        });
+        
+        prevMonthGls.forEach(g => {
+            const day = g.date.substring(0, 10);
+            if (!prevGlGrouped[day]) prevGlGrouped[day] = [];
+            prevGlGrouped[day].push(g);
         });
 
-        const prevMonthTotalMt = prevMonthProd
-            .reduce((sum, p) => sum + (Number(p.madeTeaWeight) || 0), 0);
+        // Previous Month Data වලටත් Index Mapping යෙදීම
+        Object.keys(prevProdGrouped).forEach(day => {
+            const prods = prevProdGrouped[day];
+            const gls = prevGlGrouped[day] || [];
 
-        const prevMonthActiveMtDays = new Set(
-            prevMonthProd
-                .filter(p => (Number(p.madeTeaWeight) || 0) > 0)
-                .map(p => p.date?.substring(0, 10))
-        ).size;
+            prods.forEach((prod, index) => {
+                if (teaTypeFilter === 'All' || prod.teaType === teaTypeFilter) {
+                    const mtWeight = Number(prod.madeTeaWeight) || 0;
+                    const glWeight = gls[index] ? (Number(gls[index].selectedWeight) || 0) : 0;
 
-        setPrevMonthMtAvg(prevMonthActiveMtDays > 0 ? (prevMonthTotalMt / prevMonthActiveMtDays) : 0);
+                    prevMonthTotalMt += mtWeight;
+                    prevMonthTotalGl += glWeight;
 
-        // --- 2. Green Leaf Average (active days only) ---
-        let calculatedGlAvg = 0;
-        if (teaTypeFilter === 'All') {
-            const prevGlRecords = glData.filter(g => g.date && g.date.startsWith(prevMonthStr));
-            const prevMonthTotalGl = prevGlRecords
-                .reduce((sum, g) => sum + (Number(g.selectedWeight) || 0), 0);
-
-            const prevMonthActiveGlDays = new Set(
-                prevGlRecords
-                    .filter(g => (Number(g.selectedWeight) || 0) > 0)
-                    .map(g => g.date?.substring(0, 10))
-            ).size;
-
-            calculatedGlAvg = prevMonthActiveGlDays > 0 ? (prevMonthTotalGl / prevMonthActiveGlDays) : 0;
-        }
-        setPrevMonthGlAvg(calculatedGlAvg);
-
-        // --- 3. Yield Percentage Average (active days only, per-day yield then averaged) ---
-        const prevGlByDay = {};
-        glData
-            .filter(g => g.date && g.date.startsWith(prevMonthStr) && (Number(g.selectedWeight) || 0) > 0)
-            .forEach(g => {
-                const day = g.date.substring(0, 10);
-                prevGlByDay[day] = (prevGlByDay[day] || 0) + (Number(g.selectedWeight) || 0);
+                    if (mtWeight > 0 || glWeight > 0) {
+                        prevMtByDay[day] = (prevMtByDay[day] || 0) + mtWeight;
+                        prevGlByDay[day] = (prevGlByDay[day] || 0) + glWeight;
+                    }
+                }
             });
 
-        const prevMtByDay = {};
-        prevMonthProd
-            .filter(p => (Number(p.madeTeaWeight) || 0) > 0)
-            .forEach(p => {
-                const day = p.date?.substring(0, 10);
-                if (day) prevMtByDay[day] = (prevMtByDay[day] || 0) + (Number(p.madeTeaWeight) || 0);
-            });
+            if (teaTypeFilter === 'All' && gls.length > prods.length) {
+                for(let i = prods.length; i < gls.length; i++) {
+                    const glWeight = Number(gls[i].selectedWeight) || 0;
+                    prevMonthTotalGl += glWeight;
+                    if(glWeight > 0) {
+                         prevGlByDay[day] = (prevGlByDay[day] || 0) + glWeight;
+                    }
+                }
+            }
+        });
+
+        const prevMonthActiveDays = Object.keys(prevMtByDay).length;
+
+        setPrevMonthMtAvg(prevMonthActiveDays > 0 ? (prevMonthTotalMt / prevMonthActiveDays) : 0);
+        setPrevMonthGlAvg(prevMonthActiveDays > 0 ? (prevMonthTotalGl / prevMonthActiveDays) : 0);
 
         const prevDailyYields = Object.keys(prevMtByDay)
             .filter(day => prevGlByDay[day] > 0)
@@ -167,7 +190,7 @@ export default function Home() {
             : 0;
 
         setPrevMonthYieldAvg(calculatedYieldAvg);
-    };  
+    };
 
     const fetchDashboardStats = async () => {
         try {
