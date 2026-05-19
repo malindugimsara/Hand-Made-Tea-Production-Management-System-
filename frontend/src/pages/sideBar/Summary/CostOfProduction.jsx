@@ -368,8 +368,8 @@ export default function CostOfProduction() {
         return rows;
     };
 
-    // -------------------------------------------------------------
-    // Range Months PDF Generation
+   
+    // Range Months PDF Generation (UPDATED FOR MONTHLY RATES & SIGNATURE)
     // -------------------------------------------------------------
     const generateRangePDF = async (bypassCheck = false) => {
         if (!rangeStartMonth || !rangeEndMonth) {
@@ -407,6 +407,7 @@ export default function CostOfProduction() {
                 'Authorization': `Bearer ${token}`
             };
 
+            // 1. Fetch GL, Prod, Labour
             const [glRes, prodRes, labRes] = await Promise.all([
                 fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
                 fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
@@ -414,12 +415,37 @@ export default function CostOfProduction() {
             ]);
 
             if (!glRes.ok || !prodRes.ok || !labRes.ok) {
-                throw new Error("Failed to fetch data for range PDF");
+                throw new Error("Failed to fetch primary data for range PDF");
             }
 
             const glData = await glRes.json();
             const prodData = await prodRes.json();
             const labData = await labRes.json();
+
+            // 2. Fetch Cost Of Production rates for EACH month in the range
+            const costPromises = monthsArray.map(monthStr => 
+                fetch(`${BACKEND_URL}/api/cost-of-production/${monthStr}`, { headers: authHeaders })
+                    .then(res => res.ok ? res.json() : null)
+                    .catch(() => null)
+            );
+            
+            const costResults = await Promise.all(costPromises);
+            
+            // Map the fetched rates by month
+            const monthlyRatesMap = {};
+            monthsArray.forEach((month, index) => {
+                const data = costResults[index];
+                if (data && data.month === month) {
+                    monthlyRatesMap[month] = {
+                        glRate: Number(data.monthlyGlRate || 0),
+                        labRate: Number(data.labourRate || 0),
+                        elecRate: Number(data.electricityRate || 0),
+                        teaCosts: data.teaCosts || [] 
+                    };
+                } else {
+                    monthlyRatesMap[month] = { glRate: 0, labRate: 0, elecRate: 0, teaCosts: [] };
+                }
+            });
 
             const sortById = (a, b) => (a._id < b._id ? -1 : (a._id > b._id ? 1 : 0));
             glData.sort(sortById);
@@ -451,6 +477,19 @@ export default function CostOfProduction() {
             };
             const uniqueRangeCode = getRangeDocCode();
 
+            // --- Generate Current Date & Time ---
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            let hours = now.getHours();
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'p.m.' : 'a.m.';
+            hours = hours % 12 || 12; 
+            
+            const generatedDateTime = `${year}/${month}/${day} ${hours}.${minutes}${ampm}`;
+            // ------------------------------------
+
             doc.setFontSize(22);
             doc.setTextColor(27, 106, 49); 
             doc.text("Monthly Cost of Production Summary", 45, 20);
@@ -464,13 +503,17 @@ export default function CostOfProduction() {
             doc.setFontSize(10);
             doc.setTextColor(150); 
             const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            
+            // Add Doc Ref & Generated DateTime
             doc.text(`Doc Ref: ${uniqueRangeCode}`, pageWidth - 14, 12, { align: 'right' });
+            doc.text(`Generated: ${generatedDateTime}`, pageWidth - 14, 17, { align: 'right' });
 
             const headRow = ["Type of Cost", ...monthsArray.map(m => new Date(m).toLocaleString('default', { month: 'short', year: '2-digit' }).toUpperCase())];
             
             let allRows = [];
             let overallGrandTotal = new Array(monthsArray.length).fill(0);
-            let isShaded = false; // Shading toggle
+            let isShaded = false; 
 
             preferredOrder.forEach((teaType) => {
                 const rowStyle = isShaded ? { fillColor: [245, 245, 245] } : {};
@@ -527,29 +570,31 @@ export default function CostOfProduction() {
                         m_dryerUnits += (mEnd > mStart ? mEnd - mStart : 0);
                     });
 
-                    const m_glRate = Number(monthlyGlRate || 0);
-                    const m_labRate = Number(labourRate || 0);
-                    const m_elecRate = Number(electricityRate || 0);
+                    // Fetch Specific Rates for THIS Month
+                    const ratesForMonth = monthlyRatesMap[month];
+                    const m_glRate = ratesForMonth.glRate;
+                    const m_labRate = ratesForMonth.labRate;
+                    const m_elecRate = ratesForMonth.elecRate;
+                    
+                    const savedTeaCost = ratesForMonth.teaCosts.find(tc => tc.teaType === teaType);
+                    const m_supCost = savedTeaCost ? Number(savedTeaCost.supervisionCost || 0) : 0;
+                    
+                    const m_handRollingCost = savedTeaCost && savedTeaCost.handRollingCost !== undefined 
+                        ? Number(savedTeaCost.handRollingCost) 
+                        : (m_hrWorkersCalc * m_labRate);
 
                     const m_glCost = m_selectedWeight * m_glRate;
                     const m_selectionCost = m_selectionWorkers * m_labRate;
                     const m_electricityCost = m_dryerUnits * m_elecRate;
-                    const m_supCost = supervisionCosts[teaType] || 0; 
-                    
-                    const m_hrWorkers = m_hrWorkersCalc;
-                    const m_handRollingCost = m_hrWorkers * m_labRate;
 
                     const m_totalCost = m_glCost + m_selectionCost + m_handRollingCost + m_electricityCost + m_supCost;
                     const m_costPerKg = m_madeTeaWeight > 0 ? (m_totalCost / m_madeTeaWeight) : 0;
 
-                    // --- Updated G/L Cost formatting to show quantity and price ---
                     const glCellContent = m_glCost > 0 
                         ? `${m_selectedWeight.toFixed(2)} kg @ Rs.${m_glRate}\nRs. ${m_glCost.toLocaleString(undefined, {minimumFractionDigits: 2})}`
                         : "-";
 
                     glCostRow.push({content: glCellContent, styles: rowStyle});
-                    // -------------------------------------------------------------
-                    
                     selCostRow.push({content: m_selectionCost > 0 ? m_selectionCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: rowStyle});
                     hrCostRow.push({content: m_handRollingCost > 0 ? m_handRollingCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: rowStyle});
                     elecCostRow.push({content: m_electricityCost > 0 ? m_electricityCost.toLocaleString(undefined, {minimumFractionDigits: 2}) : "-", styles: rowStyle});
@@ -563,7 +608,7 @@ export default function CostOfProduction() {
                 });
 
                 allRows.push(glCostRow, selCostRow, hrCostRow, elecCostRow, supCostRow, totalCostRow, mtRow, costPerKgRow);
-                isShaded = !isShaded; // Flip shading for the next tea type
+                isShaded = !isShaded; 
             });
 
             let grandTotalRow = [{ content: "GRAND TOTAL (All Teas)", styles: { fontStyle: 'bold', fillColor: [27, 106, 49], textColor: 255 } }];
@@ -588,6 +633,33 @@ export default function CostOfProduction() {
                 }
             });
 
+            // --- ADD SIGNATURE BLOCK AT THE END OF THE TABLE ---
+            let finalY = (doc.lastAutoTable.finalY || 45) + 25; 
+
+            if (finalY > pageHeight - 30) {
+                doc.addPage();
+                finalY = 30;
+            }
+
+            const finalUserName = localStorage.getItem('username') || localStorage.getItem('userName') || 'System User';
+            const finalUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'Authorized User';
+
+            doc.setFontSize(10);
+            
+            // Left Side: Generator Name & Role
+            doc.setTextColor(100, 100, 100); 
+            doc.text("Generated By:", 14, finalY);
+            doc.setTextColor(30, 30, 30); 
+            doc.setFont(undefined, 'bold');
+            doc.text(`${finalUserName} (${finalUserRole})`, 14, finalY + 6);
+            doc.setFont(undefined, 'normal');
+
+            // Right Side: Signature Area
+            doc.setTextColor(100, 100, 100);
+            doc.text(".................................................................", pageWidth - 14, finalY, { align: 'right' });
+            doc.text("Checked By / Signature", pageWidth - 26, finalY + 6, { align: 'right' });
+            // ---------------------------------------------------
+
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
@@ -595,8 +667,8 @@ export default function CostOfProduction() {
                 doc.setTextColor(128, 128, 128);
                 doc.text(
                     `Page ${i} of ${pageCount} - Generated by HandMade Tea Factory`,
-                    doc.internal.pageSize.getWidth() / 2,
-                    doc.internal.pageSize.getHeight() - 10,
+                    pageWidth / 2,
+                    pageHeight - 10,
                     { align: 'center' }
                 );
             }
@@ -612,6 +684,7 @@ export default function CostOfProduction() {
             setIsGeneratingRangePDF(false);
         }
     };
+    
 
     const getCurrentMonthCode = () => {
         const date = new Date();
