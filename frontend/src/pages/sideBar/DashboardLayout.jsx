@@ -15,7 +15,8 @@ import {
   Shield, 
   Sun,
   Moon,
-  Sprout, 
+  Sprout,
+  Calculator, 
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -83,6 +84,14 @@ const DATA = {
       items: [
         { title: 'Record Entry', url: '/green-leaf-form', roles: ['Admin', 'HandMade Officer'] }, 
         { title: 'View Records', url: '/view-green-leaf', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+      ],
+    },
+    {
+      title: 'Loft Leaf Count',
+      icon: Calculator,
+      items: [
+        { title: 'Record Entry', url: '/loft-leaf-count', roles: ['Admin', 'HandMade Officer'] }, 
+        { title: 'View Records', url: '/view-loft-leaf', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
       ],
     },
     {

@@ -13,6 +13,7 @@ import rawMaterialCostRoutes from './router/rawMaterialCostRoutes.js';
 import userRouter from './router/userRouter.js';
 import sellingDetailsRouter from './router/sellingDetailsRoutes.js';
 import productionSummaryRouter from './router/productionSummaryRoute.js';
+import loftLeafCountRoutes from './router/loftLeafCountRoutes.js';
 
 // Packing Section Routes
 import localSaleRouter from './Packing/Routes/localSaleRoutes.js';
@@ -56,6 +57,7 @@ app.use('/api/users', userRouter); // User management routes (Admins only)
 app.use('/api/selling-details', sellingDetailsRouter);
 app.use('/api/production-summary', productionSummaryRouter); // Add this line to include the production summary routes
 app.use('/api/handmade/transfers', handmadeTransferRouter);
+app.use('/api/loft-leaf', loftLeafCountRoutes);
 
 // Packing Section Routes
 
