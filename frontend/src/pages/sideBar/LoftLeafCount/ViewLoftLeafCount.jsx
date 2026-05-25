@@ -310,21 +310,21 @@ export default function ViewLoftLeafCount() {
                             {record.route.toUpperCase()}
                           </td>
 
-                          <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 font-medium">
+                          <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 font-medium dark:text-gray-200">
                             {record.bestQty}
                           </td>
                           <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-green-600 font-bold">
                             {record.bestPercentage}%
                           </td>
 
-                          <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 font-medium">
+                          <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 font-medium dark:text-gray-200">
                             {record.belowBestQty}
                           </td>
                           <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-yellow-600 font-bold">
                             {record.belowBestPercentage}%
                           </td>
 
-                          <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 font-medium">
+                          <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 font-medium dark:text-gray-200">
                             {record.poorQty}
                           </td>
                           <td className="px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-red-600 font-bold">
