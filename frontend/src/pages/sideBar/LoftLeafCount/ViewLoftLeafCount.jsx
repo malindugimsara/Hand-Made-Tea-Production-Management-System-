@@ -345,7 +345,7 @@ export default function ViewLoftLeafCount() {
                                 {/* Navigates to Edit Page passing ALL records for this date */}
                                 <button
                                   onClick={() => navigate('/edit-loft-leaf', { state: { date: date, recordsData: dayRecords } })}
-                                  className="p-2 bg-[#1B6A31] text-white hover:bg-green-800 rounded-lg shadow-sm transition-colors"
+                                  className="p-2 text-[#1B6A31] border hover:bg-green-200 rounded-lg shadow-sm transition-colors"
                                   title="Edit Date Group"
                                 >
                                   <MdOutlineEdit size={18} />
@@ -355,7 +355,7 @@ export default function ViewLoftLeafCount() {
                                   <AlertDialogTrigger asChild>
                                     <button
                                       onClick={() => setRecordToDelete(dayRecords)} // Pass entire array for bulk delete
-                                      className="p-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg shadow-sm transition-colors"
+                                      className="p-2 border text-red-600 hover:bg-red-200 rounded-lg shadow-sm transition-colors"
                                       title="Delete Date Group"
                                     >
                                       <MdOutlineDeleteOutline size={18} />
