@@ -192,15 +192,15 @@ export default function LoftLeafCount() {
                         className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl max-h-48 overflow-y-auto custom-scrollbar"
                       >
                         {[
-                          "c1 - MATHTHAKA",
-                          "c2 - walallawita",
-                          "c3 - pelawaththa",
-                          "c4 - polgampala",
-                          "c5 - manampita",
-                          "c7 - ganegoda",
-                          "c8 - thundola",
-                          "fa - factory",
-                          "e - estate tea",
+                          "C1 - MATHTHAKA",
+                          "C2 - walallawita",
+                          "C3 - pelawaththa",
+                          "C4 - polgampala",
+                          "C5 - manampita",
+                          "C7 - ganegoda",
+                          "C8 - thundola",
+                          "FA - factory",
+                          "E - estate tea",
                         ].map((r) => (
                           <li
                             key={r}
