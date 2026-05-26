@@ -121,15 +121,65 @@ export default function ViewLoftLeafCount() {
 
 
   // Filter කරන ලද දත්ත PDF එකට ගැළපෙන ලෙස සකසන ශ්‍රිතය
+ // Filter කරන ලද දත්ත PDF එකට ගැළපෙන ලෙස සකසන ශ්‍රිතය
   const getPdfData = () => {
-    return filteredRecords.map((r) => [
-      r.date.split("T")[0], 
-      r.route.toUpperCase(), 
-      r.bestQty, 
-      r.belowBestQty, 
-      r.poorQty, 
-      r.totalQty, 
-    ]);
+    const dateRowSpans = {};
+    const dateTotals = {};
+
+    // 1. එකම දිනයක වාර්තා කීයක් තිබේද සහ දවසේ එකතුව (Total) ගණනය කරන්න
+    filteredRecords.forEach((r) => {
+      const d = r.date.split("T")[0];
+      dateRowSpans[d] = (dateRowSpans[d] || 0) + 1;
+      dateTotals[d] = (dateTotals[d] || 0) + (Number(r.totalQty) || 0);
+    });
+
+    const seenDates = new Set();
+    const sortedData = [];
+
+    // 2. View එකේ පෙනෙන අනුපිළිවෙලටම (Sort කර) දත්ත Array එකකට ගන්න
+    Object.keys(groupedRecords)
+      .sort((a, b) => new Date(b) - new Date(a))
+      .forEach((date) => {
+        const dayRecords = groupedRecords[date].sort((a, b) => {
+          const routeA = (a.route || "").toLowerCase().split(" ")[0];
+          const routeB = (b.route || "").toLowerCase().split(" ")[0];
+          const indexA = routeOrder.indexOf(routeA);
+          const indexB = routeOrder.indexOf(routeB);
+          const posA = indexA !== -1 ? indexA : 999;
+          const posB = indexB !== -1 ? indexB : 999;
+          return posA - posB;
+        });
+
+        dayRecords.forEach((r) => sortedData.push(r));
+      });
+
+    // 3. PDF Table එකට දත්ත සැකසීම
+    return sortedData.map((r) => {
+      const currentDate = r.date.split("T")[0];
+
+      if (!seenDates.has(currentDate)) {
+        seenDates.add(currentDate);
+        const span = dateRowSpans[currentDate];
+
+        // මේ දිනය හමුවූ පළමු වතාව නම්: Date සහ Total සමග Object එකක් ලෙස යවන්න
+        return [
+          { content: currentDate, rowSpan: span, styles: { halign: 'center', valign: 'middle' } },
+          r.route.toUpperCase(),
+          r.bestQty,
+          r.belowBestQty,
+          r.poorQty,
+          { content: String(dateTotals[currentDate]), rowSpan: span, styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', textColor: [27, 106, 49] } },
+        ];
+      } else {
+        // දෙවන වතාවේ සිට: Date සහ Total මුළුමනින්ම ඉවත් කර යවන්න (එවිට තල්ලු වීමක් සිදු නොවේ)
+        return [
+          r.route.toUpperCase(),
+          r.bestQty,
+          r.belowBestQty,
+          r.poorQty,
+        ];
+      }
+    });
   };
 
   return (
@@ -223,7 +273,18 @@ export default function ViewLoftLeafCount() {
             className="border border-gray-300 dark:border-zinc-700 rounded p-2 sm:p-2.5 text-xs sm:text-sm outline-none focus:border-[#8CC63F] bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors w-full"
           >
             <option value="">All Routes</option>
-            {["c1", "c2", "c3", "c4", "c5", "c7", "c8", "f", "e"].map((r) => (
+            {[
+              "c1 - MATHTHAKA",
+              "c2 - walallawita",
+              "c3 - pelawaththa",
+              "c4 - polgampala",
+              "c5 - manampita",
+              "c7 - ganegoda",
+              "c8 - thundola",
+              "fa - factory",
+              "e - estate tea",        
+              ].map((r) => 
+            (
               <option key={r} value={r}>
                 {r.toUpperCase()}
               </option>
@@ -243,22 +304,22 @@ export default function ViewLoftLeafCount() {
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead>
                 <tr className="bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-700">
-                  <th rowSpan="2" className="px-4 py-3 font-bold border-r dark:border-zinc-700 align-middle text-center">
+                  <th rowSpan="2" className="px-4 py-3 font-bold border-r border-gray-300 dark:border-gray-600 dark:border-zinc-700 align-middle text-center">
                     Date
                   </th>
-                  <th rowSpan="2" className="px-4 py-3 font-bold border-r dark:border-zinc-700 align-middle text-center">
+                  <th rowSpan="2" className="px-4 py-3 font-bold border-r border-gray-300 dark:border-gray-600 dark:border-zinc-700 align-middle text-center">
                     Route
                   </th>
-                  <th colSpan="2" className="px-4 py-2 font-bold text-center text-green-700 dark:text-green-500 border-r dark:border-zinc-700 bg-green-50 dark:bg-green-900/20">
+                  <th colSpan="2" className="px-4 py-2 font-bold text-center text-green-700 dark:text-green-500 border-r border-gray-300 dark:border-gray-600 dark:border-zinc-700 bg-green-50 dark:bg-green-900/20">
                     Best
                   </th>
-                  <th colSpan="2" className="px-4 py-2 font-bold text-center text-yellow-700 dark:text-yellow-500 border-r dark:border-zinc-700 bg-yellow-50 dark:bg-yellow-900/20">
+                  <th colSpan="2" className="px-4 py-2 font-bold text-center text-yellow-700 dark:text-yellow-500 border-r border-gray-300 dark:border-gray-600 dark:border-zinc-700 bg-yellow-50 dark:bg-yellow-900/20">
                     Below Best
                   </th>
-                  <th colSpan="2" className="px-4 py-2 font-bold text-center text-red-700 dark:text-red-500 border-r dark:border-zinc-700 bg-red-50 dark:bg-red-900/20">
+                  <th colSpan="2" className="px-4 py-2 font-bold text-center text-red-700 dark:text-red-500 border-r border-gray-300 dark:border-gray-600 dark:border-zinc-700 bg-red-50 dark:bg-red-900/20">
                     Poor
                   </th>
-                  <th rowSpan="2" className="px-4 py-3 font-bold text-center border-r dark:border-zinc-700 align-middle">
+                  <th rowSpan="2" className="px-4 py-3 font-bold text-center border-r border-gray-300 dark:border-gray-600 dark:border-zinc-700 align-middle">
                     Total <span className="lowercase">(g)</span>
                   </th>
                   {!isViewer && (
@@ -267,16 +328,16 @@ export default function ViewLoftLeafCount() {
                     </th>
                   )}
                 </tr>
-                <tr className="bg-gray-50 dark:bg-zinc-900 text-gray-500 dark:text-gray-400 text-[11px] border-b border-gray-200 dark:border-zinc-700">
-                  <th className="px-3 py-2 text-center border-r dark:border-zinc-700 bg-green-50/50 dark:bg-green-900/10">Qty (g)</th>
-                  <th className="px-3 py-2 text-center border-r dark:border-zinc-700 bg-green-50/50 dark:bg-green-900/10">%</th>
-                  <th className="px-3 py-2 text-center border-r dark:border-zinc-700 bg-yellow-50/50 dark:bg-yellow-900/10">Qty (g)</th>
-                  <th className="px-3 py-2 text-center border-r dark:border-zinc-700 bg-yellow-50/50 dark:bg-yellow-900/10">%</th>
-                  <th className="px-3 py-2 text-center border-r dark:border-zinc-700 bg-red-50/50 dark:bg-red-900/10">Qty (g)</th>
-                  <th className="px-3 py-2 text-center border-r dark:border-zinc-700 bg-red-50/50 dark:bg-red-900/10">%</th>
+                <tr className="bg-gray-50 dark:bg-zinc-900 text-gray-500 dark:text-gray-400 text-[11px] border-b border-gray-300 dark:border-zinc-700">
+                  <th className="px-3 py-2 text-center border-r border-gray-300 dark:border-gray-600 dark:border-zinc-700 bg-green-50/50 dark:bg-green-900/10">Qty (g)</th>
+                  <th className="px-3 py-2 text-center border-r border-gray-300 dark:border-gray-600 dark:border-zinc-700 bg-green-50/50 dark:bg-green-900/10">%</th>
+                  <th className="px-3 py-2 text-center border-r border-gray-300 dark:border-gray-600 dark:border-zinc-700 bg-yellow-50/50 dark:bg-yellow-900/10">Qty (g)</th>
+                  <th className="px-3 py-2 text-center border-r border-gray-300 dark:border-gray-600 dark:border-zinc-700 bg-yellow-50/50 dark:bg-yellow-900/10">%</th>
+                  <th className="px-3 py-2 text-center border-r border-gray-300 dark:border-gray-600 dark:border-zinc-700 bg-red-50/50 dark:bg-red-900/10">Qty (g)</th>
+                  <th className="px-3 py-2 text-center border-r border-gray-300 dark:border-gray-600 dark:border-zinc-700 bg-red-50/50 dark:bg-red-900/10">%</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
+              <tbody className="divide-y divide-gray-200 dark:divide-zinc-800">
                 {Object.keys(groupedRecords).length > 0 ? (
                   Object.keys(groupedRecords)
                     .sort((a, b) => new Date(b) - new Date(a))

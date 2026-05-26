@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Leaf, Save, Tag } from "lucide-react"; 
+import { ArrowLeft, Leaf, Save, Tag, PlusCircle, X } from "lucide-react"; 
 import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function EditLoftLeafCount() {
@@ -9,97 +9,153 @@ export default function EditLoftLeafCount() {
     const navigate = useNavigate();
 
     const [showSpinner, setShowSpinner] = useState(false);
-    const [recordId, setRecordId] = useState(null);
-
-    const [formData, setFormData] = useState({
-        date: '',
-        route: '',
-        bestQty: '',
-        belowBestQty: '',
-    });
+    const [editDate, setEditDate] = useState('');
+    
+    // Dynamic List of Records
+    const [recordsList, setRecordsList] = useState([]);
+    const [deletedIds, setDeletedIds] = useState([]);
 
     useEffect(() => {
-        if (location.state && location.state.recordData) {
-            const data = location.state.recordData;
-            setRecordId(data._id);
-            setFormData({
-                date: data.date ? new Date(data.date).toISOString().split('T')[0] : '',
-                route: data.route || '',
+        if (location.state && location.state.recordsData && location.state.date) {
+            setEditDate(location.state.date);
+            
+            // Map incoming DB records to UI state
+            const mappedRecords = location.state.recordsData.map((data, index) => ({
+                id: data._id || Date.now() + index,
+                _id: data._id,
+                // මෙතනදී route එක lowercase කරලා ගන්නවා ගැලපීම පහසු වෙන්න
+                route: data.route ? data.route.toLowerCase() : '',
                 bestQty: data.bestQty || '',
                 belowBestQty: data.belowBestQty || ''
-            });
+            }));
+            
+            setRecordsList(mappedRecords);
         } else {
             toast.error("No record data found to edit.");
             navigate(-1); 
         }
     }, [location, navigate]);
 
-    // Auto-calculate poor leaf
-    const b = Number(formData.bestQty) || 0;
-    const bb = Number(formData.belowBestQty) || 0;
-    const p = Math.max(0, 100 - (b + bb)); 
-
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        const val = Number(value) || 0;
-
-        if (name === "bestQty" && val + bb > 100) return;
-        if (name === "belowBestQty" && val + b > 100) return;
-        if (name !== 'date' && name !== 'route' && value !== '' && val < 0) return;
-
-        setFormData({ ...formData, [name]: value });
+    // --- DYNAMIC FIELD HANDLERS ---
+    const handleAddRow = () => {
+        setRecordsList([
+            ...recordsList, 
+            { id: Date.now().toString(), _id: null, route: '', bestQty: '', belowBestQty: '' }
+        ]);
     };
 
+    const handleRemoveRow = (idToRemove) => {
+        const recordToRemove = recordsList.find(r => r.id === idToRemove);
+        
+        if (recordToRemove && recordToRemove._id) {
+            setDeletedIds([...deletedIds, recordToRemove._id]);
+        }
+        
+        setRecordsList(recordsList.filter(row => row.id !== idToRemove));
+    };
+
+    const handleInputChange = (id, field, value) => {
+        const val = Number(value) || 0;
+
+        if (field !== 'route' && value !== '' && val < 0) return;
+
+        setRecordsList(recordsList.map(row => {
+            if (row.id === id) {
+                const b = field === 'bestQty' ? val : (Number(row.bestQty) || 0);
+                const bb = field === 'belowBestQty' ? val : (Number(row.belowBestQty) || 0);
+                if (b + bb > 100) return row; 
+                
+                return { ...row, [field]: value };
+            }
+            return row;
+        }));
+    };
+
+    // --- SUBMIT LOGIC ---
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (recordsList.length === 0 && deletedIds.length === 0) {
+            toast.error("Nothing to save!");
+            return;
+        }
+
+        const hasEmptyRoute = recordsList.some(r => !r.route);
+        if (hasEmptyRoute) {
+            toast.error("Please select a route for all entries!");
+            return;
+        }
+
         setShowSpinner(true);
-        const toastId = toast.loading('Updating record...');
+        const toastId = toast.loading('Updating records...');
 
         try {
             const token = localStorage.getItem('token');
             const currentUsername = localStorage.getItem('username') || 'Unknown User';
+            const promises = [];
 
-            const payload = {
-                date: formData.date,
-                route: formData.route,
-                bestQty: b,
-                belowBestQty: bb,
-                poorQty: p,
-                updatedBy: currentUsername 
-            };
-
-            const response = await fetch(`${BACKEND_URL}/api/loft-leaf/${recordId}`, {
-                method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                },
-                body: JSON.stringify(payload)
+            // 1. DELETE
+            deletedIds.forEach(id => {
+                promises.push(
+                    fetch(`${BACKEND_URL}/api/loft-leaf/${id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                );
             });
 
-            if (response.ok) {
-                toast.success("Record updated successfully!", { id: toastId });
-                setTimeout(() => {
-                    navigate(-1);
-                }, 500);
-            } else {
-                if (response.status === 403) {
-                    toast.error("Access Denied. You do not have permission.", { id: toastId });
+            // 2. UPDATE / CREATE
+            recordsList.forEach(record => {
+                const b = Number(record.bestQty) || 0;
+                const bb = Number(record.belowBestQty) || 0;
+                const p = Math.max(0, 100 - (b + bb));
+
+                const payload = {
+                    date: editDate,
+                    route: record.route,
+                    bestQty: b,
+                    belowBestQty: bb,
+                    poorQty: p,
+                    updatedBy: currentUsername 
+                };
+
+                if (record._id) {
+                    promises.push(
+                        fetch(`${BACKEND_URL}/api/loft-leaf/${record._id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                            body: JSON.stringify(payload)
+                        }).then(res => { if (!res.ok) throw new Error("Update Failed"); })
+                    );
                 } else {
-                    toast.error("Error updating record.", { id: toastId });
+                    promises.push(
+                        fetch(`${BACKEND_URL}/api/loft-leaf`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                            body: JSON.stringify(payload)
+                        }).then(res => { if (!res.ok) throw new Error("Create Failed"); })
+                    );
                 }
-            }
+            });
+
+            await Promise.all(promises);
+
+            toast.success("Records updated successfully!", { id: toastId });
+            setTimeout(() => {
+                navigate(-1);
+            }, 500);
+
         } catch (error) {
-            toast.error("Network error.", { id: toastId });
+            console.error(error);
+            toast.error("Error updating records. Please try again.", { id: toastId });
         } finally {
             setShowSpinner(false);
         }
     };
 
     return (
-        <div className="p-8 max-w-4xl mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
+        <div className="p-8 max-w-5xl mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
             
-            {/* Back Button */}
             <button 
                 onClick={() => navigate(-1)} 
                 className="absolute top-8 left-8 flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-500 transition-colors font-medium"
@@ -109,91 +165,106 @@ export default function EditLoftLeafCount() {
             
             <div className="mb-8 mt-10 text-center">
                 <h2 className="text-3xl font-bold text-[#1B6A31] dark:text-green-500 flex items-center justify-center gap-2">
-                    <Leaf size={28} /> Edit Loft Leaf Record
+                    <Leaf size={28} /> Edit Daily Loft Leaf
                 </h2>
-                <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Update previously saved daily leaf quantities</p>
+                <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Manage all routes for: <span className="text-[#1B6A31] font-bold">{editDate}</span></p>
             </div>
             
             <form onSubmit={handleSubmit} className="bg-white dark:bg-zinc-900 p-8 rounded-2xl shadow-lg border border-gray-200 dark:border-zinc-800 transition-colors duration-300">
                 
-                {/* General Info Section */}
-                <div className="mb-8 pb-6 border-b border-gray-100 dark:border-zinc-800">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wider">Date</label>
-                            <input 
-                                type="date" 
-                                name="date" 
-                                value={formData.date} 
-                                onChange={handleInputChange} 
-                                required 
-                                className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wider flex items-center gap-1">
-                                <Tag size={16} className="text-[#0f766e] dark:text-teal-500" /> Route
-                            </label>
-                            <select 
-                                name="route" 
-                                value={formData.route} 
-                                onChange={handleInputChange} 
-                                required 
-                                className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
-                            >
-                                <option value="">Select Route</option>
-                                {["c1 - MATHTHAKA", "c2 - walallawita", "c3 - pelawaththa", "c4 - polgampala", "c5 - manampita", "c7 - ganegoda", "c8 - thundola", "fa - factory", "e - estate tea"].map(r => (
-                                    <option key={r} value={r.split(" ")[0]}>{r.toUpperCase()}</option>
-                                ))}
-                            </select>
-                        </div>
+                <div className="mb-8 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/50 rounded-xl p-6 transition-colors duration-300">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-bold text-green-700 dark:text-green-500 flex items-center gap-2">
+                            <Tag size={20} /> Leaf Quantities by Route
+                        </h3>
+                        <button 
+                            type="button" 
+                            onClick={handleAddRow}
+                            className="text-sm font-bold bg-green-200 hover:bg-green-300 dark:bg-green-900/40 dark:hover:bg-green-800/60 text-green-800 dark:text-green-400 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors"
+                        >
+                            <PlusCircle size={16} /> Add Route
+                        </button>
                     </div>
-                </div>
 
-                {/* Quantities Section */}
-                <div className="mb-8 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/50 rounded-lg p-6 transition-colors duration-300">
-                    <h3 className="text-lg font-bold text-green-700 dark:text-green-500 flex items-center gap-2 mb-6">
-                        <Leaf size={20} /> Leaf Breakdown
-                    </h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Best (g)</label>
-                            <input 
-                                type="number" 
-                                step="any"
-                                min="0"
-                                name="bestQty" 
-                                value={formData.bestQty} 
-                                onChange={handleInputChange} 
-                                onWheel={(e) => e.target.blur()} 
-                                required 
-                                className="w-full p-3 border border-green-200 dark:border-green-800/50 rounded-md focus:ring-2 focus:ring-green-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Below Best (g)</label>
-                            <input 
-                                type="number" 
-                                step="any"
-                                min="0"
-                                name="belowBestQty" 
-                                value={formData.belowBestQty} 
-                                onChange={handleInputChange} 
-                                onWheel={(e) => e.target.blur()} 
-                                required 
-                                className="w-full p-3 border border-yellow-200 dark:border-yellow-800/50 rounded-md focus:ring-2 focus:ring-yellow-400 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Poor (g)</label>
-                            <input 
-                                type="number" 
-                                value={p} 
-                                disabled 
-                                className="w-full p-3 border border-red-200 dark:border-red-800/50 rounded-md bg-gray-100 dark:bg-zinc-900 font-bold text-red-600 dark:text-red-500 transition-colors cursor-not-allowed" 
-                            />
-                        </div>
+                    <div className="space-y-4">
+                        {recordsList.length === 0 ? (
+                            <div className="text-center py-6 text-gray-500 text-sm">All entries removed. Add a route to save.</div>
+                        ) : (
+                            recordsList.map((row) => {
+                                const b = Number(row.bestQty) || 0;
+                                const bb = Number(row.belowBestQty) || 0;
+                                const p = Math.max(0, 100 - (b + bb));
+
+                                return (
+                                    <div key={row.id} className="relative bg-white dark:bg-zinc-950 p-5 rounded-xl border border-green-100 dark:border-green-900/40 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+                                        
+                                        <button 
+                                            type="button"
+                                            onClick={() => handleRemoveRow(row.id)}
+                                            className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/50 text-red-600 rounded-full p-1.5 transition-colors shadow-sm z-10"
+                                            title="Remove Entry"
+                                        >
+                                            <X size={14} />
+                                        </button>
+
+                                        <div className="w-full md:w-1/4">
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Route</label>
+                                            <select 
+                                                value={row.route ? row.route.toLowerCase() : ""} 
+                                                onChange={(e) => handleInputChange(row.id, 'route', e.target.value)} 
+                                                required 
+                                                className="w-full p-2.5 border border-gray-200 rounded-md outline-none focus:border-[#8CC63F] dark:bg-zinc-900 dark:border-zinc-700"
+                                            >
+                                                <option value="">Select Route</option>
+                                                {/* මෙහි value එකද සම්පූර්ණ අගයක් ලෙසම ලබාදී ඇත */}
+                                                {["c1 - MATHTHAKA", "c2 - walallawita", "c3 - pelawaththa", "c4 - polgampala", "c5 - manampita", "c7 - ganegoda", "c8 - thundola", "fa - factory", "e - estate tea"].map(r => (
+                                                    <option key={r} value={r.toLowerCase()}>{r.toUpperCase()}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div className="w-full md:w-1/4">
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Best (g)</label>
+                                            <input 
+                                                type="number" 
+                                                step="any"
+                                                min="0"
+                                                value={row.bestQty} 
+                                                onChange={(e) => handleInputChange(row.id, 'bestQty', e.target.value)} 
+                                                onWheel={(e) => e.target.blur()} 
+                                                required 
+                                                className="w-full p-2.5 border border-green-200 rounded-md outline-none focus:border-[#8CC63F] dark:bg-zinc-900 dark:border-green-900/50" 
+                                            />
+                                        </div>
+
+                                        <div className="w-full md:w-1/4">
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Below Best (g)</label>
+                                            <input 
+                                                type="number" 
+                                                step="any"
+                                                min="0"
+                                                value={row.belowBestQty} 
+                                                onChange={(e) => handleInputChange(row.id, 'belowBestQty', e.target.value)} 
+                                                onWheel={(e) => e.target.blur()} 
+                                                required 
+                                                className="w-full p-2.5 border border-yellow-200 rounded-md outline-none focus:border-yellow-400 dark:bg-zinc-900 dark:border-yellow-900/50" 
+                                            />
+                                        </div>
+
+                                        <div className="w-full md:w-1/4">
+                                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Poor (g)</label>
+                                            <input 
+                                                type="number" 
+                                                value={p} 
+                                                disabled 
+                                                className="w-full p-2.5 border border-red-200 bg-gray-100 font-bold text-red-600 rounded-md outline-none dark:bg-zinc-900 dark:border-red-900/50 cursor-not-allowed" 
+                                            />
+                                        </div>
+
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
                 </div>
 
@@ -214,7 +285,7 @@ export default function EditLoftLeafCount() {
                         disabled={showSpinner}
                     >
                         <Save size={20} />
-                        {showSpinner ? "Updating..." : "Update Record"}
+                        {showSpinner ? "Saving Updates..." : "Save All Changes"}
                     </button> 
                 </div>
             </form>
