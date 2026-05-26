@@ -9,7 +9,15 @@ export default function LoftLeafCount() {
   const navigate = useNavigate();
 
   const currentUsername = localStorage.getItem("username") || "Unknown";
-  const today = new Date().toISOString().split("T")[0];
+  // Local Timezone (Sri Lanka)
+  const getLocalTodayDate = () => {
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+  };
+  const today = getLocalTodayDate();
 
   const [records, setRecords] = useState([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -17,6 +25,8 @@ export default function LoftLeafCount() {
   const [isSaving, setIsSaving] = useState(false);
   const [isRouteDropdownOpen, setIsRouteDropdownOpen] = useState(false);
   const routeDropdownRef = useRef(null);
+
+  
 
   const [formData, setFormData] = useState({
     date: today,
@@ -73,9 +83,11 @@ export default function LoftLeafCount() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const isTodaySaved =
-    isDataLoaded && records.some((r) => r.date.split("T")[0] === today);
-
+  const isTodaySaved = isDataLoaded && records.some((r) => {
+      if (!r.date) return false;
+      return r.date.split("T")[0] === today;
+  });
+  
   const handleAddToList = (e) => {
     e.preventDefault();
     if (!formData.route || totalQty === 0) {
