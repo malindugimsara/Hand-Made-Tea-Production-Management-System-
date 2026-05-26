@@ -18,6 +18,9 @@ import EditRawMaterialCost from '../pages/sideBar/RawMaterial/EditRawMaterialCos
 import DashboardLayout from "./sideBar/DashboardLayout";
 import TransOut from "./sideBar/TransOut/TransOut";
 import ViewTransOutRecords from "./sideBar/TransOut/ViewTransOutRecords";
+import LoftLeafCount from "./sideBar/LoftLeafCount/LoftLeafCount";
+import ViewLoftLeafCount from "./sideBar/LoftLeafCount/ViewLoftLeafCount";
+import EditLoftLeafCount from "./sideBar/LoftLeafCount/EditLoftLeafCount";
 
 export const HandmadeRoutes = () => (
   <Route path="/" element={<DashboardLayout />}>
@@ -38,7 +41,8 @@ export const HandmadeRoutes = () => (
     <Route path="edit-raw-material-cost" element={<EditRawMaterialCost />} />
     <Route path="transfer-out" element={<TransOut />} />
     <Route path="transfer-out-view" element={<ViewTransOutRecords />} />
-
-
+    <Route path="loft-leaf-count" element={<LoftLeafCount />} />
+    <Route path="view-loft-leaf" element={<ViewLoftLeafCount />} />
+    <Route path="edit-loft-leaf" element={<EditLoftLeafCount />} />
   </Route>
 );
