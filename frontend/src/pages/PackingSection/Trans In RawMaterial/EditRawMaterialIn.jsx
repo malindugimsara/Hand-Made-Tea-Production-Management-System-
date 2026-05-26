@@ -65,9 +65,8 @@ export default function EditRawMaterialIn() {
         let initialType = 'other';
         if (recordData.itemsArray && recordData.itemsArray.length > 0) {
             const firstItem = recordData.itemsArray[0];
-            if (firstItem.category === 'flavor') {
-                initialType = 'flavor';
-            } else if (FLAVOR_NAMES.some(f => (firstItem.materialName || '').toLowerCase().includes(f.toLowerCase()))) {
+            // අපි check කරනවා category එක 'flavor' ද එහෙමත් නැත්නම් නම flavors වල තියෙනවද කියලා
+            if (firstItem.category === 'flavor' || FLAVOR_NAMES.some(f => (firstItem.materialName || '').toLowerCase().includes(f.toLowerCase()))) {
                 initialType = 'flavor';
             }
         }
@@ -78,7 +77,8 @@ export default function EditRawMaterialIn() {
                 id: Date.now() + index, 
                 materialName: item.materialName,
                 quantity: item.quantity,
-                unit: initialType === 'flavor' ? 'kg' : (item.unit || 'pcs')
+                // මෙතනදි Database එකේ තියෙන Unit එකම (item.unit) දානවා. නැත්නම් 'pcs' දානවා.
+                unit: item.unit || 'pcs' 
             })));
         } else {
             setItemsList([{ id: Date.now(), materialName: '', quantity: '', unit: initialType === 'flavor' ? 'kg' : 'pcs' }]);
@@ -100,10 +100,11 @@ export default function EditRawMaterialIn() {
     const handleTypeChange = (e) => {
         const val = e.target.value;
         setEntryType(val);
-        // Ensure units are switched to kg if changed to flavor
+        // Type එක මාරු කරනකොට Flavor වලට දැම්මොත් ඔක්කොම kg කරනවා, 
+        // Other එකට දැම්මොත් කලින් තිබුණු unit එක තියාගන්නවා (එහෙම නැත්නම් pcs වලට default කරනවා).
         setItemsList(itemsList.map(item => ({
             ...item,
-            unit: val === 'flavor' ? 'kg' : item.unit
+            unit: val === 'flavor' ? 'kg' : (item.unit === 'kg' ? 'pcs' : item.unit) 
         })));
     };
 
@@ -165,8 +166,9 @@ export default function EditRawMaterialIn() {
                 items: itemsList.map(item => ({
                     materialName: item.materialName,
                     quantity: Number(item.quantity),
-                    unit: entryType === 'flavor' ? 'kg' : item.unit,
-                    category: entryType // Send the correct category back to DB
+                    // මෙතනත් record එක update කරනකොට UI එකේ තියෙන unit එකම යවනවා
+                    unit: item.unit, 
+                    category: entryType
                 }))
             };
 
