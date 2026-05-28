@@ -20,12 +20,13 @@ const calculateLeafStats = (best, belowBest, poor) => {
     };
 };
 
-// 1. GET ALL RECORDS (With Optional Month Filter)
+// 1. GET ALL RECORDS (With Optional Month & SampleType Filter)
 export const getAllLoftLeafCounts = async (req, res) => {
     try {
-        const { month } = req.query; // e.g., '2026-04'
+        const { month, sampleType } = req.query; // e.g., month='2026-04', sampleType='Factory'
         let filter = {};
 
+        // මාසය අනුව filter කිරීම
         if (month) {
             const [yearStr, monthStr] = month.split('-');
             const year = parseInt(yearStr, 10);
@@ -40,6 +41,11 @@ export const getAllLoftLeafCounts = async (req, res) => {
             };
         }
 
+        // sampleType එක අනුව filter කිරීම (Factory හෝ LeafCollector)
+        if (sampleType) {
+            filter.sampleType = sampleType;
+        }
+
         const records = await LoftLeafCount.find(filter).sort({ date: -1 });
         res.status(200).json(records);
     } catch (error) {
@@ -51,10 +57,17 @@ export const getAllLoftLeafCounts = async (req, res) => {
 // 2. CREATE NEW RECORD
 export const createLoftLeafCount = async (req, res) => {
     try {
-        const { date, route, bestQty, belowBestQty, poorQty, updatedBy } = req.body;
+        const { date, route, sampleType, officerName, bestQty, belowBestQty, poorQty, updatedBy } = req.body;
 
+        // Validation
         if (!date) {
             return res.status(400).json({ message: "Date is required." });
+        }
+        if (!route) {
+            return res.status(400).json({ message: "Route is required." });
+        }
+        if (!sampleType) {
+            return res.status(400).json({ message: "Sample Type (Factory / LeafCollector) is required." });
         }
 
         // Backend Calculation
@@ -63,6 +76,8 @@ export const createLoftLeafCount = async (req, res) => {
         const newRecord = new LoftLeafCount({
             date,
             route,
+            sampleType,               // අලුතින් එකතු කළ field එක
+            officerName: officerName || "", // අලුතින් එකතු කළ field එක
             bestQty: Number(bestQty) || 0,
             belowBestQty: Number(belowBestQty) || 0,
             poorQty: Number(poorQty) || 0,
@@ -85,7 +100,7 @@ export const createLoftLeafCount = async (req, res) => {
 // 3. UPDATE RECORD
 export const updateLoftLeafCount = async (req, res) => {
     try {
-        const { date, bestQty, belowBestQty, poorQty, updatedBy } = req.body;
+        const { date, route, sampleType, officerName, bestQty, belowBestQty, poorQty, updatedBy } = req.body;
         const record = await LoftLeafCount.findById(req.params.id);
 
         if (!record) {
@@ -94,6 +109,10 @@ export const updateLoftLeafCount = async (req, res) => {
 
         // අලුත් දත්ත update කිරීම
         if (date) record.date = date;
+        if (route) record.route = route;
+        if (sampleType) record.sampleType = sampleType;
+        if (officerName !== undefined) record.officerName = officerName; // User clear කළොත් empty string එකක් විදිහට save වෙන්න
+        
         if (bestQty !== undefined) record.bestQty = Number(bestQty);
         if (belowBestQty !== undefined) record.belowBestQty = Number(belowBestQty);
         if (poorQty !== undefined) record.poorQty = Number(poorQty);

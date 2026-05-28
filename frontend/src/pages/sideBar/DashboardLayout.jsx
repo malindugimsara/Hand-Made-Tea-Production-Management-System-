@@ -92,6 +92,7 @@ const DATA = {
       items: [
         { title: 'Record Entry', url: '/loft-leaf-count', roles: ['Admin', 'HandMade Officer'] }, 
         { title: 'View Records', url: '/view-loft-leaf', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'View Summary Records', url: '/summary-loft-leaf', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
       ],
     },
     {

@@ -3,7 +3,7 @@ import {
     createRawMaterialIn,
     getAllRawMaterialInRecords,
     getRawMaterialInById,
-    updateRawMaterialInRecord, // අලුතින් එක් කරන ලදි
+    updateRawMaterialInRecord, 
     deleteRawMaterialInRecord,
     getRawMaterialStock
 } from '../controllers/rawMaterialInController.js'; 

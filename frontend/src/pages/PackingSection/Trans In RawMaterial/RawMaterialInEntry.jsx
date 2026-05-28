@@ -158,11 +158,11 @@ export default function RawMaterialInEntry() {
                         materialName: item.materialName,
                         quantity: Number(item.quantity),
                         unit: item.unit,
-                        category: item.category // 👈 මෙන්න මේ පේළිය අලුතින් එකතු කරන්න
+                        category: item.category 
                     }))
                 };
 
-                return fetch(`${BACKEND_URL}/api/raw-materials-in/create`, { 
+                return fetch(`${BACKEND_URL}/api/raw-materials-in/`, { 
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
