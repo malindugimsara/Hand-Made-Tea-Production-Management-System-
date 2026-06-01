@@ -374,11 +374,10 @@ export default function TeaGradesReceivedOutEntry() {
 
                             <div className="mt-4 flex flex-col sm:flex-row justify-end gap-6 border-t border-teal-200/50 dark:border-teal-800/30 pt-4">
                                 <div className="text-sm font-medium text-[#0f766e] dark:text-teal-300 flex items-center gap-1">
-                                    <Package size={16}/> Total Weight: <span className="font-bold text-lg">{totalQtyKg.toFixed(2)} Kg</span>
+                                    <Package size={16}/> Total Weight: <span className="font-bold text-lg">{Number(totalQtyKg.toFixed(4))} Kg</span>
                                 </div>
                             </div>
                         </div>
-
                         <button 
                             type="submit" 
                             className="w-full py-4 rounded-xl text-[#0f766e] dark:text-teal-400 bg-[#f0fdfa] dark:bg-teal-900/30 border border-[#0d9488] dark:border-teal-700 font-bold flex justify-center items-center gap-2 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-all"
