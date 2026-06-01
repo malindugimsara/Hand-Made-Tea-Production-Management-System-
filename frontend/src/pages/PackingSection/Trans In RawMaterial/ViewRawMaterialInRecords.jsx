@@ -220,26 +220,28 @@ export default function ViewRawMaterialInRecords() {
     };
 
     const handleConfirmDelete = async () => {
-        if (!recordToDelete) return;
-        const toastId = toast.loading('Deleting record...');
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/raw-materials-in/delete/${recordToDelete._id}`, { 
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-                toast.success("Record deleted successfully!", { id: toastId });
-                fetchRecords(); 
-            } else {
-                toast.error("Failed to delete record.", { id: toastId });
-            }
-        } catch (error) {
-            toast.error("Network error while deleting.", { id: toastId });
-        } finally {
-            setRecordToDelete(null);
+    if (!recordToDelete) return;
+    const toastId = toast.loading('Deleting record...');
+    try {
+        const token = localStorage.getItem('token');
+        // මෙතැනින් '/delete' ඉවත් කරන්න
+        const response = await fetch(`${BACKEND_URL}/api/raw-materials-in/${recordToDelete._id}`, { 
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+            toast.success("Record deleted successfully!", { id: toastId });
+            fetchRecords(); 
+        } else {
+            toast.error("Failed to delete record.", { id: toastId });
         }
-    };
+    } catch (error) {
+        toast.error("Network error while deleting.", { id: toastId });
+    } finally {
+        setRecordToDelete(null);
+    }
+};
 
     const clearFilters = () => {
         setFilterCategory('all');

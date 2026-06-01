@@ -259,8 +259,8 @@ export default function ViewTeaGradesReceivedRecords() {
                         content: item.grade, 
                         styles: { ...getPdfTeaColor(item.grade), fontStyle: 'bold', halign: 'center' } 
                     },
-                    `${Number(item.qtyKg).toFixed(2)} kg`,
-                    isFirst ? `${Number(record.totalQtyKg).toFixed(2)} kg` : ""
+                    `${Number(item.qtyKg).toFixed(4)} kg`,
+                    isFirst ? `${Number(record.totalQtyKg).toFixed(4)} kg` : ""
                 ]);
             });
         });
@@ -268,7 +268,7 @@ export default function ViewTeaGradesReceivedRecords() {
         tableRows.push([
             { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' }, colSpan: 3 },
             "-",
-            { content: `${grandTotalQty.toFixed(2)} kg`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } } 
+            { content: `${grandTotalQty.toFixed(4)} kg`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } } 
         ]);
 
         return tableRows;
@@ -281,7 +281,7 @@ export default function ViewTeaGradesReceivedRecords() {
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="w-full sm:w-auto">
                     <h2 className="text-2xl font-bold text-[#0f766e] dark:text-teal-400 flex items-center gap-2">
-                        <FileText size={24} /> Received Tea Records
+                        <FileText size={24} /> Received Tea Records From The Main Factory    
                     </h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Overview of tea grades received from main factory</p>
                 </div>
@@ -419,14 +419,13 @@ export default function ViewTeaGradesReceivedRecords() {
                                                     <div className="flex flex-col w-full h-full">
                                                         {record.itemsArray.map((t, i) => (
                                                             <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-800 dark:text-gray-200 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                                <span className="text-gray-600 dark:text-green-500">{Number(t.qtyKg).toFixed(2)}</span>
-                                                            </div>
+                                                                <span className="text-gray-600 dark:text-green-500">{Number(Number(t.qtyKg).toFixed(4))}</span>                                                            </div>
                                                         ))}
                                                     </div>
                                                 </td>
 
                                                 <td className="px-3 py-4 text-center border-r border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 align-top">
-                                                    <span className="font-bold text-green-700 dark:text-green-400 text-lg">{Number(record.totalQtyKg).toFixed(2)}</span>
+                                                    <span className="font-bold text-green-700 dark:text-green-400 text-lg">{Number(Number(record.totalQtyKg).toFixed(4))}</span>
                                                 </td>
                                                 
                                                 {!isViewer && (

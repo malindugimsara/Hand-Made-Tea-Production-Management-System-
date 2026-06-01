@@ -21,6 +21,7 @@ import ViewTransOutRecords from "./sideBar/TransOut/ViewTransOutRecords";
 import LoftLeafCount from "./sideBar/LoftLeafCount/LoftLeafCount";
 import ViewLoftLeafCount from "./sideBar/LoftLeafCount/ViewLoftLeafCount";
 import EditLoftLeafCount from "./sideBar/LoftLeafCount/EditLoftLeafCount";
+import SummaryLoftLeafCount from "./sideBar/LoftLeafCount/SummaryLoftLeafCount";
 
 export const HandmadeRoutes = () => (
   <Route path="/" element={<DashboardLayout />}>
@@ -44,5 +45,6 @@ export const HandmadeRoutes = () => (
     <Route path="loft-leaf-count" element={<LoftLeafCount />} />
     <Route path="view-loft-leaf" element={<ViewLoftLeafCount />} />
     <Route path="edit-loft-leaf" element={<EditLoftLeafCount />} />
+    <Route path="summary-loft-leaf" element={<SummaryLoftLeafCount />} />
   </Route>
 );
