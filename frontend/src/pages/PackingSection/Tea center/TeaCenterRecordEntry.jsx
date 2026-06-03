@@ -2,6 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
 import { PlusCircle, Trash2, ListChecks, Save, Package, ShoppingCart, Calendar, Weight, Tag, X, Calculator, AlertTriangle, ArrowRight, Box, Layers } from "lucide-react"; 
 import { useNavigate } from 'react-router-dom';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // --- FLAVORED TEAS THAT REQUIRE RAW MATERIAL DEDUCTION (3%) ---
 const FLAVORED_TEAS_WITH_RM = [
@@ -138,6 +147,10 @@ export default function TeaCenterRecordEntry() {
     const [availableRawStock, setAvailableRawStock] = useState([]); // For Flavors
     const [availablePackingStock, setAvailablePackingStock] = useState([]); // For Other Raw Materials
     
+    // --- DIALOG STATES ---
+    const [showWarningDialog, setShowWarningDialog] = useState(false);
+    const [warningMessages, setWarningMessages] = useState([]);
+
     const navigate = useNavigate();
     const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0] });
     
@@ -147,13 +160,24 @@ export default function TeaCenterRecordEntry() {
         type: '', 
         packSizeKg: '', 
         numberOfBoxes: '', 
-        rawMaterialName: '', // FLAVOR
-        rawMaterialWeight: '', // FLAVOR QTY
-        packingMaterials: [] // MULTIPLE RAW MATERIALS ARRAY
+        rawMaterialName: '', 
+        rawMaterialWeight: '', 
+        packingMaterials: [] 
     }]);
 
     const [openDropdownId, setOpenDropdownId] = useState(null);
+    const [focusedOptionIndex, setFocusedOptionIndex] = useState(-1);
     const dropdownRefs = useRef({}); 
+    const activeOptionRef = useRef(null);
+
+    useEffect(() => {
+        if (activeOptionRef.current) {
+            activeOptionRef.current.scrollIntoView({
+                behavior: 'auto',
+                block: 'nearest',
+            });
+        }
+    }, [focusedOptionIndex]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -161,7 +185,10 @@ export default function TeaCenterRecordEntry() {
             Object.values(dropdownRefs.current).forEach(ref => {
                 if (ref && ref.contains(event.target)) isOutside = false;
             });
-            if (isOutside) setOpenDropdownId(null);
+            if (isOutside) {
+                setOpenDropdownId(null);
+                setFocusedOptionIndex(-1);
+            }
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -177,7 +204,6 @@ export default function TeaCenterRecordEntry() {
                     fetch(`${BACKEND_URL}/api/raw-materials-in/stock`, { headers: { 'Authorization': `Bearer ${token}` } }).catch(() => ({ ok: false }))
                 ]);
 
-                // Process Tea Stock
                 if (teaRes.ok) {
                     const data = await teaRes.json();
                     const aggregatedData = Object.values(data.reduce((acc, curr) => {
@@ -198,22 +224,23 @@ export default function TeaCenterRecordEntry() {
                     setAvailableTeaStock(aggregatedData);
                 }
 
-                // Process Raw Material Stock
                 if (rmRes.ok) {
                     const rmData = await rmRes.json();
                     const allRawMaterials = Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : [];
                     
-                    // Filter Flavors
-                    const flavorsOnly = allRawMaterials.filter(rm => 
-                        rm.category === 'flavor' || 
-                        FLAVOR_NAMES.some(flavor => (rm.materialName || '').toLowerCase().includes(flavor.toLowerCase()))
-                    );
+                    const flavorsOnly = allRawMaterials.filter(rm => {
+                        const matNameStr = (rm.materialName || '').toLowerCase();
+                        if (matNameStr.includes('sticker')) return false;
+                        return rm.category === 'flavor' || 
+                               FLAVOR_NAMES.some(flavor => matNameStr.includes(flavor.toLowerCase()));
+                    });
                     
-                    // Filter Other Packing / Raw Materials
-                    const packingOnly = allRawMaterials.filter(rm => 
-                        rm.category !== 'flavor' && 
-                        !FLAVOR_NAMES.some(flavor => (rm.materialName || '').toLowerCase().includes(flavor.toLowerCase()))
-                    );
+                    const packingOnly = allRawMaterials.filter(rm => {
+                        const matNameStr = (rm.materialName || '').toLowerCase();
+                        if (matNameStr.includes('sticker')) return true;
+                        return rm.category !== 'flavor' && 
+                               !FLAVOR_NAMES.some(flavor => matNameStr.includes(flavor.toLowerCase()));
+                    });
                     
                     setAvailableRawStock(flavorsOnly);
                     setAvailablePackingStock(packingOnly);
@@ -238,6 +265,45 @@ export default function TeaCenterRecordEntry() {
     const totalAvailableTeaCapacity = availableTeaStock.reduce((sum, item) => sum + (item.bulkStockKg || 0), 0);
     const totalAvailableRMCapacity = availableRawStock.reduce((sum, item) => sum + (item.totalQuantity || 0), 0);
     const totalAvailablePackingCapacity = availablePackingStock.reduce((sum, item) => sum + (item.totalQuantity || 0), 0);
+
+    const handleKeyDown = (e, rowId, filteredOptions, fieldName, pmIndex = null) => {
+        if (e.key === 'Enter') {
+            e.preventDefault(); 
+            
+            if (openDropdownId && focusedOptionIndex >= 0 && filteredOptions.length > 0) {
+                if (pmIndex !== null) {
+                    handlePackingMaterialChange(rowId, pmIndex, fieldName, filteredOptions[focusedOptionIndex]);
+                } else {
+                    handleItemChange(rowId, fieldName, filteredOptions[focusedOptionIndex]);
+                }
+                setOpenDropdownId(null);
+                setFocusedOptionIndex(-1);
+                
+                const form = e.target.closest('form');
+                if (form) {
+                    const focusableElements = Array.from(form.querySelectorAll('input:not([disabled]):not([type="hidden"]), select:not([disabled]), button:not([disabled])'));
+                    const currentIndex = focusableElements.indexOf(e.target);
+                    if (currentIndex > -1 && currentIndex < focusableElements.length - 1) {
+                        focusableElements[currentIndex + 1].focus(); 
+                    }
+                }
+            }
+            return;
+        }
+
+        if (!openDropdownId || filteredOptions.length === 0) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setFocusedOptionIndex(prev => (prev < filteredOptions.length - 1 ? prev + 1 : prev));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setFocusedOptionIndex(prev => (prev > 0 ? prev - 1 : 0));
+        } else if (e.key === 'Escape') {
+            setOpenDropdownId(null);
+            setFocusedOptionIndex(-1);
+        }
+    };
 
     const handleAddItemRow = () => {
         setItemsList([...itemsList, { id: Date.now(), product: '', type: '', packSizeKg: '', numberOfBoxes: '', rawMaterialName: '', rawMaterialWeight: '', packingMaterials: [] }]);
@@ -332,6 +398,7 @@ export default function TeaCenterRecordEntry() {
         return sum + (pack * boxes);
     }, 0);
 
+    // --- STRICT STOCK VALIDATION WHEN ADDING TO LIST ---
     const handleAddToList = (e) => {
         e.preventDefault();
         const hasEmptyItem = itemsList.some(row => {
@@ -345,6 +412,92 @@ export default function TeaCenterRecordEntry() {
         if (hasEmptyItem) {
             toast.error("Please fill out all required details (including Flavor Name for flavored teas)!");
             return;
+        }
+
+        let stockError = "";
+        const pendingTea = {};
+        const pendingRM = {};
+        const pendingPack = {};
+
+        // 1. Calculate stock already used by pending records
+        pendingRecords.forEach(record => {
+            record.items.forEach(item => {
+                const baseGrade = getBaseTeaGrade(item.product);
+                pendingTea[baseGrade] = (pendingTea[baseGrade] || 0) + Number(item.baseTeaQtyKg);
+
+                if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
+                    pendingRM[item.rawMaterialName] = (pendingRM[item.rawMaterialName] || 0) + Number(item.rawMaterialQtyKg);
+                }
+
+                if (item.packingMaterials && item.packingMaterials.length > 0) {
+                    item.packingMaterials.forEach(pm => {
+                        if (pm.name && Number(pm.qty) > 0) {
+                            pendingPack[pm.name] = (pendingPack[pm.name] || 0) + Number(pm.qty);
+                        }
+                    });
+                }
+            });
+        });
+
+        // 2. Add stock requested by the current input fields
+        itemsList.forEach(item => {
+            const total = Number(item.packSizeKg) * Number(item.numberOfBoxes);
+            const isFlavored = FLAVORED_TEAS_WITH_RM.includes(item.product?.toLowerCase()?.trim());
+            const rawMatQty = isFlavored ? (item.rawMaterialWeight !== '' ? Number(item.rawMaterialWeight) : (total * 0.03)) : 0;
+            const baseTeaQty = total - rawMatQty;
+
+            const baseGrade = getBaseTeaGrade(item.product);
+            pendingTea[baseGrade] = (pendingTea[baseGrade] || 0) + baseTeaQty;
+
+            if (item.rawMaterialName && rawMatQty > 0) {
+                pendingRM[item.rawMaterialName] = (pendingRM[item.rawMaterialName] || 0) + rawMatQty;
+            }
+
+            if (item.packingMaterials && item.packingMaterials.length > 0) {
+                item.packingMaterials.forEach(pm => {
+                    if (pm.name && Number(pm.qty) > 0) {
+                        pendingPack[pm.name] = (pendingPack[pm.name] || 0) + Number(pm.qty);
+                    }
+                });
+            }
+        });
+
+        // 3. Compare accumulated requirement against available stock
+        for (const [baseGrade, reqQty] of Object.entries(pendingTea)) {
+            const stockData = availableTeaStock.find(s => s.productName === baseGrade);
+            const available = stockData ? stockData.bulkStockKg : 0;
+            if (reqQty > available) {
+                stockError = `Cannot add! Insufficient Tea Stock for '${baseGrade}'. Required: ${reqQty.toFixed(2)}kg, Available: ${available.toFixed(2)}kg.`;
+                break;
+            }
+        }
+
+        if (!stockError) {
+            for (const [rmName, reqQty] of Object.entries(pendingRM)) {
+                const rmStockData = availableRawStock.find(s => s.materialName === rmName);
+                const available = rmStockData ? rmStockData.totalQuantity : 0;
+                if (reqQty > available) {
+                    stockError = `Cannot add! Insufficient Spicy Stock for '${rmName}'. Required: ${reqQty.toFixed(2)}kg, Available: ${available.toFixed(2)}kg.`;
+                    break;
+                }
+            }
+        }
+
+        if (!stockError) {
+            for (const [pmName, reqQty] of Object.entries(pendingPack)) {
+                const pmStockData = availablePackingStock.find(s => s.materialName === pmName);
+                const available = pmStockData ? pmStockData.totalQuantity : 0;
+                if (reqQty > available) {
+                    stockError = `Cannot add! Insufficient Packing Material for '${pmName}'. Required: ${reqQty}, Available: ${available}.`;
+                    break;
+                }
+            }
+        }
+
+        // Strictly block adding if stock exceeds
+        if (stockError) {
+            toast.error(stockError, { duration: 4000 });
+            return; 
         }
 
         const newRecord = { 
@@ -361,7 +514,6 @@ export default function TeaCenterRecordEntry() {
                     calculatedQtyKg: total.toFixed(3),
                     baseTeaQtyKg: baseTeaQty.toFixed(3),
                     rawMaterialQtyKg: rawMatQty.toFixed(3),
-                    // Keep packing materials array
                     packingMaterials: item.packingMaterials ? item.packingMaterials.filter(pm => pm.name && Number(pm.qty) > 0) : []
                 }
             }),
@@ -379,7 +531,7 @@ export default function TeaCenterRecordEntry() {
         setPendingRecords(updatedList);
     };
 
-    const handleSaveAll = async () => {
+    const handleSaveAll = () => {
         if (pendingRecords.length === 0) {
             toast.error("No records in the list to save!");
             return;
@@ -395,18 +547,15 @@ export default function TeaCenterRecordEntry() {
         
         pendingRecords.forEach(record => {
             record.items.forEach(item => {
-                // Tea Warning Check
                 const baseGrade = getBaseTeaGrade(item.product);
                 if (!requestedByBaseGrade[baseGrade]) requestedByBaseGrade[baseGrade] = 0;
                 requestedByBaseGrade[baseGrade] += Number(item.baseTeaQtyKg); 
 
-                // Flavor Warning Check
                 if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
                     if (!requestedRM[item.rawMaterialName]) requestedRM[item.rawMaterialName] = 0;
                     requestedRM[item.rawMaterialName] += Number(item.rawMaterialQtyKg);
                 }
 
-                // Generic Raw Material / Packing Warning Check
                 if (item.packingMaterials && item.packingMaterials.length > 0) {
                     item.packingMaterials.forEach(pm => {
                         if (pm.name && Number(pm.qty) > 0) {
@@ -436,10 +585,22 @@ export default function TeaCenterRecordEntry() {
             if (requestedQty > available) packingStockWarning = true;
         }
 
-        if (stockWarning && !window.confirm("You are issuing MORE stock than what is currently available across the base tea grades. Proceed anyway?")) return;
-        if (rmStockWarning && !window.confirm("You are issuing MORE flavors than currently available in stock. Proceed anyway?")) return;
-        if (packingStockWarning && !window.confirm("You are issuing MORE raw materials (packaging) than currently available in stock. Proceed anyway?")) return;
+        let messages = [];
+        if (stockWarning) messages.push("Base Tea Grades");
+        if (rmStockWarning) messages.push("Spicy / Flavors");
+        if (packingStockWarning) messages.push("Raw Materials (Packaging)");
 
+        if (messages.length > 0) {
+            setWarningMessages(messages);
+            setShowWarningDialog(true);
+            return;
+        }
+
+        executeSave();
+    };
+
+    const executeSave = async () => {
+        setShowWarningDialog(false);
         setShowSpinner(true);
         const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
 
@@ -459,7 +620,6 @@ export default function TeaCenterRecordEntry() {
                         baseTeaQtyKg: Number(item.baseTeaQtyKg), 
                         rawMaterialName: item.rawMaterialName || "", 
                         rawMaterialQtyKg: Number(item.rawMaterialQtyKg),
-                        // Array of packing materials for backend
                         packingMaterials: item.packingMaterials || []
                     }))
                 };
@@ -501,15 +661,7 @@ export default function TeaCenterRecordEntry() {
         }
     };
 
-    const handleCancel = () => {
-        if (pendingRecords.length > 0) {
-            if (window.confirm("You have unsaved records in the list. Are you sure you want to leave?")) {
-                navigate(-1);
-            }
-        } else {
-            navigate(-1);
-        }
-    };
+    
 
     return (
         <div className="p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
@@ -670,7 +822,6 @@ export default function TeaCenterRecordEntry() {
                                     const isOverCapacity = row.product && totalIssuedForBaseGradeSoFar > availableForProduct;
                                     const remaining = Math.max(0, availableForProduct - totalIssuedForBaseGradeSoFar);
 
-                                    // Flavor logic check
                                     const rmStockData = availableRawStock.find(s => s.materialName === row.rawMaterialName);
                                     const availableRM = rmStockData ? rmStockData.totalQuantity : 0;
                                     const isRMOverCapacity = isFlavoredUI && row.rawMaterialName && Number(row.rawMaterialWeight) > availableRM;
@@ -686,7 +837,6 @@ export default function TeaCenterRecordEntry() {
 
                                             <div className="flex flex-col gap-4 w-full">
                                                 
-                                                {/* ROW 1: Product and Pack Type */}
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div className="relative" ref={el => dropdownRefs.current[`product-${row.id}`] = el}>
                                                         <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase flex items-center gap-1">
@@ -696,8 +846,18 @@ export default function TeaCenterRecordEntry() {
                                                             type="text" 
                                                             placeholder="Select..."
                                                             value={row.product}
-                                                            onChange={(e) => handleItemChange(row.id, 'product', e.target.value)}
-                                                            onFocus={() => setOpenDropdownId(`product-${row.id}`)}
+                                                            onChange={(e) => {
+                                                                handleItemChange(row.id, 'product', e.target.value);
+                                                                setFocusedOptionIndex(-1);
+                                                            }}
+                                                            onFocus={() => {
+                                                                setOpenDropdownId(`product-${row.id}`);
+                                                                setFocusedOptionIndex(-1);
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                const filteredOptions = TEA_TYPES.filter(tea => tea.toLowerCase().includes((row.product || '').toLowerCase()));
+                                                                handleKeyDown(e, row.id, filteredOptions, 'product');
+                                                            }}
                                                             required
                                                             className={`w-full p-2.5 h-[42px] border rounded-md text-sm focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none transition-colors ${row.product ? getTeaColor(row.product) : 'bg-white dark:bg-zinc-950 dark:text-gray-100'} ${isOverCapacity ? 'border-amber-300' : 'border-teal-200 dark:border-teal-800/50'}`}
                                                         />
@@ -705,12 +865,27 @@ export default function TeaCenterRecordEntry() {
                                                         {openDropdownId === `product-${row.id}` && (
                                                             <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
                                                                 {TEA_TYPES
-                                                                    .filter(tea => tea.toLowerCase().includes(row.product.toLowerCase()))
-                                                                    .map((tea, idx) => (
-                                                                        <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'product', tea); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex items-center gap-2">
-                                                                            <div className={`w-3 h-3 rounded-full ${getTeaColor(tea)} border border-white/20`}></div> {tea}
-                                                                        </li>
-                                                                ))}
+                                                                    .filter(tea => tea.toLowerCase().includes((row.product || '').toLowerCase()))
+                                                                    .map((tea, idx) => {
+                                                                        const isFocused = focusedOptionIndex === idx;
+                                                                        return (
+                                                                            <li 
+                                                                                key={idx}
+                                                                                ref={isFocused ? activeOptionRef : null} 
+                                                                                onMouseDown={(e) => e.preventDefault()} 
+                                                                                onClick={() => { 
+                                                                                    handleItemChange(row.id, 'product', tea); 
+                                                                                    setOpenDropdownId(null); 
+                                                                                    setFocusedOptionIndex(-1);
+                                                                                }}
+                                                                                onMouseEnter={() => setFocusedOptionIndex(idx)}
+                                                                                className={`px-4 py-2 text-sm cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex items-center gap-2 transition-colors
+                                                                                    ${isFocused ? 'bg-[#ccfbf1] dark:bg-teal-900/60 text-[#0f766e] dark:text-teal-300 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30'}`}
+                                                                            >
+                                                                                <div className={`w-3 h-3 rounded-full ${getTeaColor(tea).split(' ')[0]} border border-white/20`}></div> {tea}
+                                                                            </li>
+                                                                        );
+                                                                    })}
                                                             </ul>
                                                         )}
                                                     </div>
@@ -723,8 +898,18 @@ export default function TeaCenterRecordEntry() {
                                                             type="text" 
                                                             placeholder="Type..."
                                                             value={row.type}
-                                                            onChange={(e) => handleItemChange(row.id, 'type', e.target.value)}
-                                                            onFocus={() => setOpenDropdownId(`type-${row.id}`)}
+                                                            onChange={(e) => {
+                                                                handleItemChange(row.id, 'type', e.target.value);
+                                                                setFocusedOptionIndex(-1);
+                                                            }}
+                                                            onFocus={() => {
+                                                                setOpenDropdownId(`type-${row.id}`);
+                                                                setFocusedOptionIndex(-1);
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                const filteredOptions = PACKAGING_TYPES.filter(type => type.toLowerCase().includes((row.type || '').toLowerCase()));
+                                                                handleKeyDown(e, row.id, filteredOptions, 'type');
+                                                            }}
                                                             required
                                                             className="w-full p-2.5 h-[42px] border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
                                                         />
@@ -732,30 +917,82 @@ export default function TeaCenterRecordEntry() {
                                                         {openDropdownId === `type-${row.id}` && (
                                                             <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
                                                                 {PACKAGING_TYPES
-                                                                    .filter(type => type.toLowerCase().includes(row.type.toLowerCase()))
-                                                                    .map((type, idx) => (
-                                                                        <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'type', type); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0">
-                                                                            {type}
-                                                                        </li>
-                                                                ))}
+                                                                    .filter(type => type.toLowerCase().includes((row.type || '').toLowerCase()))
+                                                                    .map((type, idx) => {
+                                                                        const isFocused = focusedOptionIndex === idx;
+                                                                        return (
+                                                                            <li 
+                                                                                key={idx} 
+                                                                                ref={isFocused ? activeOptionRef : null}
+                                                                                onMouseDown={(e) => e.preventDefault()} 
+                                                                                onClick={() => { 
+                                                                                    handleItemChange(row.id, 'type', type); 
+                                                                                    setOpenDropdownId(null); 
+                                                                                    setFocusedOptionIndex(-1);
+                                                                                }} 
+                                                                                onMouseEnter={() => setFocusedOptionIndex(idx)}
+                                                                                className={`px-4 py-2 text-sm cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 transition-colors
+                                                                                    ${isFocused ? 'bg-[#ccfbf1] dark:bg-teal-900/60 text-[#0f766e] dark:text-teal-300 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30'}`}
+                                                                            >
+                                                                                {type}
+                                                                            </li>
+                                                                        );
+                                                                    })}
                                                             </ul>
                                                         )}
                                                     </div>
                                                 </div>
 
-                                                {/* ROW 2: Pack Size, Items */}
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div className="relative" ref={el => dropdownRefs.current[`size-${row.id}`] = el}>
                                                         <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap">Pack (Kg)</label>
-                                                        <input type="number" step="any" min="0" value={row.packSizeKg} onChange={(e) => handleItemChange(row.id, 'packSizeKg', e.target.value)} onFocus={() => { if (availableSizes) setOpenDropdownId(`size-${row.id}`); }} onWheel={(e) => e.target.blur()} required placeholder="e.g. 0.025" className="w-full p-2.5 h-[42px] border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
+                                                        <input 
+                                                            type="number" step="any" min="0" 
+                                                            value={row.packSizeKg} 
+                                                            onChange={(e) => {
+                                                                handleItemChange(row.id, 'packSizeKg', e.target.value);
+                                                                setFocusedOptionIndex(-1);
+                                                            }} 
+                                                            onFocus={() => { 
+                                                                if (availableSizes) {
+                                                                    setOpenDropdownId(`size-${row.id}`);
+                                                                    setFocusedOptionIndex(-1);
+                                                                }
+                                                            }} 
+                                                            onKeyDown={(e) => {
+                                                                if(availableSizes) {
+                                                                    const filteredSizes = availableSizes.filter(size => size.toString().includes((row.packSizeKg || '').toString()));
+                                                                    handleKeyDown(e, row.id, filteredSizes, 'packSizeKg');
+                                                                }
+                                                            }}
+                                                            onWheel={(e) => e.target.blur()} required placeholder="e.g. 0.025" 
+                                                            className="w-full p-2.5 h-[42px] border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                                        />
                                                         
                                                         {openDropdownId === `size-${row.id}` && availableSizes && (
                                                             <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-hidden">
-                                                                {availableSizes.map((size, idx) => (
-                                                                    <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'packSizeKg', size); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0">
-                                                                        {size} kg
-                                                                    </li>
-                                                                ))}
+                                                                {availableSizes
+                                                                    .filter(size => size.toString().includes((row.packSizeKg || '').toString()))
+                                                                    .map((size, idx) => {
+                                                                    const isFocused = focusedOptionIndex === idx;
+                                                                    return (
+                                                                        <li 
+                                                                            key={idx} 
+                                                                            ref={isFocused ? activeOptionRef : null}
+                                                                            onMouseDown={(e) => e.preventDefault()} 
+                                                                            onClick={() => { 
+                                                                                handleItemChange(row.id, 'packSizeKg', size); 
+                                                                                setOpenDropdownId(null); 
+                                                                                setFocusedOptionIndex(-1);
+                                                                            }} 
+                                                                            onMouseEnter={() => setFocusedOptionIndex(idx)}
+                                                                            className={`px-4 py-2 text-sm cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 transition-colors
+                                                                                ${isFocused ? 'bg-[#ccfbf1] dark:bg-teal-900/60 text-[#0f766e] dark:text-teal-300 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30'}`}
+                                                                        >
+                                                                            {size} kg
+                                                                        </li>
+                                                                    );
+                                                                })}
                                                             </ul>
                                                         )}
                                                     </div>
@@ -766,15 +1003,28 @@ export default function TeaCenterRecordEntry() {
                                                     </div>
                                                 </div>
 
-                                                {/* ROW 3: Flavors (Moved Down) */}
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-zinc-800/50">
                                                     <div className="relative" ref={el => dropdownRefs.current[`rmName-${row.id}`] = el}>
                                                         <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap">Flavor</label>
                                                         <input 
                                                             type="text" 
                                                             value={row.rawMaterialName} 
-                                                            onChange={(e) => handleItemChange(row.id, 'rawMaterialName', e.target.value)} 
-                                                            onFocus={() => { if(isFlavoredUI) setOpenDropdownId(`rmName-${row.id}`); }}
+                                                            onChange={(e) => {
+                                                                handleItemChange(row.id, 'rawMaterialName', e.target.value);
+                                                                setFocusedOptionIndex(-1);
+                                                            }} 
+                                                            onFocus={() => { 
+                                                                if(isFlavoredUI) {
+                                                                    setOpenDropdownId(`rmName-${row.id}`);
+                                                                    setFocusedOptionIndex(-1);
+                                                                }
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if(isFlavoredUI) {
+                                                                    const filteredOptions = FLAVOR_NAMES.filter(rm => rm.toLowerCase().includes((row.rawMaterialName || '').toLowerCase()));
+                                                                    handleKeyDown(e, row.id, filteredOptions, 'rawMaterialName');
+                                                                }
+                                                            }}
                                                             disabled={!isFlavoredUI}
                                                             placeholder={isFlavoredUI ? "Select Flavor..." : "Not applicable"} 
                                                             className={`w-full p-2.5 h-[42px] border text-sm rounded-md outline-none transition-colors 
@@ -784,11 +1034,26 @@ export default function TeaCenterRecordEntry() {
                                                             <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar z-20">
                                                                 {FLAVOR_NAMES
                                                                     .filter(rm => rm.toLowerCase().includes((row.rawMaterialName || '').toLowerCase()))
-                                                                    .map((rm, idx) => (
-                                                                        <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'rawMaterialName', rm); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0">
-                                                                            {rm}
-                                                                        </li>
-                                                                ))}
+                                                                    .map((rm, idx) => {
+                                                                        const isFocused = focusedOptionIndex === idx;
+                                                                        return (
+                                                                            <li 
+                                                                                key={idx} 
+                                                                                ref={isFocused ? activeOptionRef : null}
+                                                                                onMouseDown={(e) => e.preventDefault()} 
+                                                                                onClick={() => { 
+                                                                                    handleItemChange(row.id, 'rawMaterialName', rm); 
+                                                                                    setOpenDropdownId(null); 
+                                                                                    setFocusedOptionIndex(-1);
+                                                                                }} 
+                                                                                onMouseEnter={() => setFocusedOptionIndex(idx)}
+                                                                                className={`px-4 py-2 text-sm cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 transition-colors
+                                                                                    ${isFocused ? 'bg-[#ccfbf1] dark:bg-teal-900/60 text-[#0f766e] dark:text-teal-300 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30'}`}
+                                                                            >
+                                                                                {rm}
+                                                                            </li>
+                                                                        );
+                                                                    })}
                                                             </ul>
                                                         )}
                                                     </div>
@@ -812,7 +1077,6 @@ export default function TeaCenterRecordEntry() {
                                                     </div>
                                                 </div>
 
-                                                {/* ROW 4: MULTIPLE RAW MATERIALS (PACKING MATERIALS) */}
                                                 <div className="pt-4 border-t border-gray-100 dark:border-zinc-800/50">
                                                     <div className="flex justify-between items-center mb-3">
                                                         <label className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase flex items-center gap-1">
@@ -836,21 +1100,50 @@ export default function TeaCenterRecordEntry() {
                                                                         type="text" 
                                                                         placeholder="Select from available stock..."
                                                                         value={pm.name}
-                                                                        onChange={(e) => handlePackingMaterialChange(row.id, pmIdx, 'name', e.target.value)}
-                                                                        onFocus={() => setOpenDropdownId(`packingName-${row.id}-${pmIdx}`)}
+                                                                        onChange={(e) => {
+                                                                            handlePackingMaterialChange(row.id, pmIdx, 'name', e.target.value);
+                                                                            setFocusedOptionIndex(-1);
+                                                                        }}
+                                                                        onFocus={() => {
+                                                                            setOpenDropdownId(`packingName-${row.id}-${pmIdx}`);
+                                                                            setFocusedOptionIndex(-1);
+                                                                        }}
+                                                                        onKeyDown={(e) => {
+                                                                            const filteredRMs = availablePackingStock
+                                                                                .filter(rm => rm.totalQuantity > 0 && rm.materialName.toLowerCase().includes((pm.name || '').toLowerCase()))
+                                                                                .map(rm => rm.materialName);
+                                                                            handleKeyDown(e, row.id, filteredRMs, 'name', pmIdx);
+                                                                        }}
                                                                         className={`w-full p-2 h-[38px] border rounded-md text-sm outline-none transition-colors ${isPMOverCapacity ? 'border-amber-400 focus:ring-2 focus:ring-amber-500/50 bg-white dark:bg-zinc-950' : 'bg-white dark:bg-zinc-950 dark:text-gray-100 border-gray-200 dark:border-zinc-700 focus:ring-2 focus:ring-[#2dd4bf]/50'}`}
                                                                     />
                                                                     
                                                                     {openDropdownId === `packingName-${row.id}-${pmIdx}` && (
-                                                                        <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[200px] custom-scrollbar">
+                                                                        <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[200px] custom-scrollbar z-20">
                                                                             {availablePackingStock
                                                                                 .filter(rm => rm.totalQuantity > 0 && rm.materialName.toLowerCase().includes((pm.name || '').toLowerCase()))
-                                                                                .map((rm, idx) => (
-                                                                                    <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handlePackingMaterialChange(row.id, pmIdx, 'name', rm.materialName); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex justify-between">
-                                                                                        <span>{rm.materialName}</span> 
-                                                                                        <span className="text-[10px] text-gray-400 font-bold bg-gray-100 dark:bg-zinc-700 px-1.5 py-0.5 rounded">{rm.totalQuantity} avail</span>
-                                                                                    </li>
-                                                                            ))}
+                                                                                .map((rm, idx) => {
+                                                                                    const isFocused = focusedOptionIndex === idx;
+                                                                                    return (
+                                                                                        <li 
+                                                                                            key={idx} 
+                                                                                            ref={isFocused ? activeOptionRef : null}
+                                                                                            onMouseDown={(e) => e.preventDefault()} 
+                                                                                            onClick={() => { 
+                                                                                                handlePackingMaterialChange(row.id, pmIdx, 'name', rm.materialName); 
+                                                                                                setOpenDropdownId(null); 
+                                                                                                setFocusedOptionIndex(-1);
+                                                                                            }} 
+                                                                                            onMouseEnter={() => setFocusedOptionIndex(idx)}
+                                                                                            className={`px-4 py-2 text-sm cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex justify-between items-center transition-colors
+                                                                                                ${isFocused ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 text-gray-700 dark:text-gray-300'}`}
+                                                                                        >
+                                                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getMaterialColor(rm.materialName).replace('bg-', 'border-')}`}>
+                                                                                                {rm.materialName}
+                                                                                            </span> 
+                                                                                            <span className="text-[10px] text-gray-500 font-semibold">{rm.totalQuantity} avail</span>
+                                                                                        </li>
+                                                                                    );
+                                                                                })}
                                                                             {availablePackingStock.filter(rm => rm.totalQuantity > 0 && rm.materialName.toLowerCase().includes((pm.name || '').toLowerCase())).length === 0 && (
                                                                                 <li className="px-4 py-2 text-xs text-red-500 italic">No available stock matches.</li>
                                                                             )}
@@ -884,7 +1177,6 @@ export default function TeaCenterRecordEntry() {
 
                                             </div>
 
-                                            {/* Bottom Details/Warning Area */}
                                             <div className="mt-4 flex flex-col md:flex-row justify-between items-start md:items-center min-h-[16px] gap-2">
                                                 <div className="text-[10px]">
                                                     {isFlavoredUI && issuedNum > 0 && (
@@ -906,7 +1198,6 @@ export default function TeaCenterRecordEntry() {
                                                         </span>
                                                     )}
                                                     
-                                                    {/* Warnings */}
                                                     {row.product && (
                                                         isOverCapacity ? (
                                                             <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
@@ -982,19 +1273,30 @@ export default function TeaCenterRecordEntry() {
                                                 <div className="bg-white dark:bg-zinc-900 p-2.5 rounded border border-gray-100 dark:border-zinc-700/50 text-xs mt-1">
                                                     <div className="space-y-2 mb-2 pb-2 border-b border-gray-100 dark:border-zinc-800">
                                                         {record.items.map((item, i) => (
-                                                            <div key={i} className="flex justify-between items-center text-[11px]">
-                                                                <span className={`font-bold border px-2 py-0.5 rounded shadow-sm text-[10px] w-fit ${getTeaColor(item.product)}`}>{item.product}</span>
-                                                                <div className="flex items-center gap-3 text-gray-500">
-                                                                    <span>{item.numberOfBoxes} x {item.packSizeKg}kg</span>
-                                                                    <span className="font-bold text-[#0d9488] w-12 text-right">{item.calculatedQtyKg} kg</span>
+                                                            <div key={i} className="flex flex-col gap-1 pb-1 border-b border-gray-50 dark:border-zinc-800/50 last:border-0 last:pb-0">
+                                                                <div className="flex justify-between items-center text-[11px]">
+                                                                    <span className={`font-bold border px-2 py-0.5 rounded shadow-sm text-[10px] w-fit ${getTeaColor(item.product)}`}>{item.product}</span>
+                                                                    <div className="flex items-center gap-3 text-gray-500">
+                                                                        <span>{item.numberOfBoxes} x {item.packSizeKg}kg</span>
+                                                                        <span className="font-bold text-[#0d9488] w-12 text-right">{item.calculatedQtyKg} kg</span>
+                                                                    </div>
                                                                 </div>
+                                                                {item.packingMaterials && item.packingMaterials.length > 0 && (
+                                                                    <div className="text-[10px] text-gray-500 flex flex-wrap gap-x-2 gap-y-1 mt-1">
+                                                                        {item.packingMaterials.map((pm, pmIdx) => (
+                                                                            <span key={pmIdx} className="bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-amber-700 dark:text-amber-500 font-medium">
+                                                                                {pm.name}: {pm.qty}
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ))}
                                                     </div>
-                                                    <div className="flex justify-between items-center font-bold">
+                                                    <div className="flex justify-between items-center font-bold mt-2">
                                                         <span className="text-gray-500 uppercase text-[10px]">Daily Totals:</span>
                                                         <div className="flex gap-4">
-                                                            <span className="text-gray-600 dark:text-gray-300">{record.totalBoxes} Boxes</span>
+                                                            <span className="text-gray-600 dark:text-gray-300">{record.totalBoxes} Items</span>
                                                             <span className="text-[#0f766e] dark:text-teal-400">{record.totalQtyKg.toFixed(2)} Kg</span>
                                                         </div>
                                                     </div>
@@ -1007,7 +1309,6 @@ export default function TeaCenterRecordEntry() {
                         </div>
 
                         <div className="mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800 space-y-3">
-                            <button type="button" onClick={handleCancel} disabled={showSpinner} className="w-full py-3 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl transition-colors disabled:opacity-50">Cancel</button>
                             <button onClick={handleSaveAll} disabled={showSpinner || pendingRecords.length === 0} className={`w-full py-4 rounded-xl text-white text-lg font-bold flex justify-center items-center gap-2 shadow-lg transition-all ${showSpinner || pendingRecords.length === 0 ? 'bg-gray-400 dark:bg-zinc-700 cursor-not-allowed' : 'bg-gradient-to-r from-[#0f766e] to-[#34d399] hover:shadow-[#0d9488]/40 hover:-translate-y-1'}`}>
                                 <Save size={20} /> {showSpinner ? "Saving..." : `Save All`}
                             </button>
@@ -1047,6 +1348,35 @@ export default function TeaCenterRecordEntry() {
                     )}
                 </div>
             </div>
+
+            {/* --- STOCK WARNING DIALOG --- */}
+            <AlertDialog open={showWarningDialog} onOpenChange={setShowWarningDialog}>
+                <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-sm sm:max-w-md w-[90vw]">
+                    <AlertDialogHeader>
+                        <div className="w-10 sm:w-12 h-10 sm:h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-3 sm:mb-4 border border-amber-200 dark:border-amber-800">
+                            <AlertTriangle className="w-5 sm:w-6 h-5 sm:h-6 text-amber-600 dark:text-amber-500" />
+                        </div>
+                        <AlertDialogTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                            Stock Limit Exceeded
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                            You are issuing MORE stock than what is currently available for:
+                            <ul className="list-disc pl-5 mt-3 mb-4 space-y-1 font-semibold text-gray-700 dark:text-gray-300">
+                                {warningMessages.map((msg, i) => (
+                                    <li key={i}>{msg}</li>
+                                ))}
+                            </ul>
+                            Please adjust the quantities before saving.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="mt-4 sm:mt-6 flex justify-end w-full">
+                        <AlertDialogCancel onClick={() => setShowWarningDialog(false)} className="bg-red-600 hover:bg-red-700 text-white border-none px-6 w-full">
+                            Close & Fix
+                        </AlertDialogCancel>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
         </div>
     );
 }
