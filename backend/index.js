@@ -25,6 +25,7 @@ import teaReceivedRouter from './Packing/Routes/TeaReceivedRouter.js';
 import packingStockRouter from './Packing/Routes/packingStockRoutes.js';
 import teaTransactionOtherRouter from './Packing/Routes/teaTransactionOtherRouter.js';
 import rawMaterialInRouter from './Packing/Routes/rawMaterialInRouter.js';
+import restoreTeaStockRouter from './Packing/Routes/restoreTeaStockrouter.js';
 
 dotenv.config();
 const app = express();
@@ -68,6 +69,7 @@ app.use('/api/tea-received', teaReceivedRouter);
 app.use('/api/packing-stock', packingStockRouter);
 app.use('/api/tea-receivedother', teaTransactionOtherRouter);
 app.use('/api/raw-materials-in', rawMaterialInRouter);
+app.use('/api/restore-tea-stock', restoreTeaStockRouter);
 
 
 app.listen(3000, () => {

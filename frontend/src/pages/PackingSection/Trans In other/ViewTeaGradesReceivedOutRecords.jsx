@@ -235,6 +235,8 @@ export default function ViewTeaReceivedOtherRecords() {
     };
 
     // --- PDF GENERATION LOGIC ---
+    // --- PDF GENERATION LOGIC ---
+    // --- PDF GENERATION LOGIC ---
     const getPdfData = () => {
         const pdfSortedRecords = [...filteredRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
         const tableRows = [];
@@ -242,27 +244,53 @@ export default function ViewTeaReceivedOtherRecords() {
         pdfSortedRecords.forEach(record => {
             const baseDate = new Date(record.date).toISOString().split('T')[0];
             const pdfDateCell = record.isEdited ? `${baseDate}\n(Edited by ${record.editedBy})` : baseDate;
+            
+            // මේ record එකේ items කීයක් තියෙනවද කියලා ගණන් කිරීම (RowSpan එක සඳහා)
+            const itemsCount = record.itemsArray.length;
 
             record.itemsArray.forEach((item, index) => {
                 const isFirst = index === 0;
 
-                tableRows.push([
-                    isFirst ? pdfDateCell : "",
-                    isFirst ? record.transactionNo : "",
-                    isFirst ? (record.partyName || "-") : "",
-                    { 
-                        content: item.grade, 
-                        styles: { ...getPdfTeaColor(item.grade), fontStyle: 'bold', halign: 'center' } 
-                    },
-                    `${Number(Number(item.qtyKg).toFixed(4))}`,
-                    isFirst ? `${Number(Number(record.totalQtyKg).toFixed(4))}` : ""
-                ]);
+                // දශම 3ක් දක්වා රවුම් කර, අගට ඇති බිංදු ඉවත් කිරීම
+                const qtyStr = parseFloat(Number(item.qtyKg).toFixed(3)).toString();
+                const totalQtyStr = parseFloat(Number(record.totalQtyKg).toFixed(3)).toString();
+
+                const gradeCell = { 
+                    content: item.grade, 
+                    styles: { ...getPdfTeaColor(item.grade), fontStyle: 'bold', halign: 'center', valign: 'top' } 
+                };
+
+                const qtyCell = { 
+                    content: `${qtyStr}`, 
+                    styles: { halign: 'right', valign: 'top' } 
+                };
+
+                if (isFirst) {
+                    // පළමු අයිතමයේදී අවශ්‍ය තීරුවලට rowSpan ලබා දීම සහ ඉහළින් පෙළගැස්වීම (valign: 'top')
+                    tableRows.push([
+                        { content: pdfDateCell, rowSpan: itemsCount, styles: { valign: 'top', halign: 'center' } },
+                        { content: record.transactionNo || "-", rowSpan: itemsCount, styles: { valign: 'top', halign: 'center' } },
+                        { content: record.partyName || "-", rowSpan: itemsCount, styles: { valign: 'top', halign: 'center' } },
+                        gradeCell,
+                        qtyCell,
+                        { content: `${totalQtyStr}`, rowSpan: itemsCount, styles: { valign: 'top', halign: 'right', fontStyle: 'bold', textColor: [15, 118, 110] } }
+                    ]);
+                } else {
+                    // ඉතිරි අයිතම සඳහා Grade සහ Qty පමණක් ලබා දීම
+                    tableRows.push([
+                        gradeCell,
+                        qtyCell
+                    ]);
+                }
             });
         });
 
+        // Grand Total එකත් දශම 3කට රවුම් කර බිංදු ඉවත් කිරීම
+        const grandTotalStr = parseFloat(Number(grandTotal).toFixed(3)).toString();
+
         tableRows.push([
             { content: "FILTERED TOTAL", styles: { fontStyle: 'bold', halign: 'right' }, colSpan: 5 },
-            { content: `${Number(Number(grandTotal).toFixed(4))}kg`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } } 
+            { content: `${grandTotalStr} kg`, styles: { fontStyle: 'bold', textColor: [15, 118, 110], halign: 'right' } } 
         ]);
 
         return tableRows;
