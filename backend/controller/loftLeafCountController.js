@@ -150,3 +150,75 @@ export const deleteLoftLeafCount = async (req, res) => {
         res.status(500).json({ message: "Error deleting record." });
     }
 };
+
+// 5. GET MONTHLY SUMMARY BY ROUTE (WEIGHTED AVERAGES)
+export const getMonthlyRouteSummary = async (req, res) => {
+    try {
+        const { month } = req.query; // Expects format 'YYYY-MM'
+        
+        if (!month) {
+            return res.status(400).json({ message: "Month parameter is required (e.g., 2026-04)." });
+        }
+
+        const [yearStr, monthStr] = month.split('-');
+        const year = parseInt(yearStr, 10);
+        const monthInt = parseInt(monthStr, 10) - 1; 
+
+        const startDate = new Date(year, monthInt, 1);
+        const endDate = new Date(year, monthInt + 1, 0, 23, 59, 59, 999);
+
+        const summary = await LoftLeafCount.aggregate([
+            {
+                // Step 1: Filter records for the requested month
+                $match: {
+                    date: { $gte: startDate, $lte: endDate }
+                }
+            },
+            {
+                // Step 2: Group by Route and calculate sums
+                $group: {
+                    _id: { $toLower: { $arrayElemAt: [{ $split: ["$route", " - "] }, 0] } },
+                    originalRoute: { $first: "$route" },
+                    monthlyTotalQty: { $sum: "$totalQty" },
+                    monthlyBestQty: { $sum: "$bestQty" },
+                    monthlyBelowBestQty: { $sum: "$belowBestQty" },
+                    monthlyPoorQty: { $sum: "$poorQty" }
+                }
+            },
+            {
+                // Step 3: Calculate the exact Weighted Average Percentages
+                $project: {
+                    _id: 0,
+                    route: "$originalRoute",
+                    monthlyTotalQty: 1,
+                    monthlyBestQty: 1,
+                    
+                    // Final Average Best % = (Sum of Best Qty / Sum of Total Qty) * 100
+                    finalBestPercentage: {
+                        $cond: [
+                            { $gt: ["$monthlyTotalQty", 0] },
+                            { $round: [{ $multiply: [{ $divide: ["$monthlyBestQty", "$monthlyTotalQty"] }, 100] }, 2] },
+                            0
+                        ]
+                    },
+                    finalBelowBestPercentage: {
+                        $cond: [
+                            { $gt: ["$monthlyTotalQty", 0] },
+                            { $round: [{ $multiply: [{ $divide: ["$monthlyBelowBestQty", "$monthlyTotalQty"] }, 100] }, 2] },
+                            0
+                        ]
+                    }
+                }
+            },
+            {
+                // Step 4: Sort alphabetically by route
+                $sort: { route: 1 }
+            }
+        ]);
+
+        res.status(200).json(summary);
+    } catch (error) {
+        console.error("Aggregation summary error:", error);
+        res.status(500).json({ message: "Server error calculating weighted average summary." });
+    }
+};

@@ -93,7 +93,8 @@ const DATA = {
       items: [
         { title: 'L/L Record Entry', url: '/loft-leaf-count', roles: ['Admin', 'HandMade Officer'] }, 
         { title: 'L/L View Records', url: '/view-loft-leaf', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
-        { title: 'L/L View Summary Records', url: '/summary-loft-leaf', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'L/L Weighted Average', url: '/summary-loft-leaf', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'L/L Simple Average', url: '/simple-average', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
       ],
     },
     {
