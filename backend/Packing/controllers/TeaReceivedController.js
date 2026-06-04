@@ -149,8 +149,88 @@ export const updateTeaReceivedRecord = async (req, res) => {
             return res.status(404).json({ message: 'Record not found' });
         }
 
-        // Note: Update කරද්දීත් Stock එක Reverse කරලා අලුත් ගාණ දාන්න ඕනේ නම් ඒක ලියන්න වෙනවා.
+        // 👇 AUTOMATED STOCK UPDATE LOGIC 👇
         
+        // 1. අලුත් Items වල Quantity වෙනස ගණනය කිරීම
+        for (const newItem of receivedItems) {
+            const productName = newItem.grade || newItem.product || newItem.productName;
+            const newQty = Number(newItem.qtyKg || newItem.weight || newItem.receivedQtyKg || 0);
+
+            // පරණ record එකෙන් මේ item එක හොයාගන්නවා
+            const oldItem = record.receivedItems.find(i => (i.grade || i.product || i.productName) === productName);
+            const oldQty = oldItem ? Number(oldItem.qtyKg || oldItem.weight || oldItem.receivedQtyKg || 0) : 0;
+
+            const difference = newQty - oldQty; // කොච්චර වෙනස් වෙලාද (අලුත් ගාණ - පරණ ගාණ)
+
+            if (difference !== 0) {
+                let stock = await PackingStock.findOne({ productName: productName });
+
+                if (stock) {
+                    let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Factory');
+                    if (sourceObj) {
+                        sourceObj.quantityKg += difference;
+                        sourceObj.transInAmount += difference;
+                        
+                        if(sourceObj.quantityKg < 0) sourceObj.quantityKg = 0;
+                        if(sourceObj.transInAmount < 0) sourceObj.transInAmount = 0;
+                    } else {
+                        stock.stockBySource.push({
+                            sourceName: 'Factory',
+                            quantityKg: difference > 0 ? difference : 0,
+                            transInAmount: difference > 0 ? difference : 0,
+                            issueAmount: 0
+                        });
+                    }
+                    stock.totalBulkStockKg += difference;
+                    if(stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
+                    
+                    await stock.save();
+                } else if (difference > 0) {
+                    // Stock එකක් කලින් තිබිලම නැත්නම් අලුතින් හදනවා
+                    const newStock = new PackingStock({
+                        productName: productName,
+                        stockBySource: [{
+                            sourceName: 'Factory',
+                            quantityKg: difference,
+                            transInAmount: difference,
+                            issueAmount: 0
+                        }],
+                        totalBulkStockKg: difference,
+                        packedItems: []
+                    });
+                    await newStock.save();
+                }
+            }
+        }
+
+        // 2. Edit කරද්දී පරණ Item එකක් සම්පූර්ණයෙන්ම Delete කරලා නම් ඒක Stock එකෙන් අඩු කිරීම
+        for (const oldItem of record.receivedItems) {
+            const productName = oldItem.grade || oldItem.product || oldItem.productName;
+            const isStillPresent = receivedItems.find(i => (i.grade || i.product || i.productName) === productName);
+            
+            if (!isStillPresent) {
+                const oldQty = Number(oldItem.qtyKg || oldItem.weight || oldItem.receivedQtyKg || 0);
+                
+                let stock = await PackingStock.findOne({ productName: productName });
+                if (stock) {
+                    let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Factory');
+                    if (sourceObj) {
+                        sourceObj.quantityKg -= oldQty;
+                        sourceObj.transInAmount -= oldQty;
+                        
+                        if(sourceObj.quantityKg < 0) sourceObj.quantityKg = 0;
+                        if(sourceObj.transInAmount < 0) sourceObj.transInAmount = 0;
+                    }
+                    stock.totalBulkStockKg -= oldQty;
+                    if(stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
+                    
+                    await stock.save();
+                }
+            }
+        }
+        // 👆 END OF AUTOMATED STOCK UPDATE LOGIC 👆
+
+        // අලුත් දත්ත සමඟ Record එක Update කිරීම
         record.date = date;
         record.transactionNo = transactionNo;
         record.totalQtyKg = totalQtyKg;

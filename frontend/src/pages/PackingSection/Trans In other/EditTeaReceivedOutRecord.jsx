@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
-import { PlusCircle, Save, FileText, Calendar, Weight, Tag, X, ArrowLeft, Package } from "lucide-react"; 
+import { PlusCircle, Save, FileText, Calendar, Weight, Tag, X, ArrowLeft, Package, Building } from "lucide-react"; 
 import { useNavigate, useLocation } from 'react-router-dom';
 
 // Colors matched to the Entry page
@@ -37,9 +37,11 @@ export default function EditTeaReceivedOutRecord() {
 
     const [isSaving, setIsSaving] = useState(false);
     
+    // Add partyName to formData
     const [formData, setFormData] = useState({
         date: '',
         transactionNo: '',
+        partyName: '' 
     });
 
     const [itemsList, setItemsList] = useState([]);
@@ -72,19 +74,22 @@ export default function EditTeaReceivedOutRecord() {
         }
 
         if (recordData) {
-            // Strip out 'HO/TO/' prefix if it exists to cleanly populate the input
+            // Strip out 'REC/' or 'HO/TO/' prefix if it exists to cleanly populate the input
             const rawTransactionNo = recordData.transactionNo 
-                ? recordData.transactionNo.replace('HO/TO/', '') 
+                ? recordData.transactionNo.replace('REC/', '').replace('HO/TO/', '') 
                 : '';
 
             setFormData({
                 date: new Date(recordData.date).toISOString().split('T')[0],
-                transactionNo: rawTransactionNo
+                transactionNo: rawTransactionNo,
+                partyName: recordData.partyName || ''
             });
             
-            // Map existing items to the itemsList state
-            if (recordData.receivedItems && recordData.receivedItems.length > 0) {
-                const formattedItems = recordData.receivedItems.map((item, idx) => ({
+            // Note: The backend model for Other uses 'items' not 'receivedItems'
+            const existingItems = recordData.items || recordData.receivedItems || [];
+            
+            if (existingItems.length > 0) {
+                const formattedItems = existingItems.map((item, idx) => ({
                     id: Date.now() + idx,
                     grade: item.grade,
                     qtyKg: item.qtyKg
@@ -148,11 +153,13 @@ export default function EditTeaReceivedOutRecord() {
 
         const currentUsername = localStorage.getItem('username') || 'Unknown';
 
+        // Match the payload to the TeaTransactionOther schema
         const payload = {
             date: formData.date,
-            transactionNo: `HO/TO/${formData.transactionNo}`,
+            transactionNo: `REC/${formData.transactionNo}`, // Using REC/ as per the entry page
+            partyName: formData.partyName || "N/A",
             totalQtyKg: totalQtyKg,
-            receivedItems: itemsList.map(item => ({
+            items: itemsList.map(item => ({
                 grade: item.grade,
                 qtyKg: Number(item.qtyKg)
             })),
@@ -162,7 +169,8 @@ export default function EditTeaReceivedOutRecord() {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/tea-received/${recordData._id}`, {
+            // Make sure the URL points to your 'other' received endpoint
+            const response = await fetch(`${BACKEND_URL}/api/tea-receivedother/update/${recordData._id}`, {
                 method: 'PUT',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -227,6 +235,8 @@ export default function EditTeaReceivedOutRecord() {
                     
                     <div className="mb-6 flex justify-between items-end border-b border-gray-100 dark:border-zinc-800 pb-6 gap-6">
                         <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            {/* Date Field */}
                             <div>
                                 <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-2">
                                     <Calendar size={16} className="text-[#0d9488]"/> Date
@@ -240,9 +250,11 @@ export default function EditTeaReceivedOutRecord() {
                                     className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                                 />
                             </div>
+                            
+                            {/* Transaction No Field */}
                             <div>
                                 <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-2">
-                                    <FileText size={16} className="text-[#0d9488]"/> Transaction No
+                                    <FileText size={16} className="text-[#0d9488]"/> Ref / Invoice No
                                 </label>
                                 <div className="flex rounded-md shadow-sm">
                                     <input 
@@ -256,6 +268,23 @@ export default function EditTeaReceivedOutRecord() {
                                     />
                                 </div>
                             </div>
+
+                            {/* Party Name Field - ADDED HERE */}
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-2">
+                                    <Building size={16} className="text-[#0d9488]"/> Party / Source Name
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="partyName" 
+                                    value={formData.partyName} 
+                                    onChange={handleInputChange} 
+                                    required
+                                    placeholder="e.g. ABC Tea Estate"
+                                    className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                />
+                            </div>
+
                         </div>
                     </div>
 
@@ -264,7 +293,6 @@ export default function EditTeaReceivedOutRecord() {
                             <h3 className="text-lg font-bold text-[#0f766e] dark:text-teal-500 flex items-center gap-2">
                                 <Package size={20} /> Grades Received
                             </h3>
-                            
                         </div>
 
                         <div className="space-y-6">
