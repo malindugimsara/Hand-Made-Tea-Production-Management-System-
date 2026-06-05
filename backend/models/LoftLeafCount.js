@@ -11,24 +11,30 @@ const loftLeafCountSchema = new mongoose.Schema(
         required: true 
     },
     
-    // --- අලුතින් එකතු කරන ලද Fields ---
-    
-    // මේ record එක Factory sample එකක්ද Leaf collector කෙනෙක්ගේ එකක්ද යන්න හඳුනාගැනීමට
+    // මේ record එක Factory sample එකක්ද Leaf collector කෙනෙක්ගේ එකක්ද යන්න
     sampleType: {
         type: String,
-        enum: ['Factory', 'LeafCollector'], // වර්ග දෙකෙන් එකක් විය යුතුය
+        enum: ['Factory', 'LeafCollector'],
         required: true
     },
     
-    // Factory sample එකක් නම් අදාල Officer ගේ නම දැක්වීමට 
+    // Factory sample එකක් නම් අදාල Officer ගේ නම
     officerName: {
         type: String,
-        default: "", // Leaf collector's sample වලදී මෙය හිස්ව තැබිය හැක
+        default: "",
     },
 
-    // ------------------------------------
+    // --- යාවත්කාලීන කළ Total Leaf Qty Field එක ---
+    totalLeafQty: {
+        type: Number,
+        required: function() {
+            // මේ වාර්තාව 'Factory' එකක් නම් පමණක් මේ Field එක අනිවාර්ය (Required) වේ.
+            return this.sampleType === 'Factory';
+        },
+        default: null,
+    },
 
-    // --- BEST (Count 1 / ප්‍රමිතියෙන් ඉහළ) ---
+    // --- BEST ---
     bestQty: {
       type: Number,
       required: true,
@@ -43,7 +49,7 @@ const loftLeafCountSchema = new mongoose.Schema(
       default: 0,
     },
     
-    // --- BELOW BEST (Count 2 / ප්‍රමිතියෙන් මධ්‍යම) ---
+    // --- BELOW BEST ---
     belowBestQty: {
       type: Number,
       required: true,
@@ -58,7 +64,7 @@ const loftLeafCountSchema = new mongoose.Schema(
       default: 0,
     },
     
-    // --- POOR (Count 3 / ප්‍රමිතියෙන් පහළ) ---
+    // --- POOR ---
     poorQty: {
       type: Number,
       required: true,
@@ -73,7 +79,7 @@ const loftLeafCountSchema = new mongoose.Schema(
       default: 0,
     },
     
-    // --- TOTAL (සම්පූර්ණ එකතුව) ---
+    // --- TOTAL ---
     totalQty: {
       type: Number,
       required: true,
