@@ -17,31 +17,23 @@ export const loginUser = async (req, res) => {
     // 3. Generate JWT containing the user ID and Role
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '2h' });
 
-    // 4. Token එක HTTP-Only Cookie එකක් විදිහට සෙට් කිරීම
-    res.cookie('token', token, {
-        httpOnly: true,
-        secure: true, // Render eke HTTPS tiyena nisa meka aniwarayen true wenna oni
-        sameSite: 'none', // Domains 2k athara cookie yawanna meka 'none' wenna onimai!
-        maxAge: 2 * 60 * 60 * 1000 // Pay 2i
-    });
-
-res.status(200).json({ 
-    message: "Login Successful", 
-    token: token, // <-- Token එක මෙතනින් යවනවා
-    user: userDetails 
-});  } catch (error) {
-    res.status(500).json({ error: "Server error" });
+    // 4. Send JSON Response (Cookies අයින් කර ඇත, Frontend එකට අවශ්‍ය දත්ත පමණක් යවමු)
+    res.status(200).json({ 
+        message: "Login Successful", 
+        token: token, 
+        role: user.role,         // Frontend එකේ data.role ලෙස ගන්න
+        username: user.username  // Frontend එකේ data.username ලෙස ගන්න
+    });  
+  } catch (error) {
+    console.error("Login Error:", error);
+    res.status(500).json({ message: "Server error during login" });
   }
 };
 
-// Logout User (අලුතින් එකතු කරන ලදි)
+// Logout User
 export const logoutUser = (req, res) => {
-    // Cookie එක Clear කිරීම
-    res.clearCookie('token', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-    });
+    // දැන් Cookies භාවිතා නොකරන නිසා මෙහි ලොකු දෙයක් කිරීමට නැත. 
+    // Frontend එකෙන් LocalStorage එක Clear කිරීම තමයි ප්‍රධානම දේ.
     res.status(200).json({ message: "Logged out successfully" });
 };
 
