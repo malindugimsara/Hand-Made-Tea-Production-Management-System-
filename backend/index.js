@@ -33,9 +33,14 @@ import restoreTeaStockRouter from './Packing/Routes/restoreTeaStockrouter.js';
 dotenv.config();
 const app = express();
 
+// =====================================================================
+// *** අතිශය වැදගත් වෙනස (CRITICAL FOR RENDER & VERCEL) ***
+// Render හිදී Secure Cookies යැවීම සඳහා මෙය අනිවාර්ය වේ.
+app.set('trust proxy', 1); 
+// =====================================================================
+
 // 2. CORS Configuration එක Cookies සඳහා සකස් කිරීම
-// මෙහිදී 'http://localhost:5173' යනු ඔබගේ Frontend URL එක විය යුතුය. 
-// Production (Live) එකට දානකොට මේක ඒ URL එකට වෙනස් කරන්න ඕනේ.
+// ඔබගේ Vercel Link එකේ අගට "/" (slash) ලකුණ නොමැති බව තහවුරු කරගන්න.
 const allowedOrigins = [
   'http://localhost:5173', 
   'http://localhost:3000',
@@ -50,7 +55,7 @@ app.use(cors({
             callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true 
+    credentials: true // Cookies සඳහා මෙය අනිවාර්ය වේ
 }));
 
 
@@ -94,6 +99,7 @@ app.use('/api/raw-materials-in', rawMaterialInRouter);
 app.use('/api/restore-tea-stock', restoreTeaStockRouter);
 
 
-app.listen(3000, () => {
-  console.log('Server is running on port 3000');
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });

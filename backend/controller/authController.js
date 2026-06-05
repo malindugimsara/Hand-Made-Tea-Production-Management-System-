@@ -23,18 +23,13 @@ export const loginUser = async (req, res) => {
 
     // 4. Token එක HTTP-Only Cookie එකක් විදිහට සෙට් කිරීම
     res.cookie('token', token, {
-        httpOnly: true, // JavaScript වලින් access කරන්න බැහැ (XSS ප්‍රහාර වලින් ආරක්ෂා කරයි)
-        secure: process.env.NODE_ENV === 'production', // Live server එකේදී HTTPS අනිවාර්ය කරයි
-        sameSite: 'strict', // CSRF ප්‍රහාර වලින් ආරක්ෂා කරයි
-        maxAge: 12 * 60 * 60 * 1000 // පැය 12කින් Cookie එක Expire වෙනවා (JWT එකට සමානව)
+        httpOnly: true,
+        secure: true, // Render eke HTTPS tiyena nisa meka aniwarayen true wenna oni
+        sameSite: 'none', // Domains 2k athara cookie yawanna meka 'none' wenna onimai!
+        maxAge: 2 * 60 * 60 * 1000 // Pay 2i
     });
 
-    // 5. JSON Response එකෙන් token එක අයින් කරලා අනිත් විස්තර යැවීම
-    res.status(200).json({ 
-      message: "Login successful", 
-      role: user.role, 
-      username: user.username 
-    });
+    res.status(200).json({ message: "Login Successful", user: userDetails });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }
