@@ -15,11 +15,7 @@ export const loginUser = async (req, res) => {
     if (!isMatch) return res.status(401).json({ message: "Invalid credentials" });
 
     // 3. Generate JWT containing the user ID and Role
-    const token = jwt.sign(
-      { id: user._id, role: user.role , name: user.username }, 
-      process.env.JWT_KEY, 
-      { expiresIn: '12h' } // Token expires in 12 hours
-    );
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '2h' });
 
     // 4. Token එක HTTP-Only Cookie එකක් විදිහට සෙට් කිරීම
     res.cookie('token', token, {
@@ -29,8 +25,11 @@ export const loginUser = async (req, res) => {
         maxAge: 2 * 60 * 60 * 1000 // Pay 2i
     });
 
-    res.status(200).json({ message: "Login Successful", user: userDetails });
-  } catch (error) {
+res.status(200).json({ 
+    message: "Login Successful", 
+    token: token, // <-- Token එක මෙතනින් යවනවා
+    user: userDetails 
+});  } catch (error) {
     res.status(500).json({ error: "Server error" });
   }
 };
