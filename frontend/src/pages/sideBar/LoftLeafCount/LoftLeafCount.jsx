@@ -3,9 +3,9 @@ import toast from "react-hot-toast";
 import { Leaf, PlusCircle, Trash2, Tag, ListChecks, User, Factory, Users, Edit2, Save, Weight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import api from '../../../api/axiosConfig'; // <-- අලුතින් එකතු කළ import එක (Path එක ඔබේ ෆෝල්ඩර ව්‍යුහය අනුව වෙනස් කරගන්න)
 
 export default function LoftLeafCount() {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const navigate = useNavigate();
 
   const currentUsername = localStorage.getItem("username") || "Unknown";
@@ -78,12 +78,9 @@ export default function LoftLeafCount() {
 
   const fetchRecords = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${BACKEND_URL}/api/loft-leaf`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-      setRecords(data);
+      // api.get භාවිතයෙන් දත්ත ලබාගැනීම
+      const response = await api.get('/api/loft-leaf');
+      setRecords(response.data);
       setIsDataLoaded(true);
     } catch (error) {
       console.error("Fetch error:", error);
@@ -157,7 +154,7 @@ export default function LoftLeafCount() {
       toast.error("Please fill Route and quantities!");
       return;
     }
-    // Updated validation to check totalLeafQty for factory
+    
     if (isFactory && (!currentForm.officerName.trim() || !currentForm.totalLeafQty)) {
       toast.error("Please fill all Factory specific fields (Officer, Total Leaf Qty)!");
       return;
@@ -169,7 +166,7 @@ export default function LoftLeafCount() {
       sampleType: isFactory ? "Factory" : "LeafCollector",
       route: currentForm.route,
       officerName: isFactory ? currentForm.officerName : "",
-      totalLeafQty: isFactory ? Number(currentForm.totalLeafQty) : null, // Added to payload
+      totalLeafQty: isFactory ? Number(currentForm.totalLeafQty) : null,
       bestQty: stats.b,
       belowBestQty: stats.bb,
       poorQty: stats.p,
@@ -245,19 +242,10 @@ export default function LoftLeafCount() {
     setIsSaving(true);
     const toastId = toast.loading("Saving records to database...");
     try {
-      const token = localStorage.getItem("token");
+      // api.post භාවිතයෙන් දත්ත යැවීම
       const promises = pendingRecords.map((record) => {
         const { id, ...recordToSave } = record; 
-        return fetch(`${BACKEND_URL}/api/loft-leaf`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ ...recordToSave, updatedBy: currentUsername }),
-        }).then((res) => {
-          if (!res.ok) throw new Error();
-        });
+        return api.post('/api/loft-leaf', { ...recordToSave, updatedBy: currentUsername });
       });
 
       await Promise.all(promises);
@@ -399,7 +387,6 @@ export default function LoftLeafCount() {
                 <Factory size={20} className="text-gray-800 dark:text-gray-400" /> Factory Sample Entry
             </h3>
 
-            {/* Changed from md:grid-cols-2 to md:grid-cols-3 to accommodate the new field */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
                 {/* Route Field */}
