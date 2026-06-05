@@ -2,22 +2,21 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 dotenv.config();
 
-// 1. Check if the user is logged in (Valid Token)
+// 1. Check if the user is logged in (Valid Token from Cookie)
 export const verifyToken = (req, res, next) => {
   try {
-    const header = req.header("Authorization");
+    // දැන් අපි Token එක ගන්නේ Header එකෙන් නෙමෙයි, Cookie එකෙන්
+    const token = req.cookies.token;
 
     // If no token is provided at all, block them
-    if (!header) {
+    if (!token) {
       return res.status(401).json({ message: "Access Denied. No token provided." });
     }
 
-    const token = header.replace("Bearer ", "");
-    
-    // Note: Make sure process.env.JWT_KEY matches your .env file exactly
+    // Verify the token
     const decoded = jwt.verify(token, process.env.JWT_KEY);
 
-    req.user = decoded; // Attaches { id, role } to the request
+    req.user = decoded; // Attaches { id, role, name } to the request
     next(); // Move to the next step
   } catch (err) {
     return res.status(403).json({ message: "Invalid or expired token." });

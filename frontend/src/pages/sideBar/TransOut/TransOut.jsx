@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
 import { PlusCircle, Send, PackageOpen, Tag, Weight, X, Clock, FileText, Calendar, Calculator, ArrowRight, AlertTriangle, MousePointerClick } from "lucide-react"; 
+import api from '../../../api/axiosConfig'; 
 
 // Dynamic colors mapping your specific Tea Types
 const getTeaColor = (product) => {
@@ -73,14 +74,9 @@ export default function TransOut() {
 
     const fetchPendingOutTransfers = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/packing/transfers/pending`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setPendingOutTransfers(data);
-            }
+            // api.get භාවිතය (Token සහ Headers අවශ්‍ය නැත)
+            const response = await api.get('/api/packing/transfers/pending');
+            setPendingOutTransfers(response.data);
         } catch (error) {
             console.error("Could not fetch outgoing transfers", error);
         }
@@ -89,19 +85,12 @@ export default function TransOut() {
     const fetchStockUpToDate = async (targetDate) => {
         setLoadingStock(true);
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/handmade/transfers/stock-summary?date=${targetDate}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
-            if (response.ok) {
-                const data = await response.json(); 
-                setAvailableStock(data);
-            } else {
-                setAvailableStock({});
-            }
+            // api.get භාවිතය
+            const response = await api.get(`/api/handmade/transfers/stock-summary?date=${targetDate}`);
+            setAvailableStock(response.data);
         } catch (error) {
             toast.error("Could not load available stock for this date.");
+            setAvailableStock({});
         } finally {
             setLoadingStock(false);
         }
@@ -196,7 +185,6 @@ export default function TransOut() {
         const toastId = toast.loading("Sending stock to Packing...");
 
         try {
-            const token = localStorage.getItem('token');
             const userName = localStorage.getItem('userName') || 'Handmade Officer';
 
             const payload = {
@@ -209,16 +197,8 @@ export default function TransOut() {
                 }))
             };
 
-            const response = await fetch(`${BACKEND_URL}/api/handmade/transfers`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) throw new Error("Failed to send transfer");
+            // api.post භාවිතය
+            await api.post('/api/handmade/transfers', payload);
 
             toast.success("Stock transferred to Packing!", { id: toastId });
             
@@ -228,6 +208,7 @@ export default function TransOut() {
             fetchStockUpToDate(issueDate);
 
         } catch (error) {
+            // Axios error handling
             toast.error("Error sending stock.", { id: toastId });
         } finally {
             setSubmitting(false);

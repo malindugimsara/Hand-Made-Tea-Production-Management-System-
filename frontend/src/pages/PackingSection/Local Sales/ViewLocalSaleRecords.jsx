@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
-import { AlertCircle, Calendar, RefreshCw, Package, ShoppingCart, Weight, Tag, FilterX, Box, Layers, Droplet, Leaf } from "lucide-react";
+import { Calendar, RefreshCw, Package, ShoppingCart, Weight, Tag, FilterX, Box, Layers, Droplet, Leaf } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
 import {
     AlertDialog,
@@ -15,7 +15,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useNavigate } from 'react-router-dom';
-
+import api from '../../../api/axiosConfig'; 
 
 // Exact Colors for Tea
 const getTeaColor = (product) => {
@@ -105,21 +105,15 @@ export default function ViewLocalSaleRecords() {
     const fetchRecords = async () => {
         setLoading(true); 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/local-sales`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!response.ok) {
-                if(response.status === 401) throw new Error("Unauthorized. Please log in.");
-                throw new Error("Failed to fetch data");
-            }
-
-            const data = await response.json();
+            // api.get භාවිතය (Token/Headers අතින් සකසන්න ඕනේ නෑ)
+            const response = await api.get('/api/local-sales');
+            const data = response.data;
             
+            // --- Process Data to check for edits ---
             const processedData = data.map(rec => {
                 const createdTime = rec.createdAt ? new Date(rec.createdAt).getTime() : 0;
                 const updatedTime = rec.updatedAt ? new Date(rec.updatedAt).getTime() : 0;
+                
                 const isEdited = createdTime > 0 && updatedTime > 0 && (updatedTime - createdTime) > 5000;
                 const lastUpdatedDate = isEdited ? new Date(rec.updatedAt).toISOString().split('T')[0] : '';
                 
@@ -127,7 +121,11 @@ export default function ViewLocalSaleRecords() {
                 const searchString = itemsArray.map(item => item.product).join(' ');
 
                 return {
-                    ...rec, itemsArray, searchString, isEdited, lastUpdatedDate,
+                    ...rec, 
+                    itemsArray, 
+                    searchString, 
+                    isEdited, 
+                    lastUpdatedDate,
                     editedBy: rec.updatedBy || rec.editorName || 'Unknown User' 
                 };
             });
@@ -141,7 +139,9 @@ export default function ViewLocalSaleRecords() {
             setRecords(sortedData);
         } catch (error) {
             console.error("Fetch Error:", error);
-            toast.error(error.message || "Could not load data from server.");
+            // Axios වලදී දෝෂ පණිවිඩය ලබාගැනීම
+            const errorMsg = error.response?.data?.message || "Could not load data from server.";
+            toast.error(errorMsg);
         } finally {
             setLoading(false);
         }
@@ -191,21 +191,20 @@ export default function ViewLocalSaleRecords() {
         if (!recordToDelete) return;
         const toastId = toast.loading('Deleting record...');
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/local-sales/${recordToDelete._id}`, { 
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-                toast.success("Record deleted successfully!", { id: toastId });
-                fetchRecords(); 
+            // api.delete භාවිතය
+            const response = await api.delete(`/api/local-sales/${recordToDelete._id}`);
+            
+            toast.success(response.data.message || "Record deleted successfully!", { id: toastId });
+            fetchRecords(); 
+        } catch (error) {
+            // Axios Error Handling
+            if (error.response?.status === 403) {
+                toast.error("Access Denied. Only Admins can delete.", { id: toastId });
             } else {
                 toast.error("Failed to delete record.", { id: toastId });
             }
-        } catch (error) {
-            toast.error("Network error while deleting.", { id: toastId });
         } finally {
-            setRecordToDelete(null);
+            setUserToDelete(null);
         }
     };
 

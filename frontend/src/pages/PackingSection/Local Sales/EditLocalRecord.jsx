@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
 import { PlusCircle, Save, ShoppingCart, Calendar, Weight, Tag, X, ArrowLeft, Package, Calculator, Layers, Trash2, Box, AlertTriangle, ArrowRight, Droplet } from "lucide-react"; 
 import { useNavigate, useLocation } from 'react-router-dom';
+import api from '../../../api/axiosConfig';
 
 // --- LOGIC: BASE TEA MAPPING ---
 const getBaseTeaGrade = (productName) => {
@@ -137,50 +138,46 @@ export default function EditLocalRecord() {
     useEffect(() => {
         const fetchStocks = async () => {
             try {
-                const token = localStorage.getItem('token');
-                
+                // api.get භාවිතය (Token/Headers අවශ්‍ය නැත)
                 const [teaRes, rmRes] = await Promise.all([
-                    fetch(`${BACKEND_URL}/api/packing-stock`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                    fetch(`${BACKEND_URL}/api/raw-materials-in/stock`, { headers: { 'Authorization': `Bearer ${token}` } }).catch(() => ({ ok: false }))
+                    api.get('/api/packing-stock').catch(() => ({ data: [] })),
+                    api.get('/api/raw-materials-in/stock').catch(() => ({ data: [] }))
                 ]);
 
-                if (teaRes.ok) {
-                    const data = await teaRes.json();
-                    const factoryAndOtherData = [];
-                    data.forEach(product => {
-                        let validStock = 0;
-                        if (product.stockBySource && product.stockBySource.length > 0) {
-                            const factoryStock = product.stockBySource.find(s => s.sourceName === 'Factory')?.quantityKg || 0;
-                            const otherStock = product.stockBySource.find(s => s.sourceName === 'Other')?.quantityKg || 0;
-                            validStock = factoryStock + otherStock;
-                        } else {
-                            if (product.source === 'Factory' || product.source === 'Other') {
-                                validStock = Number(product.bulkStockKg) || 0;
-                            }
+                // Fetch Tea Stock
+                const data = teaRes.data;
+                const factoryAndOtherData = [];
+                data.forEach((product) => {
+                    let validStock = 0;
+                    if (product.stockBySource && product.stockBySource.length > 0) {
+                        const factoryStock = product.stockBySource.find((s) => s.sourceName === "Factory")?.quantityKg || 0;
+                        const otherStock = product.stockBySource.find((s) => s.sourceName === "Other")?.quantityKg || 0;
+                        validStock = factoryStock + otherStock;
+                    } else {
+                        if (product.source === "Factory" || product.source === "Other") {
+                            validStock = Number(product.bulkStockKg) || 0;
                         }
-                        if (validStock > 0) {
-                            factoryAndOtherData.push({
-                                productName: product.productName,
-                                bulkStockKg: validStock 
-                            });
-                        }
-                    });
-                    setAvailableTeaStock(factoryAndOtherData);
-                }
+                    }
+                    if (validStock > 0) {
+                        factoryAndOtherData.push({
+                            productName: product.productName,
+                            bulkStockKg: validStock,
+                        });
+                    }
+                });
+                setAvailableTeaStock(factoryAndOtherData);
 
-                if (rmRes.ok) {
-                    const rmData = await rmRes.json();
-                    const allRawMaterials = Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : [];
-                    
-                    const packingOnly = allRawMaterials.filter(rm => (rm.category || '').toLowerCase() !== 'flavor');
-                    setAvailablePackingStock(packingOnly);
-                }
+                // Fetch Packing Material Stock
+                const rmData = rmRes.data;
+                const allRawMaterials = Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : [];
+                const packingOnly = allRawMaterials.filter((rm) => (rm.category || "").toLowerCase() !== "flavor");
+                setAvailablePackingStock(packingOnly);
             } catch (error) {
                 console.error("Error fetching stocks:", error);
             }
         };
         fetchStocks();
-    }, [BACKEND_URL]);
+    }, []);
 
     // Initial Data Population
     useEffect(() => {
@@ -322,6 +319,7 @@ export default function EditLocalRecord() {
             }
         });
 
+        // Stock Validation
         for (const [baseGrade, requestedQty] of Object.entries(requestedByBaseGrade)) {
             const stockData = availableTeaStock.find(s => s.productName === baseGrade);
             const available = stockData ? stockData.bulkStockKg : 0;
@@ -380,29 +378,19 @@ export default function EditLocalRecord() {
         };
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/local-sales/${recordData._id}`, {
-                method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
+            // api.put භාවිතය
+            await api.put(`/api/local-sales/${recordData._id}`, payload);
 
-            if (response.ok) {
-                toast.success("Record updated successfully!", { id: toastId });
-                setTimeout(() => navigate(-1), 100);
-            } else {
-                if (response.status === 403) throw new Error('Access Denied');
-                throw new Error('Failed to update record');
-            }
+            toast.success("Record updated successfully!", { id: toastId });
+            setTimeout(() => navigate(-1), 100);
+            
         } catch (error) {
             console.error(error);
-            if (error.message === 'Access Denied') {
+            // Axios Error Handling
+            if (error.response?.status === 403) {
                 toast.error("Access Denied. You do not have permission to edit records.", { id: toastId });
             } else {
-                toast.error("Error updating record. Please try again.", { id: toastId });
+                toast.error(error.response?.data?.message || "Error updating record. Please try again.", { id: toastId });
             }
         } finally {
             setIsSaving(false);

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { useNavigate } from 'react-router-dom';
+import api from '../../../api/axiosConfig'; 
 
 const getTeaColor = (grade) => {
     const p = grade.toLowerCase();
@@ -91,20 +92,11 @@ export default function ViewTeaReceivedOtherRecords() {
     const fetchRecords = async () => {
         setLoading(true); 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/tea-receivedother`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!response.ok) {
-                if(response.status === 401) throw new Error("Unauthorized. Please log in.");
-                throw new Error("Failed to fetch data");
-            }
-
-            const data = await response.json();
-            const recordsData = data.data ? data.data : data;
-
-            const processedData = recordsData.map(rec => {
+            // api.get භාවිතය
+            const response = await api.get('/api/tea-receivedother');
+            const data = response.data.data ? response.data.data : response.data;
+            
+            const processedData = data.map(rec => {
                 const createdTime = rec.createdAt ? new Date(rec.createdAt).getTime() : 0;
                 const updatedTime = rec.updatedAt ? new Date(rec.updatedAt).getTime() : 0;
                 const isEdited = createdTime > 0 && updatedTime > 0 && (updatedTime - createdTime) > 5000;
@@ -115,7 +107,11 @@ export default function ViewTeaReceivedOtherRecords() {
                 const searchString = itemsArray.map(item => item.grade).join(' ') + ' ' + (rec.transactionNo || '') + ' ' + (rec.partyName || '');
 
                 return {
-                    ...rec, itemsArray, searchString, isEdited, lastUpdatedDate,
+                    ...rec, 
+                    itemsArray, 
+                    searchString, 
+                    isEdited, 
+                    lastUpdatedDate,
                     editedBy: rec.updatedBy || rec.editorName || 'Unknown User' 
                 };
             });
@@ -129,7 +125,8 @@ export default function ViewTeaReceivedOtherRecords() {
             setRecords(sortedData);
         } catch (error) {
             console.error("Fetch Error:", error);
-            toast.error(error.message || "Could not load data from server.");
+            const errorMsg = error.response?.data?.message || "Could not load data from server.";
+            toast.error(errorMsg);
         } finally {
             setLoading(false);
         }
@@ -202,19 +199,14 @@ export default function ViewTeaReceivedOtherRecords() {
         if (!recordToDelete) return;
         const toastId = toast.loading('Deleting record...');
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/tea-receivedother/delete/${recordToDelete._id}`, { 
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-                toast.success("Record deleted successfully!", { id: toastId });
-                fetchRecords(); 
-            } else {
-                toast.error("Failed to delete record.", { id: toastId });
-            }
+            // api.delete භාවිතය
+            await api.delete(`/api/tea-receivedother/delete/${recordToDelete._id}`);
+            
+            toast.success("Record deleted successfully!", { id: toastId });
+            fetchRecords(); 
         } catch (error) {
-            toast.error("Network error while deleting.", { id: toastId });
+            console.error(error);
+            toast.error("Failed to delete record.", { id: toastId });
         } finally {
             setRecordToDelete(null);
         }

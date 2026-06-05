@@ -3,6 +3,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { IoMdArrowRoundBack } from "react-icons/io";
 import { PlusCircle, X, Leaf, Factory, CalendarClock, Users } from "lucide-react";
+import api from '../../../api/axiosConfig';
 
 export default function EditRecordPage() {
     // 1. Configuration & Hooks
@@ -69,41 +70,37 @@ export default function EditRecordPage() {
     }, [location, navigate]);
 
     // Fetch latest meter readings for auto-filling
+    // Fetch latest meter readings for auto-filling
     useEffect(() => {
         const fetchLastReadings = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const res = await fetch(`${BACKEND_URL}/api/production`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                // api.get භාවිතය (Token සහ Headers අවශ්‍ය නැත)
+                const res = await api.get('/api/production');
+                const prodData = res.data;
+                
+                prodData.sort((a, b) => {
+                    const dateDiff = new Date(b.date) - new Date(a.date);
+                    if (dateDiff !== 0) return dateDiff;
+                    return new Date(b.createdAt) - new Date(a.createdAt);
                 });
                 
-                if (res.ok) {
-                    const prodData = await res.json();
-                    
-                    prodData.sort((a, b) => {
-                        const dateDiff = new Date(b.date) - new Date(a.date);
-                        if (dateDiff !== 0) return dateDiff;
-                        return new Date(b.createdAt) - new Date(a.createdAt);
-                    });
-                    
-                    let d1Last = '';
-                    let d2Last = '';
+                let d1Last = '';
+                let d2Last = '';
 
-                    const d1Record = prodData.find(p => p.dryerDetails?.dryerName === 'Dryer 1');
-                    if (d1Record) d1Last = d1Record.dryerDetails.meterEnd;
+                const d1Record = prodData.find(p => p.dryerDetails?.dryerName === 'Dryer 1');
+                if (d1Record) d1Last = d1Record.dryerDetails.meterEnd;
 
-                    const d2Record = prodData.find(p => p.dryerDetails?.dryerName === 'Dryer 2');
-                    if (d2Record) d2Last = d2Record.dryerDetails.meterEnd;
+                const d2Record = prodData.find(p => p.dryerDetails?.dryerName === 'Dryer 2');
+                if (d2Record) d2Last = d2Record.dryerDetails.meterEnd;
 
-                    setLastReadings({ 'Dryer 1': d1Last, 'Dryer 2': d2Last });
-                }
+                setLastReadings({ 'Dryer 1': d1Last, 'Dryer 2': d2Last });
             } catch (error) {
                 console.error("Failed to fetch last dryer readings", error);
             }
         };
 
         fetchLastReadings();
-    }, [BACKEND_URL]);
+    }, []); 
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -172,18 +169,13 @@ export default function EditRecordPage() {
     const fetchWithErr = (url, options, defaultErrorMsg) => {
         return fetch(url, options).then(async res => {
             if (!res.ok) {
-                let msg = defaultErrorMsg;
-                try {
-                    const data = await res.json();
-                    msg = data.message || msg;
-                } catch(e) {}
-                if (res.status === 401 || res.status === 403) msg = "Access Denied.";
-                throw new Error(msg);
+                // ...
             }
             return res;
         });
     };
 
+    // 6. Main Submit Logic (Update)
     // 6. Main Submit Logic (Update)
     const handleUpdate = async (e) => {
         e.preventDefault(); 
@@ -220,35 +212,26 @@ export default function EditRecordPage() {
         const toastId = toast.loading('Updating record...');
 
         try {
-            const token = localStorage.getItem('token');
-            const authHeaders = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
-            };
-
             const promises = [];
 
-            // 1. Update Green Leaf
+            // 1. Update Green Leaf (api.put)
             if (formData.greenLeafId) {
-                promises.push(fetchWithErr(`${BACKEND_URL}/api/green-leaf/${formData.greenLeafId}`, {
-                    method: 'PUT', headers: authHeaders, body: JSON.stringify({ totalWeight: total, selectedWeight: selected, updatedBy: currentUser })
-                }, "Failed to update Green Leaf record."));
+                promises.push(api.put(`/api/green-leaf/${formData.greenLeafId}`, { 
+                    totalWeight: total, selectedWeight: selected, updatedBy: currentUser 
+                }));
             }
 
-            // 2. Update Labour
+            // 2. Update Labour (api.put)
             if (formData.labourId) {
-                promises.push(fetchWithErr(`${BACKEND_URL}/api/labour/${formData.labourId}`, {
-                    method: 'PUT', headers: authHeaders, 
-                    body: JSON.stringify({ 
-                        workerCount: Number(formData.workerCount),
-                        rollingType: formData.rollingType,
-                        rollingWorkerCount: formData.rollingType === 'Hand Rolling' ? Number(formData.rollingWorkerCount) : 0,
-                        updatedBy: currentUser
-                    })
-                }, "Failed to update Labour record."));
+                promises.push(api.put(`/api/labour/${formData.labourId}`, { 
+                    workerCount: Number(formData.workerCount),
+                    rollingType: formData.rollingType,
+                    rollingWorkerCount: formData.rollingType === 'Hand Rolling' ? Number(formData.rollingWorkerCount) : 0,
+                    updatedBy: currentUser
+                }));
             }
 
-            // 3. Update the Primary Production Record (outputs[0] & dryers[0])
+            // 3. Update the Primary Production Record (api.put)
             if (formData.productionId) {
                 const primaryDryer = formData.dryers[0];
                 const dryerDetailsObj = primaryDryer.dryerName ? {
@@ -260,45 +243,40 @@ export default function EditRecordPage() {
                     dryerName: '', meterStart: 0, meterEnd: 0, rollerPoints: 0
                 };
 
-                promises.push(fetchWithErr(`${BACKEND_URL}/api/production/${formData.productionId}`, {
-                    method: 'PUT', headers: authHeaders, 
-                    body: JSON.stringify({
-                        teaType: formData.outputs[0].teaType,
-                        madeTeaWeight: Number(formData.outputs[0].madeTeaWeight),
-                        expectedDryerDate: formData.expectedDryerDate, // <-- INCLUDED
-                        dryerDetails: dryerDetailsObj,
-                        updatedBy: currentUser
-                    })
-                }, "Failed to update Primary Production record."));
+                promises.push(api.put(`/api/production/${formData.productionId}`, {
+                    teaType: formData.outputs[0].teaType,
+                    madeTeaWeight: Number(formData.outputs[0].madeTeaWeight),
+                    expectedDryerDate: formData.expectedDryerDate, 
+                    dryerDetails: dryerDetailsObj,
+                    updatedBy: currentUser
+                }));
             }
 
-            // 4. Create NEW Production Records for extra Tea Types (outputs.slice(1))
+            // 4. Create NEW Production Records for extra Tea Types (api.post)
             if (formData.outputs.length > 1) {
                 for (let i = 1; i < formData.outputs.length; i++) {
                     const extraPayload = {
                         date: formData.date,
                         teaType: formData.outputs[i].teaType,
                         madeTeaWeight: Number(formData.outputs[i].madeTeaWeight),
-                        expectedDryerDate: formData.expectedDryerDate, // <-- INCLUDED
+                        expectedDryerDate: formData.expectedDryerDate, 
                         dryerDetails: { dryerName: '', meterStart: 0, meterEnd: 0, rollerPoints: 0 }, 
                         updatedBy: currentUser
                     };
-                    promises.push(fetchWithErr(`${BACKEND_URL}/api/production`, {
-                        method: 'POST', headers: authHeaders, body: JSON.stringify(extraPayload)
-                    }, `Failed to add extra tea type: ${formData.outputs[i].teaType}`));
+                    promises.push(api.post('/api/production', extraPayload));
                 }
             }
 
-            // 5. Create NEW Production Records for extra Dryers (dryers.slice(1))
+            // 5. Create NEW Production Records for extra Dryers (api.post)
             if (formData.dryers.length > 1) {
                 for (let j = 1; j < formData.dryers.length; j++) {
                     const extraDryer = formData.dryers[j];
                     if (extraDryer.dryerName) {
                         const extraPayload = {
                             date: formData.date,
-                            teaType: formData.outputs[0].teaType || "Other", // Bind to primary tea type securely
-                            madeTeaWeight: 0, // Prevent duplicating yields
-                            expectedDryerDate: formData.expectedDryerDate, // <-- INCLUDED
+                            teaType: formData.outputs[0].teaType || "Other",
+                            madeTeaWeight: 0,
+                            expectedDryerDate: formData.expectedDryerDate, 
                             dryerDetails: {
                                 dryerName: extraDryer.dryerName,
                                 meterStart: Number(extraDryer.meterStart),
@@ -306,9 +284,7 @@ export default function EditRecordPage() {
                                 rollerPoints: Number(extraDryer.rollerPoints || 0)
                             }
                         };
-                        promises.push(fetchWithErr(`${BACKEND_URL}/api/production`, {
-                            method: 'POST', headers: authHeaders, body: JSON.stringify(extraPayload)
-                        }, `Failed to add extra dryer: ${extraDryer.dryerName}`));
+                        promises.push(api.post('/api/production', extraPayload));
                     }
                 }
             }
@@ -321,7 +297,9 @@ export default function EditRecordPage() {
         } catch (error) {
             console.error("Update Error:", error);
             playErrorSound();
-            toast.error(`Update Error: ${error.message}`, { id: toastId });
+            // Axios error message එක ලබාගැනීම
+            const errorMsg = error.response?.data?.message || error.message || "Failed to update record.";
+            toast.error(`Update Error: ${errorMsg}`, { id: toastId });
         } finally {
             setShowSpinner(false); 
         }

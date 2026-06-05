@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast'; 
 import { Calculator, Calendar, Leaf, Zap, Users, Settings2, RefreshCw, CheckSquare, Square, Save, AlertTriangle, Filter, Info, Eye, FileDown, Sun, Moon } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader'; 
+import api from '../../../api/axiosConfig';
 
 import {
     AlertDialog,
@@ -75,25 +76,16 @@ export default function ProductionSummary() {
     const fetchAllData = async (isSilent = false) => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const authHeaders = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            };
-
+            // api.get භාවිතය (Token සහ Headers අවශ්‍ය නැත)
             const [greenLeafRes, productionRes, labourRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
-                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
-                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders })
+                api.get('/api/green-leaf'),
+                api.get('/api/production'),
+                api.get('/api/labour')
             ]);
 
-            if (!greenLeafRes.ok || !productionRes.ok || !labourRes.ok) {
-                throw new Error("Failed to fetch data");
-            }
-
-            const greenLeafData = await greenLeafRes.json();
-            const productionData = await productionRes.json();
-            const labourData = await labourRes.json();
+            const greenLeafData = greenLeafRes.data;
+            const productionData = productionRes.data;
+            const labourData = labourRes.data;
 
             const glUsage = {};
             const labUsage = {};
@@ -115,7 +107,7 @@ export default function ProductionSummary() {
                 const mStart = Number(prod?.dryerDetails?.meterStart) || 0;
                 const mEnd = Number(prod?.dryerDetails?.meterEnd) || 0;
                 const calculatedUnits = mEnd > mStart ? (mEnd - mStart) : 0;
-                const rPoints = Number(prod?.dryerDetails?.rollerPoints) || 0; // Get Roller Points
+                const rPoints = Number(prod?.dryerDetails?.rollerPoints) || 0;
 
                 return {
                     date: dateStr,
@@ -123,9 +115,9 @@ export default function ProductionSummary() {
                     madeTeaWeight: prod.madeTeaWeight || 0,
                     selectedWeight: gl ? gl.selectedWeight : 0,
                     workerCount: lab ? lab.workerCount : 0,
-                    rollingWorkerCount: lab && lab.rollingType === 'Hand Rolling' ? lab.rollingWorkerCount : 0, // Get Hand Rolling Count
+                    rollingWorkerCount: lab && lab.rollingType === 'Hand Rolling' ? lab.rollingWorkerCount : 0,
                     meterStart: mStart, 
-                    meterEnd: mEnd,     
+                    meterEnd: mEnd,    
                     dryerUnits: calculatedUnits,
                     rollerPoints: rPoints
                 };
@@ -146,29 +138,22 @@ export default function ProductionSummary() {
         if (!isSilent) toastId = toast.loading(`Checking database for ${month}...`);
 
         try {
-            const token = localStorage.getItem('token');
-            const authHeaders = { 'Authorization': `Bearer ${token}` };
-
-            const summaryRes = await fetch(`${BACKEND_URL}/api/production-summary`, { headers: authHeaders });
+            // api.get භාවිතය
+            const summaryRes = await api.get('/api/production-summary');
+            const summaries = summaryRes.data;
             
-            if (summaryRes.ok) {
-                const summaries = await summaryRes.json();
-                let savedSummary = Array.isArray(summaries) 
-                    ? summaries.find(s => s.reportMonth === month) 
-                    : (summaries?.reportMonth === month ? summaries : null);
+            let savedSummary = Array.isArray(summaries) 
+                ? summaries.find(s => s.reportMonth === month) 
+                : (summaries?.reportMonth === month ? summaries : null);
 
-                if (savedSummary) {
-                    setLabourRate(savedSummary.labourRate);
-                    // setElectricityRate(savedSummary.electricityRate);
-
-                    const activeTypes = savedSummary.teaSummaries.map(tea => tea.type);
-
-                    setSelectedTeaTypes(activeTypes);
-                    setTimeout(() => setIsSaved(true), 100); 
-                    
-                    if (!isSilent) toast.success(`Loaded saved summary for ${month}!`, { id: toastId });
-                    return; 
-                }
+            if (savedSummary) {
+                setLabourRate(savedSummary.labourRate);
+                const activeTypes = savedSummary.teaSummaries.map(tea => tea.type);
+                setSelectedTeaTypes(activeTypes);
+                setTimeout(() => setIsSaved(true), 100); 
+                
+                if (!isSilent) toast.success(`Loaded saved summary for ${month}!`, { id: toastId });
+                return; 
             }
 
             autoSelectActiveTeaTypes(availableRecords, month);
@@ -291,14 +276,17 @@ export default function ProductionSummary() {
         setIsSaving(true);
         const toastId = toast.loading("Saving summary...");
         try {
-            const token = localStorage.getItem('token');
-            const payload = { reportMonth: filterMonth, labourRate: Number(labourRate), electricityRate: Number(electricityRate), teaSummaries: tableData, grandTotals: grandTotals };
-            const response = await fetch(`${BACKEND_URL}/api/production-summary`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(payload)
-            });
-            if (!response.ok) throw new Error("Failed to save");
+            const payload = { 
+                reportMonth: filterMonth, 
+                labourRate: Number(labourRate), 
+                electricityRate: Number(electricityRate), 
+                teaSummaries: tableData, 
+                grandTotals: grandTotals 
+            };
+            
+            // api.post භාවිතය
+            await api.post('/api/production-summary', payload);
+            
             toast.success("Summary Saved Successfully!", { id: toastId });
             setIsSaved(true); 
             return true;

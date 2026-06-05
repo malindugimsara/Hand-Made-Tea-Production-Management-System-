@@ -61,6 +61,7 @@ import {
   SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
+import api from '@/api/axiosConfig';
 
 // --- ROLE-BASED DATA CONFIGURATION ---
 const DATA = {
@@ -189,12 +190,24 @@ export default function DashboardLayoutP() {
   const currentUsername = localStorage.getItem('username') || 'Unknown User';
   const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'Viewer'; 
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userRole'); 
-    localStorage.removeItem('username');
-    localStorage.removeItem('role'); 
-    navigate('/', { replace: true });
+  const handleLogout = async () => {
+    try {
+        // Backend එකේ logout route එකක් ඇත්නම් එය කැඳවන්න (Axios භාවිතයෙන්)
+        await api.post('/api/auth/logout').catch(() => {}); 
+        
+        // ඉන්පසු LocalStorage හි සියලු දත්ත ඉවත් කරන්න
+        localStorage.removeItem('token');
+        localStorage.removeItem('userRole'); 
+        localStorage.removeItem('username');
+        localStorage.removeItem('role'); 
+        
+        // ලොගින් පිටුවට යවන්න
+        navigate('/', { replace: true });
+    } catch (error) {
+        console.error("Logout error:", error);
+        // දෝෂයක් ආවත් ලොගින් පිටුවට යවන්න
+        navigate('/', { replace: true });
+    }
   };
 
   const getBreadcrumbTitle = () => {

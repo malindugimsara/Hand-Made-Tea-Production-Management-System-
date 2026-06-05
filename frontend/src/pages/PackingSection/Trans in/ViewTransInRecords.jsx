@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { Calendar, RefreshCw, PackageCheck, Weight, Tag, FilterX, UserCheck } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
+import api from '../../../api/axiosConfig';
 
 // Exact Colors based on your setup
 const getTeaColor = (product) => {
@@ -93,15 +94,11 @@ export default function ViewTransInRecords() {
     const fetchHistory = async () => {
         setLoading(true); 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/packing/transfers/completed`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!response.ok) throw new Error("Failed to fetch transfer history");
-
-            const data = await response.json();
+            // api.get භාවිතය (Token/Headers අතින් සකසන්න ඕනේ නෑ)
+            const response = await api.get('/api/packing/transfers/completed');
+            const data = response.data;
             
+            // Process data for easy searching and PDF rendering
             const processedData = data.map(rec => {
                 const searchString = rec.items.map(item => item.product).join(' ');
                 return { ...rec, searchString };
@@ -110,7 +107,9 @@ export default function ViewTransInRecords() {
             setRecords(processedData);
         } catch (error) {
             console.error("Fetch Error:", error);
-            toast.error("Could not load transfer history.");
+            // Axios දෝෂ පණිවිඩය ලබාගැනීම
+            const errorMsg = error.response?.data?.message || "Could not load transfer history.";
+            toast.error(errorMsg);
         } finally {
             setLoading(false);
         }

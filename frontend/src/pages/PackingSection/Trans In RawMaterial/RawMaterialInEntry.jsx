@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
 import { PlusCircle, Trash2, ListChecks, Save, Package, ShoppingCart, Calendar, Weight, Tag, X, Calculator, AlertTriangle, ArrowRight, Box, Leaf, FileText, Truck, Layers } from "lucide-react"; 
 import { useNavigate } from 'react-router-dom';
+import api from '../../../api/axiosConfig';
 
 // Common Raw Materials list for Autocomplete
 const RAW_MATERIALS = [
@@ -162,20 +163,8 @@ export default function RawMaterialInEntry() {
                     }))
                 };
 
-                return fetch(`${BACKEND_URL}/api/raw-materials-in/`, { 
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(payload)
-                }).then(async (res) => {
-                    if (!res.ok) {
-                        if (res.status === 403) throw new Error('Access Denied');
-                        throw new Error('Failed');
-                    }
-                    return res.json();
-                });
+                // api.post භාවිතය
+                return api.post('/api/raw-materials-in/', payload);
             });
 
             await Promise.all(promises);
@@ -187,7 +176,12 @@ export default function RawMaterialInEntry() {
 
         } catch (error) {
             console.error(error);
-            toast.error("Error saving some records. Please check.", { id: toastId });
+            // Axios error handling
+            if (error.response?.status === 403) {
+                toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
+            } else {
+                toast.error("Error saving some records. Please check.", { id: toastId });
+            }
         } finally {
             setShowSpinner(false);
         }

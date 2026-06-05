@@ -21,15 +21,34 @@ export const loginUser = async (req, res) => {
       { expiresIn: '12h' } // Token expires in 12 hours
     );
 
+    // 4. Token එක HTTP-Only Cookie එකක් විදිහට සෙට් කිරීම
+    res.cookie('token', token, {
+        httpOnly: true, // JavaScript වලින් access කරන්න බැහැ (XSS ප්‍රහාර වලින් ආරක්ෂා කරයි)
+        secure: process.env.NODE_ENV === 'production', // Live server එකේදී HTTPS අනිවාර්ය කරයි
+        sameSite: 'strict', // CSRF ප්‍රහාර වලින් ආරක්ෂා කරයි
+        maxAge: 12 * 60 * 60 * 1000 // පැය 12කින් Cookie එක Expire වෙනවා (JWT එකට සමානව)
+    });
+
+    // 5. JSON Response එකෙන් token එක අයින් කරලා අනිත් විස්තර යැවීම
     res.status(200).json({ 
       message: "Login successful", 
-      token, 
       role: user.role, 
       username: user.username 
     });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }
+};
+
+// Logout User (අලුතින් එකතු කරන ලදි)
+export const logoutUser = (req, res) => {
+    // Cookie එක Clear කිරීම
+    res.clearCookie('token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+    });
+    res.status(200).json({ message: "Logged out successfully" });
 };
 
 // Create a new user (Only Admins will be able to hit this route later)
