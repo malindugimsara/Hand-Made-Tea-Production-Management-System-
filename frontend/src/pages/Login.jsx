@@ -353,7 +353,7 @@ export default function Login() {
         return;
       }
       // ─────────────────────────────────────────────
-      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('token', data.token);
       localStorage.setItem("userRole", data.role);
       localStorage.setItem("username", data.username);
       localStorage.setItem("activeSystem", activeTab);
