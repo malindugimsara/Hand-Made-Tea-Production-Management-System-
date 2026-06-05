@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
 import { Bell, AlertTriangle, Layers, Calendar, Filter, CheckCircle, Info, TrendingUp, Sparkles, X, Droplet, PackagePlus, Box, Truck, ArrowRightCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '@/api/axiosConfig';
 
 // Combined tea types
 const TEA_TYPES = [
@@ -57,27 +58,25 @@ export default function PackingDashboard() {
     }, []);
 
     // Fetch Data
+    // Fetch Data
     useEffect(() => {
         const fetchDashboardData = async () => {
             setIsLoading(true);
             try {
-                const token = localStorage.getItem('token');
-                const headers = { 'Authorization': `Bearer ${token}` };
-
+                // api.get භාවිතය (Token අවශ්‍ය නැත, Cookie හරහා යයි)
                 const [resLocal, resTeaCenter, resStock, resRawMats, resPendingHandmade] = await Promise.all([
-                    fetch(`${BACKEND_URL}/api/local-sales`, { headers }).catch(() => ({ ok: false })),
-                    fetch(`${BACKEND_URL}/api/tea-center-issues`, { headers }).catch(() => ({ ok: false })),
-                    fetch(`${BACKEND_URL}/api/packing-stock`, { headers }).catch(() => ({ ok: false })),
-                    fetch(`${BACKEND_URL}/api/raw-materials-in/stock`, { headers }).catch(() => ({ ok: false })),
-                    // Fetch only pending handmade transfers
-                    fetch(`${BACKEND_URL}/api/packing/transfers/pending`, { headers }).catch(() => ({ ok: false }))
+                    api.get('/api/local-sales').catch(() => ({ data: [] })),
+                    api.get('/api/tea-center-issues').catch(() => ({ data: [] })),
+                    api.get('/api/packing-stock').catch(() => ({ data: [] })),
+                    api.get('/api/raw-materials-in/stock').catch(() => ({ data: [] })),
+                    api.get('/api/packing/transfers/pending').catch(() => ({ data: [] }))
                 ]);
 
-                const localData = resLocal.ok ? await resLocal.json() : [];
-                const teaCenterData = resTeaCenter.ok ? await resTeaCenter.json() : [];
-                const stockData = resStock.ok ? await resStock.json() : [];
-                const rawMatData = resRawMats.ok ? await resRawMats.json() : [];
-                const pendingHandmadeData = resPendingHandmade.ok ? await resPendingHandmade.json() : [];
+                const localData = resLocal.data || [];
+                const teaCenterData = resTeaCenter.data || [];
+                const stockData = resStock.data || [];
+                const rawMatData = resRawMats.data || [];
+                const pendingHandmadeData = resPendingHandmade.data || [];
 
                 // Combine Outward Issues for Charts
                 const combinedRecords = [
@@ -87,9 +86,10 @@ export default function PackingDashboard() {
 
                 setAllRecords(combinedRecords);
                 setCurrentStockData(Array.isArray(stockData) ? stockData : []);
+                
+                // rawMatData.data (සමහර විට ඔබේ API එකේ data key එක තුළ දත්ත ඇත)
                 setRawMaterialStock(Array.isArray(rawMatData.data || rawMatData) ? (rawMatData.data || rawMatData) : []);
                 
-                // Set pending transfers from Handmade count
                 setPendingHandmadeCount(Array.isArray(pendingHandmadeData) ? pendingHandmadeData.length : 0);
 
             } catch (error) {
@@ -101,7 +101,7 @@ export default function PackingDashboard() {
         };
 
         fetchDashboardData();
-    }, [BACKEND_URL, todayStr]);
+    }, [todayStr]);
 
     // Process Data efficiently using useMemo
     const dashboardData = useMemo(() => {

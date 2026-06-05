@@ -22,6 +22,7 @@ const TEA_TYPES = [
     "FF SP", "FF EX SP", "Dust", "Dust 1", "Premium", "Green tea", 
     "Awurudu Special"
 ];
+import api from '../../../api/axiosConfig';
 
 export default function EditTeaReceivedRecord() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -161,26 +162,16 @@ export default function EditTeaReceivedRecord() {
         };
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/tea-received/${recordData._id}`, {
-                method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
+            // api.put භාවිතය
+            await api.put(`/api/tea-received/${recordData._id}`, payload);
 
-            if (response.ok) {
-                toast.success("Record updated successfully!", { id: toastId });
-                setTimeout(() => navigate(-1), 100);
-            } else {
-                if (response.status === 403) throw new Error('Access Denied');
-                throw new Error('Failed to update record');
-            }
+            toast.success("Record updated successfully!", { id: toastId });
+            setTimeout(() => navigate('/packing/trans-in-factory-view'), 1000); // Route එක නිවැරදිදැයි බලන්න
+
         } catch (error) {
             console.error(error);
-            if (error.message === 'Access Denied') {
+            // Axios error handling
+            if (error.response?.status === 403) {
                 toast.error("Access Denied. You do not have permission to edit records.", { id: toastId });
             } else {
                 toast.error("Error updating record. Please try again.", { id: toastId });

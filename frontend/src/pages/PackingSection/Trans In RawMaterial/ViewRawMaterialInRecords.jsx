@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
 import { Calendar, RefreshCw, FileText, FilterX, Truck, Box, PackagePlus, Hash, Layers, Leaf } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
+import api from '../../../api/axiosConfig';
 
 import {
     AlertDialog,
@@ -101,19 +102,10 @@ export default function ViewRawMaterialInRecords() {
     const fetchRecords = async () => {
         setLoading(true); 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/raw-materials-in`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!response.ok) {
-                if(response.status === 401) throw new Error("Unauthorized. Please log in.");
-                throw new Error("Failed to fetch data");
-            }
-
-            const data = await response.json();
-            const recordsData = data.data ? data.data : data;
-
+            // api.get භාවිතය (Token/Headers අවශ්‍ය නැත)
+            const response = await api.get('/api/raw-materials-in');
+            const recordsData = response.data.data ? response.data.data : response.data;
+            
             const processedData = recordsData.map(rec => {
                 const createdTime = rec.createdAt ? new Date(rec.createdAt).getTime() : 0;
                 const updatedTime = rec.updatedAt ? new Date(rec.updatedAt).getTime() : 0;
@@ -128,7 +120,11 @@ export default function ViewRawMaterialInRecords() {
                 const searchString = `${rec.invoiceNo || ''} ${rec.supplierName || ''} ${itemsArray.map(item => item.materialName).join(' ')}`;
 
                 return {
-                    ...rec, itemsArray, searchString, isEdited, lastUpdatedDate,
+                    ...rec, 
+                    itemsArray, 
+                    searchString, 
+                    isEdited, 
+                    lastUpdatedDate,
                     editedBy: rec.updatedBy || rec.editorName || 'Unknown User' 
                 };
             });
@@ -142,7 +138,9 @@ export default function ViewRawMaterialInRecords() {
             setRecords(sortedData);
         } catch (error) {
             console.error("Fetch Error:", error);
-            toast.error(error.message || "Could not load data from server.");
+            // Axios error handling
+            const errorMsg = error.response?.data?.message || "Could not load data from server.";
+            toast.error(errorMsg);
         } finally {
             setLoading(false);
         }
@@ -220,28 +218,21 @@ export default function ViewRawMaterialInRecords() {
     };
 
     const handleConfirmDelete = async () => {
-    if (!recordToDelete) return;
-    const toastId = toast.loading('Deleting record...');
-    try {
-        const token = localStorage.getItem('token');
-        // මෙතැනින් '/delete' ඉවත් කරන්න
-        const response = await fetch(`${BACKEND_URL}/api/raw-materials-in/${recordToDelete._id}`, { 
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (response.ok) {
+        if (!recordToDelete) return;
+        const toastId = toast.loading('Deleting record...');
+        try {
+            // api.delete භාවිතය
+            await api.delete(`/api/raw-materials-in/${recordToDelete._id}`);
+            
             toast.success("Record deleted successfully!", { id: toastId });
             fetchRecords(); 
-        } else {
+        } catch (error) {
+            console.error(error);
             toast.error("Failed to delete record.", { id: toastId });
+        } finally {
+            setRecordToDelete(null);
         }
-    } catch (error) {
-        toast.error("Network error while deleting.", { id: toastId });
-    } finally {
-        setRecordToDelete(null);
-    }
-};
+    };
 
     const clearFilters = () => {
         setFilterCategory('all');

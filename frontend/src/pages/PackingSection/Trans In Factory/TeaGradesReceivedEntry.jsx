@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
 import { PlusCircle, Trash2, ListChecks, Save, Package, ShoppingCart, Calendar, Weight, Tag, X, FileText } from "lucide-react"; 
 import { useNavigate } from 'react-router-dom';
+import api from '../../../api/axiosConfig';
 
 const getTeaColor = (grade) => {
     const p = grade.toLowerCase();
@@ -177,7 +178,6 @@ export default function TeaGradesReceivedEntry() {
         const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
 
         try {
-            const token = localStorage.getItem('token');
             const promises = pendingRecords.map(record => {
                 const payload = {
                     date: record.date,
@@ -189,20 +189,8 @@ export default function TeaGradesReceivedEntry() {
                     }))
                 };
 
-                return fetch(`${BACKEND_URL}/api/tea-received`, { // Update this endpoint according to your backend
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(payload)
-                }).then(async (res) => {
-                    if (!res.ok) {
-                        if (res.status === 403) throw new Error('Access Denied');
-                        throw new Error('Failed');
-                    }
-                    return res.json();
-                });
+                // api.post භාවිතය
+                return api.post('/api/tea-received', payload);
             });
 
             await Promise.all(promises);
@@ -211,12 +199,13 @@ export default function TeaGradesReceivedEntry() {
             setPendingRecords([]);
             
             setTimeout(() => {
-                navigate('/packing/trans-in-factory-view'); // Update with your actual route
+                navigate('/packing/trans-in-factory-view'); 
             }, 1000);
 
         } catch (error) {
             console.error(error);
-            if (error.message === 'Access Denied') {
+            // Axios error handling
+            if (error.response?.status === 403) {
                 toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
             } else {
                 toast.error("Error saving some records. Please check.", { id: toastId });

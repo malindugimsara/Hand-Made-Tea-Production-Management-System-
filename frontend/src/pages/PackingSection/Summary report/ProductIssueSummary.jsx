@@ -8,6 +8,7 @@ import {
   Calculator,
 } from "lucide-react";
 import PDFDownloader from "@/components/PDFDownloader";
+import api from '../../../api/axiosConfig';
 
 // Comprehensive Color Mapping (Cleaned up for light mode only)
 const getTeaColor = (product) => {
@@ -211,41 +212,34 @@ export default function ProductIssueSummary() {
   }, [filterMonth]);
 
   const fetchAndCalculateData = async (isManualSync = false) => {
-    setLoading(true);
-    const toastId = isManualSync
-      ? toast.loading("Syncing latest data...")
-      : null;
+        setLoading(true);
+        const toastId = isManualSync ? toast.loading("Syncing latest data...") : null;
 
-    try {
-      const token = localStorage.getItem("token");
-      const authHeaders = { Authorization: `Bearer ${token}` };
+        try {
+            // api.get භාවිතය
+            const [localRes, teaRes] = await Promise.allSettled([
+                api.get('/api/local-sales').catch(() => ({ data: [] })),
+                api.get('/api/tea-center-issues').catch(() => ({ data: [] }))
+            ]);
 
-      // Guide Free removed as per request
-      const [localRes, teaRes] = await Promise.allSettled([
-        fetch(`${BACKEND_URL}/api/local-sales`, { headers: authHeaders }),
-        fetch(`${BACKEND_URL}/api/tea-center-issues`, { headers: authHeaders }),
-      ]);
+            const parseRes = (res) => {
+                if (res.status === "fulfilled") return res.value.data;
+                return [];
+            };
 
-      const parseRes = async (res) => {
-        if (res.status === "fulfilled" && res.value.ok)
-          return await res.value.json();
-        return [];
-      };
+            const localData = parseRes(localRes);
+            const teaData = parseRes(teaRes);
 
-      const localData = await parseRes(localRes);
-      const teaData = await parseRes(teaRes);
+            processDataForTable(localData, teaData, filterMonth);
 
-      processDataForTable(localData, teaData, filterMonth);
-
-      if (isManualSync)
-        toast.success("Data synced successfully!", { id: toastId });
-    } catch (error) {
-      console.error("Aggregation Error:", error);
-      if (isManualSync) toast.error("Could not sync data.", { id: toastId });
-    } finally {
-      setLoading(false);
-    }
-  };
+            if (isManualSync) toast.success("Data synced successfully!", { id: toastId });
+        } catch (error) {
+            console.error("Aggregation Error:", error);
+            if (isManualSync) toast.error("Could not sync data.", { id: toastId });
+        } finally {
+            setLoading(false);
+        }
+    };
 
   const processDataForTable = (localData, teaData, monthFilter) => {
     const inMonth = (dateString) =>

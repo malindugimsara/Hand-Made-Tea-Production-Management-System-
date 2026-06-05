@@ -13,11 +13,10 @@ import {
   X,
   Calculator,
   AlertTriangle,
-  ArrowRight,
   Layers,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
+import api from '../../../api/axiosConfig'; 
 
 // Exact Colors
 const getTeaColor = (product) => {
@@ -168,67 +167,49 @@ export default function LocalRecordEntry() {
   }, []);
 
   useEffect(() => {
-    const fetchStock = async () => {
-      try {
-        const token = localStorage.getItem("token");
+        const fetchStock = async () => {
+            try {
+                // api.get භාවිතය (Token අවශ්‍ය නැත)
+                const [teaRes, rmRes] = await Promise.all([
+                    api.get('/api/packing-stock').catch(() => ({ data: [] })),
+                    api.get('/api/raw-materials-in/stock').catch(() => ({ data: [] }))
+                ]);
 
-        const [teaRes, rmRes] = await Promise.all([
-          fetch(`${BACKEND_URL}/api/packing-stock`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`${BACKEND_URL}/api/raw-materials-in/stock`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }).catch(() => ({ ok: false })),
-        ]);
+                // Fetch Tea Stock
+                const data = teaRes.data;
+                const factoryAndOtherData = [];
+                data.forEach((product) => {
+                    let validStock = 0;
+                    if (product.stockBySource && product.stockBySource.length > 0) {
+                        const factoryStock = product.stockBySource.find((s) => s.sourceName === "Factory")?.quantityKg || 0;
+                        const otherStock = product.stockBySource.find((s) => s.sourceName === "Other")?.quantityKg || 0;
+                        validStock = factoryStock + otherStock;
+                    } else {
+                        if (product.source === "Factory" || product.source === "Other") {
+                            validStock = Number(product.bulkStockKg) || 0;
+                        }
+                    }
+                    if (validStock > 0) {
+                        factoryAndOtherData.push({
+                            productName: product.productName,
+                            bulkStockKg: validStock,
+                        });
+                    }
+                });
+                setAvailableStock(factoryAndOtherData);
 
-        // Fetch Tea Stock
-        if (teaRes.ok) {
-          const data = await teaRes.json();
-          const factoryAndOtherData = [];
-          data.forEach((product) => {
-            let validStock = 0;
-            if (product.stockBySource && product.stockBySource.length > 0) {
-              const factoryStock =
-                product.stockBySource.find((s) => s.sourceName === "Factory")
-                  ?.quantityKg || 0;
-              const otherStock =
-                product.stockBySource.find((s) => s.sourceName === "Other")
-                  ?.quantityKg || 0;
-              validStock = factoryStock + otherStock;
-            } else {
-              if (product.source === "Factory" || product.source === "Other") {
-                validStock = Number(product.bulkStockKg) || 0;
-              }
+                // Fetch Packing Material Stock
+                const rmData = rmRes.data;
+                const allRawMaterials = Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : [];
+                const packingOnly = allRawMaterials.filter((rm) => (rm.category || "").toLowerCase() !== "flavor");
+                setAvailablePackingStock(packingOnly);
+
+            } catch (error) {
+                console.error("Error fetching stock:", error);
             }
-            if (validStock > 0) {
-              factoryAndOtherData.push({
-                productName: product.productName,
-                bulkStockKg: validStock,
-              });
-            }
-          });
-          setAvailableStock(factoryAndOtherData);
-        }
-
-        // Fetch Packing Material Stock
-        if (rmRes.ok) {
-          const rmData = await rmRes.json();
-          const allRawMaterials = Array.isArray(rmData.data || rmData)
-            ? rmData.data || rmData
-            : [];
-
-          // Exclude flavors, keep only packing/other materials
-          const packingOnly = allRawMaterials.filter(
-            (rm) => (rm.category || "").toLowerCase() !== "flavor",
-          );
-          setAvailablePackingStock(packingOnly);
-        }
-      } catch (error) {
-        console.error("Error fetching stock:", error);
-      }
-    };
-    fetchStock();
-  }, [BACKEND_URL]);
+        };
+        fetchStock();
+    }, []);
 
   const productSummaryMap = {};
   pendingRecords.forEach((record) => {
@@ -407,121 +388,52 @@ export default function LocalRecordEntry() {
   };
 
   const handleSaveAll = async () => {
-    if (pendingRecords.length === 0) {
-      toast.error("No records in the list to save!");
-      return;
-    }
-
-    // WARNING LOGIC
-    let stockWarning = false;
-    let packingStockWarning = false;
-    const requestedPacking = {};
-
-    pendingRecords.forEach((record) => {
-      record.items.forEach((item) => {
-        // Check tea capacity
-        const stockData = availableStock.find(
-          (s) => s.productName === item.product,
-        );
-        const available = stockData ? stockData.bulkStockKg : 0;
-        if (Number(item.calculatedQtyKg) > available) stockWarning = true;
-
-        // Sum requested packing materials
-        if (item.packingMaterials && item.packingMaterials.length > 0) {
-          item.packingMaterials.forEach((pm) => {
-            if (pm.name && Number(pm.qty) > 0) {
-              if (!requestedPacking[pm.name]) requestedPacking[pm.name] = 0;
-              requestedPacking[pm.name] += Number(pm.qty);
-            }
-          });
+        if (pendingRecords.length === 0) {
+            toast.error("No records in the list to save!");
+            return;
         }
-      });
-    });
 
-    // Check packing materials capacity
-    for (const [pmName, requestedQty] of Object.entries(requestedPacking)) {
-      const pmStockData = availablePackingStock.find(
-        (s) => s.materialName === pmName,
-      );
-      const available = pmStockData ? pmStockData.totalQuantity : 0;
-      if (requestedQty > available) packingStockWarning = true;
-    }
+        setShowSpinner(true);
+        const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
 
-    if (stockWarning) {
-      if (
-        !window.confirm(
-          "You are issuing MORE tea stock than available in the Factory & Other bulk stock. Do you want to proceed anyway?",
-        )
-      )
-        return;
-    }
-    if (packingStockWarning) {
-      if (
-        !window.confirm(
-          "You are issuing MORE packing materials than currently available in stock. Do you want to proceed anyway?",
-        )
-      )
-        return;
-    }
+        try {
+            const promises = pendingRecords.map(record => {
+                const payload = {
+                    date: record.date,
+                    totalBoxes: record.totalBoxes,
+                    totalQtyKg: record.totalQtyKg,
+                    salesItems: record.items.map((item) => ({
+                        product: item.product,
+                        packSizeKg: Number(item.packSizeKg),
+                        numberOfBoxes: Number(item.numberOfBoxes),
+                        totalQtyKg: Number(item.calculatedQtyKg),
+                        packingMaterials: item.packingMaterials || [],
+                    })),
+                };
 
-    setShowSpinner(true);
-    const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
+                // api.post භාවිතය
+                return api.post('/api/local-sales', payload);
+            });
 
-    try {
-      const token = localStorage.getItem("token");
-      const promises = pendingRecords.map((record) => {
-        const payload = {
-          date: record.date,
-          totalBoxes: record.totalBoxes,
-          totalQtyKg: record.totalQtyKg,
-          salesItems: record.items.map((item) => ({
-            product: item.product,
-            packSizeKg: Number(item.packSizeKg),
-            numberOfBoxes: Number(item.numberOfBoxes),
-            totalQtyKg: Number(item.calculatedQtyKg),
-            packingMaterials: item.packingMaterials || [],
-          })),
-        };
-
-        return fetch(`${BACKEND_URL}/api/local-sales`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        }).then(async (res) => {
-          if (!res.ok) {
-            if (res.status === 403) throw new Error("Access Denied");
-            throw new Error("Failed");
-          }
-          return res.json();
-        });
-      });
-
-      await Promise.all(promises);
-      toast.success("All local sales saved successfully!", { id: toastId });
-      setPendingRecords([]);
-
-      setTimeout(() => {
-        navigate("/packing/local-record-view");
-      }, 1000);
-    } catch (error) {
-      console.error(error);
-      if (error.message === "Access Denied") {
-        toast.error(
-          "Access Denied. You do not have permission to add records.",
-          { id: toastId },
-        );
-      } else {
-        toast.error("Error saving some records. Please check.", {
-          id: toastId,
-        });
-      }
-    } finally {
-      setShowSpinner(false);
-    }
-  };
+            await Promise.all(promises);
+            toast.success("All local sales saved successfully!", { id: toastId });
+            setPendingRecords([]);
+            
+            setTimeout(() => {
+                navigate("/packing/local-record-view");
+            }, 1000);
+        } catch (error) {
+            console.error(error);
+            // Axios error handling
+            if (error.response?.status === 403) {
+                toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
+            } else {
+                toast.error("Error saving some records. Please check.", { id: toastId });
+            }
+        } finally {
+            setShowSpinner(false);
+        }
+    };
 
   // 👇 අලුතින් එකතු කරන Function එක 👇
   const handleKeyDown = (e, rowId, filteredOptions) => {

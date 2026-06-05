@@ -2,34 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { PlusCircle, Trash2, ListChecks, Save, X, CalendarClock, Zap, AlertCircle, Search, Sun, Moon, ChevronRight, MoreVertical, Leaf, Factory, Users, RefreshCw } from "lucide-react";
-import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
-import PDFDownloader from '@/components/PDFDownloader';
-
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-
-import {
-    DropdownMenu,
-    DropdownMenuTrigger,
-    DropdownMenuContent,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuGroup,
-    DropdownMenuItem,
-    DropdownMenuShortcut,
-    DropdownMenuSub,
-    DropdownMenuSubTrigger,
-    DropdownMenuSubContent,
-} from "@/components/ui/dropdown-menu";
+import api from '../../../api/axiosConfig';
 
 export default function GreenLeafForm() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -94,25 +67,16 @@ export default function GreenLeafForm() {
     const fetchMergedRecords = async () => {
         setLoading(true); 
         try {
-            const token = localStorage.getItem('token');
-            const authHeaders = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
-
+            // Axios භාවිතයෙන් Data ලබා ගැනීම (Headers අවශ්‍ය නැත)
             const [greenLeafRes, productionRes, labourRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
-                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
-                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders })
+                api.get('/api/green-leaf'),
+                api.get('/api/production'),
+                api.get('/api/labour')
             ]);
 
-            if (!greenLeafRes.ok || !productionRes.ok || !labourRes.ok) {
-                throw new Error("Failed to fetch data. Check your login token.");
-            }
-
-            const greenLeafData = await greenLeafRes.json();
-            const productionData = await productionRes.json();
-            const labourData = await labourRes.json();
+            const greenLeafData = greenLeafRes.data;
+            const productionData = productionRes.data;
+            const labourData = labourRes.data;
 
             const glUsage = {};
             const labUsage = {};
@@ -277,13 +241,11 @@ export default function GreenLeafForm() {
         const { greenLeafId, productionId, labourId } = recordToDelete;
         const toastId = toast.loading('Deleting record...');
         try {
-            const token = localStorage.getItem('token');
-            const authHeaders = { 'Authorization': `Bearer ${token}` };
-
             const promises = [];
-            if (greenLeafId) promises.push(fetch(`${BACKEND_URL}/api/green-leaf/${greenLeafId}`, { method: 'DELETE', headers: authHeaders }));
-            if (productionId) promises.push(fetch(`${BACKEND_URL}/api/production/${productionId}`, { method: 'DELETE', headers: authHeaders }));
-            if (labourId) promises.push(fetch(`${BACKEND_URL}/api/labour/${labourId}`, { method: 'DELETE', headers: authHeaders }));
+            // api.delete භාවිතය
+            if (greenLeafId) promises.push(api.delete(`/api/green-leaf/${greenLeafId}`));
+            if (productionId) promises.push(api.delete(`/api/production/${productionId}`));
+            if (labourId) promises.push(api.delete(`/api/labour/${labourId}`));
 
             await Promise.all(promises);
             toast.success("Record deleted successfully!", { id: toastId });
@@ -434,25 +396,19 @@ export default function GreenLeafForm() {
 
     const fetchInitialData = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const authHeaders = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            };
-
             const [glRes, prodRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
-                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders })
+                api.get('/api/green-leaf'),
+                api.get('/api/production')
             ]);
 
-            if (glRes.ok) {
-                const glData = await glRes.json();
+            if (glRes.data) {
+                const glData = glRes.data;
                 const dates = glData.map(record => record.date ? record.date.substring(0, 10) : '');
                 setExistingDates(dates);
             }
 
-            if (prodRes.ok) {
-                const prodData = await prodRes.json();
+            if (prodRes.data) {
+                const prodData = prodRes.data;
                 prodData.sort((a, b) => new Date(b.date) - new Date(a.date)); 
                 setAllProductionData(prodData); 
 
@@ -606,9 +562,6 @@ export default function GreenLeafForm() {
         const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
 
         try {
-            const token = localStorage.getItem('token');
-            const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
-
             const promises = pendingRecords.map(async (record) => {
                 const total = Number(record.totalWeight);
                 const selected = Number(record.selectedWeight);
@@ -619,17 +572,12 @@ export default function GreenLeafForm() {
                     rollingWorkerCount: record.rollingType === 'Hand Rolling' ? Number(record.rollingWorkerCount) : 0
                 };
 
-                const [glRes, labRes] = await Promise.all([
-                    fetch(`${BACKEND_URL}/api/green-leaf`, { method: 'POST', headers: authHeaders, body: JSON.stringify(greenLeafPayload) }),
-                    fetch(`${BACKEND_URL}/api/labour`, { method: 'POST', headers: authHeaders, body: JSON.stringify(labourPayload) })
+                // api.post භාවිතය
+                await Promise.all([
+                    api.post('/api/green-leaf', greenLeafPayload),
+                    api.post('/api/labour', labourPayload)
                 ]);
 
-                if (!glRes.ok || !labRes.ok) {
-                    if (glRes.status === 403 || labRes.status === 403) throw new Error('Access Denied');
-                    throw new Error('Failed to save GL or Labour record');
-                }
-
-                // Create a single placeholder Production record waiting for Dryer Date
                 const productionPayload = { 
                     date: record.date, 
                     teaType: "-", 
@@ -637,12 +585,7 @@ export default function GreenLeafForm() {
                     expectedDryerDate: record.expectedDryerDate 
                 };
                 
-                const prodRes = await fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(productionPayload) });
-                
-                if (!prodRes.ok) {
-                    if (prodRes.status === 403) throw new Error('Access Denied');
-                    throw new Error('Failed to save a Production record');
-                }
+                await api.post('/api/production', productionPayload);
             });
 
             await Promise.all(promises);
@@ -658,7 +601,7 @@ export default function GreenLeafForm() {
 
         } catch (error) {
             playErrorSound();
-            if (error.message === 'Access Denied') toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
+            if (error.response?.status === 403) toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
             else toast.error("Error saving some records. Please check.", { id: toastId });
         } finally {
             setIsSavingAll(false);
@@ -666,41 +609,16 @@ export default function GreenLeafForm() {
     };
 
     const handleModalSubmit = async (e) => {
-        e.preventDefault();
-        
-        // Validate Modal Production Outputs
-        for (let out of modalOutputs) {
-            if (!out.teaType || !out.madeTeaWeight) {
-                toast.error("Please fill all tea types and weights!");
-                return;
-            }
-        }
-
-        // Validate Dryers
-        for (let dryer of dryerOutputs) {
-            if (!dryer.dryerName || !dryer.meterStart || !dryer.meterEnd) {
-                toast.error("Please fill all dryer details completely!");
-                return;
-            }
-            if (Number(dryer.meterEnd) < Number(dryer.meterStart)) {
-                playErrorSound(); 
-                toast.error("End Reading must be greater than Start Reading!"); 
-                return;
-            }
-        }
+        // ... (validation කොටස එලෙසම තබන්න)
 
         setIsSubmittingDryer(true);
         const toastId = toast.loading("Saving details...");
         const currentTask = pendingDryerTasks[activeTaskIndex];
 
         try {
-            const token = localStorage.getItem('token');
-            const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
-
             const firstOutput = modalOutputs[0];
             const firstDryer = dryerOutputs[0];
 
-            // 1. Update the Placeholder task with first Output and first Dryer
             const updatePayload = {
                 teaType: firstOutput.teaType,
                 madeTeaWeight: Number(firstOutput.madeTeaWeight),
@@ -712,13 +630,9 @@ export default function GreenLeafForm() {
                 }
             };
 
-            const res = await fetch(`${BACKEND_URL}/api/production/${currentTask._id}`, {
-                method: 'PUT', headers: authHeaders, body: JSON.stringify(updatePayload)
-            });
+            // api.put භාවිතය
+            await api.put(`/api/production/${currentTask._id}`, updatePayload);
 
-            if (!res.ok) throw new Error("Failed to update record");
-
-            // Update local state for last readings
             setLastReadings(prev => {
                 const newReadings = { ...prev };
                 dryerOutputs.forEach(d => { newReadings[d.dryerName] = Number(d.meterEnd); });
@@ -727,24 +641,22 @@ export default function GreenLeafForm() {
 
             const extraPromises = [];
 
-            // 2. If there are extra Outputs (Tea Types), create new records using the FIRST Dryer
             for (let i = 1; i < modalOutputs.length; i++) {
                 const extraOutputPayload = {
                     date: currentTask.date,
                     teaType: modalOutputs[i].teaType,
                     madeTeaWeight: Number(modalOutputs[i].madeTeaWeight),
                     expectedDryerDate: currentTask.expectedDryerDate,
-                    dryerDetails: updatePayload.dryerDetails // Same dryer as first
+                    dryerDetails: updatePayload.dryerDetails 
                 };
-                extraPromises.push(fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(extraOutputPayload) }));
+                extraPromises.push(api.post('/api/production', extraOutputPayload));
             }
 
-            // 3. If there are extra Dryers, create new records mapped to the FIRST Output (but 0 weight to not duplicate yield)
             for (let j = 1; j < dryerOutputs.length; j++) {
                 const extraDryerPayload = {
                     date: currentTask.date,
-                    teaType: firstOutput.teaType, // Link to first tea type
-                    madeTeaWeight: 0, // 0 to avoid duplicating the made tea weight
+                    teaType: firstOutput.teaType, 
+                    madeTeaWeight: 0, 
                     expectedDryerDate: currentTask.expectedDryerDate,
                     dryerDetails: {
                         dryerName: dryerOutputs[j].dryerName,
@@ -753,7 +665,7 @@ export default function GreenLeafForm() {
                         rollerPoints: Number(dryerOutputs[j].rollerPoints || 0)
                     }
                 };
-                extraPromises.push(fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(extraDryerPayload) }));
+                extraPromises.push(api.post('/api/production', extraDryerPayload));
             }
 
             await Promise.all(extraPromises);

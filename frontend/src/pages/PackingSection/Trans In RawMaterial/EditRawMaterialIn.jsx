@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { PlusCircle, Save, Calendar, FileText, Truck, Box, X, Hash, PackagePlus, ArrowLeft, Leaf, Layers } from "lucide-react";
 import { useNavigate, useLocation } from 'react-router-dom';
+import api from '../../../api/axiosConfig';
 
 const RAW_MATERIALS = [
     "Alfoil Bag (100g)", "Alfoil Bag (200g)", "Cloth Bag", "Paper Bag", "Standard Bag","Price Sticker",
@@ -149,52 +150,44 @@ export default function EditRawMaterialIn() {
             return;
         }
 
-        setShowSpinner(true);
+        setIsSaving(true);
         const toastId = toast.loading("Updating record...");
 
         try {
-            const token = localStorage.getItem('token');
             const editorName = localStorage.getItem('userName') || 
-                                localStorage.getItem('username') || 
-                                localStorage.getItem('user_name') || 
-                                'Unknown'; 
+                               localStorage.getItem('username') || 
+                               'Unknown';
 
             const payload = {
                 date: formData.date,
                 invoiceNo: formData.invoiceNo,
                 supplierName: formData.supplierName,
                 remarks: formData.remarks,
-                editorName: editorName, 
+                editorName: editorName,
                 items: itemsList.map(item => ({
                     materialName: item.materialName,
                     quantity: Number(item.quantity),
-                    unit: entryType === 'flavor' ? 'kg' : item.unit,
-                    category: entryType // Send the correct category back to DB
+                    unit: item.unit,
+                    category: entryType
                 }))
             };
 
-            const response = await fetch(`${BACKEND_URL}/api/raw-materials-in/${recordId}`, { 
-                method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                if (response.status === 403) throw new Error('Access Denied');
-                throw new Error('Failed to update record');
-            }
+            // api.put භාවිතය
+            await api.put(`/api/raw-materials-in/${recordId}`, payload);
 
             toast.success("Record updated successfully!", { id: toastId });
             setTimeout(() => navigate(-1), 1000);
 
         } catch (error) {
             console.error(error);
-            toast.error(error.message || "Error updating record. Please check.", { id: toastId });
+            // Axios error handling
+            if (error.response?.status === 403) {
+                toast.error("Access Denied. You do not have permission to edit records.", { id: toastId });
+            } else {
+                toast.error("Error updating record. Please try again.", { id: toastId });
+            }
         } finally {
-            setShowSpinner(false);
+            setIsSaving(false);
         }
     };
 

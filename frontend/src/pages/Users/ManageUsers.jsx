@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { Users, Shield, UserPlus, Edit, Trash2, X, AlertCircle } from "lucide-react";
+import api from '../../api/axiosConfig';
 
 import {
     AlertDialog,
@@ -43,14 +44,9 @@ export default function ManageUsers() {
 
     const fetchUsers = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/users`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!response.ok) throw new Error("Failed to fetch");
-            const data = await response.json();
-            setUsers(data);
+            // api.get භාවිතය (Token/Headers අතින් සකසන්න ඕනේ නෑ)
+            const response = await api.get('/api/users');
+            setUsers(response.data);
         } catch (error) {
             toast.error("Could not load users.");
         } finally {
@@ -64,22 +60,15 @@ export default function ManageUsers() {
 
         const toastId = toast.loading("Deleting user...");
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/users/${userToDelete._id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            // api.delete භාවිතය
+            const response = await api.delete(`/api/users/${userToDelete._id}`);
 
-            const data = await response.json();
-
-            if (response.ok) {
-                toast.success(data.message, { id: toastId });
-                fetchUsers(); // Refresh list
-            } else {
-                toast.error(data.message || "Failed to delete.", { id: toastId });
-            }
+            toast.success(response.data.message || "Deleted successfully!", { id: toastId });
+            fetchUsers(); // Refresh list
         } catch (error) {
-            toast.error("Network error.", { id: toastId });
+            // Axios error handling
+            const errorMsg = error.response?.data?.message || "Failed to delete.";
+            toast.error(errorMsg, { id: toastId });
         } finally {
             setUserToDelete(null);
         }
@@ -97,27 +86,16 @@ export default function ManageUsers() {
         const toastId = toast.loading("Updating user...");
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/users/${editingUser}`, {
-                method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                },
-                body: JSON.stringify(editFormData)
-            });
+            // api.put භාවිතය
+            const response = await api.put(`/api/users/${editingUser}`, editFormData);
 
-            const data = await response.json();
-
-            if (response.ok) {
-                toast.success(data.message || "User updated successfully!", { id: toastId });
-                setEditingUser(null); // Close modal
-                fetchUsers(); // Refresh list
-            } else {
-                toast.error(data.message || "Failed to update.", { id: toastId });
-            }
+            toast.success(response.data.message || "User updated successfully!", { id: toastId });
+            setEditingUser(null); // Close modal
+            fetchUsers(); // Refresh list
         } catch (error) {
-            toast.error("Network error.", { id: toastId });
+            // Axios error handling
+            const errorMsg = error.response?.data?.message || "Failed to update.";
+            toast.error(errorMsg, { id: toastId });
         }
     };
 

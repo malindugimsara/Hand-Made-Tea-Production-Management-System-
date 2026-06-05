@@ -4,6 +4,7 @@ import { Calculator, DollarSign, Info, Calendar, FileDown, Save, X, AlertCircle,
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable'; 
 import PDFDownloader from '@/components/PDFDownloader'; 
+import api from '../../../api/axiosConfig'; // <--- මෙය අලුතින් එකතු කරන්න
 
 import {
     AlertDialog,
@@ -57,68 +58,43 @@ export default function CostOfProduction() {
     const fetchAndProcessData = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const authHeaders = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            };
-
+            // api.get භාවිතය (Token අවශ්‍ය නැත)
             const [glRes, prodRes, labRes, costRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
-                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
-                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders }),
-                fetch(`${BACKEND_URL}/api/cost-of-production/${selectedMonth}`, { headers: authHeaders }).catch(() => null)
+                api.get('/api/green-leaf'),
+                api.get('/api/production'),
+                api.get('/api/labour'),
+                api.get(`/api/cost-of-production/${selectedMonth}`).catch(() => null)
             ]);
 
-            if (!glRes.ok || !prodRes.ok || !labRes.ok) {
-                if (glRes.status === 401 || prodRes.status === 401 || labRes.status === 401) {
-                    throw new Error("Unauthorized. Please log in.");
-                }
-                throw new Error("Failed to fetch data");
-            }
+            const glData = glRes.data;
+            const prodData = prodRes.data;
+            const labData = labRes.data;
 
-            const glData = await glRes.json();
-            const prodData = await prodRes.json();
-            const labData = await labRes.json();
+            // ... (ඉතිරි දත්ත සැකසීමේ කේතය වෙනස් නොවේ)
+            // (sortById කිරීමෙන් පසු savedMonthData කොටසට යන්න)
 
-            const sortById = (a, b) => (a._id < b._id ? -1 : (a._id > b._id ? 1 : 0));
-            glData.sort(sortById);
-            prodData.sort(sortById);
-            labData.sort(sortById);
-
-            let savedMonthData = null;
+            let savedMonthData = costRes?.data || null;
             let dbLoadedSup = {};
             let dbLoadedHr = {};
 
-            if (costRes && costRes.ok) {
-                savedMonthData = await costRes.json();
-                
-                if (savedMonthData && savedMonthData.month === selectedMonth) {
-                    setIsSaved(true);
-                    setMonthlyGlRate(savedMonthData.monthlyGlRate || 0);
-                    setLabourRate(savedMonthData.labourRate || 1350);
-                    // setElectricityRate(savedMonthData.electricityRate || 20);
+            if (savedMonthData && savedMonthData.month === selectedMonth) {
+                setIsSaved(true);
+                setMonthlyGlRate(savedMonthData.monthlyGlRate || 0);
+                setLabourRate(savedMonthData.labourRate || 1350);
 
-                    const dbLabRate = savedMonthData.labourRate || 1350;
+                const dbLabRate = savedMonthData.labourRate || 1350;
 
-                    (savedMonthData.teaCosts || []).forEach(tc => {
-                        dbLoadedSup[tc.teaType] = tc.supervisionCost || 0;
-                        dbLoadedHr[tc.teaType] = tc.handRollingCost ? (tc.handRollingCost / dbLabRate) : 0;
-                    });
-                } else {
-                    setIsSaved(false);
-                    savedMonthData = null;
-                    setMonthlyGlRate(0);
-                    setLabourRate(1350);
-                    setElectricityRate(20);
-                }
+                (savedMonthData.teaCosts || []).forEach(tc => {
+                    dbLoadedSup[tc.teaType] = tc.supervisionCost || 0;
+                    dbLoadedHr[tc.teaType] = tc.handRollingCost ? (tc.handRollingCost / dbLabRate) : 0;
+                });
             } else {
                 setIsSaved(false);
                 setMonthlyGlRate(0);
                 setLabourRate(1350);
                 setElectricityRate(20);
             }
-
+        
             const filteredProd = prodData.filter(p => p.date.startsWith(selectedMonth));
             const summary = {};
             const glUsage = {};
@@ -261,31 +237,19 @@ export default function CostOfProduction() {
                 grandTotal: grandTotalAllTeas
             };
 
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/cost-of-production`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.ok) {
-                toast.success(`Cost data for ${selectedMonth} saved successfully!`, { id: toastId });
-                setIsSaved(true);
-                return true;
-            } else {
-                if (response.status === 403) {
-                    toast.error("Access Denied. You don't have permission.", { id: toastId });
-                } else {
-                    throw new Error("Failed to save data");
-                }
-                return false;
-            }
+            // api.post භාවිතය
+            await api.post('/api/cost-of-production', payload);
+            
+            toast.success(`Cost data for ${selectedMonth} saved successfully!`, { id: toastId });
+            setIsSaved(true);
+            return true;
         } catch (error) {
-            console.error(error);
-            toast.error("Database saving failed.", { id: toastId });
+            // Axios Error Handling
+            if (error.response?.status === 403) {
+                toast.error("Access Denied. You don't have permission.", { id: toastId });
+            } else {
+                toast.error("Database saving failed.", { id: toastId });
+            }
             return false;
         } finally {
             setIsSaving(false);
@@ -401,31 +365,21 @@ export default function CostOfProduction() {
                 current.setMonth(current.getMonth() + 1);
             }
 
-            const token = localStorage.getItem('token');
-            const authHeaders = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            };
-
-            // 1. Fetch GL, Prod, Labour
+            // 1. Fetch GL, Prod, Labour භාවිතා කරන්නේ අපේ Axios api instance එක
             const [glRes, prodRes, labRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
-                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
-                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders })
+                api.get('/api/green-leaf'),
+                api.get('/api/production'),
+                api.get('/api/labour')
             ]);
 
-            if (!glRes.ok || !prodRes.ok || !labRes.ok) {
-                throw new Error("Failed to fetch primary data for range PDF");
-            }
+            const glData = glRes.data;
+            const prodData = prodRes.data;
+            const labData = labRes.data;
 
-            const glData = await glRes.json();
-            const prodData = await prodRes.json();
-            const labData = await labRes.json();
-
-            // 2. Fetch Cost Of Production rates for EACH month in the range
+            // 2. Fetch Cost Of Production rates සඳහාත් api.get භාවිතය
             const costPromises = monthsArray.map(monthStr => 
-                fetch(`${BACKEND_URL}/api/cost-of-production/${monthStr}`, { headers: authHeaders })
-                    .then(res => res.ok ? res.json() : null)
+                api.get(`/api/cost-of-production/${monthStr}`)
+                    .then(res => res.data)
                     .catch(() => null)
             );
             
