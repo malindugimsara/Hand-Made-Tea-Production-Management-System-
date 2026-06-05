@@ -110,21 +110,30 @@ export default function ViewLoftLeafCount() {
   }, {});
 
   const calculateDaySummary = (dayRecords) => {
-    let totalQ = 0, bestQ = 0, belowBestQ = 0, poorQ = 0;
+    let totalQ = 0, bestQ = 0, belowBestQ = 0, poorQ = 0, totalLeafQ = 0;
+    
     dayRecords.forEach(r => {
         totalQ += (Number(r.totalQty) || 0);
         bestQ += (Number(r.bestQty) || 0);
         belowBestQ += (Number(r.belowBestQty) || 0);
         poorQ += (Number(r.poorQty) || 0);
+        
+        // Sum totalLeafQty only if it exists (mainly for Factory samples)
+        if (r.totalLeafQty) {
+            totalLeafQ += (Number(r.totalLeafQty) || 0);
+        }
     });
 
     const bestPct = totalQ > 0 ? Math.round((bestQ / totalQ) * 100) : 0;
     const belowBestPct = totalQ > 0 ? Math.round((belowBestQ / totalQ) * 100) : 0;
     const poorPct = totalQ > 0 ? Math.round((poorQ / totalQ) * 100) : 0;
 
-    return { totalQ, bestPct, belowBestPct, poorPct };
+    return { totalQ, bestPct, belowBestPct, poorPct, totalLeafQ };
   };
 
+  // =======================================================================
+  // --- ADVANCED PDF GENERATOR ---
+  // =======================================================================
   // =======================================================================
   // --- ADVANCED PDF GENERATOR ---
   // =======================================================================
@@ -204,14 +213,27 @@ export default function ViewLoftLeafCount() {
         const factoryRecords = dayRecords.filter(r => r.sampleType === 'Factory').sort(sortRoutes);
         const collectorRecords = dayRecords.filter(r => r.sampleType === 'LeafCollector').sort(sortRoutes);
 
-        const drawTable = (title, records, startY, officerName = "") => {
+        const drawTable = (title, records, startY, isFactory = false, officerName = "") => {
             doc.setFontSize(12);
             doc.setTextColor(THEME_COLOR[0], THEME_COLOR[1], THEME_COLOR[2]);
             doc.setFont("helvetica", "bold");
             doc.text(title, 40, startY);
+            
+            // Factory එකක් නම් Total Leaf Qty ගණනය කර දකුණු පසින් පෙන්වීම
+            let tLeafQ = 0;
+            if (isFactory) {
+                records.forEach(r => {
+                    if (r.totalLeafQty) tLeafQ += (Number(r.totalLeafQty) || 0);
+                });
+                
+                doc.setFontSize(11);
+                doc.setTextColor(27, 106, 49); // Dark Green for Total
+                doc.text(`Total Leaf Count: ${tLeafQ.toFixed(2)} Kg`, pageWidth - 40, startY, { align: 'right' });
+            }
+
             startY += 15;
 
-            if (officerName) {
+            if (isFactory && officerName) {
                 doc.setFontSize(10);
                 doc.setTextColor(80, 80, 80);
                 doc.text(`Selected Officer Name: ${officerName}`, 40, startY);
@@ -244,13 +266,13 @@ export default function ViewLoftLeafCount() {
             // Total Row
             body.push([
                 { content: 'Total Sample:', styles: { fontStyle: 'bold', halign: 'right' } },
-                { content: totalQ.toFixed(2), styles: { fontStyle: 'bold', textColor: THEME_COLOR } },
-                { content: "-", styles: { fontStyle: 'bold', textColor: [180, 180, 180] } },
-                { content: `${tBestPct}%`, styles: { fontStyle: 'bold' } }, 
-                { content: "-", styles: { fontStyle: 'bold', textColor: [180, 180, 180] } },
-                { content: `${tBelowBestPct}%`, styles: { fontStyle: 'bold' } }, 
-                { content: "-", styles: { fontStyle: 'bold', textColor: [180, 180, 180] } },
-                { content: `${tPoorPct}%`, styles: { fontStyle: 'bold' } }, 
+                { content: totalQ.toFixed(2), styles: { fontStyle: 'bold', textColor: THEME_COLOR, halign: 'center' } },
+                { content: "-", styles: { fontStyle: 'bold', textColor: [180, 180, 180], halign: 'center' } },
+                { content: `${tBestPct}%`, styles: { fontStyle: 'bold', halign: 'center' } }, 
+                { content: "-", styles: { fontStyle: 'bold', textColor: [180, 180, 180], halign: 'center' } },
+                { content: `${tBelowBestPct}%`, styles: { fontStyle: 'bold', halign: 'center' } }, 
+                { content: "-", styles: { fontStyle: 'bold', textColor: [180, 180, 180], halign: 'center' } },
+                { content: `${tPoorPct}%`, styles: { fontStyle: 'bold', halign: 'center' } }
             ]);
 
             autoTable(doc, {
@@ -290,7 +312,7 @@ export default function ViewLoftLeafCount() {
                     4: { halign: 'center' },
                     5: { halign: 'center' },
                     6: { halign: 'center' },
-                    7: { halign: 'center' },
+                    7: { halign: 'center' }
                 },
                 styles: { fontSize: 9, cellPadding: 5 }
             });
@@ -300,7 +322,7 @@ export default function ViewLoftLeafCount() {
 
         if (factoryRecords.length > 0) {
             const officer = factoryRecords.find(r => r.officerName)?.officerName || "";
-            currentY = drawTable("Factory Sample", factoryRecords, currentY, officer);
+            currentY = drawTable("Factory Sample", factoryRecords, currentY, true, officer);
         }
 
         if (factoryRecords.length > 0 && collectorRecords.length > 0) {
@@ -311,7 +333,7 @@ export default function ViewLoftLeafCount() {
         }
 
         if (collectorRecords.length > 0) {
-            currentY = drawTable("Leaf Collector's Sample", collectorRecords, currentY);
+            currentY = drawTable("Leaf Collector's Sample", collectorRecords, currentY, false);
         }
 
         // --- 3. FOOTER SECTION ---
@@ -413,9 +435,9 @@ export default function ViewLoftLeafCount() {
                     <div className="flex items-center gap-1"><Calendar size={14} className="text-[#1B6A31] dark:text-green-500"/> Date</div>
                   </th>
                   
-                  {/* Total QTY */}
+                  {/* Total Leaf QTY */}
                   <th className="px-3 sm:px-4 py-2 sm:py-3 font-bold text-[#1B6A31] dark:text-green-500 border-r border-gray-200 dark:border-zinc-800 bg-[#8CC63F]/10 dark:bg-green-900/20 align-middle text-center">
-                    Total QTY (g)
+                    Total Leaf QTY (Kg)
                   </th>
                   
                   {/* Best */}
@@ -456,7 +478,7 @@ export default function ViewLoftLeafCount() {
                           </td>
                           
                           <td className="px-2 sm:px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 font-black text-gray-900 dark:text-white align-middle">
-                            {summary.totalQ}
+                            {summary.totalLeafQ > 0 ? summary.totalLeafQ.toFixed(2) : '-'}
                           </td>
                           
                           <td className="px-2 sm:px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-teal-700 dark:text-teal-400 font-bold align-middle">

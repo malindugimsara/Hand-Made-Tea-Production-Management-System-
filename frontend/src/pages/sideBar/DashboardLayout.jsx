@@ -17,7 +17,7 @@ import {
   Moon,
   Sprout,
   Calculator, 
-  Search, // Added Search icon
+  Search,
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -231,22 +231,37 @@ export default function DashboardLayout() {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
   });
 
-  // Compile all accessible links for the search bar
-  const accessibleLinks = React.useMemo(() => {
-    return [
-      ...DATA.quickLinks.map(link => ({ title: link.name, url: link.url, icon: link.icon })),
-      ...DATA.navMain.flatMap(group =>
-        group.items
-          .filter(item => item.roles.includes(currentUserRole))
-          .map(item => ({ title: item.title, url: item.url, icon: group.icon }))
-      )
-    ];
-  }, [currentUserRole]);
+  // --- ADVANCED SEARCH FILTERING ---
+  const searchResults = React.useMemo(() => {
+    if (!pageSearchQuery.trim()) return [];
+    
+    const query = pageSearchQuery.toLowerCase();
+    const results = [];
 
-  // Filter links based on user input
-  const searchResults = pageSearchQuery
-    ? accessibleLinks.filter(link => link.title.toLowerCase().includes(pageSearchQuery.toLowerCase()))
-    : [];
+    // 1. Check Quick Links
+    DATA.quickLinks.forEach(link => {
+        if (link.name.toLowerCase().includes(query)) {
+            results.push({ title: link.name, url: link.url, icon: link.icon, group: 'Quick Links' });
+        }
+    });
+
+    // 2. Check Main Navigation (Both Group Titles & Item Titles)
+    DATA.navMain.forEach(group => {
+        const isGroupMatch = group.title.toLowerCase().includes(query);
+        
+        group.items.forEach(item => {
+            // Only consider items the user has access to
+            if (item.roles.includes(currentUserRole)) {
+                // If the group title matches, or the specific item title matches
+                if (isGroupMatch || item.title.toLowerCase().includes(query)) {
+                    results.push({ title: item.title, url: item.url, icon: group.icon, group: group.title });
+                }
+            }
+        });
+    });
+
+    return results;
+  }, [pageSearchQuery, currentUserRole]);
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -284,7 +299,7 @@ export default function DashboardLayout() {
               <Search className="absolute left-3 text-gray-400 dark:text-gray-500" size={16} />
               <input
                 type="text"
-                placeholder="Search pages..."
+                placeholder="Search menus or pages..."
                 value={pageSearchQuery}
                 onChange={(e) => setPageSearchQuery(e.target.value)}
                 className="w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-[#1B6A31] dark:focus:border-green-600 rounded-xl py-2 pl-9 pr-4 text-sm outline-none transition-all dark:text-white shadow-sm"
@@ -293,23 +308,30 @@ export default function DashboardLayout() {
 
             {/* SEARCH RESULTS DROPDOWN */}
             {pageSearchQuery && isSidebarOpen && (
-              <div className="absolute top-full mt-1 left-2 right-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg max-h-60 overflow-y-auto py-1 z-50 custom-scrollbar">
+              <div className="absolute top-full mt-1 left-2 right-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg max-h-72 overflow-y-auto py-2 z-[100] custom-scrollbar">
                 {searchResults.length > 0 ? (
-                  searchResults.map((result) => (
+                  searchResults.map((result, idx) => (
                     <div
-                      key={result.url}
+                      key={idx}
                       onClick={() => {
                         navigate(result.url);
-                        setPageSearchQuery(''); // Clear search after navigation
+                        setPageSearchQuery(''); 
+                        if (isMobile) setIsSidebarOpen(false);
                       }}
-                      className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#F4F7F5] dark:hover:bg-zinc-700 cursor-pointer transition-colors"
+                      className="flex flex-col px-3 py-2 hover:bg-[#F4F7F5] dark:hover:bg-zinc-700 cursor-pointer transition-colors"
                     >
-                      {result.icon && <result.icon size={16} className="text-gray-400 dark:text-gray-500" />}
-                      <span className="font-medium">{result.title}</span>
+                      <div className="flex items-center gap-3">
+                        {result.icon && <result.icon size={16} className="text-[#4A9E46] dark:text-green-500" />}
+                        <span className="font-bold text-sm text-gray-800 dark:text-gray-200">{result.title}</span>
+                      </div>
+                      <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-7 uppercase tracking-wider">{result.group}</span>
                     </div>
                   ))
                 ) : (
-                  <div className="px-4 py-3 text-sm text-gray-500 text-center">No pages found</div>
+                  <div className="px-4 py-4 text-sm text-gray-500 text-center font-medium flex flex-col items-center gap-2">
+                      <Search size={20} className="opacity-30"/>
+                      No matching pages found
+                  </div>
                 )}
               </div>
             )}
@@ -326,7 +348,10 @@ export default function DashboardLayout() {
                       asChild 
                       isActive={isActive}
                       tooltip={item.name}
-                      onClick={() => navigate(item.url)}
+                      onClick={() => {
+                        navigate(item.url);
+                        if (isMobile) setIsSidebarOpen(false);
+                      }}
                       className={`cursor-pointer transition-all duration-300 py-6 rounded-full mb-1 ${
                         isActive 
                         ? 'bg-white dark:bg-zinc-900 shadow-sm text-[#1B6A31] dark:text-green-500 font-bold ring-1 ring-gray-200/50 dark:ring-zinc-800' 
@@ -377,7 +402,10 @@ export default function DashboardLayout() {
                                 <SidebarMenuSubButton 
                                   asChild 
                                   isActive={isSubActive}
-                                  onClick={() => navigate(subItem.url)}
+                                  onClick={() => {
+                                      navigate(subItem.url);
+                                      if (isMobile) setIsSidebarOpen(false);
+                                  }}
                                   className={`cursor-pointer py-4 rounded-full transition-all duration-300 ${
                                     isSubActive 
                                     ? 'text-[#1B6A31] dark:text-green-500 font-bold bg-white dark:bg-zinc-900 shadow-sm ring-1 ring-gray-200/50 dark:ring-zinc-800' 

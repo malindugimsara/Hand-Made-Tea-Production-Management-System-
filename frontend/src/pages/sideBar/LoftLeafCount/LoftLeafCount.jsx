@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
-import { Leaf, PlusCircle, Trash2, Tag, ListChecks, User, Factory, Users, Edit2, Save } from "lucide-react";
+import { Leaf, PlusCircle, Trash2, Tag, ListChecks, User, Factory, Users, Edit2, Save, Weight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -35,9 +35,11 @@ export default function LoftLeafCount() {
   const factoryRouteDropdownRef = useRef(null);
   const collectorRouteDropdownRef = useRef(null);
 
+  // Added totalLeafQty to factoryForm
   const [factoryForm, setFactoryForm] = useState({
     route: "",
     officerName: "",
+    totalLeafQty: "", 
     bestQty: "",
     belowBestQty: "",
   });
@@ -155,8 +157,9 @@ export default function LoftLeafCount() {
       toast.error("Please fill Route and quantities!");
       return;
     }
-    if (isFactory && !currentForm.officerName.trim()) {
-      toast.error("Please enter the Officer Name for Factory Sample!");
+    // Updated validation to check totalLeafQty for factory
+    if (isFactory && (!currentForm.officerName.trim() || !currentForm.totalLeafQty)) {
+      toast.error("Please fill all Factory specific fields (Officer, Total Leaf Qty)!");
       return;
     }
 
@@ -166,6 +169,7 @@ export default function LoftLeafCount() {
       sampleType: isFactory ? "Factory" : "LeafCollector",
       route: currentForm.route,
       officerName: isFactory ? currentForm.officerName : "",
+      totalLeafQty: isFactory ? Number(currentForm.totalLeafQty) : null, // Added to payload
       bestQty: stats.b,
       belowBestQty: stats.bb,
       poorQty: stats.p,
@@ -175,7 +179,7 @@ export default function LoftLeafCount() {
     setPendingRecords([...pendingRecords, newRecord]);
     
     if (isFactory) {
-      setFactoryForm({ route: "", officerName: "", bestQty: "", belowBestQty: "" });
+      setFactoryForm({ route: "", officerName: "", totalLeafQty: "", bestQty: "", belowBestQty: "" });
     } else {
       setCollectorForm({ route: "", bestQty: "", belowBestQty: "" });
     }
@@ -283,7 +287,12 @@ export default function LoftLeafCount() {
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-zinc-800 dark:text-gray-400">
                   <tr>
                     <th scope="col" className="px-4 py-3">Route</th>
-                    {sampleType === 'Factory' && <th scope="col" className="px-4 py-3">Officer</th>}
+                    {sampleType === 'Factory' && (
+                        <>
+                            <th scope="col" className="px-4 py-3">Officer</th>
+                            <th scope="col" className="px-4 py-3 text-center">Total Leaf (Kg)</th>
+                        </>
+                    )}
                     <th scope="col" className="px-4 py-3 text-center">Best (g)</th>
                     <th scope="col" className="px-4 py-3 text-center">Below Best (g)</th>
                     <th scope="col" className="px-4 py-3 text-center">Poor (g)</th>
@@ -300,19 +309,30 @@ export default function LoftLeafCount() {
                         <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">
                             {data.route.split(' - ')[0].toUpperCase()}
                         </td>
+                        
                         {sampleType === 'Factory' && (
-                            <td className="px-4 py-3">{data.officerName || '-'}</td>
+                            <>
+                                <td className="px-4 py-3">{data.officerName || '-'}</td>
+                                <td className="px-4 py-3 text-center">
+                                    {isEditing ? (
+                                        <input type="number" name="totalLeafQty" value={data.totalLeafQty || ''} onChange={handleEditChange} className="w-20 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-1 focus:ring-teal-500" />
+                                    ) : (
+                                        <span className="font-bold text-teal-600 dark:text-teal-400">{data.totalLeafQty ? `${data.totalLeafQty} Kg` : '-'}</span>
+                                    )}
+                                </td>
+                            </>
                         )}
+                        
                         <td className="px-4 py-3 text-center">
                             {isEditing ? (
-                                <input type="number" name="bestQty" value={data.bestQty} onChange={handleEditChange} className="w-16 p-1 border rounded text-center" />
+                                <input type="number" name="bestQty" value={data.bestQty} onChange={handleEditChange} className="w-16 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-1 focus:ring-teal-500" />
                             ) : (
                                 <span className="text-green-600 font-bold">{data.bestQty}g</span>
                             )}
                         </td>
                         <td className="px-4 py-3 text-center">
                             {isEditing ? (
-                                <input type="number" name="belowBestQty" value={data.belowBestQty} onChange={handleEditChange} className="w-16 p-1 border rounded text-center" />
+                                <input type="number" name="belowBestQty" value={data.belowBestQty} onChange={handleEditChange} className="w-16 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-1 focus:ring-teal-500" />
                             ) : (
                                 <span className="text-yellow-600 font-bold">{data.belowBestQty}g</span>
                             )}
@@ -379,7 +399,10 @@ export default function LoftLeafCount() {
                 <Factory size={20} className="text-gray-800 dark:text-gray-400" /> Factory Sample Entry
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Changed from md:grid-cols-2 to md:grid-cols-3 to accommodate the new field */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                {/* Route Field */}
                 <div className="relative" ref={factoryRouteDropdownRef}>
                 <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1">
                     <Tag size={12} /> Route
@@ -419,6 +442,8 @@ export default function LoftLeafCount() {
                     )}
                 </AnimatePresence>
                 </div>
+
+                {/* Officer Name Field */}
                 <div>
                 <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1">
                     <User size={12} /> Selected Officer Name
@@ -433,9 +458,28 @@ export default function LoftLeafCount() {
                     className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-gray-800/50 outline-none transition-colors shadow-sm bg-white dark:bg-zinc-950 text-gray-900 dark:text-white"
                 />
                 </div>
+
+                {/* NEW FIELD: Total Leaf Qty */}
+                <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1">
+                    <Weight size={12} /> Total Leaf Qty (Kg)
+                </label>
+                <input
+                    type="number"
+                    name="totalLeafQty"
+                    placeholder="e.g. 250"
+                    value={factoryForm.totalLeafQty}
+                    onChange={(e) => handleInputChange(e, 'factory')}
+                    required
+                    min="0"
+                    step="any"
+                    className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-gray-800/50 outline-none transition-colors shadow-sm bg-white dark:bg-zinc-950 text-gray-900 dark:text-white"
+                />
+                </div>
+
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <div className="p-4 bg-green-50/50 rounded-xl border border-green-100">
                 <label className="block text-xs font-bold text-green-700 mb-2">Best (g)</label>
                 <input type="number" name="bestQty" value={factoryForm.bestQty} onChange={(e) => handleInputChange(e, 'factory')} required className="w-full p-2.5 mb-3 border border-green-200 rounded-lg focus:ring-2 focus:ring-[#8CC63F] outline-none" />
@@ -515,7 +559,7 @@ export default function LoftLeafCount() {
                 <div className="hidden md:block"></div> 
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <div className="p-4 bg-green-50/50 rounded-xl border border-green-100">
                 <label className="block text-xs font-bold text-green-700 mb-2">Best (g)</label>
                 <input type="number" name="bestQty" value={collectorForm.bestQty} onChange={(e) => handleInputChange(e, 'collector')} required className="w-full p-2.5 mb-3 border border-green-200 rounded-lg focus:ring-2 focus:ring-[#8CC63F] outline-none" />
