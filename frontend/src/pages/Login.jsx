@@ -352,8 +352,8 @@ export default function Login() {
         setIsLoading(false);
         return;
       }
-      // ─────────────────────────────────────────────
 
+      localStorage.setItem('token', data.token);
       localStorage.setItem("userRole", data.role);
       localStorage.setItem("username", data.username);
       localStorage.setItem("activeSystem", activeTab);

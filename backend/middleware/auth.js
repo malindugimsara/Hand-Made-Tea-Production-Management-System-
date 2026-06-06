@@ -4,23 +4,25 @@ dotenv.config();
 
 // 1. Check if the user is logged in (Valid Token from Cookie)
 export const verifyToken = (req, res, next) => {
-  try {
-    // දැන් අපි Token එක ගන්නේ Header එකෙන් නෙමෙයි, Cookie එකෙන්
-    const token = req.cookies.token;
+    // Header එකෙන් 'Authorization' කියන කොටස ගන්නවා
+    const authHeader = req.headers.authorization;
 
-    // If no token is provided at all, block them
-    if (!token) {
-      return res.status(401).json({ message: "Access Denied. No token provided." });
+    // ඒක නැත්නම්, හරි 'Bearer ' කියලා පටන් ගන්නේ නැත්නම් එළියට දානවා
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Access Denied. No token provided." });
     }
 
-    // Verify the token
-    const decoded = jwt.verify(token, process.env.JWT_KEY);
+    // "Bearer <token>" කියන එකෙන් කෑලි දෙකට කඩලා, 2 වෙනි කෑල්ල (token එක) ගන්නවා
+    const token = authHeader.split(" ")[1]; 
 
-    req.user = decoded; // Attaches { id, role, name } to the request
-    next(); // Move to the next step
-  } catch (err) {
-    return res.status(403).json({ message: "Invalid or expired token." });
-  }
+    try {
+        // Token එක හරිද කියලා බලනවා
+        const verified = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = verified;
+        next(); // ඔක්කොම හරි නම් ඉස්සරහට යන්න දෙනවා
+    } catch (error) {
+        res.status(401).json({ message: "Invalid or Expired Token." });
+    }
 };
 
 // 2. Check if the user has the correct Role
