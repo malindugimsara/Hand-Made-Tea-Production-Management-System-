@@ -50,10 +50,7 @@ const RAW_MATERIALS = [
 
 // Flavors list for Autocomplete
 const FLAVOR_NAMES = [
-    "Cinnamon", "Chakra", "Ginger", "Masala", "Vanilla", "Mint", 
-    "Moringa", "Curry Leaves", "Gotukola", "Heen Bovitiya", "Cardamom", 
-    "Rose", "Strawberry", "Peach", "Mix Fruit", "Pineapple", "Mango", 
-    "Honey", "Earl Grey", "Lime", "Soursop", "Jasmine", "Flower", "Turmeric", "Black Pepper"
+    
 ];
 
 // Helper function to check if a material is a flavor

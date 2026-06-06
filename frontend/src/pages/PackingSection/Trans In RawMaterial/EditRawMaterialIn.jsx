@@ -150,7 +150,8 @@ export default function EditRawMaterialIn() {
             return;
         }
 
-        setIsSaving(true);
+        // 1. මෙතැන setIsSaving වෙනුවට setShowSpinner ලෙස වෙනස් කළා
+        setShowSpinner(true); 
         const toastId = toast.loading("Updating record...");
 
         try {
@@ -172,7 +173,6 @@ export default function EditRawMaterialIn() {
                 }))
             };
 
-            // api.put භාවිතය
             await api.put(`/api/raw-materials-in/${recordId}`, payload);
 
             toast.success("Record updated successfully!", { id: toastId });
@@ -180,14 +180,14 @@ export default function EditRawMaterialIn() {
 
         } catch (error) {
             console.error(error);
-            // Axios error handling
             if (error.response?.status === 403) {
                 toast.error("Access Denied. You do not have permission to edit records.", { id: toastId });
             } else {
                 toast.error("Error updating record. Please try again.", { id: toastId });
             }
         } finally {
-            setIsSaving(false);
+            // 2. මෙතැනත් setIsSaving වෙනුවට setShowSpinner ලෙස වෙනස් කළා
+            setShowSpinner(false); 
         }
     };
 
