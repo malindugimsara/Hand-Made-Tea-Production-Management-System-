@@ -262,6 +262,7 @@ export default function ViewTeaCenterRecords() {
     };
 
     // --- PDF GENERATION LOGIC ---
+    // --- PDF GENERATION LOGIC ---
     const getPdfData = () => {
         const pdfSortedRecords = [...filteredRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
         const tableRows = [];
@@ -270,8 +271,17 @@ export default function ViewTeaCenterRecords() {
             const baseDate = new Date(record.date).toISOString().split('T')[0];
             const pdfDateCell = record.isEdited ? `${baseDate}\n(Edited by ${record.editedBy} on ${record.lastUpdatedDate})` : baseDate;
 
+            // මේ record එකේ items කීයක් තියෙනවද කියලා ගණන් කිරීම (RowSpan එක සඳහා)
+            const itemsCount = record.itemsArray.length;
+
             record.itemsArray.forEach((item, index) => {
                 const isFirst = index === 0;
+
+                // දශම 3ක් දක්වා රවුම් කර, අගට ඇති බිංදු ඉවත් කිරීම
+                const packSizeStr = parseFloat(Number(item.packSizeKg).toFixed(3)).toString();
+                const totalQtyStr = parseFloat(Number(item.totalQtyKg || 0).toFixed(3)).toString();
+                const baseTeaQtyStr = item.baseTeaQtyKg ? parseFloat(Number(item.baseTeaQtyKg).toFixed(3)).toString() : "-";
+                const recordTotalQtyStr = parseFloat(Number(record.totalQtyKg).toFixed(3)).toString();
 
                 // Combine raw materials for PDF
                 const rmNames = [];
@@ -279,13 +289,15 @@ export default function ViewTeaCenterRecords() {
 
                 if (item.rawMaterialName) {
                     rmNames.push(`${item.rawMaterialName} (Flavor)`);
-                    rmQtys.push(item.rawMaterialQtyKg ? `${Number(item.rawMaterialQtyKg).toFixed(3)} kg` : "-");
+                    const rmQtyStr = parseFloat(Number(item.rawMaterialQtyKg).toFixed(3)).toString();
+                    rmQtys.push(item.rawMaterialQtyKg ? `${rmQtyStr} kg` : "-");
                 }
                 if (item.packingMaterials && item.packingMaterials.length > 0) {
                     item.packingMaterials.forEach(pm => {
                         if (pm.name) {
                             rmNames.push(`${pm.name} (Packing)`);
-                            rmQtys.push(pm.qty ? `${Number(pm.qty).toFixed(3)}` : "-");
+                            const pmQtyStr = parseFloat(Number(pm.qty).toFixed(3)).toString();
+                            rmQtys.push(pm.qty ? pmQtyStr : "-");
                         }
                     });
                 }
@@ -293,30 +305,57 @@ export default function ViewTeaCenterRecords() {
                 const rmNameCell = rmNames.length > 0 ? rmNames.join('\n') : "-";
                 const rmQtyCell = rmQtys.length > 0 ? rmQtys.join('\n') : "-";
 
-                tableRows.push([
-                    isFirst ? pdfDateCell : "",
-                    { 
-                        content: item.product, 
-                        styles: { ...getPdfTeaColor(item.product), fontStyle: 'bold', halign: 'center' } 
-                    },
-                    item.type || "-", 
-                    `${item.packSizeKg} kg`,
-                    item.numberOfBoxes.toString(),
-                    `${(item.totalQtyKg || 0).toFixed(3)} kg`,
-                    rmNameCell,
-                    rmQtyCell,
-                    item.baseTeaQtyKg ? `${Number(item.baseTeaQtyKg).toFixed(3)} kg` : "-",
-                    isFirst ? record.totalBoxes.toString() : "",
-                    isFirst ? `${record.totalQtyKg.toFixed(3)} kg` : "" 
-                ]);
+                // Cell Styles
+                const productCell = { 
+                    content: item.product, 
+                    styles: { ...getPdfTeaColor(item.product), fontStyle: 'bold', halign: 'center', valign: 'top' } 
+                };
+                const typeCell = { content: item.type || "-", styles: { valign: 'top', halign: 'center' } };
+                const packSizeCell = { content: `${packSizeStr} kg`, styles: { halign: 'right', valign: 'top' } };
+                const noOfBoxesCell = { content: item.numberOfBoxes.toString(), styles: { halign: 'center', valign: 'top' } };
+                const totalQtyCellObj = { content: `${totalQtyStr} kg`, styles: { halign: 'right', valign: 'top' } };
+                const rmNameObjCell = { content: rmNameCell, styles: { valign: 'top' } };
+                const rmQtyObjCell = { content: rmQtyCell, styles: { halign: 'right', valign: 'top' } };
+                const baseTeaQtyCell = { content: baseTeaQtyStr !== "-" ? `${baseTeaQtyStr} kg` : "-", styles: { halign: 'right', valign: 'top' } };
+
+                if (isFirst) {
+                    // පළමු අයිතමයේදී අවශ්‍ය තීරුවලට rowSpan ලබා දීම
+                    tableRows.push([
+                        { content: pdfDateCell, rowSpan: itemsCount, styles: { valign: 'top', halign: 'center' } },
+                        productCell,
+                        typeCell,
+                        packSizeCell,
+                        noOfBoxesCell,
+                        totalQtyCellObj,
+                        rmNameObjCell,
+                        rmQtyObjCell,
+                        baseTeaQtyCell,
+                        { content: record.totalBoxes.toString(), rowSpan: itemsCount, styles: { valign: 'top', halign: 'center', fontStyle: 'bold' } },
+                        { content: `${recordTotalQtyStr} kg`, rowSpan: itemsCount, styles: { valign: 'top', halign: 'right', fontStyle: 'bold', textColor: [15, 118, 110] } }
+                    ]);
+                } else {
+                    // ඉතිරි අයිතම සඳහා RowSpan වූ Columns 3 මඟහැර යැවීම
+                    tableRows.push([
+                        productCell,
+                        typeCell,
+                        packSizeCell,
+                        noOfBoxesCell,
+                        totalQtyCellObj,
+                        rmNameObjCell,
+                        rmQtyObjCell,
+                        baseTeaQtyCell
+                    ]);
+                }
             });
         });
 
+        // Grand Total එක දශම 3කට රවුම් කර බිංදු ඉවත් කිරීම
+        const grandTotalStr = parseFloat(Number(grandTotalQty).toFixed(3)).toString();
+
         tableRows.push([
-            { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' } },
-            "-", "-", "-", "-", "-", "-", "-", "-",
-            { content: grandTotalBoxes.toString(), styles: { fontStyle: 'bold' } },
-            { content: `${grandTotalQty.toFixed(3)} kg`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } } 
+            { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' }, colSpan: 9 }, // මුල් තීරු 9ක් Group කිරීම
+            { content: grandTotalBoxes.toString(), styles: { fontStyle: 'bold', halign: 'center' } },
+            { content: `${grandTotalStr} kg`, styles: { fontStyle: 'bold', halign: 'right', textColor: [15, 118, 110] } } 
         ]);
 
         return tableRows;

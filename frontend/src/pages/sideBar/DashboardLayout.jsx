@@ -11,11 +11,13 @@ import {
   LineChart,
   LogOut,
   ChevronRight,
-  ChevronDown, // Added for the top nav dropdown
+  ChevronDown,
   Shield, 
   Sun,
   Moon,
-  Sprout, 
+  Sprout,
+  Calculator, 
+  Search,
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -81,16 +83,26 @@ const DATA = {
       title: 'Green Leaf',
       icon: Leaf,
       items: [
-        { title: 'Record Entry', url: '/green-leaf-form', roles: ['Admin', 'HandMade Officer'] }, 
-        { title: 'View Records', url: '/view-green-leaf', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'G/L Record Entry', url: '/green-leaf-form', roles: ['Admin', 'HandMade Officer'] }, 
+        { title: 'G/L View Records', url: '/view-green-leaf', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+      ],
+    },
+    {
+      title: 'Loft Leaf Count',
+      icon: Calculator,
+      items: [
+        { title: 'L/L Record Entry', url: '/loft-leaf-count', roles: ['Admin', 'HandMade Officer'] }, 
+        { title: 'L/L View Records', url: '/view-loft-leaf', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'L/L Weighted Average', url: '/summary-loft-leaf', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'L/L Simple Average', url: '/simple-average', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
       ],
     },
     {
       title: 'Dehydrator Machine',
       icon: Factory,
       items: [
-        { title: 'Record Entry', url: '/dehydrator-record-form', roles: ['Admin', 'HandMade Officer'] },
-        { title: 'View Records', url: '/view-dehydrator-records', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'D/L Record Entry', url: '/dehydrator-record-form', roles: ['Admin', 'HandMade Officer'] },
+        { title: 'D/L View Records', url: '/view-dehydrator-records', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
       ],
     },
     {
@@ -110,14 +122,12 @@ const DATA = {
         { title: 'Cost of Production', url: '/cost-of-production', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
       ],
     },
-
     {
       title: 'Transfer Out',
       icon: ChevronRight,
       items: [
         { title: 'Transfer Out', url: '/transfer-out', roles: ['HandMade Officer', 'Admin'] },
         { title: 'Transfer Out Records', url: '/transfer-out-view', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
-        
       ],
     },
     {
@@ -135,12 +145,14 @@ export default function DashboardLayout() {
   const location = useLocation();
   const isMobile = useIsMobile();
 
+  // --- PAGE NAVIGATION SEARCH LOGIC ---
+  const [pageSearchQuery, setPageSearchQuery] = React.useState('');
+
   // --- SIDEBAR HOVER & DELAY LOGIC ---
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
   const sidebarTimeoutRef = React.useRef(null);
 
   const handleSidebarMouseEnter = () => {
-    // Clear the timer if the user brings the mouse back before 5 seconds
     if (sidebarTimeoutRef.current) {
       clearTimeout(sidebarTimeoutRef.current);
     }
@@ -148,13 +160,11 @@ export default function DashboardLayout() {
   };
 
   const handleSidebarMouseLeave = () => {
-    // Start a 5-second countdown to close the sidebar
     sidebarTimeoutRef.current = setTimeout(() => {
       setIsSidebarOpen(false);
     }, 100); 
   };
 
-  // Cleanup timer on unmount to prevent memory leaks
   React.useEffect(() => {
     return () => {
       if (sidebarTimeoutRef.current) clearTimeout(sidebarTimeoutRef.current);
@@ -165,7 +175,6 @@ export default function DashboardLayout() {
   const [isDark, setIsDark] = React.useState(false);
 
   React.useEffect(() => {
-    // Check local storage or system preference on load
     const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     
@@ -215,23 +224,55 @@ export default function DashboardLayout() {
       case '/cost-of-production': return 'Cost of Production';
       default: return 'System';
     }
-    
   };
+
   const todayDateObj = new Date();
   const today = todayDateObj.toLocaleDateString('en-US', { 
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+  });
+
+  // --- ADVANCED SEARCH FILTERING ---
+  const searchResults = React.useMemo(() => {
+    if (!pageSearchQuery.trim()) return [];
+    
+    const query = pageSearchQuery.toLowerCase();
+    const results = [];
+
+    // 1. Check Quick Links
+    DATA.quickLinks.forEach(link => {
+        if (link.name.toLowerCase().includes(query)) {
+            results.push({ title: link.name, url: link.url, icon: link.icon, group: 'Quick Links' });
+        }
     });
+
+    // 2. Check Main Navigation (Both Group Titles & Item Titles)
+    DATA.navMain.forEach(group => {
+        const isGroupMatch = group.title.toLowerCase().includes(query);
+        
+        group.items.forEach(item => {
+            // Only consider items the user has access to
+            if (item.roles.includes(currentUserRole)) {
+                // If the group title matches, or the specific item title matches
+                if (isGroupMatch || item.title.toLowerCase().includes(query)) {
+                    results.push({ title: item.title, url: item.url, icon: group.icon, group: group.title });
+                }
+            }
+        });
+    });
+
+    return results;
+  }, [pageSearchQuery, currentUserRole]);
+
   return (
     <TooltipProvider delayDuration={0}>
-    {/* SidebarProvider is now controlled via state */}
     <SidebarProvider open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+      
       <Sidebar 
         collapsible="icon" 
-        className="border-none bg-[#F4F7F5] dark:bg-zinc-950 transition-[width] duration-300 ease-in-out"
+        className="border-none !bg-[#F4F7F5] dark:!bg-zinc-950 !opacity-100 z-[60] transition-[width] duration-300 ease-in-out"
         onMouseEnter={handleSidebarMouseEnter}
         onMouseLeave={handleSidebarMouseLeave}
       >
-        
         <SidebarHeader className="pt-6 pb-2 px-4">
           <SidebarMenu>
             <SidebarMenuItem>
@@ -250,8 +291,52 @@ export default function DashboardLayout() {
           </SidebarMenu>
         </SidebarHeader>
 
-        <SidebarContent className="px-2 mt-4">
+        <SidebarContent className="px-2 mt-2 relative">
           
+          {/* --- SIDEBAR SEARCH BAR --- */}
+          <div className="px-2 mb-2 relative z-50">
+            <div className={`relative flex items-center transition-opacity duration-300 ${!isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+              <Search className="absolute left-3 text-gray-400 dark:text-gray-500" size={16} />
+              <input
+                type="text"
+                placeholder="Search menus or pages..."
+                value={pageSearchQuery}
+                onChange={(e) => setPageSearchQuery(e.target.value)}
+                className="w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-[#1B6A31] dark:focus:border-green-600 rounded-xl py-2 pl-9 pr-4 text-sm outline-none transition-all dark:text-white shadow-sm"
+              />
+            </div>
+
+            {/* SEARCH RESULTS DROPDOWN */}
+            {pageSearchQuery && isSidebarOpen && (
+              <div className="absolute top-full mt-1 left-2 right-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg max-h-72 overflow-y-auto py-2 z-[100] custom-scrollbar">
+                {searchResults.length > 0 ? (
+                  searchResults.map((result, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        navigate(result.url);
+                        setPageSearchQuery(''); 
+                        if (isMobile) setIsSidebarOpen(false);
+                      }}
+                      className="flex flex-col px-3 py-2 hover:bg-[#F4F7F5] dark:hover:bg-zinc-700 cursor-pointer transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        {result.icon && <result.icon size={16} className="text-[#4A9E46] dark:text-green-500" />}
+                        <span className="font-bold text-sm text-gray-800 dark:text-gray-200">{result.title}</span>
+                      </div>
+                      <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-7 uppercase tracking-wider">{result.group}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-4 py-4 text-sm text-gray-500 text-center font-medium flex flex-col items-center gap-2">
+                      <Search size={20} className="opacity-30"/>
+                      No matching pages found
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <SidebarGroup>
             <SidebarGroupLabel className="text-xs font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase mb-2 ml-2">Overview</SidebarGroupLabel>
             <SidebarMenu>
@@ -263,7 +348,10 @@ export default function DashboardLayout() {
                       asChild 
                       isActive={isActive}
                       tooltip={item.name}
-                      onClick={() => navigate(item.url)}
+                      onClick={() => {
+                        navigate(item.url);
+                        if (isMobile) setIsSidebarOpen(false);
+                      }}
                       className={`cursor-pointer transition-all duration-300 py-6 rounded-full mb-1 ${
                         isActive 
                         ? 'bg-white dark:bg-zinc-900 shadow-sm text-[#1B6A31] dark:text-green-500 font-bold ring-1 ring-gray-200/50 dark:ring-zinc-800' 
@@ -281,19 +369,15 @@ export default function DashboardLayout() {
             </SidebarMenu>
           </SidebarGroup>
 
-          {/* NESTED MENU (Dynamically Filtered by Role) */}
           <SidebarGroup className="mt-4">
             <SidebarGroupLabel className="text-xs font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase mb-2 ml-2">Management</SidebarGroupLabel>
             <SidebarMenu>
               {DATA.navMain.map((item) => {
-                
                 const visibleItems = item.items.filter(subItem => 
                   subItem.roles.includes(currentUserRole)
                 );
 
-                if (visibleItems.length === 0) {
-                    return null;
-                }
+                if (visibleItems.length === 0) return null;
 
                 const isGroupActive = visibleItems.some((sub) => sub.url === location.pathname);
 
@@ -318,7 +402,10 @@ export default function DashboardLayout() {
                                 <SidebarMenuSubButton 
                                   asChild 
                                   isActive={isSubActive}
-                                  onClick={() => navigate(subItem.url)}
+                                  onClick={() => {
+                                      navigate(subItem.url);
+                                      if (isMobile) setIsSidebarOpen(false);
+                                  }}
                                   className={`cursor-pointer py-4 rounded-full transition-all duration-300 ${
                                     isSubActive 
                                     ? 'text-[#1B6A31] dark:text-green-500 font-bold bg-white dark:bg-zinc-900 shadow-sm ring-1 ring-gray-200/50 dark:ring-zinc-800' 
@@ -340,7 +427,6 @@ export default function DashboardLayout() {
               })}
             </SidebarMenu>
           </SidebarGroup>
-
         </SidebarContent>
 
         <SidebarRail />
@@ -348,12 +434,12 @@ export default function DashboardLayout() {
 
       <SidebarInset className="bg-[#F4F7F5] dark:bg-zinc-950 relative flex flex-col h-screen overflow-hidden p-2 md:p-4">
         
-        <header className="flex h-14 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-2xl border border-white dark:border-zinc-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl shrink-0 items-center justify-between gap-2 absolute top-4 left-4 right-4 z-50 px-4 transition-all">
+        <header className="flex h-14 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-2xl border border-white dark:border-zinc-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl shrink-0 items-center justify-between gap-2 absolute top-4 left-4 right-4 z-40 px-4 transition-all">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-500 transition-colors" />
             <Separator orientation="vertical" className="mr-2 h-5 bg-gray-200 dark:bg-zinc-700" />
             
-            <Breadcrumb>
+            <Breadcrumb className="hidden sm:block">
               <BreadcrumbList>
                 <BreadcrumbItem className="hidden md:block">
                   <BreadcrumbLink className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 font-medium cursor-pointer transition-colors" onClick={() => navigate('/')}>
@@ -370,12 +456,9 @@ export default function DashboardLayout() {
             </Breadcrumb>
           </div>
 
-          {/* --- TOP RIGHT CONTROLS (Date + Theme + Profile/Logout) --- */}
           <div className="flex items-center gap-2 sm:gap-4 mr-2">
+            <p className="text-sm font-medium p-4 dark:text-white hidden lg:block">{today}</p>
             
-            {/* Time */}
-            <p className="text-sm font-medium p-4 dark:text-white">{today}</p>
-            {/* Theme Toggle */}
             <button 
               onClick={toggleTheme}
               title="Toggle Dark Mode"
@@ -386,7 +469,6 @@ export default function DashboardLayout() {
 
             <Separator orientation="vertical" className="h-6 bg-gray-200 dark:bg-zinc-700 hidden sm:block" />
 
-            {/* User Profile Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 focus:outline-none group">
                 <Avatar className="h-9 w-9 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-transform group-hover:scale-105">
@@ -394,7 +476,6 @@ export default function DashboardLayout() {
                     {currentUsername.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                {/* Hide text on very small screens, show on medium and up */}
                 <div className="hidden md:grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-bold text-gray-800 dark:text-gray-200 mb-0.5">{currentUsername}</span>
                   <span className="truncate text-[10px] font-bold tracking-wider text-gray-500 dark:text-gray-400 uppercase leading-none">{currentUserRole}</span>
@@ -403,7 +484,7 @@ export default function DashboardLayout() {
               </DropdownMenuTrigger>
               
               <DropdownMenuContent
-                className="w-56 rounded-2xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-gray-100 dark:border-zinc-800 shadow-xl p-2 mt-2"
+                className="w-56 rounded-2xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-gray-100 dark:border-zinc-800 shadow-xl p-2 mt-2 z-[70]"
                 align="end"
               >
                 <DropdownMenuLabel className="p-0 font-normal">
@@ -429,9 +510,7 @@ export default function DashboardLayout() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
           </div>
-
         </header>
 
         <div className="flex-1 mt-16 bg-white dark:bg-zinc-900 rounded-[2rem] shadow-[0_0_40px_rgb(0,0,0,0.02)] border border-gray-100 dark:border-zinc-800 overflow-hidden relative flex flex-col transition-colors duration-300">
@@ -450,6 +529,6 @@ export default function DashboardLayout() {
 
       </SidebarInset>
     </SidebarProvider>
-  </TooltipProvider>
+    </TooltipProvider>
   );
 }

@@ -383,7 +383,7 @@ export default function TeaGradesReceivedEntry() {
 
                             <div className="mt-4 flex flex-col sm:flex-row justify-end gap-6 border-t border-teal-200/50 dark:border-teal-800/30 pt-4">
                                 <div className="text-sm font-medium text-[#0f766e] dark:text-teal-300 flex items-center gap-1">
-                                    <Package size={16}/> Total Weight: <span className="font-bold text-lg">{totalQtyKg.toFixed(2)} Kg</span>
+                                    <Package size={16}/> Total Weight: <span className="font-bold text-lg">{Number(totalQtyKg.toFixed(4))} Kg</span>
                                 </div>
                             </div>
                         </div>

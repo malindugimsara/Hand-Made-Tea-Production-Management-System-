@@ -320,8 +320,6 @@ export default function GreenLeafForm() {
                 ? `${record.dryerName}\n(${record.dryerUpdatedDate})` 
                 : '-';
 
-            const pdfTitle = teaType === 'All' ? 'All Tea Types' : teaType;
-
             const pdfDateCell = record.isEdited 
                 ? `${record.date}\n(Edited: ${record.lastUpdatedDate} by ${record.editedBy})` 
                 : record.date;
@@ -394,27 +392,34 @@ export default function GreenLeafForm() {
                String(today.getDate()).padStart(2, '0');
     };
 
-   const [formData, setFormData] = useState({
-    date: getTodayLocalString(),
-    totalWeight: '',
-    selectedWeight: '',
-    outputs: [{ teaType: '', madeTeaWeight: '' }], 
-    expectedDryerDate: '', 
-    workerCount: '',
-    rollingType: 'Machine Rolling1', // dropdown එකේ පළවෙනි option එක
-    rollingWorkerCount: ''
-});
+    // Removed outputs from Day 1 Form Data
+    const [formData, setFormData] = useState({
+        date: getTodayLocalString(),
+        totalWeight: '',
+        selectedWeight: '',
+        expectedDryerDate: '', 
+        workerCount: '',
+        rollingType: 'Machine Rolling1',
+        rollingWorkerCount: ''
+    });
 
     const [existingDates, setExistingDates] = useState([]);
     const [lastReadings, setLastReadings] = useState({ 'Dryer 1': '', 'Dryer 2': '' });
     const [allProductionData, setAllProductionData] = useState([]); 
 
     // ==========================================
-    // DRYER POPUP STATES (DAY 2) - UPDATED FOR MULTIPLE
+    // DRYER POPUP STATES (DAY 2) - UPDATED FOR MULTIPLE OUTPUTS & DRYERS
     // ==========================================
     const [pendingDryerTasks, setPendingDryerTasks] = useState([]);
     const [activeTaskIndex, setActiveTaskIndex] = useState(0);
     const [isSubmittingDryer, setIsSubmittingDryer] = useState(false);
+    
+    // Moved Production Outputs to Day 2 Modal state
+    const [modalOutputs, setModalOutputs] = useState([{
+        teaType: '',
+        madeTeaWeight: ''
+    }]);
+
     const [dryerOutputs, setDryerOutputs] = useState([{
         dryerName: '',
         meterStart: '',
@@ -490,6 +495,7 @@ export default function GreenLeafForm() {
             setPendingDryerTasks(tasksForDate);
             setActiveTaskIndex(0);
             setDryerOutputs([{ dryerName: '', meterStart: '', meterEnd: '', rollerPoints: '' }]);
+            setModalOutputs([{ teaType: '', madeTeaWeight: '' }]); // Reset Modal outputs
             toast.success(`Found ${tasksForDate.length} pending task(s) expected to be dried on this date!`);
         } else {
             toast.success("No pending dryer tasks scheduled for this date.");
@@ -507,19 +513,20 @@ export default function GreenLeafForm() {
         }
     };
 
-    const handleOutputChange = (index, field, value) => {
-        const newOutputs = [...formData.outputs];
+    // --- MODAL PRODUCTION OUTPUT HANDLERS ---
+    const handleModalOutputChange = (index, field, value) => {
+        const newOutputs = [...modalOutputs];
         newOutputs[index][field] = value;
-        setFormData({ ...formData, outputs: newOutputs });
+        setModalOutputs(newOutputs);
     };
 
-    const addOutput = () => {
-        setFormData({ ...formData, outputs: [...formData.outputs, { teaType: '', madeTeaWeight: '' }] });
+    const addModalOutput = () => {
+        setModalOutputs([...modalOutputs, { teaType: '', madeTeaWeight: '' }]);
     };
 
-    const removeOutput = (index) => {
-        const newOutputs = formData.outputs.filter((_, i) => i !== index);
-        setFormData({ ...formData, outputs: newOutputs });
+    const removeModalOutput = (index) => {
+        const newOutputs = modalOutputs.filter((_, i) => i !== index);
+        setModalOutputs(newOutputs);
     };
 
     // --- DRYER MODAL HANDLERS ---
@@ -562,21 +569,9 @@ export default function GreenLeafForm() {
 
         const total = Number(formData.totalWeight);
         const selected = Number(formData.selectedWeight);
-        
-        let totalMade = 0;
-        for (let out of formData.outputs) {
-            if (!out.teaType || !out.madeTeaWeight) {
-                toast.error("Please fill all tea types and weights!");
-                return;
-            }
-            totalMade += Number(out.madeTeaWeight);
-        }
 
         if (selected > total) {
             playErrorSound(); toast.error("Selected weight must be less than Total weight!"); return;
-        }
-        if (totalMade > selected) {
-            playErrorSound(); toast.error("Total Made tea weight must be less than Selected weight!"); return;
         }
         if (formData.expectedDryerDate < formData.date) {
             playErrorSound(); toast.error("Expected Dryer Date cannot be before the collection date!"); return;
@@ -590,7 +585,6 @@ export default function GreenLeafForm() {
             ...formData,
             totalWeight: '', 
             selectedWeight: '', 
-            outputs: [{ teaType: '', madeTeaWeight: '' }],
             expectedDryerDate: '', 
             workerCount: '', 
             rollingType: 'Machine Rolling', 
@@ -635,22 +629,19 @@ export default function GreenLeafForm() {
                     throw new Error('Failed to save GL or Labour record');
                 }
 
-                const prodPromises = record.outputs.map(out => {
-                    const productionPayload = { 
-                        date: record.date, 
-                        teaType: out.teaType, 
-                        madeTeaWeight: Number(out.madeTeaWeight), 
-                        expectedDryerDate: record.expectedDryerDate 
-                    };
-                    return fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(productionPayload) });
-                });
-
-                const prodResults = await Promise.all(prodPromises);
-                for (let res of prodResults) {
-                    if (!res.ok) {
-                        if (res.status === 403) throw new Error('Access Denied');
-                        throw new Error('Failed to save a Production record');
-                    }
+                // Create a single placeholder Production record waiting for Dryer Date
+                const productionPayload = { 
+                    date: record.date, 
+                    teaType: "-", 
+                    madeTeaWeight: 0, 
+                    expectedDryerDate: record.expectedDryerDate 
+                };
+                
+                const prodRes = await fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(productionPayload) });
+                
+                if (!prodRes.ok) {
+                    if (prodRes.status === 403) throw new Error('Access Denied');
+                    throw new Error('Failed to save a Production record');
                 }
             });
 
@@ -677,6 +668,15 @@ export default function GreenLeafForm() {
     const handleModalSubmit = async (e) => {
         e.preventDefault();
         
+        // Validate Modal Production Outputs
+        for (let out of modalOutputs) {
+            if (!out.teaType || !out.madeTeaWeight) {
+                toast.error("Please fill all tea types and weights!");
+                return;
+            }
+        }
+
+        // Validate Dryers
         for (let dryer of dryerOutputs) {
             if (!dryer.dryerName || !dryer.meterStart || !dryer.meterEnd) {
                 toast.error("Please fill all dryer details completely!");
@@ -690,18 +690,20 @@ export default function GreenLeafForm() {
         }
 
         setIsSubmittingDryer(true);
-        const toastId = toast.loading("Saving dryer readings...");
+        const toastId = toast.loading("Saving details...");
         const currentTask = pendingDryerTasks[activeTaskIndex];
 
         try {
             const token = localStorage.getItem('token');
             const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
-            // For multiple dryers, we need to save the first one to the current Task,
-            // and if there are more, we need to create duplicate Production records for the SAME date/teaType but with different dryer details.
-            
+            const firstOutput = modalOutputs[0];
             const firstDryer = dryerOutputs[0];
-            const payload = {
+
+            // 1. Update the Placeholder task with first Output and first Dryer
+            const updatePayload = {
+                teaType: firstOutput.teaType,
+                madeTeaWeight: Number(firstOutput.madeTeaWeight),
                 dryerDetails: {
                     dryerName: firstDryer.dryerName, 
                     meterStart: Number(firstDryer.meterStart), 
@@ -711,7 +713,7 @@ export default function GreenLeafForm() {
             };
 
             const res = await fetch(`${BACKEND_URL}/api/production/${currentTask._id}`, {
-                method: 'PUT', headers: authHeaders, body: JSON.stringify(payload)
+                method: 'PUT', headers: authHeaders, body: JSON.stringify(updatePayload)
             });
 
             if (!res.ok) throw new Error("Failed to update record");
@@ -723,38 +725,52 @@ export default function GreenLeafForm() {
                 return newReadings;
             });
 
-            // If there are additional dryers used for this same Task, create new identical records just for the extra dryers
-            if (dryerOutputs.length > 1) {
-                const extraPromises = dryerOutputs.slice(1).map(extraDryer => {
-                    const extraPayload = {
-                        date: currentTask.date,
-                        teaType: currentTask.teaType,
-                        madeTeaWeight: 0, // Set to 0 so we don't duplicate the yield weight in reports
-                        expectedDryerDate: currentTask.expectedDryerDate,
-                        dryerDetails: {
-                            dryerName: extraDryer.dryerName,
-                            meterStart: Number(extraDryer.meterStart),
-                            meterEnd: Number(extraDryer.meterEnd),
-                            rollerPoints: Number(extraDryer.rollerPoints || 0)
-                        }
-                    };
-                    return fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(extraPayload) });
-                });
-                await Promise.all(extraPromises);
+            const extraPromises = [];
+
+            // 2. If there are extra Outputs (Tea Types), create new records using the FIRST Dryer
+            for (let i = 1; i < modalOutputs.length; i++) {
+                const extraOutputPayload = {
+                    date: currentTask.date,
+                    teaType: modalOutputs[i].teaType,
+                    madeTeaWeight: Number(modalOutputs[i].madeTeaWeight),
+                    expectedDryerDate: currentTask.expectedDryerDate,
+                    dryerDetails: updatePayload.dryerDetails // Same dryer as first
+                };
+                extraPromises.push(fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(extraOutputPayload) }));
             }
 
-            toast.success("Dryer details saved!", { id: toastId });
+            // 3. If there are extra Dryers, create new records mapped to the FIRST Output (but 0 weight to not duplicate yield)
+            for (let j = 1; j < dryerOutputs.length; j++) {
+                const extraDryerPayload = {
+                    date: currentTask.date,
+                    teaType: firstOutput.teaType, // Link to first tea type
+                    madeTeaWeight: 0, // 0 to avoid duplicating the made tea weight
+                    expectedDryerDate: currentTask.expectedDryerDate,
+                    dryerDetails: {
+                        dryerName: dryerOutputs[j].dryerName,
+                        meterStart: Number(dryerOutputs[j].meterStart),
+                        meterEnd: Number(dryerOutputs[j].meterEnd),
+                        rollerPoints: Number(dryerOutputs[j].rollerPoints || 0)
+                    }
+                };
+                extraPromises.push(fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(extraDryerPayload) }));
+            }
+
+            await Promise.all(extraPromises);
+
+            toast.success("Production & Dryer details saved!", { id: toastId });
 
             if (activeTaskIndex < pendingDryerTasks.length - 1) {
                 setActiveTaskIndex(prev => prev + 1);
                 setDryerOutputs([{ dryerName: '', meterStart: '', meterEnd: '', rollerPoints: '' }]);
+                setModalOutputs([{ teaType: '', madeTeaWeight: '' }]);
             } else {
                 setPendingDryerTasks([]); 
                 toast.success("All pending dryer tasks complete!");
                 fetchMergedRecords();
             }
         } catch (error) {
-            toast.error("Error saving dryer readings.", { id: toastId });
+            toast.error("Error saving details.", { id: toastId });
         } finally {
             setIsSubmittingDryer(false);
         }
@@ -788,22 +804,22 @@ export default function GreenLeafForm() {
 
             <div className="px-8 max-w-[1600px] mx-auto relative">
 
-                {/* --- DAY 2 PENDING DRYER MODAL (UPDATED FOR MULTIPLE DRYERS) --- */}
+                {/* --- DAY 2 PENDING DRYER & PRODUCTION MODAL --- */}
                 {pendingDryerTasks.length > 0 && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-900/40 dark:bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-                        <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border  dark:border-green-800 my-auto relative">
+                        <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border  dark:border-green-800 my-auto relative">
                             <div className="bg-green-700 dark:bg-green-700 p-6 text-white relative">
                                 <button onClick={() => setPendingDryerTasks([])} className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 p-1.5 rounded-full transition-colors focus:outline-none">
                                     <X size={20} />
                                 </button>
                                 <div className="flex items-center gap-3 mb-1">
                                     <AlertCircle size={28} className="opacity-90" />
-                                    <h2 className="text-2xl font-black m-0 leading-none">Pending Dryers</h2>
+                                    <h2 className="text-2xl font-black m-0 leading-none">Pending Production</h2>
                                 </div>
                                 <p className="text-orange-100 font-medium m-0 mt-2 ml-10">Task {activeTaskIndex + 1} of {pendingDryerTasks.length}</p>
                             </div>
 
-                            <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                            <div className="p-6 max-h-[75vh] overflow-y-auto custom-scrollbar">
                                 <div className="bg-orange-50/50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30 p-4 rounded-2xl mb-6">
                                     <p className="text-[10px] font-black uppercase tracking-wider text-orange-500 dark:text-orange-400 mb-3">Record Details</p>
                                     <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
@@ -811,62 +827,115 @@ export default function GreenLeafForm() {
                                             <span className="text-gray-500 dark:text-gray-400">Date Collected</span>
                                             <span className="font-bold">{new Date(pendingDryerTasks[activeTaskIndex].date).toISOString().split('T')[0]}</span>
                                         </div>
-                                        <div className="flex justify-between border-b border-orange-100 dark:border-orange-900/30 pb-2">
-                                            <span className="text-gray-500 dark:text-gray-400">Tea Type</span>
-                                            <span className="font-bold text-purple-600 dark:text-purple-400">{pendingDryerTasks[activeTaskIndex].teaType}</span>
-                                        </div>
                                         <div className="flex justify-between pt-1">
-                                            <span className="text-gray-500 dark:text-gray-400">Made Tea Output</span>
-                                            <span className="font-black text-gray-900 dark:text-white">{pendingDryerTasks[activeTaskIndex].madeTeaWeight} kg</span>
+                                            <span className="text-gray-500 dark:text-gray-400">Expected Dryer Date</span>
+                                            <span className="font-black text-gray-900 dark:text-white">
+                                                {pendingDryerTasks[activeTaskIndex].expectedDryerDate ? new Date(pendingDryerTasks[activeTaskIndex].expectedDryerDate).toISOString().split('T')[0] : 'N/A'}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
 
                                 <form onSubmit={handleModalSubmit} className="space-y-6">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <h3 className="font-bold text-gray-800 dark:text-gray-200">Dryer Readings</h3>
-                                        <button type="button" onClick={addDryerOutput} className="text-xs font-bold text-orange-600 dark:text-orange-400 flex items-center gap-1 bg-orange-50 dark:bg-orange-900/30 px-3 py-1.5 rounded-lg hover:bg-orange-100 transition-colors">
-                                            <PlusCircle size={14} /> Add Dryer
-                                        </button>
+                                    
+                                    {/* --- ADDED PRODUCTION OUTPUT SECTION TO MODAL --- */}
+                                    <div className="bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/50 rounded-2xl p-5 shadow-sm">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h3 className="text-md font-bold text-purple-700 dark:text-purple-400 flex items-center gap-2">
+                                                <div className="p-1.5 bg-purple-100 dark:bg-purple-500/20 rounded-md"><Factory size={16}/></div>
+                                                Production Output
+                                            </h3>
+                                            <button type="button" onClick={addModalOutput} className="text-xs font-bold text-purple-600 hover:text-purple-800 dark:text-purple-400 flex items-center gap-1 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/30 px-2.5 py-1.5 rounded-lg transition-colors">
+                                                <PlusCircle size={14} /> Add Type
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            {modalOutputs.map((out, index) => (
+                                                <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-zinc-900 p-4 rounded-xl border border-purple-100 dark:border-purple-900/30 relative">
+                                                    {modalOutputs.length > 1 && (
+                                                        <button type="button" onClick={() => removeModalOutput(index)} className="absolute -top-2 -right-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 p-1.5 rounded-full hover:bg-red-200 transition-colors shadow-sm">
+                                                            <X size={14} />
+                                                        </button>
+                                                    )}
+                                                    <div>
+                                                        <label className={labelStyles}>Tea Type</label>
+                                                        <select value={out.teaType} onChange={(e) => handleModalOutputChange(index, 'teaType', e.target.value)} required className={inputStyles}>
+                                                            <option value="">Select Type...</option>
+                                                            <option value="Purple Tea">Purple Tea</option>
+                                                            <option value="Pink Tea">Pink Tea</option>
+                                                            <option value="White Tea">White Tea</option>
+                                                            <option value="Silver Tips">Silver Tips</option>
+                                                            <option value="Silver Green">Silver Green</option>
+                                                            <option value="VitaGlow Tea">VitaGlow Tea</option>
+                                                            <option value="Slim Beauty">Slim Beauty</option>
+                                                            <option value="Golden Tips">Golden Tips</option>
+                                                            <option value="Flower">Flower</option>
+                                                            <option value="Chakra">Chakra</option>
+                                                            <option value="Other">Other</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelStyles}>Made Tea (kg)</label>
+                                                        <input type="number" step="0.001" min="0" value={out.madeTeaWeight} onChange={(e) => handleModalOutputChange(index, 'madeTeaWeight', e.target.value)} onWheel={(e) => e.target.blur()} required className={inputStyles} />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    {/* ----------------------------------------------- */}
+
+                                    <div>
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h3 className="text-md font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
+                                                <div className="p-1.5 bg-orange-100 dark:bg-orange-500/20 rounded-md text-orange-600"><Zap size={16}/></div>
+                                                Dryer Readings
+                                            </h3>
+                                            <button type="button" onClick={addDryerOutput} className="text-xs font-bold text-orange-600 dark:text-orange-400 flex items-center gap-1 bg-orange-50 dark:bg-orange-900/30 px-2.5 py-1.5 rounded-lg hover:bg-orange-100 transition-colors">
+                                                <PlusCircle size={14} /> Add Dryer
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            {dryerOutputs.map((dryer, index) => (
+                                                <div key={index} className="p-4 border border-orange-100 dark:border-orange-900/30 rounded-xl bg-orange-50/30 dark:bg-orange-900/5 relative shadow-sm">
+                                                    {dryerOutputs.length > 1 && (
+                                                        <button type="button" onClick={() => removeDryerOutput(index)} className="absolute -top-2 -right-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 p-1.5 rounded-full hover:bg-red-200 transition-colors shadow-sm">
+                                                            <X size={14} />
+                                                        </button>
+                                                    )}
+                                                    
+                                                    <div className="space-y-4">
+                                                        <div>
+                                                            <label className={labelStyles}>Select Dryer</label>
+                                                            <select name="dryerName" value={dryer.dryerName} onChange={(e) => handleDryerOutputChange(index, 'dryerName', e.target.value)} required className={inputStyles}>
+                                                                <option value="">Choose...</option>
+                                                                <option value="Dryer 1">Dryer 1</option>
+                                                                <option value="Dryer 2">Dryer 2</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div>
+                                                                <label className={labelStyles}>Start Reading</label>
+                                                                <input type="number" min="0" value={dryer.meterStart} onChange={(e) => handleDryerOutputChange(index, 'meterStart', e.target.value)} onWheel={(e) => e.target.blur()} required className={inputStyles} />
+                                                            </div>
+                                                            <div>
+                                                                <label className={labelStyles}>End Reading</label>
+                                                                <input type="number" min="0" value={dryer.meterEnd} onChange={(e) => handleDryerOutputChange(index, 'meterEnd', e.target.value)} onWheel={(e) => e.target.blur()} required className={inputStyles} />
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <label className={labelStyles}>Roller (Points)</label>
+                                                            <input type="number" min="0" value={dryer.rollerPoints} onChange={(e) => handleDryerOutputChange(index, 'rollerPoints', e.target.value)} onWheel={(e) => e.target.blur()} className={inputStyles} placeholder="Optional" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
 
-                                    {dryerOutputs.map((dryer, index) => (
-                                        <div key={index} className="p-5 border border-orange-100 dark:border-orange-900/30 rounded-2xl bg-orange-50/30 dark:bg-orange-900/5 relative shadow-sm">
-                                            {dryerOutputs.length > 1 && (
-                                                <button type="button" onClick={() => removeDryerOutput(index)} className="absolute -top-3 -right-3 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 p-1.5 rounded-full hover:bg-red-200 transition-colors shadow-sm">
-                                                    <X size={14} />
-                                                </button>
-                                            )}
-                                            
-                                            <div className="space-y-4">
-                                                <div>
-                                                    <label className={labelStyles}>Select Dryer</label>
-                                                    <select name="dryerName" value={dryer.dryerName} onChange={(e) => handleDryerOutputChange(index, 'dryerName', e.target.value)} required className={inputStyles}>
-                                                        <option value="">Choose...</option>
-                                                        <option value="Dryer 1">Dryer 1</option>
-                                                        <option value="Dryer 2">Dryer 2</option>
-                                                    </select>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <label className={labelStyles}>Start Reading</label>
-                                                        <input type="number" min="0" value={dryer.meterStart} onChange={(e) => handleDryerOutputChange(index, 'meterStart', e.target.value)} onWheel={(e) => e.target.blur()} required className={inputStyles} />
-                                                    </div>
-                                                    <div>
-                                                        <label className={labelStyles}>End Reading</label>
-                                                        <input type="number" min="0" value={dryer.meterEnd} onChange={(e) => handleDryerOutputChange(index, 'meterEnd', e.target.value)} onWheel={(e) => e.target.blur()} required className={inputStyles} />
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <label className={labelStyles}>Roller (Points)</label>
-                                                    <input type="number" min="0" value={dryer.rollerPoints} onChange={(e) => handleDryerOutputChange(index, 'rollerPoints', e.target.value)} onWheel={(e) => e.target.blur()} className={inputStyles} placeholder="Optional" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-
                                     <button type="submit" disabled={isSubmittingDryer} className="w-full py-4 mt-4 bg-green-700 hover:bg-green-800 text-white font-black rounded-xl transition-all shadow-lg shadow-green-500/20 disabled:opacity-50">
-                                        {isSubmittingDryer ? "Saving..." : activeTaskIndex < pendingDryerTasks.length - 1 ? "Save & Next" : "Save & Complete"}
+                                        {isSubmittingDryer ? "Saving..." : activeTaskIndex < pendingDryerTasks.length - 1 ? "Save & Next Task" : "Save & Complete"}
                                     </button>
                                 </form>
                             </div>
@@ -927,58 +996,12 @@ export default function GreenLeafForm() {
                                     <div className="p-5">
                                         <label className={labelStyles}>Expected Dryer Date</label>
                                         <input type="date" name="expectedDryerDate" value={formData.expectedDryerDate} onChange={handleInputChange} required className={inputStyles} />
-                                        <p className="text-[11px] text-gray-400 dark:text-zinc-500 mt-2 leading-relaxed">Selecting a date here will trigger a popup on that day to enter meter readings for all tea types added below.</p>
+                                        <p className="text-[11px] text-gray-400 dark:text-zinc-500 mt-2 leading-relaxed">Selecting a date here will trigger a popup on that day to enter Production Outputs and Meter Readings.</p>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* 3. MULTIPLE MADE TEA PRODUCTION OUTPUTS */}
-                            <div className="bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/50 rounded-2xl p-6 transition-colors duration-300 shadow-sm">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-lg font-bold text-purple-700 dark:text-purple-400 flex items-center gap-2">
-                                        <div className="p-2 bg-purple-100 dark:bg-purple-500/20 rounded-lg text-purple-700 dark:text-purple-400"><Factory size={18}/></div>
-                                        Production Output
-                                    </h3>
-                                    <button type="button" onClick={addOutput} className="text-sm font-bold text-purple-600 hover:text-purple-800 dark:text-purple-400 flex items-center gap-1 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 px-3 py-1.5 rounded-lg transition-colors">
-                                        <PlusCircle size={16} /> Add Type
-                                    </button>
-                                </div>
-
-                                <div className="space-y-4">
-                                    {formData.outputs.map((out, index) => (
-                                        <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-purple-100 dark:border-purple-900/30 relative shadow-sm">
-                                            {formData.outputs.length > 1 && (
-                                                <button type="button" onClick={() => removeOutput(index)} className="absolute -top-2 -right-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 p-1.5 rounded-full hover:bg-red-200 transition-colors shadow-sm border border-red-200 dark:border-red-800/50">
-                                                    <X size={14} />
-                                                </button>
-                                            )}
-                                            <div>
-                                                <label className={labelStyles}>Tea Type</label>
-                                                <select value={out.teaType} onChange={(e) => handleOutputChange(index, 'teaType', e.target.value)} required className={inputStyles}>
-                                                    <option value="">Select Type...</option>
-                                                    <option value="Purple Tea">Purple Tea</option>
-                                                    <option value="Pink Tea">Pink Tea</option>
-                                                    <option value="White Tea">White Tea</option>
-                                                    <option value="Silver Tips">Silver Tips</option>
-                                                    <option value="Silver Green">Silver Green</option>
-                                                    <option value="VitaGlow Tea">VitaGlow Tea</option>
-                                                    <option value="Slim Beauty">Slim Beauty</option>
-                                                    <option value="Golden Tips">Golden Tips</option>
-                                                    <option value="Flower">Flower</option>
-                                                    <option value="Chakra">Chakra</option>
-                                                    <option value="Other">Other</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className={labelStyles}>Made Tea (kg)</label>
-                                                <input type="number" step="0.001" min="0" value={out.madeTeaWeight} onChange={(e) => handleOutputChange(index, 'madeTeaWeight', e.target.value)} onWheel={(e) => e.target.blur()} onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }} required className={inputStyles} />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* 4. LABOUR DETAILS */}
+                            {/* 3. LABOUR DETAILS */}
                             <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
                                 <div className="bg-blue-50/50 dark:bg-blue-500/5 p-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-3">
                                     <div className="p-2 bg-blue-100 dark:bg-blue-500/20 rounded-lg text-blue-700 dark:text-blue-400"><Users size={18}/></div>
@@ -1068,12 +1091,10 @@ export default function GreenLeafForm() {
                                                     <div>
                                                         <span className="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">{item.date}</span>
                                                         <div className="mt-2 space-y-2">
-                                                            {item.outputs.map((out, idx) => (
-                                                                <div key={idx} className="flex justify-between items-center bg-purple-50 dark:bg-purple-900/10 p-2 rounded-lg border border-purple-100 dark:border-purple-800/30">
-                                                                    <span className="font-bold text-purple-900 dark:text-purple-300 text-sm">{out.teaType}</span>
-                                                                    <span className="text-[10px] bg-purple-200 dark:bg-purple-800/50 text-purple-800 dark:text-purple-200 px-2 py-0.5 rounded font-bold">Made: {out.madeTeaWeight}kg</span>
-                                                                </div>
-                                                            ))}
+                                                            <div className="flex justify-between items-center bg-purple-50 dark:bg-purple-900/10 p-2 rounded-lg border border-purple-100 dark:border-purple-800/30">
+                                                                <span className="font-bold text-purple-900 dark:text-purple-300 text-sm">Production Output</span>
+                                                                <span className="text-[10px] bg-purple-200 dark:bg-purple-800/50 text-purple-800 dark:text-purple-200 px-2 py-0.5 rounded font-bold">Pending on Dryer</span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     
@@ -1082,11 +1103,8 @@ export default function GreenLeafForm() {
                                                             <span className="block text-[10px] uppercase text-gray-400 font-bold mb-1">Leaf</span>
                                                             <span className="text-green-600 dark:text-green-400 font-black">{item.selectedWeight}kg</span> / {item.totalWeight}kg
                                                         </div>
-                                                        <div className="bg-gray-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 transition-colors">
-                                                            <span className="block text-[10px] uppercase text-gray-400 font-bold mb-1">Total Output</span>
-                                                            <span className="text-purple-600 dark:text-purple-400 font-black">
-                                                                {item.outputs.reduce((sum, out) => sum + Number(out.madeTeaWeight), 0).toFixed(3)}kg
-                                                            </span>
+                                                        <div className="bg-gray-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 transition-colors flex items-center justify-center">
+                                                            <span className="text-gray-400 font-bold uppercase text-[10px]">Awaiting Output</span>
                                                         </div>
                                                     </div>
                                                     <div className="flex justify-between items-center pt-2 border-t border-gray-100 dark:border-zinc-800">

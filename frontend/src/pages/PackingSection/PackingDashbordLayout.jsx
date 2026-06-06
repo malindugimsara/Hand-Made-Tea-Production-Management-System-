@@ -16,6 +16,7 @@ import {
   Coffee,
   PackagePlus,
   Proportions, 
+  Search, // <-- Search icon එක අලුතින් එකතු කර ඇත
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -93,7 +94,7 @@ const DATA = {
         icon: LineChart,
         items: [
           { title: 'Product-Issue Summary', url: '/packing/product-issue-summary', roles: ['Admin', 'Packing Officer', 'Viewer'] },
-          { title: 'Stock Summary', url: '/packing/summary-reports', roles: ['Admin', 'Packing Officer'] },
+          { title: 'Stock Summary', url: '/packing/summary-reports', roles: ['Admin', 'Packing Officer', 'Viewer'] },
           ],
     }, 
     {
@@ -101,9 +102,9 @@ const DATA = {
       icon: PackagePlus,
       items: [
         { title: 'H/T - Trans In', url: '/packing/trans-in-entry', roles: ['Admin', 'Packing Officer'] },
-        { title: 'Factory - Trans In', url: '/packing/trans-in-factory-entry', roles: ['Admin', 'Packing Officer'] },
-        { title: 'Other - Trans In', url: '/packing/trans-in-other', roles: ['Admin', 'Packing Officer'] },
-        { title: 'Raw Material - Trans In', url: '/packing/trans-in-raw-material', roles: ['Admin', 'Packing Officer'] }
+        { title: 'Factory - Trans In', url: '/packing/trans-in-factory-entry', roles: ['Admin'] },
+        { title: 'Other - Trans In', url: '/packing/trans-in-other', roles: ['Admin'] },
+        { title: 'Raw Material - Trans In', url: '/packing/trans-in-raw-material', roles: ['Admin'] }
       ],
     },
     {
@@ -124,6 +125,9 @@ export default function DashboardLayoutP() {
   const location = useLocation();
   const isMobile = useIsMobile();
 
+  // --- SEARCH BAR STATE ---
+  const [searchQuery, setSearchQuery] = React.useState('');
+
   // --- SIDEBAR HOVER & DELAY LOGIC ---
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
   const sidebarTimeoutRef = React.useRef(null);
@@ -136,7 +140,7 @@ export default function DashboardLayoutP() {
   }, [isMobile]);
 
   const handleSidebarMouseEnter = () => {
-    if (isMobile) return; // Disable hover logic on mobile touch devices
+    if (isMobile) return; 
     if (sidebarTimeoutRef.current) {
       clearTimeout(sidebarTimeoutRef.current);
     }
@@ -144,7 +148,7 @@ export default function DashboardLayoutP() {
   };
 
   const handleSidebarMouseLeave = () => {
-    if (isMobile) return; // Disable hover logic on mobile touch devices
+    if (isMobile) return; 
     sidebarTimeoutRef.current = setTimeout(() => {
       setIsSidebarOpen(false);
     }, 100); 
@@ -221,6 +225,32 @@ export default function DashboardLayoutP() {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
     });
 
+  // --- SEARCH FILTERING LOGIC ---
+  const filteredQuickLinks = DATA.quickLinks.filter(item => 
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredNavMain = DATA.navMain.map(group => {
+    // 1. Role එකට ගැලපෙන items විතරක් වෙන් කරගන්නවා
+    const roleFilteredItems = group.items.filter(subItem => 
+        subItem.roles.includes(currentUserRole)
+    );
+
+    // 2. Group title එක search එකට match වෙනවද බලනවා
+    const matchesGroupTitle = group.title.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // 3. Sub-item titles search එකට match වෙනවද බලනවා (title එක match වුනොත් ඔක්කොම පෙන්නනවා)
+    const searchFilteredItems = roleFilteredItems.filter(subItem => 
+        matchesGroupTitle || subItem.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    return {
+        ...group,
+        items: searchFilteredItems,
+        isSearchMatch: matchesGroupTitle || searchFilteredItems.length > 0
+    };
+  }).filter(group => group.isSearchMatch && group.items.length > 0); // අදාළ items මොකුත් නැත්නම් ඒ group එක අයින් කරනවා
+
   return (
     <TooltipProvider delayDuration={0}>
     <SidebarProvider open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
@@ -251,99 +281,113 @@ export default function DashboardLayoutP() {
 
         <SidebarContent className="px-2 mt-4">
           
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-xs font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase mb-2 ml-2">Overview</SidebarGroupLabel>
-            <SidebarMenu>
-              {DATA.quickLinks.map((item) => {
-                const isActive = location.pathname === item.url;
-                return (
-                  <SidebarMenuItem key={item.name}>
-                    <SidebarMenuButton 
-                      asChild 
-                      isActive={isActive}
-                      tooltip={item.name}
-                      onClick={() => {
-                        navigate(item.url);
-                        if (isMobile) setIsSidebarOpen(false); // Auto close on mobile click
-                      }}
-                      className={`cursor-pointer transition-all duration-300 py-6 rounded-full mb-1 ${
-                        isActive 
-                        ? 'bg-white dark:bg-zinc-900 shadow-sm text-[#1B6A31] dark:text-green-500 font-bold ring-1 ring-gray-200/50 dark:ring-zinc-800' 
-                        : 'text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-500 hover:bg-white/60 dark:hover:bg-zinc-900/50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 px-2">
-                        <item.icon className={isActive ? "text-[#4A9E46] dark:text-green-500" : ""} size={22} />
-                        <span className="text-base">{item.name}</span>
-                      </div>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroup>
+          {/* --- SEARCH BAR --- */}
+          <div className="px-2 mb-2 relative z-50">
+            <div className={`relative flex items-center transition-opacity duration-300 ${!isSidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+              <Search className="absolute left-3 text-gray-400 dark:text-gray-500" size={16} />
+              <input 
+                type="text" 
+                placeholder="Search pages..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-[#1B6A31] dark:focus:border-green-600 rounded-xl py-2 pl-9 pr-4 text-sm outline-none transition-all dark:text-white shadow-sm"
+              />
+            </div>
+          </div>
 
-          <SidebarGroup className="mt-4">
-            <SidebarGroupLabel className="text-xs font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase mb-2 ml-2">Management</SidebarGroupLabel>
-            <SidebarMenu>
-              {DATA.navMain.map((item) => {
-                
-                const visibleItems = item.items.filter(subItem => 
-                  subItem.roles.includes(currentUserRole)
-                );
-
-                if (visibleItems.length === 0) {
-                    return null;
-                }
-
-                const isGroupActive = visibleItems.some((sub) => sub.url === location.pathname);
-
-                return (
-                  <Collapsible key={item.title} asChild defaultOpen={isGroupActive} className="group/collapsible mb-1">
-                    <SidebarMenuItem>
-                      <CollapsibleTrigger asChild>
-                        <SidebarMenuButton tooltip={item.title} className="text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-500 hover:bg-white/60 dark:hover:bg-zinc-900/50 py-6 rounded-full transition-all duration-300">
-                          <div className="flex items-center gap-3 px-2 w-full">
-                            {item.icon && <item.icon size={22} />}
-                            <span className="text-base font-medium">{item.title}</span>
-                            <ChevronRight className="ml-auto transition-transform duration-300 group-data-[state=open]/collapsible:rotate-90 opacity-50" />
-                          </div>
+          
+          
+          {filteredQuickLinks.length > 0 && (
+            <SidebarGroup>
+                <SidebarGroupLabel className="text-xs font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase mb-2 ml-2">Overview</SidebarGroupLabel>
+                <SidebarMenu>
+                {filteredQuickLinks.map((item) => {
+                    const isActive = location.pathname === item.url;
+                    return (
+                    <SidebarMenuItem key={item.name}>
+                        <SidebarMenuButton 
+                        asChild 
+                        isActive={isActive}
+                        tooltip={item.name}
+                        onClick={() => {
+                            navigate(item.url);
+                            if (isMobile) setIsSidebarOpen(false); 
+                        }}
+                        className={`cursor-pointer transition-all duration-300 py-6 rounded-full mb-1 ${
+                            isActive 
+                            ? 'bg-white dark:bg-zinc-900 shadow-sm text-[#1B6A31] dark:text-green-500 font-bold ring-1 ring-gray-200/50 dark:ring-zinc-800' 
+                            : 'text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-500 hover:bg-white/60 dark:hover:bg-zinc-900/50'
+                        }`}
+                        >
+                        <div className="flex items-center gap-3 px-2">
+                            <item.icon className={isActive ? "text-[#4A9E46] dark:text-green-500" : ""} size={22} />
+                            <span className="text-base">{item.name}</span>
+                        </div>
                         </SidebarMenuButton>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <SidebarMenuSub className="border-l-2 border-gray-200 dark:border-zinc-800 ml-6 pl-4 mt-2 space-y-1">
-                          {visibleItems.map((subItem) => {
-                            const isSubActive = location.pathname === subItem.url;
-                            return (
-                              <SidebarMenuSubItem key={subItem.title}>
-                                <SidebarMenuSubButton 
-                                  asChild 
-                                  isActive={isSubActive}
-                                  onClick={() => {
-                                    navigate(subItem.url);
-                                    if (isMobile) setIsSidebarOpen(false); // Auto close on mobile click
-                                  }}
-                                  className={`cursor-pointer py-4 rounded-full transition-all duration-300 ${
-                                    isSubActive 
-                                    ? 'text-[#1B6A31] dark:text-green-500 font-bold bg-white dark:bg-zinc-900 shadow-sm ring-1 ring-gray-200/50 dark:ring-zinc-800' 
-                                    : 'text-gray-500 dark:text-gray-400 hover:text-[#4A9E46] dark:hover:text-green-400 hover:bg-white/40 dark:hover:bg-zinc-900/40'
-                                  }`}
-                                >
-                                  <div className="px-2">
-                                    <span className="text-sm">{subItem.title}</span>
-                                  </div>
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
-                            );
-                          })}
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
                     </SidebarMenuItem>
-                  </Collapsible>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroup>
+                    );
+                })}
+                </SidebarMenu>
+            </SidebarGroup>
+          )}
+
+          {filteredNavMain.length > 0 && (
+            <SidebarGroup className={filteredQuickLinks.length > 0 ? "mt-2" : ""}>
+                <SidebarGroupLabel className="text-xs font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase mb-2 ml-2">Management</SidebarGroupLabel>
+                <SidebarMenu>
+                {filteredNavMain.map((item) => {
+                    
+                    const isGroupActive = item.items.some((sub) => sub.url === location.pathname);
+                    // Search කරන විටදී menu එක ඉබේම expand වීමට
+                    const isOpen = searchQuery.length > 0 ? true : isGroupActive;
+
+                    return (
+                    <Collapsible key={item.title + (searchQuery ? '-open' : '')} asChild defaultOpen={isOpen} className="group/collapsible mb-1">
+                        <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                            <SidebarMenuButton tooltip={item.title} className="text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-500 hover:bg-white/60 dark:hover:bg-zinc-900/50 py-6 rounded-full transition-all duration-300">
+                            <div className="flex items-center gap-3 px-2 w-full">
+                                {item.icon && <item.icon size={22} />}
+                                <span className="text-base font-medium">{item.title}</span>
+                                <ChevronRight className="ml-auto transition-transform duration-300 group-data-[state=open]/collapsible:rotate-90 opacity-50" />
+                            </div>
+                            </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <SidebarMenuSub className="border-l-2 border-gray-200 dark:border-zinc-800 ml-6 pl-4 mt-2 space-y-1">
+                            {item.items.map((subItem) => {
+                                const isSubActive = location.pathname === subItem.url;
+                                return (
+                                <SidebarMenuSubItem key={subItem.title}>
+                                    <SidebarMenuSubButton 
+                                    asChild 
+                                    isActive={isSubActive}
+                                    onClick={() => {
+                                        navigate(subItem.url);
+                                        if (isMobile) setIsSidebarOpen(false); 
+                                    }}
+                                    className={`cursor-pointer py-4 rounded-full transition-all duration-300 ${
+                                        isSubActive 
+                                        ? 'text-[#1B6A31] dark:text-green-500 font-bold bg-white dark:bg-zinc-900 shadow-sm ring-1 ring-gray-200/50 dark:ring-zinc-800' 
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-[#4A9E46] dark:hover:text-green-400 hover:bg-white/40 dark:hover:bg-zinc-900/40'
+                                    }`}
+                                    >
+                                    <div className="px-2">
+                                        <span className="text-sm">{subItem.title}</span>
+                                    </div>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                );
+                            })}
+                            </SidebarMenuSub>
+                        </CollapsibleContent>
+                        </SidebarMenuItem>
+                    </Collapsible>
+                    );
+                })}
+                </SidebarMenu>
+            </SidebarGroup>
+          )}
 
         </SidebarContent>
 

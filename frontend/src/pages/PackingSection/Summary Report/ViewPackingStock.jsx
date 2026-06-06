@@ -55,12 +55,12 @@ const formatQty = (qty, unit) => {
     if (u === 'kg' || u === 'm') {
         return numQty.toFixed(2);
     }
-    return Math.round(numQty).toString(); // Return whole numbers for items/pcs
+    return Math.round(numQty).toString(); 
 };
 
 export default function ViewPackingStock() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-    const [activeTab, setActiveTab] = useState('tea'); // 'tea', 'flavor', 'packing'
+    const [activeTab, setActiveTab] = useState('tea'); 
     
     // --- TEA STOCK STATES ---
     const [rawStocks, setRawStocks] = useState([]);
@@ -91,7 +91,7 @@ export default function ViewPackingStock() {
             // --- 1. PROCESS TEA STOCK ---
             if (teaRes.ok) {
                 const teaData = await teaRes.json();
-                const stockData = Array.isArray(teaData) ? teaData : [];
+                const stockData = Array.isArray(teaData.data || teaData) ? (teaData.data || teaData) : [];
                 setRawStocks(stockData);
                 
                 const flatData = [];
@@ -100,7 +100,7 @@ export default function ViewPackingStock() {
                     
                     if (product.stockBySource && product.stockBySource.length > 0) {
                         product.stockBySource.forEach(src => {
-                            if (src.quantityKg > 0 || (src.quantityKg === 0 && product.stockBySource.length === 1)) {
+                            if (src.quantityKg > 0 || src.transInAmount > 0 || src.issueAmount > 0 || product.stockBySource.length === 1) {
                                 flatData.push({
                                     id: `${product._id}-${src.sourceName}`,
                                     productName: product.productName,
@@ -117,11 +117,11 @@ export default function ViewPackingStock() {
                         flatData.push({
                             id: product._id,
                             productName: product.productName,
-                            source: '-',
-                            transInAmount: 0,
-                            issueAmount: 0,
-                            currentStock: product.totalBulkStockKg || 0,
-                            totalOverallQtyKg: product.totalBulkStockKg || 0,
+                            source: product.source || 'Unknown',
+                            transInAmount: product.transInAmount || 0,
+                            issueAmount: product.issueAmount || 0,
+                            currentStock: product.bulkStockKg || product.totalBulkStockKg || 0,
+                            totalOverallQtyKg: product.totalBulkStockKg || product.bulkStockKg || 0,
                             updatedAtDate: updatedAtDate
                         });
                     }
@@ -155,12 +155,17 @@ export default function ViewPackingStock() {
         }
     };
 
-    // --- TEA FILTERING ---
+    // =========================================================================
+    // --- FILTERING LOGIC (UPDATED: HIDDEN 0 STOCKS) ---
+    // =========================================================================
+
+    // 1. Tea Tables
     const filteredTeaStocks = flattenedStocks.filter(stock => {
         const pName = stock.productName || '';
         const matchesSearch = !searchQuery || pName.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesSource = !sourceFilter || stock.source === sourceFilter;
-        return matchesSearch && matchesSource;
+        const hasStock = Number(stock.currentStock) > 0; // 0 ඒවා ඉවත් කිරීම
+        return matchesSearch && matchesSource && hasStock;
     });
 
     const filteredRawTeaStocks = rawStocks.filter(product => {
@@ -173,38 +178,50 @@ export default function ViewPackingStock() {
         return matchesSearch;
     });
 
-    // --- FLAVOR FILTERING ---
+    // 2. Flavor Table
     const filteredFlavorStocks = flavorStocks.filter(rm => {
         const rmName = rm.materialName || '';
-        return !searchQuery || rmName.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSearch = !searchQuery || rmName.toLowerCase().includes(searchQuery.toLowerCase());
+        const hasStock = Number(rm.totalQuantity) > 0; // 0 ඒවා ඉවත් කිරීම
+        return matchesSearch && hasStock;
     });
 
-    // --- PACKING FILTERING ---
+    // 3. Packing Table
     const filteredPackingStocks = packingStocks.filter(rm => {
         const rmName = rm.materialName || '';
-        return !searchQuery || rmName.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSearch = !searchQuery || rmName.toLowerCase().includes(searchQuery.toLowerCase());
+        const hasStock = Number(rm.totalQuantity) > 0; // 0 ඒවා ඉවත් කිරීම
+        return matchesSearch && hasStock;
     });
+
+    // 4. Summary Table (Right Side)
+    const summaryArray = [...filteredRawTeaStocks]
+        .filter(a => {
+            const qty = Number(a.totalBulkStockKg) || Number(a.bulkStockKg) || 0;
+            return qty > 0; // 0 ඒවා ඉවත් කිරීම
+        })
+        .sort((a, b) => {
+            const qtyA = Number(a.totalBulkStockKg) || Number(a.bulkStockKg) || 0;
+            const qtyB = Number(b.totalBulkStockKg) || Number(b.bulkStockKg) || 0;
+            return qtyB - qtyA;
+        });
+
+    // =========================================================================
 
     // --- NEW TOTALS CALCULATION ---
     const totalTransIn = filteredTeaStocks.reduce((sum, stock) => sum + (Number(stock.transInAmount) || 0), 0);
     const totalIssue = filteredTeaStocks.reduce((sum, stock) => sum + (Number(stock.issueAmount) || 0), 0);
     const totalCurrentStock = filteredTeaStocks.reduce((sum, stock) => sum + (Number(stock.currentStock) || 0), 0);
     
-    // Flavor Totals (assuming flavors are always in kg, but we'll use formatQty just in case)
+    // Flavor Totals
     const grandTotalFlavorTransIn = filteredFlavorStocks.reduce((sum, rm) => sum + (Number(rm.transInAmount) || 0), 0);
     const grandTotalFlavorIssue = filteredFlavorStocks.reduce((sum, rm) => sum + (Number(rm.issueAmount) || 0), 0);
     const grandTotalFlavorStock = filteredFlavorStocks.reduce((sum, rm) => sum + (Number(rm.totalQuantity) || 0), 0);
 
-    // Packing Totals (items/pcs)
+    // Packing Totals
     const grandTotalPackingTransIn = filteredPackingStocks.reduce((sum, rm) => sum + (Number(rm.transInAmount) || 0), 0);
     const grandTotalPackingIssue = filteredPackingStocks.reduce((sum, rm) => sum + (Number(rm.issueAmount) || 0), 0);
     const grandTotalPackingStock = filteredPackingStocks.reduce((sum, rm) => sum + (Number(rm.totalQuantity) || 0), 0);
-
-    const summaryArray = [...filteredRawTeaStocks].sort((a, b) => {
-        const qtyA = Number(a.totalBulkStockKg) || 0;
-        const qtyB = Number(b.totalBulkStockKg) || 0;
-        return qtyB - qtyA;
-    });
 
     const clearFilters = () => {
         setSearchQuery('');
@@ -477,13 +494,13 @@ export default function ViewPackingStock() {
                                                             </span>
                                                         </td>
                                                         <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 align-middle text-center bg-blue-50/10 dark:bg-blue-950/5">
-                                                            <span className="font-bold text-blue-700 dark:text-blue-500 text-base">{(Number(stock.transInAmount) || 0).toFixed(2)}</span>
+                                                            <span className="font-bold text-blue-700 dark:text-blue-500 text-base">{(Number(stock.transInAmount) || 0).toFixed(3)}</span>
                                                         </td>
                                                         <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 align-middle text-center bg-amber-50/10 dark:bg-amber-950/5">
-                                                            <span className="font-bold text-amber-700 dark:text-amber-500 text-base">{(Number(stock.issueAmount) || 0).toFixed(2)}</span>
+                                                            <span className="font-bold text-amber-700 dark:text-amber-500 text-base">{(Number(stock.issueAmount) || 0).toFixed(3)}</span>
                                                         </td>
                                                         <td className="px-6 py-4 text-center align-middle bg-teal-50/10 dark:bg-teal-950/10">
-                                                            <span className="font-black text-[#0f766e] dark:text-teal-400 text-lg">{(Number(stock.currentStock) || 0).toFixed(2)}</span>
+                                                            <span className="font-black text-[#0f766e] dark:text-teal-400 text-lg">{(Number(stock.currentStock) || 0).toFixed(3)}</span>
                                                         </td>
                                                     </tr>
                                                 );

@@ -13,10 +13,11 @@ import rawMaterialCostRoutes from './router/rawMaterialCostRoutes.js';
 import userRouter from './router/userRouter.js';
 import sellingDetailsRouter from './router/sellingDetailsRoutes.js';
 import productionSummaryRouter from './router/productionSummaryRoute.js';
+import loftLeafCountRoutes from './router/loftLeafCountRoutes.js';
 
 // Packing Section Routes
 import localSaleRouter from './Packing/Routes/localSaleRoutes.js';
-import teaCenterIssueRouter from './Packing/Routes/TeaCenterIssueRouter.js';
+import teaCenterIssueRouter from './Packing/Routes/teaCenterIssueRouter.js';
 
 import packingTransferRouter from './Packing/Routes/packingTransferRouter.js';
 import handmadeTransferRouter from './router/handmadeTransferRouter.js';
@@ -24,6 +25,7 @@ import teaReceivedRouter from './Packing/Routes/TeaReceivedRouter.js';
 import packingStockRouter from './Packing/Routes/packingStockRoutes.js';
 import teaTransactionOtherRouter from './Packing/Routes/teaTransactionOtherRouter.js';
 import rawMaterialInRouter from './Packing/Routes/rawMaterialInRouter.js';
+import restoreTeaStockRouter from './Packing/Routes/restoreTeaStockrouter.js';
 
 dotenv.config();
 const app = express();
@@ -56,6 +58,7 @@ app.use('/api/users', userRouter); // User management routes (Admins only)
 app.use('/api/selling-details', sellingDetailsRouter);
 app.use('/api/production-summary', productionSummaryRouter); // Add this line to include the production summary routes
 app.use('/api/handmade/transfers', handmadeTransferRouter);
+app.use('/api/loft-leaf', loftLeafCountRoutes);
 
 // Packing Section Routes
 
@@ -66,6 +69,7 @@ app.use('/api/tea-received', teaReceivedRouter);
 app.use('/api/packing-stock', packingStockRouter);
 app.use('/api/tea-receivedother', teaTransactionOtherRouter);
 app.use('/api/raw-materials-in', rawMaterialInRouter);
+app.use('/api/restore-tea-stock', restoreTeaStockRouter);
 
 
 app.listen(3000, () => {

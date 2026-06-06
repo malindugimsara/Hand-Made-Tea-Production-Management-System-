@@ -241,6 +241,40 @@ export default function ViewTeaGradesReceivedRecords() {
     };
 
     // --- PDF GENERATION LOGIC ---
+    // const getPdfData = () => {
+    //     const pdfSortedRecords = [...filteredRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
+    //     const tableRows = [];
+
+    //     pdfSortedRecords.forEach(record => {
+    //         const baseDate = new Date(record.date).toISOString().split('T')[0];
+    //         const pdfDateCell = record.isEdited ? `${baseDate}\n(Edited by ${record.editedBy} on ${record.lastUpdatedDate})` : baseDate;
+
+    //         record.itemsArray.forEach((item, index) => {
+    //             const isFirst = index === 0;
+
+    //             tableRows.push([
+    //                 isFirst ? pdfDateCell : "",
+    //                 isFirst ? record.transactionNo : "",
+    //                 { 
+    //                     content: item.grade, 
+    //                     styles: { ...getPdfTeaColor(item.grade), fontStyle: 'bold', halign: 'center' } 
+    //                 },
+    //                 `${Number(item.qtyKg).toFixed(4)} kg`,
+    //                 isFirst ? `${Number(record.totalQtyKg).toFixed(4)} kg` : ""
+    //             ]);
+    //         });
+    //     });
+
+    //     tableRows.push([
+    //         { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' }, colSpan: 3 },
+    //         "-",
+    //         { content: `${grandTotalQty.toFixed(4)} kg`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } } 
+    //     ]);
+
+    //     return tableRows;
+    // };
+    
+    // --- PDF GENERATION LOGIC ---
     const getPdfData = () => {
         const pdfSortedRecords = [...filteredRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
         const tableRows = [];
@@ -248,32 +282,56 @@ export default function ViewTeaGradesReceivedRecords() {
         pdfSortedRecords.forEach(record => {
             const baseDate = new Date(record.date).toISOString().split('T')[0];
             const pdfDateCell = record.isEdited ? `${baseDate}\n(Edited by ${record.editedBy} on ${record.lastUpdatedDate})` : baseDate;
+            
+            // මේ record එකේ items කීයක් තියෙනවද කියලා ගණන් කිරීම (RowSpan එක සඳහා)
+            const itemsCount = record.itemsArray.length;
 
             record.itemsArray.forEach((item, index) => {
                 const isFirst = index === 0;
 
-                tableRows.push([
-                    isFirst ? pdfDateCell : "",
-                    isFirst ? record.transactionNo : "",
-                    { 
-                        content: item.grade, 
-                        styles: { ...getPdfTeaColor(item.grade), fontStyle: 'bold', halign: 'center' } 
-                    },
-                    `${Number(item.qtyKg).toFixed(2)} kg`,
-                    isFirst ? `${Number(record.totalQtyKg).toFixed(2)} kg` : ""
-                ]);
+                // දශම 3කට රවුම් කර අගට ඇති අනවශ්‍ය බිංදු කැපීම
+                const qtyStr = parseFloat(Number(item.qtyKg).toFixed(3)).toString();
+                const totalQtyStr = parseFloat(Number(record.totalQtyKg).toFixed(3)).toString();
+
+                const gradeCell = { 
+                    content: item.grade, 
+                    styles: { ...getPdfTeaColor(item.grade), fontStyle: 'bold', halign: 'center', valign: 'top' } 
+                };
+
+                const qtyCell = { 
+                    content: `${qtyStr} kg`, 
+                    styles: { halign: 'right', valign: 'top' } 
+                };
+
+                if (isFirst) {
+                    // valign: 'top' යෙදීමෙන් අකුරු කොටුවේ ඉහළින්ම පිහිටයි
+                    tableRows.push([
+                        { content: pdfDateCell, rowSpan: itemsCount, styles: { valign: 'top', halign: 'center' } },
+                        { content: record.transactionNo || "-", rowSpan: itemsCount, styles: { valign: 'top', halign: 'center' } },
+                        gradeCell,
+                        qtyCell,
+                        { content: `${totalQtyStr} kg`, rowSpan: itemsCount, styles: { valign: 'top', halign: 'right', fontStyle: 'bold', textColor: [15, 118, 110] } }
+                    ]);
+                } else {
+                    tableRows.push([
+                        gradeCell,
+                        qtyCell
+                    ]);
+                }
             });
         });
 
+        // Grand Total Row
+        const grandTotalStr = parseFloat(Number(grandTotalQty).toFixed(3)).toString();
+
         tableRows.push([
             { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' }, colSpan: 3 },
-            "-",
-            { content: `${grandTotalQty.toFixed(2)} kg`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } } 
+            { content: "-", styles: { halign: 'center', fontStyle: 'bold' } },
+            { content: `${grandTotalStr} kg`, styles: { fontStyle: 'bold', textColor: [15, 118, 110], halign: 'right' } } 
         ]);
 
         return tableRows;
     };
-
     const uniqueCode = `TR/REC/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
 
     return (
@@ -281,7 +339,7 @@ export default function ViewTeaGradesReceivedRecords() {
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="w-full sm:w-auto">
                     <h2 className="text-2xl font-bold text-[#0f766e] dark:text-teal-400 flex items-center gap-2">
-                        <FileText size={24} /> Received Tea Records
+                        <FileText size={24} /> Received Tea Records From The Main Factory    
                     </h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Overview of tea grades received from main factory</p>
                 </div>
@@ -419,14 +477,13 @@ export default function ViewTeaGradesReceivedRecords() {
                                                     <div className="flex flex-col w-full h-full">
                                                         {record.itemsArray.map((t, i) => (
                                                             <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-800 dark:text-gray-200 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                                <span className="text-gray-600 dark:text-green-500">{Number(t.qtyKg).toFixed(2)}</span>
-                                                            </div>
+                                                                <span className="text-gray-600 dark:text-green-500">{Number(Number(t.qtyKg).toFixed(4))}</span>                                                            </div>
                                                         ))}
                                                     </div>
                                                 </td>
 
                                                 <td className="px-3 py-4 text-center border-r border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 align-top">
-                                                    <span className="font-bold text-green-700 dark:text-green-400 text-lg">{Number(record.totalQtyKg).toFixed(2)}</span>
+                                                    <span className="font-bold text-green-700 dark:text-green-400 text-lg">{Number(Number(record.totalQtyKg).toFixed(4))}</span>
                                                 </td>
                                                 
                                                 {!isViewer && (

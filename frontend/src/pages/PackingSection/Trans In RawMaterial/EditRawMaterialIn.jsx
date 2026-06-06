@@ -61,7 +61,7 @@ export default function EditRawMaterialIn() {
             remarks: recordData.remarks || ''
         });
 
-        // Determine Entry Type based on the first item in the record
+        
         let initialType = 'other';
         if (recordData.itemsArray && recordData.itemsArray.length > 0) {
             const firstItem = recordData.itemsArray[0];
@@ -154,7 +154,10 @@ export default function EditRawMaterialIn() {
 
         try {
             const token = localStorage.getItem('token');
-            const editorName = localStorage.getItem('userName') || 'Unknown'; 
+            const editorName = localStorage.getItem('userName') || 
+                                localStorage.getItem('username') || 
+                                localStorage.getItem('user_name') || 
+                                'Unknown'; 
 
             const payload = {
                 date: formData.date,
