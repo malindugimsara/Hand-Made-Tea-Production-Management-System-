@@ -151,10 +151,12 @@ export default function TeaGradesReceivedOutEntry() {
         const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
 
         try {
+            const token = localStorage.getItem('token');
             const promises = pendingRecords.map(record => {
+                // අලුත් Backend Model එකට (TeaTransactionOther) ගැලපෙන Payload එක
                 const payload = {
                     date: record.date,
-                    transactionNo: `REC/${record.transactionNo}`,
+                    transactionNo: `REC/${record.transactionNo}`, // HO/TO වෙනුවට වෙනත් එකක් අවශ්‍ය නම් වෙනස් කරන්න
                     partyName: record.partyName || "N/A",
                     totalQtyKg: record.totalQtyKg,
                     items: record.items.map(item => ({
@@ -163,23 +165,34 @@ export default function TeaGradesReceivedOutEntry() {
                     }))
                 };
 
-                // api.post භාවිතය
-                return api.post('/api/tea-receivedother/create', payload);
+                return fetch(`${BACKEND_URL}/api/tea-receivedother/create`, { 
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                }).then(async (res) => {
+                    if (!res.ok) {
+                        if (res.status === 403) throw new Error('Access Denied');
+                        throw new Error('Failed');
+                    }
+                    return res.json();
+                });
             });
 
             await Promise.all(promises);
 
-            toast.success("All records saved successfully!", { id: toastId });
+            toast.success("All received records saved successfully!", { id: toastId });
             setPendingRecords([]);
 
             // setTimeout(() => {
-            //     navigate('/packing/view-other-received'); 
+            //     navigate('/packing/view-other-received'); // Change route as needed
             // }, 1000);
 
         } catch (error) {
             console.error(error);
-            // Axios error handling
-            if (error.response?.status === 403) {
+            if (error.message === 'Access Denied') {
                 toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
             } else {
                 toast.error("Error saving some records. Please check.", { id: toastId });

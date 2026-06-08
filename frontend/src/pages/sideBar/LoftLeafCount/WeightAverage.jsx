@@ -4,7 +4,6 @@ import { RefreshCw, Calendar, Table as TableIcon, LayoutList, LayoutGrid, FileSp
 import * as XLSX from "xlsx-js-style";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import api from '../../../api/axiosConfig'; 
 
 export default function WeightAverage() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -40,16 +39,18 @@ export default function WeightAverage() {
   const fetchRecords = async () => {
     setLoading(true);
     try {
-      // api.get භාවිතය - token සහ base URL එක axiosConfig මගින් ස්වයංක්‍රීයව සකසයි
-      const response = await api.get(`/api/loft-leaf?month=${selectedMonth}`);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${BACKEND_URL}/api/loft-leaf?month=${selectedMonth}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      // දත්ත state එකට set කිරීම
-      setRecords(response.data);
+      if (!response.ok) throw new Error("Failed to fetch records.");
+
+      const data = await response.json();
+      setRecords(data);
     } catch (error) {
       console.error("Fetch error:", error);
-      // Backend එකෙන් එන දෝෂ පණිවිඩය ඇත්නම් එය පෙන්වන්න
-      const errorMsg = error.response?.data?.message || "Could not load records.";
-      toast.error(errorMsg);
+      toast.error("Could not load records.");
     } finally {
       setLoading(false);
     }

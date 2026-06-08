@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
 import { PlusCircle, Save, FileText, Calendar, Weight, Tag, X, ArrowLeft, Package, Building } from "lucide-react"; 
 import { useNavigate, useLocation } from 'react-router-dom';
-import api from '../../../api/axiosConfig'; 
 
 // Colors matched to the Entry page
 const getTeaColor = (grade) => {
@@ -154,9 +153,10 @@ export default function EditTeaReceivedOutRecord() {
 
         const currentUsername = localStorage.getItem('username') || 'Unknown';
 
+        // Match the payload to the TeaTransactionOther schema
         const payload = {
             date: formData.date,
-            transactionNo: `REC/${formData.transactionNo}`,
+            transactionNo: `REC/${formData.transactionNo}`, // Using REC/ as per the entry page
             partyName: formData.partyName || "N/A",
             totalQtyKg: totalQtyKg,
             items: itemsList.map(item => ({
@@ -168,16 +168,27 @@ export default function EditTeaReceivedOutRecord() {
         };
 
         try {
-            // api.put භාවිතය
-            await api.put(`/api/tea-receivedother/update/${recordData._id}`, payload);
+            const token = localStorage.getItem('token');
+            // Make sure the URL points to your 'other' received endpoint
+            const response = await fetch(`${BACKEND_URL}/api/tea-receivedother/update/${recordData._id}`, {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
 
-            toast.success("Record updated successfully!", { id: toastId });
-            setTimeout(() => navigate(-1), 100);
-            
+            if (response.ok) {
+                toast.success("Record updated successfully!", { id: toastId });
+                setTimeout(() => navigate(-1), 100);
+            } else {
+                if (response.status === 403) throw new Error('Access Denied');
+                throw new Error('Failed to update record');
+            }
         } catch (error) {
             console.error(error);
-            // Axios error handling
-            if (error.response?.status === 403) {
+            if (error.message === 'Access Denied') {
                 toast.error("Access Denied. You do not have permission to edit records.", { id: toastId });
             } else {
                 toast.error("Error updating record. Please try again.", { id: toastId });

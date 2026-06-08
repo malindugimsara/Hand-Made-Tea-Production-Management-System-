@@ -4,7 +4,6 @@ import { RefreshCw, Calendar, Table as TableIcon, LayoutList, LayoutGrid, FileSp
 import * as XLSX from "xlsx-js-style";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import api from '../../../api/axiosConfig'; 
 
 export default function SimpleAverage() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -40,16 +39,18 @@ export default function SimpleAverage() {
   const fetchRecords = async () => {
     setLoading(true);
     try {
-      // api.get භාවිතය - මෙහිදී Token එක ස්වයංක්‍රීයවම යැවේ
-      const response = await api.get(`/api/loft-leaf?month=${selectedMonth}`);
-      
-      // Axios වලදී දත්ත ලැබෙන්නේ response.data හරහාය
-      setRecords(response.data);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${BACKEND_URL}/api/loft-leaf?month=${selectedMonth}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch records.");
+
+      const data = await response.json();
+      setRecords(data);
     } catch (error) {
       console.error("Fetch error:", error);
-      // දෝෂයක් ආවොත් පෙන්වන්න
-      const errorMsg = error.response?.data?.message || "Could not load records.";
-      toast.error(errorMsg);
+      toast.error("Could not load records.");
     } finally {
       setLoading(false);
     }

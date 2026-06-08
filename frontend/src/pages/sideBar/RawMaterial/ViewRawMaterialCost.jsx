@@ -3,7 +3,6 @@ import toast, { Toaster } from 'react-hot-toast';
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
 import { Calendar, Trash2, Search, Leaf, Edit, AlertCircle, FilterX, Zap, DollarSign, RefreshCw } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
-import api from '../../../api/axiosConfig';
 
 import {
     AlertDialog,
@@ -51,40 +50,48 @@ export default function ViewRawMaterialCost() {
     const fetchRecords = async () => {
         setLoading(true);
         try {
-            // api.get භාවිතය (Token සහ Headers අවශ්‍ය නැත)
-            const res = await api.get('/api/raw-material-cost');
-            const data = res.data; // Axios මගින් ඉබේම JSON බවට පත්කර ඇත
-            
-            // --- Process Data to check for edits ---
-            const processedData = data.map(rec => {
-                const createdTime = rec.createdAt ? new Date(rec.createdAt).getTime() : 0;
-                const updatedTime = rec.updatedAt ? new Date(rec.updatedAt).getTime() : 0;
-                
-                // If updated timestamp is > 5 seconds after creation timestamp, it counts as edited
-                const isEdited = createdTime > 0 && updatedTime > 0 && (updatedTime - createdTime) > 5000;
-                const lastUpdatedDate = isEdited ? new Date(rec.updatedAt).toISOString().split('T')[0] : '';
-                
-                // Extract exact editor username
-                const editedBy = rec.updatedBy || rec.username || 'Admin';
-
-                return {
-                    ...rec,
-                    isEdited,
-                    lastUpdatedDate,
-                    editedBy
-                };
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${BACKEND_URL}/api/raw-material-cost`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
             });
 
-            const sortedData = processedData.sort((a, b) => new Date(b.date) - new Date(a.date));
-            setRecords(sortedData);
+            if (res.ok) {
+                const data = await res.json();
+                
+                // --- Process Data to check for edits ---
+                const processedData = data.map(rec => {
+                    const createdTime = rec.createdAt ? new Date(rec.createdAt).getTime() : 0;
+                    const updatedTime = rec.updatedAt ? new Date(rec.updatedAt).getTime() : 0;
+                    
+                    // If updated timestamp is > 5 seconds after creation timestamp, it counts as edited
+                    const isEdited = createdTime > 0 && updatedTime > 0 && (updatedTime - createdTime) > 5000;
+                    const lastUpdatedDate = isEdited ? new Date(rec.updatedAt).toISOString().split('T')[0] : '';
+                    
+                    // Extract exact editor username
+                    const editedBy = rec.updatedBy || rec.username || 'Admin';
 
-        } catch (error) {
-            // Axios වලදී Error Message එක අල්ලගන්නා ආකාරය
-            if (error.response?.status === 401) {
-                toast.error("Unauthorized. Please log in.");
+                    return {
+                        ...rec,
+                        isEdited,
+                        lastUpdatedDate,
+                        editedBy
+                    };
+                });
+
+                const sortedData = processedData.sort((a, b) => new Date(b.date) - new Date(a.date));
+                setRecords(sortedData);
             } else {
-                toast.error("Failed to fetch records");
+                if (res.status === 401) {
+                    toast.error("Unauthorized. Please log in.");
+                } else {
+                    throw new Error('Failed to fetch');
+                }
             }
+        } catch (error) {
+            toast.error("Failed to fetch records");
         } finally {
             setLoading(false);
         }
@@ -99,19 +106,26 @@ export default function ViewRawMaterialCost() {
 
         const toastId = toast.loading('Deleting...');
         try {
-            // api.delete භාවිතය
-            await api.delete(`/api/raw-material-cost/${recordToDelete._id}`);
-            
-            toast.success("Deleted successfully!", { id: toastId });
-            fetchRecords(); // Refresh Table
-            
-        } catch (error) {
-            // Axios මගින් එන 403 Access Denied Error එක අල්ලගැනීම
-            if (error.response?.status === 403) {
-                toast.error("Access Denied. Only Admins can delete.", { id: toastId });
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${BACKEND_URL}/api/raw-material-cost/${recordToDelete._id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (res.ok) {
+                toast.success("Deleted successfully!", { id: toastId });
+                fetchRecords(); // Refresh Table
             } else {
-                toast.error("Error deleting record", { id: toastId });
+                if(res.status === 403) {
+                    toast.error("Access Denied. Only Admins can delete.", { id: toastId });
+                } else {
+                    throw new Error('Failed to delete');
+                }
             }
+        } catch (error) {
+            toast.error("Error deleting record", { id: toastId });
         } finally {
             setRecordToDelete(null); 
         }

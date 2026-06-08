@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { useNavigate } from 'react-router-dom';
-import api from '../../../api/axiosConfig';
 
 // Comprehensive Color Mapping for EVERY Tea Center Product
 const getTeaColor = (product) => {
@@ -143,11 +142,18 @@ export default function ViewTeaCenterRecords() {
     const fetchRecords = async () => {
         setLoading(true); 
         try {
-            // api.get භාවිතය (Token/Headers අවශ්‍ය නැත)
-            const response = await api.get('/api/tea-center-issues');
-            const data = response.data;
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BACKEND_URL}/api/tea-center-issues`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                if(response.status === 401) throw new Error("Unauthorized. Please log in.");
+                throw new Error("Failed to fetch data");
+            }
+
+            const data = await response.json();
             
-            // Process data for easy searching and PDF rendering
             const processedData = data.map(rec => {
                 const createdTime = rec.createdAt ? new Date(rec.createdAt).getTime() : 0;
                 const updatedTime = rec.updatedAt ? new Date(rec.updatedAt).getTime() : 0;
@@ -155,14 +161,11 @@ export default function ViewTeaCenterRecords() {
                 const lastUpdatedDate = isEdited ? new Date(rec.updatedAt).toISOString().split('T')[0] : '';
                 
                 const itemsArray = rec.issueItems || [];
+
                 const searchString = itemsArray.map(item => item.product).join(' ');
                 
                 return {
-                    ...rec, 
-                    itemsArray, 
-                    searchString, 
-                    isEdited, 
-                    lastUpdatedDate,
+                    ...rec, itemsArray, searchString, isEdited, lastUpdatedDate,
                     editedBy: rec.updatedBy || rec.editorName || 'Unknown User' 
                 };
             });
@@ -176,7 +179,7 @@ export default function ViewTeaCenterRecords() {
             setRecords(sortedData);
         } catch (error) {
             console.error("Fetch Error:", error);
-            toast.error("Could not load transfer history.");
+            toast.error(error.message || "Could not load data from server.");
         } finally {
             setLoading(false);
         }
@@ -226,20 +229,21 @@ export default function ViewTeaCenterRecords() {
         if (!recordToDelete) return;
         const toastId = toast.loading('Deleting record...');
         try {
-            // api.delete භාවිතය
-            await api.delete(`/api/tea-center-issues/${recordToDelete._id}`);
-            
-            toast.success("Record deleted successfully!", { id: toastId });
-            fetchRecords(); 
-        } catch (error) {
-            // Axios Error Handling
-            if (error.response?.status === 403) {
-                toast.error("Access Denied. You do not have permission.", { id: toastId });
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BACKEND_URL}/api/tea-center-issues/${recordToDelete._id}`, { 
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                toast.success("Record deleted successfully!", { id: toastId });
+                fetchRecords(); 
             } else {
                 toast.error("Failed to delete record.", { id: toastId });
             }
+        } catch (error) {
+            toast.error("Network error while deleting.", { id: toastId });
         } finally {
-            setUserToDelete(null);
+            setRecordToDelete(null);
         }
     };
 

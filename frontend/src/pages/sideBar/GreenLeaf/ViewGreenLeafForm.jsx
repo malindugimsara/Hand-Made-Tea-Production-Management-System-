@@ -2,8 +2,19 @@ import React, { useState, useEffect, useRef } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import {
+  PlusCircle,
+  Trash2,
+  ListChecks,
+  Save,
+  X,
+  CalendarClock,
   Zap,
   AlertCircle,
+  Search,
+  Sun,
+  Moon,
+  ChevronRight,
+  MoreVertical,
   Leaf,
   Factory,
   Users,
@@ -23,7 +34,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import api from '../../../api/axiosConfig';
 
 export default function GreenLeafForm() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -93,16 +103,25 @@ export default function GreenLeafForm() {
   const fetchMergedRecords = async () => {
     setLoading(true);
     try {
-      // Axios භාවිතයෙන් Data ලබා ගැනීම (Headers අවශ්‍ය නැත, api instance එක ඒවා හසුරුවයි)
+      const token = localStorage.getItem("token");
+      const authHeaders = {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      };
+
       const [greenLeafRes, productionRes, labourRes] = await Promise.all([
-        api.get('/api/green-leaf'),
-        api.get('/api/production'),
-        api.get('/api/labour'),
+        fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
+        fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
+        fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders }),
       ]);
 
-      const greenLeafData = greenLeafRes.data;
-      const productionData = productionRes.data;
-      const labourData = labourRes.data;
+      if (!greenLeafRes.ok || !productionRes.ok || !labourRes.ok) {
+        throw new Error("Failed to fetch data. Check your login token.");
+      }
+
+      const greenLeafData = await greenLeafRes.json();
+      const productionData = await productionRes.json();
+      const labourData = await labourRes.json();
 
       const uniqueDates = Array.from(
         new Set([
@@ -372,15 +391,31 @@ export default function GreenLeafForm() {
     const { greenLeafId, productionId, labourId } = recordToDelete;
     const toastId = toast.loading("Deleting record...");
     try {
+      const token = localStorage.getItem("token");
+      const authHeaders = { Authorization: `Bearer ${token}` };
+
       const promises = [];
-      
-      // api.delete භාවිතය (BACKEND_URL සහ Headers අවශ්‍ය නොවේ)
       if (greenLeafId)
-        promises.push(api.delete(`/api/green-leaf/${greenLeafId}`));
+        promises.push(
+          fetch(`${BACKEND_URL}/api/green-leaf/${greenLeafId}`, {
+            method: "DELETE",
+            headers: authHeaders,
+          }),
+        );
       if (productionId)
-        promises.push(api.delete(`/api/production/${productionId}`));
+        promises.push(
+          fetch(`${BACKEND_URL}/api/production/${productionId}`, {
+            method: "DELETE",
+            headers: authHeaders,
+          }),
+        );
       if (labourId)
-        promises.push(api.delete(`/api/labour/${labourId}`));
+        promises.push(
+          fetch(`${BACKEND_URL}/api/labour/${labourId}`, {
+            method: "DELETE",
+            headers: authHeaders,
+          }),
+        );
 
       await Promise.all(promises);
       toast.success("Record deleted successfully!", { id: toastId });

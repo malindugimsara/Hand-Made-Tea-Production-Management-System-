@@ -7,13 +7,10 @@ import { HandmadeRoutes } from './pages/HandmadeRoutes';
 import { PackingRoutes } from './pages/PackingRoutes';
 
 
+// 🔐 Protected Route
 const ProtectedRoute = () => {
-  // දැන් අපි බලන්නේ token එක නෙමෙයි, userRole එක localStorage එකේ තියෙනවාද කියලයි
-  const userRole = localStorage.getItem('userRole');
-  
-  // userRole එකක් තියෙනවා නම් ඇතුළට යන්න දෙනවා, නැත්නම් login පිටුවට හරවලා යවනවා
-  return userRole ? <Outlet /> : <Navigate to="/" replace />; 
-  // සටහන: ඔබගේ login පිටුව තියෙන්නේ '/' වල නම් to="/" ලෙස දෙන්න. එය '/login' නම් to="/login" ලෙස දෙන්න.
+  const token = localStorage.getItem('token');
+  return token ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 export default function App() {

@@ -18,7 +18,6 @@ import { useNavigate } from "react-router-dom";
 // JS PDF Imports
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import api from '../../../api/axiosConfig'; 
 
 export default function ViewLoftLeafCount() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -50,14 +49,19 @@ export default function ViewLoftLeafCount() {
   const fetchRecords = async () => {
     setLoading(true);
     try {
-      // url එක හැදීම (Query Params)
-      const url = filterMonth ? `/api/loft-leaf?month=${filterMonth}` : `/api/loft-leaf`;
+      const token = localStorage.getItem("token");
+      const url = filterMonth
+        ? `${BACKEND_URL}/api/loft-leaf?month=${filterMonth}`
+        : `${BACKEND_URL}/api/loft-leaf`;
 
-      // api.get භාවිතය 
-      const response = await api.get(url);
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      // Axios වලදී දත්ත ලැබෙන්නේ response.data හරහාය
-      setRecords(response.data);
+      if (!response.ok) throw new Error("Failed to fetch records.");
+
+      const data = await response.json();
+      setRecords(data);
     } catch (error) {
       console.error("Fetch error:", error);
       toast.error("Could not load records.");
@@ -67,15 +71,18 @@ export default function ViewLoftLeafCount() {
   };
 
   // --- DELETE LOGIC ---
-  // --- DELETE LOGIC ---
   const handleDelete = async () => {
     if (!recordToDelete || recordToDelete.length === 0) return;
     const toastId = toast.loading("Deleting records for the selected date...");
 
     try {
-      // api.delete භාවිතය - Promises array එකක් සෑදීම
+      const token = localStorage.getItem("token");
+      
       const deletePromises = recordToDelete.map(record => 
-        api.delete(`/api/loft-leaf/${record._id}`)
+        fetch(`${BACKEND_URL}/api/loft-leaf/${record._id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        })
       );
 
       await Promise.all(deletePromises);
@@ -83,10 +90,7 @@ export default function ViewLoftLeafCount() {
       toast.success("Records deleted successfully.", { id: toastId });
       fetchRecords();
     } catch (error) {
-      console.error("Delete error:", error);
-      // Backend එකෙන් එවපු Error පණිවිඩයක් ඇත්නම් එය පෙන්වීමට:
-      const errorMsg = error.response?.data?.message || "Failed to delete records.";
-      toast.error(errorMsg, { id: toastId });
+      toast.error("Failed to delete records.", { id: toastId });
     } finally {
       setRecordToDelete(null);
     }

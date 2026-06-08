@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast'; 
 import { useNavigate } from 'react-router-dom';
 import { UserPlus, Shield, User, Key, ArrowLeft } from "lucide-react";
-import api from '../../api/axiosConfig';
 
 export default function CreateUserForm() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -41,32 +40,55 @@ export default function CreateUserForm() {
         const toastId = toast.loading('Creating new user...');
 
         try {
-            // api.post භාවිතය (Token/Headers අතින් සකසන්න ඕනේ නෑ)
-            const response = await api.post('/api/users/register', formData);
-
-            // සාර්ථක නම්
-            toast.success(`User ${formData.username} created successfully!`, { id: toastId });
-            setFormData({ username: '', password: '', role: 'Viewer' });
+            // 1. Get the Admin's token
+            const token = localStorage.getItem('token');
             
-            setTimeout(() => {
-                navigate('/manage-users');
-            }, 1500);
+            // 2. Make the POST request to your backend
+            const response = await fetch(`${BACKEND_URL}/api/users/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // The magic key!
+                },
+                body: JSON.stringify(formData)
+            });
 
-        } catch (error) {
-            // Axios Error Handling
-            console.error("User Creation Error:", error);
-            
-            if (error.response?.status === 403) {
-                toast.error("Access Denied. Only Admins can create users.", { id: toastId });
-            } else {
-                // Backend එකෙන් එන Error message එක පෙන්වීම
-                const errorMsg = error.response?.data?.message || error.response?.data?.error || "Failed to create user.";
-                toast.error(errorMsg, { id: toastId });
+            // පෙළක් ලෙස ගෙන පසුව JSON වලට හැරවීම (Error handling වඩාත් නිවැරදි කිරීමට)
+            const textResponse = await response.text();
+            let data = {};
+            try {
+                data = textResponse ? JSON.parse(textResponse) : {};
+            } catch (parseError) {
+                console.warn("Non-JSON response received from server");
             }
+
+            if (response.ok) {
+                toast.success(`User ${formData.username} created successfully!`, { id: toastId });
+                // Reset form so the admin can add another user if needed
+                setFormData({ username: '', password: '', role: 'Viewer' });
+                
+                // Optional: Redirect back to the manage users page after a short delay
+                setTimeout(() => {
+                    navigate('/manage-users');
+                }, 1500);
+            } else {
+                // Handle 403 Forbidden or 400 Bad Request (e.g., username already exists)
+                if (response.status === 403) {
+                    toast.error("Access Denied. Only Admins can create users.", { id: toastId });
+                } else {
+                    // Backend එකෙන් 'message' හෝ 'error' ලෙස එවන පණිවිඩය ලබාගැනීම
+                    const errorMsg = data.message || data.error || "Failed to create user.";
+                    toast.error(errorMsg, { id: toastId });
+                }
+            }
+        } catch (error) {
+            console.error("User Creation Error:", error);
+            toast.error("Network error. Could not connect to server.", { id: toastId });
         } finally {
             setLoading(false);
         }
     };
+
     return (
         <div className="p-4 sm:p-8 max-w-2xl mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
             

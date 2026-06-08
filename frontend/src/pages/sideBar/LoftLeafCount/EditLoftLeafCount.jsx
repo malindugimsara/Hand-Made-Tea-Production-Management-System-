@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Leaf, Save, Tag, PlusCircle, X, User, Weight, Factory, Users, Trash2 } from "lucide-react"; 
 import { useLocation, useNavigate } from 'react-router-dom';
-import api from '../../../api/axiosConfig'; 
 
 export default function EditLoftLeafCount() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -85,7 +84,6 @@ export default function EditLoftLeafCount() {
     };
 
     // --- SUBMIT LOGIC ---
-    // --- SUBMIT LOGIC ---
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -111,13 +109,18 @@ export default function EditLoftLeafCount() {
         const toastId = toast.loading('Updating records...');
 
         try {
+            const token = localStorage.getItem('token');
             const currentUsername = localStorage.getItem('username') || 'Unknown User';
             const promises = [];
 
             // 1. DELETE
             deletedIds.forEach(id => {
-                // api.delete භාවිතය
-                promises.push(api.delete(`/api/loft-leaf/${id}`));
+                promises.push(
+                    fetch(`${BACKEND_URL}/api/loft-leaf/${id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                );
             });
 
             // 2. UPDATE / CREATE
@@ -139,11 +142,21 @@ export default function EditLoftLeafCount() {
                 };
 
                 if (record._id) {
-                    // api.put භාවිතය
-                    promises.push(api.put(`/api/loft-leaf/${record._id}`, payload));
+                    promises.push(
+                        fetch(`${BACKEND_URL}/api/loft-leaf/${record._id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                            body: JSON.stringify(payload)
+                        }).then(res => { if (!res.ok) throw new Error("Update Failed"); })
+                    );
                 } else {
-                    // api.post භාවිතය
-                    promises.push(api.post(`/api/loft-leaf`, payload));
+                    promises.push(
+                        fetch(`${BACKEND_URL}/api/loft-leaf`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                            body: JSON.stringify(payload)
+                        }).then(res => { if (!res.ok) throw new Error("Create Failed"); })
+                    );
                 }
             });
 
@@ -156,12 +169,7 @@ export default function EditLoftLeafCount() {
 
         } catch (error) {
             console.error(error);
-            // Axios error handling
-            if (error.response?.status === 403) {
-                toast.error("Access Denied. You do not have permission to edit records.", { id: toastId });
-            } else {
-                toast.error("Error updating records. Please try again.", { id: toastId });
-            }
+            toast.error("Error updating records. Please try again.", { id: toastId });
         } finally {
             setShowSpinner(false);
         }

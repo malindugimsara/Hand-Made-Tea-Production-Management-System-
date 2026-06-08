@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
 import { PlusCircle, Save, ShoppingCart, Calendar, Weight, Tag, X, ArrowLeft, Package, Box, AlertTriangle, ArrowRight, Droplet, Layers, Trash2 } from "lucide-react"; 
 import { useNavigate, useLocation } from 'react-router-dom';
-import api from '../../../api/axiosConfig'; 
 
 // --- LOGIC: BASE TEA MAPPING ---
 export const getBaseTeaGrade = (productName) => {
@@ -168,53 +167,51 @@ export default function EditTeaCenterRecord() {
     useEffect(() => {
         const fetchStocks = async () => {
             try {
-                // api.get භාවිතය (Token/Headers අවශ්‍ය නැත)
+                const token = localStorage.getItem('token');
+                
                 const [teaRes, rmRes] = await Promise.all([
-                    api.get('/api/packing-stock').catch(() => ({ data: [] })),
-                    api.get('/api/raw-materials-in/stock').catch(() => ({ data: [] }))
+                    fetch(`${BACKEND_URL}/api/packing-stock`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch(`${BACKEND_URL}/api/raw-materials-in/stock`, { headers: { 'Authorization': `Bearer ${token}` } }).catch(() => ({ ok: false }))
                 ]);
 
-                // Fetch Tea Stock
-                const data = teaRes.data;
-                const aggregatedData = Object.values(data.reduce((acc, curr) => {
-                    if (curr.productName.toLowerCase().includes('dust')) return acc; 
-                    if (!acc[curr.productName]) {
-                        acc[curr.productName] = { productName: curr.productName, bulkStockKg: 0 };
-                    }
-                    if (curr.stockBySource && curr.stockBySource.length > 0) {
-                        const sourceTotal = curr.stockBySource.reduce((sum, src) => sum + (src.quantityKg || 0), 0);
-                        acc[curr.productName].bulkStockKg += sourceTotal;
-                    } else {
-                        acc[curr.productName].bulkStockKg += (curr.bulkStockKg || 0);
-                    }
-                    return acc;
-                }, {}));
-                setAvailableTeaStock(aggregatedData);
+                if (teaRes.ok) {
+                    const data = await teaRes.json();
+                    const aggregatedData = Object.values(data.reduce((acc, curr) => {
+                        if (curr.productName.toLowerCase().includes('dust')) return acc; 
+                        if (!acc[curr.productName]) acc[curr.productName] = { productName: curr.productName, bulkStockKg: 0 };
+                        if (curr.stockBySource && curr.stockBySource.length > 0) {
+                            const sourceTotal = curr.stockBySource.reduce((sum, src) => sum + (src.quantityKg || 0), 0);
+                            acc[curr.productName].bulkStockKg += sourceTotal;
+                        } else {
+                            acc[curr.productName].bulkStockKg += (curr.bulkStockKg || 0);
+                        }
+                        return acc;
+                    }, {}));
+                    setAvailableTeaStock(aggregatedData);
+                }
 
-                // Fetch Packing Material Stock
-                const rmData = rmRes.data;
-                const allRawMaterials = Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : [];
-                
-                const flavorsOnly = allRawMaterials.filter(rm => {
-                    const matNameStr = (rm.materialName || '').toLowerCase();
-                    if (matNameStr.includes('sticker')) return false;
-                    return rm.category === 'flavor' || FLAVOR_NAMES.some(flavor => matNameStr.includes(flavor.toLowerCase()));
-                });
-                
-                const packingOnly = allRawMaterials.filter(rm => {
-                    const matNameStr = (rm.materialName || '').toLowerCase();
-                    if (matNameStr.includes('sticker')) return true;
-                    return rm.category !== 'flavor' && !FLAVOR_NAMES.some(flavor => matNameStr.includes(flavor.toLowerCase()));
-                });
-                
-                setAvailableRawStock(flavorsOnly);
-                setAvailablePackingStock(packingOnly);
+                if (rmRes.ok) {
+                    const rmData = await rmRes.json();
+                    const allRawMaterials = Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : [];
+                    
+                    const flavorsOnly = allRawMaterials.filter(rm => 
+                        rm.category === 'flavor' || 
+                        FLAVOR_NAMES.some(flavor => (rm.materialName || '').toLowerCase().includes(flavor.toLowerCase()))
+                    );
+                    const packingOnly = allRawMaterials.filter(rm => 
+                        rm.category !== 'flavor' && 
+                        !FLAVOR_NAMES.some(flavor => (rm.materialName || '').toLowerCase().includes(flavor.toLowerCase()))
+                    );
+                    
+                    setAvailableRawStock(flavorsOnly);
+                    setAvailablePackingStock(packingOnly);
+                }
             } catch (error) {
                 console.error("Error fetching stocks:", error);
             }
         };
         fetchStocks();
-    }, []);
+    }, [BACKEND_URL]);
 
     // Initial Data Population
     useEffect(() => {
@@ -346,7 +343,69 @@ export default function EditTeaCenterRecord() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // ... (Warning Logic කොටස එලෙසම තබන්න)
+        const hasEmptyItem = itemsList.some(row => {
+            const isFlavored = FLAVORED_TEAS_WITH_RM.includes(row.product?.toLowerCase()?.trim());
+            if (isFlavored) {
+                return !row.product || !row.type || row.packSizeKg === '' || row.numberOfBoxes === '' || !row.rawMaterialName;
+            }
+            return !row.product || !row.type || row.packSizeKg === '' || row.numberOfBoxes === '';
+        });
+
+        if (hasEmptyItem) {
+            toast.error("Please fill out all required details (including Flavor Name for flavored teas)!");
+            return;
+        }
+
+        // Warning Logic Calculation
+        let stockWarning = false;
+        let rmStockWarning = false;
+        let packingStockWarning = false;
+
+        const requestedByBaseGrade = {};
+        const requestedRM = {};
+        const requestedPacking = {};
+        
+        itemsList.forEach(item => {
+            const total = Number(item.packSizeKg) * Number(item.numberOfBoxes);
+            const isFlavored = FLAVORED_TEAS_WITH_RM.includes(item.product?.toLowerCase()?.trim());
+            const rawMatQty = isFlavored ? (item.rawMaterialWeight !== '' ? Number(item.rawMaterialWeight) : (total * 0.03)) : 0;
+            const baseTeaQty = total - rawMatQty;
+
+            const baseGrade = getBaseTeaGrade(item.product);
+            if (!requestedByBaseGrade[baseGrade]) requestedByBaseGrade[baseGrade] = 0;
+            requestedByBaseGrade[baseGrade] += baseTeaQty; 
+
+            if (item.rawMaterialName && rawMatQty > 0) {
+                if (!requestedRM[item.rawMaterialName]) requestedRM[item.rawMaterialName] = 0;
+                requestedRM[item.rawMaterialName] += rawMatQty;
+            }
+
+            if (item.packingMaterials && item.packingMaterials.length > 0) {
+                item.packingMaterials.forEach(pm => {
+                    if (pm.name && Number(pm.qty) > 0) {
+                        if (!requestedPacking[pm.name]) requestedPacking[pm.name] = 0;
+                        requestedPacking[pm.name] += Number(pm.qty);
+                    }
+                });
+            }
+        });
+
+        for (const [baseGrade, requestedQty] of Object.entries(requestedByBaseGrade)) {
+            const stockData = availableTeaStock.find(s => s.productName === baseGrade);
+            const available = stockData ? stockData.bulkStockKg : 0;
+            
+            // Re-add the previous quantity of this specific record before warning check to avoid false positive
+            let previousQty = 0;
+            recordData.issueItems.forEach(oldItem => {
+                if(getBaseTeaGrade(oldItem.product) === baseGrade){
+                    previousQty += (Number(oldItem.baseTeaQtyKg) || Number(oldItem.totalQtyKg) || 0);
+                }
+            });
+
+            if (requestedQty > (available + previousQty)) stockWarning = true;
+        }
+
+        if (stockWarning && !window.confirm("You are issuing MORE tea stock than what is currently available. Proceed anyway?")) return;
 
         setIsSaving(true);
         const toastId = toast.loading("Updating record...");
@@ -380,15 +439,26 @@ export default function EditTeaCenterRecord() {
         };
 
         try {
-            // api.put භාවිතය
-            await api.put(`/api/tea-center-issues/${recordData._id}`, payload);
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BACKEND_URL}/api/tea-center-issues/${recordData._id}`, {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
 
-            toast.success("Record updated successfully!", { id: toastId });
-            setTimeout(() => navigate(-1), 100);
+            if (response.ok) {
+                toast.success("Record updated successfully!", { id: toastId });
+                setTimeout(() => navigate(-1), 100);
+            } else {
+                if (response.status === 403) throw new Error('Access Denied');
+                throw new Error('Failed to update record');
+            }
         } catch (error) {
             console.error(error);
-            // Axios error handling
-            if (error.response?.status === 403) {
+            if (error.message === 'Access Denied') {
                 toast.error("Access Denied. You do not have permission to edit records.", { id: toastId });
             } else {
                 toast.error("Error updating record. Please try again.", { id: toastId });

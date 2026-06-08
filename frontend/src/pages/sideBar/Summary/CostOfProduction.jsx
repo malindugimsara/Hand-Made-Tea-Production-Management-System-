@@ -4,7 +4,6 @@ import { Calculator, DollarSign, Info, Calendar, FileDown, Save, X, AlertCircle,
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable'; 
 import PDFDownloader from '@/components/PDFDownloader'; 
-import api from '../../../api/axiosConfig'; // <--- මෙය අලුතින් එකතු කරන්න
 
 import {
     AlertDialog,
@@ -58,43 +57,68 @@ export default function CostOfProduction() {
     const fetchAndProcessData = async () => {
         setLoading(true);
         try {
-            // api.get භාවිතය (Token අවශ්‍ය නැත)
+            const token = localStorage.getItem('token');
+            const authHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
             const [glRes, prodRes, labRes, costRes] = await Promise.all([
-                api.get('/api/green-leaf'),
-                api.get('/api/production'),
-                api.get('/api/labour'),
-                api.get(`/api/cost-of-production/${selectedMonth}`).catch(() => null)
+                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/cost-of-production/${selectedMonth}`, { headers: authHeaders }).catch(() => null)
             ]);
 
-            const glData = glRes.data;
-            const prodData = prodRes.data;
-            const labData = labRes.data;
+            if (!glRes.ok || !prodRes.ok || !labRes.ok) {
+                if (glRes.status === 401 || prodRes.status === 401 || labRes.status === 401) {
+                    throw new Error("Unauthorized. Please log in.");
+                }
+                throw new Error("Failed to fetch data");
+            }
 
-            // ... (ඉතිරි දත්ත සැකසීමේ කේතය වෙනස් නොවේ)
-            // (sortById කිරීමෙන් පසු savedMonthData කොටසට යන්න)
+            const glData = await glRes.json();
+            const prodData = await prodRes.json();
+            const labData = await labRes.json();
 
-            let savedMonthData = costRes?.data || null;
+            const sortById = (a, b) => (a._id < b._id ? -1 : (a._id > b._id ? 1 : 0));
+            glData.sort(sortById);
+            prodData.sort(sortById);
+            labData.sort(sortById);
+
+            let savedMonthData = null;
             let dbLoadedSup = {};
             let dbLoadedHr = {};
 
-            if (savedMonthData && savedMonthData.month === selectedMonth) {
-                setIsSaved(true);
-                setMonthlyGlRate(savedMonthData.monthlyGlRate || 0);
-                setLabourRate(savedMonthData.labourRate || 1350);
+            if (costRes && costRes.ok) {
+                savedMonthData = await costRes.json();
+                
+                if (savedMonthData && savedMonthData.month === selectedMonth) {
+                    setIsSaved(true);
+                    setMonthlyGlRate(savedMonthData.monthlyGlRate || 0);
+                    setLabourRate(savedMonthData.labourRate || 1350);
+                    // setElectricityRate(savedMonthData.electricityRate || 20);
 
-                const dbLabRate = savedMonthData.labourRate || 1350;
+                    const dbLabRate = savedMonthData.labourRate || 1350;
 
-                (savedMonthData.teaCosts || []).forEach(tc => {
-                    dbLoadedSup[tc.teaType] = tc.supervisionCost || 0;
-                    dbLoadedHr[tc.teaType] = tc.handRollingCost ? (tc.handRollingCost / dbLabRate) : 0;
-                });
+                    (savedMonthData.teaCosts || []).forEach(tc => {
+                        dbLoadedSup[tc.teaType] = tc.supervisionCost || 0;
+                        dbLoadedHr[tc.teaType] = tc.handRollingCost ? (tc.handRollingCost / dbLabRate) : 0;
+                    });
+                } else {
+                    setIsSaved(false);
+                    savedMonthData = null;
+                    setMonthlyGlRate(0);
+                    setLabourRate(1350);
+                    setElectricityRate(20);
+                }
             } else {
                 setIsSaved(false);
                 setMonthlyGlRate(0);
                 setLabourRate(1350);
                 setElectricityRate(20);
             }
-        
+
             const filteredProd = prodData.filter(p => p.date.startsWith(selectedMonth));
             const summary = {};
             const glUsage = {};
@@ -237,19 +261,31 @@ export default function CostOfProduction() {
                 grandTotal: grandTotalAllTeas
             };
 
-            // api.post භාවිතය
-            await api.post('/api/cost-of-production', payload);
-            
-            toast.success(`Cost data for ${selectedMonth} saved successfully!`, { id: toastId });
-            setIsSaved(true);
-            return true;
-        } catch (error) {
-            // Axios Error Handling
-            if (error.response?.status === 403) {
-                toast.error("Access Denied. You don't have permission.", { id: toastId });
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BACKEND_URL}/api/cost-of-production`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                toast.success(`Cost data for ${selectedMonth} saved successfully!`, { id: toastId });
+                setIsSaved(true);
+                return true;
             } else {
-                toast.error("Database saving failed.", { id: toastId });
+                if (response.status === 403) {
+                    toast.error("Access Denied. You don't have permission.", { id: toastId });
+                } else {
+                    throw new Error("Failed to save data");
+                }
+                return false;
             }
+        } catch (error) {
+            console.error(error);
+            toast.error("Database saving failed.", { id: toastId });
             return false;
         } finally {
             setIsSaving(false);
@@ -365,21 +401,31 @@ export default function CostOfProduction() {
                 current.setMonth(current.getMonth() + 1);
             }
 
-            // 1. Fetch GL, Prod, Labour භාවිතා කරන්නේ අපේ Axios api instance එක
+            const token = localStorage.getItem('token');
+            const authHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
+            // 1. Fetch GL, Prod, Labour
             const [glRes, prodRes, labRes] = await Promise.all([
-                api.get('/api/green-leaf'),
-                api.get('/api/production'),
-                api.get('/api/labour')
+                fetch(`${BACKEND_URL}/api/green-leaf`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/production`, { headers: authHeaders }),
+                fetch(`${BACKEND_URL}/api/labour`, { headers: authHeaders })
             ]);
 
-            const glData = glRes.data;
-            const prodData = prodRes.data;
-            const labData = labRes.data;
+            if (!glRes.ok || !prodRes.ok || !labRes.ok) {
+                throw new Error("Failed to fetch primary data for range PDF");
+            }
 
-            // 2. Fetch Cost Of Production rates සඳහාත් api.get භාවිතය
+            const glData = await glRes.json();
+            const prodData = await prodRes.json();
+            const labData = await labRes.json();
+
+            // 2. Fetch Cost Of Production rates for EACH month in the range
             const costPromises = monthsArray.map(monthStr => 
-                api.get(`/api/cost-of-production/${monthStr}`)
-                    .then(res => res.data)
+                fetch(`${BACKEND_URL}/api/cost-of-production/${monthStr}`, { headers: authHeaders })
+                    .then(res => res.ok ? res.json() : null)
                     .catch(() => null)
             );
             
@@ -871,6 +917,9 @@ export default function CostOfProduction() {
                     const supCost = supervisionCosts[item.teaType] || 0;
                     const handRollingCost = item.hrWorkers * Number(labourRate || 0);
                     const totalCost = glCost + selectionCost + handRollingCost + electricityCost + supCost;
+                    
+                    // Added calculation for Cost Per 1 KG
+                    const costPerKg = item.madeTeaWeight > 0 ? (totalCost / item.madeTeaWeight) : 0;
 
                     return (
                         <div key={item.teaType} className={`bg-white dark:bg-zinc-900 rounded-xl sm:rounded-2xl shadow-md overflow-hidden border transition-colors duration-300 ${isViewer ? 'border-gray-200 dark:border-zinc-800 opacity-95' : 'border-gray-200 dark:border-zinc-800'}`}>
@@ -933,6 +982,13 @@ export default function CostOfProduction() {
                                             <td colSpan="2" className="py-4 sm:py-5 px-3 sm:px-4 text-sm sm:text-lg font-bold text-[#1B6A31] dark:text-green-500 whitespace-nowrap">Total Production Cost ({item.teaType})</td>
                                             <td className="py-4 sm:py-5 px-3 sm:px-4 text-right text-base sm:text-2xl font-black text-[#1B6A31] dark:text-green-400 whitespace-nowrap">
                                                 Rs. {totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                            </td>
+                                        </tr>
+                                        {/* ADDED ROW FOR COST PER KG */}
+                                        <tr className="bg-green-100/50 dark:bg-green-800/20 transition-colors border-t border-green-200 dark:border-green-800/50">
+                                            <td colSpan="2" className="py-3 sm:py-4 px-3 sm:px-4 text-sm sm:text-md font-bold text-[#1B6A31] dark:text-green-500 whitespace-nowrap">Cost Per 1 KG (Rs.)</td>
+                                            <td className="py-3 sm:py-4 px-3 sm:px-4 text-right text-sm sm:text-xl font-black text-[#1B6A31] dark:text-green-400 whitespace-nowrap">
+                                                Rs. {costPerKg.toLocaleString(undefined, {minimumFractionDigits: 2})}
                                             </td>
                                         </tr>
                                     </tfoot>

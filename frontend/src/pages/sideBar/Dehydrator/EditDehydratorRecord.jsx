@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Fan, Zap, Clock, ArrowLeft, Scale, Droplets, Users, Banknote, Tag, PlusCircle, X } from "lucide-react"; 
 import { useLocation, useNavigate } from 'react-router-dom';
-import api from '../../../api/axiosConfig';
 
 export default function EditDehydratorRecord() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -140,7 +139,7 @@ export default function EditDehydratorRecord() {
         const toastId = toast.loading('Updating dehydrator record...');
 
         try {
-            // Token එක දැන් Cookie එකේ ඇති බැවින් localStorage එකෙන් ගැනීම අවශ්‍ය නොවේ
+            const token = localStorage.getItem('token');
             const currentUsername = localStorage.getItem('username') || 'Unknown User';
 
             const payload = {
@@ -158,24 +157,30 @@ export default function EditDehydratorRecord() {
                 updatedBy: currentUsername 
             };
 
-            // UPDATE request to Backend using api (Axios)
-            await api.put(`/api/dehydrator/${recordId}`, payload);
+            // UPDATE request to Backend
+            const response = await fetch(`${BACKEND_URL}/api/dehydrator/${recordId}`, {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify(payload)
+            });
 
-            toast.success("Record updated successfully!", { id: toastId });
-            setTimeout(() => {
-                navigate(-1);
-            }, 500);
-
-        } catch (error) {
-            console.error("Update Error:", error);
-            // Axios Error Handling
-            if (error.response?.status === 403) {
-                toast.error("Access Denied. You do not have permission.", { id: toastId });
-            } else if (error.response?.status === 401) {
-                toast.error("Session expired or unauthorized.", { id: toastId });
+            if (response.ok) {
+                toast.success("Record updated successfully!", { id: toastId });
+                setTimeout(() => {
+                    navigate(-1);
+                }, 500);
             } else {
-                toast.error(error.response?.data?.message || error.message || "Error updating record.", { id: toastId });
+                if (response.status === 403) {
+                    toast.error("Access Denied. You do not have permission.", { id: toastId });
+                } else {
+                    toast.error("Error updating record.", { id: toastId });
+                }
             }
+        } catch (error) {
+            toast.error("Network error.", { id: toastId });
         } finally {
             setShowSpinner(false);
         }

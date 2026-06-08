@@ -3,10 +3,6 @@ import bodyParser from 'body-parser';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import cookieParser from 'cookie-parser';
-import helmet from 'helmet';
-
-// Router Imports
 import greenLeafRouter from './router/greenLeafRouter.js';
 import productionRouter from './router/productionRouter.js';
 import labourRouter from './router/labourRoutes.js';
@@ -22,6 +18,7 @@ import loftLeafCountRoutes from './router/loftLeafCountRoutes.js';
 // Packing Section Routes
 import localSaleRouter from './Packing/Routes/localSaleRoutes.js';
 import teaCenterIssueRouter from './Packing/Routes/teaCenterIssueRouter.js';
+
 import packingTransferRouter from './Packing/Routes/packingTransferRouter.js';
 import handmadeTransferRouter from './router/handmadeTransferRouter.js';
 import teaReceivedRouter from './Packing/Routes/TeaReceivedRouter.js';
@@ -33,36 +30,11 @@ import restoreTeaStockRouter from './Packing/Routes/restoreTeaStockrouter.js';
 dotenv.config();
 const app = express();
 
-// =====================================================================
-// *** අතිශය වැදගත් වෙනස (CRITICAL FOR RENDER & VERCEL) ***
-// Render හිදී Secure Cookies යැවීම සඳහා මෙය අනිවාර්ය වේ.
-app.set('trust proxy', 1); 
-// =====================================================================
-
-// 2. CORS Configuration එක Cookies සඳහා සකස් කිරීම
-// ඔබගේ Vercel Link එකේ අගට "/" (slash) ලකුණ නොමැති බව තහවුරු කරගන්න.
-const allowedOrigins = [
-  'http://localhost:5173', 
-  'http://localhost:3000',
-  'https://unifiedmanagementsystemathukoralagroup.vercel.app' 
-];
-
-app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true // Cookies සඳහා මෙය අනිවාර්ය වේ
-}));
-
+// Enable CORS for all routes
+app.use(cors());
 
 // Middleware 
-app.use(helmet());
 app.use(bodyParser.json());
-app.use(cookieParser()); // 3. Cookie parser Middleware එක භාවිතා කිරීම
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URL).then(() => {
@@ -84,11 +56,12 @@ app.use('/api/cost-of-production', costOfProductionRouter);
 app.use('/api/raw-material-cost', rawMaterialCostRoutes);
 app.use('/api/users', userRouter); // User management routes (Admins only)
 app.use('/api/selling-details', sellingDetailsRouter);
-app.use('/api/production-summary', productionSummaryRouter);
+app.use('/api/production-summary', productionSummaryRouter); // Add this line to include the production summary routes
 app.use('/api/handmade/transfers', handmadeTransferRouter);
 app.use('/api/loft-leaf', loftLeafCountRoutes);
 
 // Packing Section Routes
+
 app.use('/api/local-sales', localSaleRouter);
 app.use('/api/tea-center-issues', teaCenterIssueRouter);
 app.use('/api/packing/transfers', packingTransferRouter);
@@ -99,7 +72,6 @@ app.use('/api/raw-materials-in', rawMaterialInRouter);
 app.use('/api/restore-tea-stock', restoreTeaStockRouter);
 
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(3000, () => {
+  console.log('Server is running on port 3000');
 });

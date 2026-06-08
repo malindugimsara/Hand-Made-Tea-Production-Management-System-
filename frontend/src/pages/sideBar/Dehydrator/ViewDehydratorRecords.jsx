@@ -3,7 +3,6 @@ import toast, { Toaster } from 'react-hot-toast';
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
 import { Fan, Zap, Clock, AlertCircle, Calendar, RefreshCw, Scale, Droplets, Users, Banknote, FilterX } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
-import api from '../../../api/axiosConfig';
 
 import {
     AlertDialog,
@@ -46,9 +45,17 @@ export default function ViewDehydratorRecords() {
     const fetchRecords = async () => {
         setLoading(true); 
         try {
-            // api.get භාවිතය (Token සහ Headers අවශ්‍ය නැත)
-            const response = await api.get('/api/dehydrator');
-            const data = response.data; // Axios මගින් ඉබේම JSON බවට පත්කර ඇත
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BACKEND_URL}/api/dehydrator`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                if(response.status === 401) throw new Error("Unauthorized. Please log in.");
+                throw new Error("Failed to fetch data");
+            }
+
+            const data = await response.json();
             
             const processedData = data.map(rec => {
                 const createdTime = rec.createdAt ? new Date(rec.createdAt).getTime() : 0;
@@ -101,11 +108,7 @@ export default function ViewDehydratorRecords() {
             setRecords(sortedData);
         } catch (error) {
             console.error("Fetch Error:", error);
-            // Axios වලදී Error Message එක අල්ලගන්නා ආකාරය
-            const errorMsg = error.response?.status === 401 
-                ? "Unauthorized. Please log in." 
-                : error.message || "Could not load data from server.";
-            toast.error(errorMsg);
+            toast.error(error.message || "Could not load data from server.");
         } finally {
             setLoading(false);
         }
@@ -134,19 +137,20 @@ export default function ViewDehydratorRecords() {
         if (!recordToDelete) return;
         const toastId = toast.loading('Deleting record...');
         try {
-            // api.delete භාවිතය
-            await api.delete(`/api/dehydrator/${recordToDelete._id}`);
-            
-            toast.success("Record deleted successfully!", { id: toastId });
-            fetchRecords(); 
-            
-        } catch (error) {
-            // Axios මගින් එන 403 Access Denied Error එක අල්ලගැනීම
-            if (error.response?.status === 403) {
-                toast.error("Access Denied. Only Admins can delete.", { id: toastId });
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BACKEND_URL}/api/dehydrator/${recordToDelete._id}`, { 
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                toast.success("Record deleted successfully!", { id: toastId });
+                fetchRecords(); 
             } else {
-                toast.error("Network error while deleting.", { id: toastId });
+                if(response.status === 403) toast.error("Access Denied. Only Admins can delete.", { id: toastId });
+                else toast.error("Failed to delete record.", { id: toastId });
             }
+        } catch (error) {
+            toast.error("Network error while deleting.", { id: toastId });
         } finally {
             setRecordToDelete(null);
         }
