@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
-import { AlertTriangle, Calendar, Settings2, FileDown, Save, DollarSign, Info, Eye, RefreshCw, Sun, Moon } from "lucide-react";
+import { AlertTriangle, Calendar, Settings2, FileDown, Save, DollarSign, Info, Eye, RefreshCw, Sun, Moon, PlusCircle } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader'; 
 
 import {
@@ -101,6 +101,21 @@ export default function SellingDetailsTable() {
       setIsSaved(false);
   };
 
+  // --- ADD NEW ITEM LOGIC ---
+  const handleAddNewRow = () => {
+      const newRow = {
+          id: Date.now(), 
+          type: '', 
+          amount: 0, 
+          packs: '', 
+          price: 0, 
+          isNew: true // Identifies this as a custom newly added row
+      };
+      setTableData([...tableData, newRow]);
+      setHasChanges(true);
+      setIsSaved(false);
+  };
+
   const handleFetchData = async (isSilent = false) => {
     if (!selectedMonth) {
       if (!isSilent) toast.error("Please select a month first.");
@@ -137,6 +152,21 @@ export default function SellingDetailsTable() {
               };
             }
             return { ...defaultRow, packs: '' };
+          });
+
+          // Fetch Custom added rows from DB
+          fetchedRecords.forEach(record => {
+            const isDefault = defaultTeaData.some(d => d.type === record.type && Number(d.amount) === Number(record.amount));
+            if (!isDefault) {
+              mergedData.push({
+                id: Date.now() + Math.random(),
+                type: record.type,
+                amount: record.amount,
+                packs: record.packs,
+                price: record.price,
+                isNew: true
+              });
+            }
           });
 
           setTableData(mergedData);
@@ -424,7 +454,7 @@ export default function SellingDetailsTable() {
         </div>
 
         {/* Main Table */}
-        <div className={`bg-white dark:bg-zinc-900 rounded-xl shadow-md overflow-hidden mb-8 sm:mb-12 min-h-[300px] border transition-colors ${isViewer ? 'border-gray-200 dark:border-zinc-800 opacity-95' : 'border-gray-200 dark:border-zinc-800'}`}>
+        <div className={`bg-white dark:bg-zinc-900 rounded-xl shadow-md overflow-hidden mb-8 min-h-[300px] border transition-colors ${isViewer ? 'border-gray-200 dark:border-zinc-800 opacity-95' : 'border-gray-200 dark:border-zinc-800'}`}>
             <div className="bg-[#1B6A31] dark:bg-[#1B6A31]/80 p-3 sm:p-4 border-b border-gray-200 dark:border-zinc-700 flex items-center gap-2 transition-colors">
                 <DollarSign className="text-white w-4 h-4 sm:w-5 sm:h-5"/>
                 <h3 className="text-base sm:text-lg font-bold text-white">Selling Details Board</h3>
@@ -450,7 +480,18 @@ export default function SellingDetailsTable() {
                             return (
                                 <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors group">
                                     <td className="sticky left-0 z-10 p-2 sm:p-3 text-[10px] sm:text-sm font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-[#2e6b3b] dark:text-white bg-white dark:bg-zinc-900 group-hover:bg-gray-50 dark:group-hover:bg-zinc-800/80 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] text-left pl-3 sm:pl-5 transition-colors whitespace-nowrap">
-                                        {row.type}
+                                        {row.isNew ? (
+                                            <input 
+                                                type="text"
+                                                placeholder="Enter tea type..."
+                                                value={row.type}
+                                                onChange={(e) => handleInputChange(row.id, 'type', e.target.value)}
+                                                disabled={isViewer}
+                                                className="w-[120px] sm:w-[90%] p-1.5 sm:p-2 border border-green-300 dark:border-green-700 rounded text-xs sm:text-sm font-bold text-[#1B6A31] dark:text-green-400 outline-none focus:ring-2 focus:ring-green-500 shadow-inner bg-white dark:bg-zinc-950 disabled:bg-transparent transition-colors"
+                                            />
+                                        ) : (
+                                            row.type
+                                        )}
                                     </td>
                                     <td className="p-1 sm:p-3 text-xs sm:text-sm font-bold border-b border-r border-gray-200 dark:border-zinc-700 text-center transition-colors">
                                         <input 
@@ -501,6 +542,19 @@ export default function SellingDetailsTable() {
                     </tbody>
                 </table>
             </div>
+            
+            {/* ADD NEW ROW BUTTON */}
+            {!isViewer && (
+                <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-zinc-700 flex justify-start bg-gray-50 dark:bg-zinc-900/50 transition-colors">
+                    <button
+                        type="button"
+                        onClick={handleAddNewRow}
+                        className="flex items-center gap-2 px-4 py-2 bg-[#e6f4ea] hover:bg-[#d0ebd6] dark:bg-green-900/30 dark:hover:bg-green-900/50 text-[#1B6A31] dark:text-green-400 border border-green-200 dark:border-green-800/50 rounded-lg text-xs sm:text-sm font-bold transition-all"
+                    >
+                        <PlusCircle size={16} /> Add New Item
+                    </button>
+                </div>
+            )}
         </div>
     </div>
 </div>
