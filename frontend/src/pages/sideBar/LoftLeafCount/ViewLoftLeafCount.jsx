@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { Leaf, RefreshCw, AlertCircle, FileDown, Calendar } from "lucide-react";
+import { Leaf, RefreshCw, AlertCircle, FileDown, Calendar, ChevronDown, ChevronRight, Factory } from "lucide-react";
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
 import {
   AlertDialog,
@@ -38,6 +38,9 @@ export default function ViewLoftLeafCount() {
   const [endDate, setEndDate] = useState("");
   
   const [recordToDelete, setRecordToDelete] = useState(null); 
+  
+  // State for expanded row to show details
+  const [expandedDate, setExpandedDate] = useState(null);
 
   useEffect(() => {
     fetchRecords();
@@ -93,6 +96,10 @@ export default function ViewLoftLeafCount() {
     }
   };
 
+  const toggleExpand = (date) => {
+    setExpandedDate(prev => (prev === date ? null : date));
+  };
+
   // --- FILTER & GROUP LOGIC ---
   const filteredRecords = records.filter((r) => {
     if (!r.date) return false;
@@ -110,19 +117,29 @@ export default function ViewLoftLeafCount() {
   }, {});
 
   const calculateDaySummary = (dayRecords) => {
-    let totalQ = 0, bestQ = 0, belowBestQ = 0, poorQ = 0;
+    let factoryTotalQ = 0, factoryBestQ = 0, factoryBelowBestQ = 0, factoryPoorQ = 0;
+    let totalLeafQ = 0;
+    
     dayRecords.forEach(r => {
-        totalQ += (Number(r.totalQty) || 0);
-        bestQ += (Number(r.bestQty) || 0);
-        belowBestQ += (Number(r.belowBestQty) || 0);
-        poorQ += (Number(r.poorQty) || 0);
+        // Sum totalLeafQty only if it exists
+        if (r.totalLeafQty) {
+            totalLeafQ += (Number(r.totalLeafQty) || 0);
+        }
+
+        // Only use Factory Sample Entries to display Best, Below Best, and Poor details in the summary
+        if (r.sampleType === 'Factory') {
+            factoryTotalQ += (Number(r.totalQty) || 0);
+            factoryBestQ += (Number(r.bestQty) || 0);
+            factoryBelowBestQ += (Number(r.belowBestQty) || 0);
+            factoryPoorQ += (Number(r.poorQty) || 0);
+        }
     });
 
-    const bestPct = totalQ > 0 ? Math.round((bestQ / totalQ) * 100) : 0;
-    const belowBestPct = totalQ > 0 ? Math.round((belowBestQ / totalQ) * 100) : 0;
-    const poorPct = totalQ > 0 ? Math.round((poorQ / totalQ) * 100) : 0;
+    const bestPct = factoryTotalQ > 0 ? Math.round((factoryBestQ / factoryTotalQ) * 100) : 0;
+    const belowBestPct = factoryTotalQ > 0 ? Math.round((factoryBelowBestQ / factoryTotalQ) * 100) : 0;
+    const poorPct = factoryTotalQ > 0 ? Math.round((factoryPoorQ / factoryTotalQ) * 100) : 0;
 
-    return { totalQ, bestPct, belowBestPct, poorPct };
+    return { bestPct, belowBestPct, poorPct, totalLeafQ };
   };
 
   // =======================================================================
@@ -204,14 +221,27 @@ export default function ViewLoftLeafCount() {
         const factoryRecords = dayRecords.filter(r => r.sampleType === 'Factory').sort(sortRoutes);
         const collectorRecords = dayRecords.filter(r => r.sampleType === 'LeafCollector').sort(sortRoutes);
 
-        const drawTable = (title, records, startY, officerName = "") => {
+        const drawTable = (title, records, startY, isFactory = false, officerName = "") => {
             doc.setFontSize(12);
             doc.setTextColor(THEME_COLOR[0], THEME_COLOR[1], THEME_COLOR[2]);
             doc.setFont("helvetica", "bold");
             doc.text(title, 40, startY);
+            
+            // Calculate and display Total Leaf Qty for Factory sample
+            let tLeafQ = 0;
+            if (isFactory) {
+                records.forEach(r => {
+                    if (r.totalLeafQty) tLeafQ += (Number(r.totalLeafQty) || 0);
+                });
+                
+                doc.setFontSize(11);
+                doc.setTextColor(27, 106, 49); // Dark Green for Total
+                doc.text(`Total Leaf Count: ${tLeafQ.toFixed(2)} Kg`, pageWidth - 40, startY, { align: 'right' });
+            }
+
             startY += 15;
 
-            if (officerName) {
+            if (isFactory && officerName) {
                 doc.setFontSize(10);
                 doc.setTextColor(80, 80, 80);
                 doc.text(`Selected Officer Name: ${officerName}`, 40, startY);
@@ -244,13 +274,13 @@ export default function ViewLoftLeafCount() {
             // Total Row
             body.push([
                 { content: 'Total Sample:', styles: { fontStyle: 'bold', halign: 'right' } },
-                { content: totalQ.toFixed(2), styles: { fontStyle: 'bold', textColor: THEME_COLOR } },
-                { content: "-", styles: { fontStyle: 'bold', textColor: [180, 180, 180] } },
-                { content: `${tBestPct}%`, styles: { fontStyle: 'bold' } }, 
-                { content: "-", styles: { fontStyle: 'bold', textColor: [180, 180, 180] } },
-                { content: `${tBelowBestPct}%`, styles: { fontStyle: 'bold' } }, 
-                { content: "-", styles: { fontStyle: 'bold', textColor: [180, 180, 180] } },
-                { content: `${tPoorPct}%`, styles: { fontStyle: 'bold' } }, 
+                { content: totalQ.toFixed(2), styles: { fontStyle: 'bold', textColor: THEME_COLOR, halign: 'center' } },
+                { content: "-", styles: { fontStyle: 'bold', textColor: [180, 180, 180], halign: 'center' } },
+                { content: `${tBestPct}%`, styles: { fontStyle: 'bold', halign: 'center' } }, 
+                { content: "-", styles: { fontStyle: 'bold', textColor: [180, 180, 180], halign: 'center' } },
+                { content: `${tBelowBestPct}%`, styles: { fontStyle: 'bold', halign: 'center' } }, 
+                { content: "-", styles: { fontStyle: 'bold', textColor: [180, 180, 180], halign: 'center' } },
+                { content: `${tPoorPct}%`, styles: { fontStyle: 'bold', halign: 'center' } }
             ]);
 
             autoTable(doc, {
@@ -290,7 +320,7 @@ export default function ViewLoftLeafCount() {
                     4: { halign: 'center' },
                     5: { halign: 'center' },
                     6: { halign: 'center' },
-                    7: { halign: 'center' },
+                    7: { halign: 'center' }
                 },
                 styles: { fontSize: 9, cellPadding: 5 }
             });
@@ -300,7 +330,7 @@ export default function ViewLoftLeafCount() {
 
         if (factoryRecords.length > 0) {
             const officer = factoryRecords.find(r => r.officerName)?.officerName || "";
-            currentY = drawTable("Factory Sample", factoryRecords, currentY, officer);
+            currentY = drawTable("Factory Sample", factoryRecords, currentY, true, officer);
         }
 
         if (factoryRecords.length > 0 && collectorRecords.length > 0) {
@@ -311,7 +341,7 @@ export default function ViewLoftLeafCount() {
         }
 
         if (collectorRecords.length > 0) {
-            currentY = drawTable("Leaf Collector's Sample", collectorRecords, currentY);
+            currentY = drawTable("Leaf Collector's Sample", collectorRecords, currentY, false);
         }
 
         // --- 3. FOOTER SECTION ---
@@ -409,13 +439,13 @@ export default function ViewLoftLeafCount() {
               <thead>
                 <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-[10px] sm:text-xs tracking-wider border-b border-gray-200 dark:border-zinc-800 transition-colors">
                   {/* Sticky Date Column */}
-                  <th className="sticky left-0 z-20 bg-gray-50 dark:bg-zinc-950/95 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] px-3 sm:px-4 py-2 sm:py-3 font-semibold border-r border-gray-200 dark:border-zinc-800 align-middle min-w-[120px]">
+                  <th className="sticky left-0 z-20 bg-gray-50 dark:bg-zinc-950/95 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] px-3 sm:px-4 py-2 sm:py-3 font-semibold border-r border-gray-200 dark:border-zinc-800 align-middle min-w-[150px]">
                     <div className="flex items-center gap-1"><Calendar size={14} className="text-[#1B6A31] dark:text-green-500"/> Date</div>
                   </th>
                   
-                  {/* Total QTY */}
+                  {/* Total Leaf QTY */}
                   <th className="px-3 sm:px-4 py-2 sm:py-3 font-bold text-[#1B6A31] dark:text-green-500 border-r border-gray-200 dark:border-zinc-800 bg-[#8CC63F]/10 dark:bg-green-900/20 align-middle text-center">
-                    Total QTY (g)
+                    Total Leaf QTY (Kg)
                   </th>
                   
                   {/* Best */}
@@ -446,86 +476,149 @@ export default function ViewLoftLeafCount() {
                     .map((date) => {
                       const dayRecords = groupedRecords[date];
                       const summary = calculateDaySummary(dayRecords);
+                      const isExpanded = expandedDate === date;
+
+                      // Filter factory records for the expanded view
+                      const factoryRecords = dayRecords.filter(r => r.sampleType === 'Factory');
 
                       return (
-                        <tr key={date} className="hover:bg-gray-50/80 dark:hover:bg-zinc-800/50 transition-colors group">
-                          
-                          {/* Sticky Date Body */}
-                          <td className="sticky left-0 z-10 bg-white dark:bg-zinc-900 group-hover:bg-gray-50 dark:group-hover:bg-zinc-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] px-3 sm:px-4 py-3 border-r border-gray-100 dark:border-zinc-800 align-middle transition-colors font-semibold text-gray-800 dark:text-gray-200">
-                            {date}
-                          </td>
-                          
-                          <td className="px-2 sm:px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 font-black text-gray-900 dark:text-white align-middle">
-                            {summary.totalQ}
-                          </td>
-                          
-                          <td className="px-2 sm:px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-teal-700 dark:text-teal-400 font-bold align-middle">
-                            {summary.bestPct}%
-                          </td>
-                          
-                          <td className="px-2 sm:px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-orange-600 dark:text-orange-400 font-bold align-middle">
-                            {summary.belowBestPct}%
-                          </td>
-                          
-                          <td className="px-2 sm:px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-red-600 dark:text-red-400 font-bold align-middle">
-                            {summary.poorPct}%
-                          </td>
-                          
-                          <td className="px-2 sm:px-3 py-3 text-center align-middle">
-                            <div className="flex items-center justify-center gap-1 sm:gap-2">
-                              
-                              {/* Download Button */}
-                              <button
-                                onClick={() => generatePDFForDate(date, dayRecords)}
-                                className="p-1 sm:p-1.5 text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-all"
-                                title="Download Report"
-                              >
-                                <FileDown className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
-                              </button>
+                        <React.Fragment key={date}>
+                          <tr className="hover:bg-gray-50/80 dark:hover:bg-zinc-800/50 transition-colors group">
+                            
+                            {/* Sticky Date Body (Clickable to Expand) */}
+                            <td 
+                              onClick={() => toggleExpand(date)}
+                              className="cursor-pointer sticky left-0 z-10 bg-white dark:bg-zinc-900 group-hover:bg-gray-50 dark:group-hover:bg-zinc-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] px-3 sm:px-4 py-3 border-r border-gray-100 dark:border-zinc-800 align-middle transition-colors font-semibold text-gray-800 dark:text-gray-200"
+                            >
+                              <div className="flex items-center gap-2">
+                                {isExpanded ? (
+                                  <ChevronDown size={16} className="text-[#1B6A31] dark:text-green-500" />
+                                ) : (
+                                  <ChevronRight size={16} className="text-gray-400" />
+                                )}
+                                {date}
+                              </div>
+                            </td>
+                            
+                            <td className="px-2 sm:px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 font-black text-gray-900 dark:text-white align-middle">
+                              {summary.totalLeafQ > 0 ? summary.totalLeafQ.toFixed(2) : '-'}
+                            </td>
+                            
+                            <td className="px-2 sm:px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-teal-700 dark:text-teal-400 font-bold align-middle">
+                              {summary.bestPct}%
+                            </td>
+                            
+                            <td className="px-2 sm:px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-orange-600 dark:text-orange-400 font-bold align-middle">
+                              {summary.belowBestPct}%
+                            </td>
+                            
+                            <td className="px-2 sm:px-3 py-3 text-center border-r border-gray-100 dark:border-zinc-800 text-red-600 dark:text-red-400 font-bold align-middle">
+                              {summary.poorPct}%
+                            </td>
+                            
+                            <td className="px-2 sm:px-3 py-3 text-center align-middle">
+                              <div className="flex items-center justify-center gap-1 sm:gap-2">
+                                
+                                {/* Download Button */}
+                                <button
+                                  onClick={() => generatePDFForDate(date, dayRecords)}
+                                  className="p-1 sm:p-1.5 text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-all"
+                                  title="Download Report"
+                                >
+                                  <FileDown className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
+                                </button>
 
-                              {!isViewer && (
-                                <>
-                                  {/* Edit Button */}
-                                  <button
-                                    onClick={() => navigate('/edit-loft-leaf', { state: { date: date, recordsData: dayRecords } })}
-                                    className="p-1 sm:p-1.5 text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-400 hover:bg-[#8CC63F]/20 dark:hover:bg-zinc-800 rounded transition-all"
-                                    title="Edit Details"
-                                  >
-                                    <MdOutlineEdit className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
-                                  </button>
+                                {!isViewer && (
+                                  <>
+                                    {/* Edit Button */}
+                                    <button
+                                      onClick={() => navigate('/edit-loft-leaf', { state: { date: date, recordsData: dayRecords } })}
+                                      className="p-1 sm:p-1.5 text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-400 hover:bg-[#8CC63F]/20 dark:hover:bg-zinc-800 rounded transition-all"
+                                      title="Edit Details"
+                                    >
+                                      <MdOutlineEdit className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
+                                    </button>
+                                    
+                                    {/* Delete Button */}
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <button
+                                          onClick={() => setRecordToDelete(dayRecords)} 
+                                          className="p-1 sm:p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all"
+                                          title="Delete Date Records"
+                                        >
+                                          <MdOutlineDeleteOutline className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
+                                        </button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-sm sm:max-w-md w-[90vw]">
+                                        <AlertDialogHeader>
+                                          <div className="w-10 sm:w-12 h-10 sm:h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-3 sm:mb-4 border border-red-200 dark:border-red-800">
+                                              <AlertCircle className="w-5 sm:w-6 h-5 sm:h-6 text-red-600 dark:text-red-400" />
+                                          </div>
+                                          <AlertDialogTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Delete Record</AlertDialogTitle>
+                                          <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                                            Are you sure you want to delete ALL records for {date}?
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter className="mt-4 sm:mt-6">
+                                          <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">Delete All</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* EXPANDED ROW FOR FACTORY SAMPLES */}
+                          {isExpanded && (
+                            <tr className="bg-gray-50/50 dark:bg-zinc-800/20">
+                              <td colSpan="6" className="p-4 sm:p-6 border-b border-gray-100 dark:border-zinc-800 shadow-inner">
+                                <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl p-4 shadow-sm">
+                                  <h4 className="font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+                                    <Factory size={18} className="text-[#1B6A31] dark:text-green-500" /> 
+                                    Factory Sample Entries for {date}
+                                  </h4>
                                   
-                                  {/* Delete Button */}
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <button
-                                        onClick={() => setRecordToDelete(dayRecords)} 
-                                        className="p-1 sm:p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all"
-                                        title="Delete Date Records"
-                                      >
-                                        <MdOutlineDeleteOutline className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
-                                      </button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-sm sm:max-w-md w-[90vw]">
-                                      <AlertDialogHeader>
-                                        <div className="w-10 sm:w-12 h-10 sm:h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-3 sm:mb-4 border border-red-200 dark:border-red-800">
-                                            <AlertCircle className="w-5 sm:w-6 h-5 sm:h-6 text-red-600 dark:text-red-400" />
-                                        </div>
-                                        <AlertDialogTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Delete Record</AlertDialogTitle>
-                                        <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-                                          Are you sure you want to delete ALL records for {date}?
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter className="mt-4 sm:mt-6">
-                                        <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">Delete All</AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
+                                  {factoryRecords.length > 0 ? (
+                                    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-zinc-700">
+                                      <table className="w-full text-xs text-left text-gray-600 dark:text-gray-300">
+                                        <thead className="bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-400 uppercase font-semibold">
+                                          <tr>
+                                            <th className="px-4 py-2 border-b border-gray-200 dark:border-zinc-700">Route</th>
+                                            <th className="px-4 py-2 border-b border-gray-200 dark:border-zinc-700">Officer</th>
+                                            <th className="px-4 py-2 border-b border-gray-200 dark:border-zinc-700 text-right">Best (g)</th>
+                                            <th className="px-4 py-2 border-b border-gray-200 dark:border-zinc-700 text-right">Below Best (g)</th>
+                                            <th className="px-4 py-2 border-b border-gray-200 dark:border-zinc-700 text-right">Poor (g)</th>
+                                            <th className="px-4 py-2 border-b border-gray-200 dark:border-zinc-700 text-right font-bold text-gray-900 dark:text-white">Total (g)</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {factoryRecords.map(record => (
+                                            <tr key={record._id || record.id} className="border-b border-gray-100 dark:border-zinc-800/50 last:border-0 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                              <td className="px-4 py-2.5 font-medium">{(record.route || "-").toUpperCase()}</td>
+                                              <td className="px-4 py-2.5">{record.officerName || "-"}</td>
+                                              <td className="px-4 py-2.5 text-right text-teal-600 dark:text-teal-400">{record.bestQty} ({record.bestPercentage}%)</td>
+                                              <td className="px-4 py-2.5 text-right text-orange-600 dark:text-orange-400">{record.belowBestQty} ({record.belowBestPercentage}%)</td>
+                                              <td className="px-4 py-2.5 text-right text-red-600 dark:text-red-400">{record.poorQty} ({record.poorPercentage}%)</td>
+                                              <td className="px-4 py-2.5 text-right font-bold text-gray-900 dark:text-white">{record.totalQty}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 italic bg-gray-50 dark:bg-zinc-800/50 p-3 rounded-lg text-center">
+                                      No Factory Samples recorded for this date.
+                                    </p>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })
                 ) : (

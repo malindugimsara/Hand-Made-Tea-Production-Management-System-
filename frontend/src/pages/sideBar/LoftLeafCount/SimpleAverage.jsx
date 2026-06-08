@@ -77,7 +77,9 @@ export default function SimpleAverage() {
 
   // 2. Populate matrix
   records.forEach((r) => {
-    if (!r.date) return;
+    // CRITICAL FIX: Ignore LeafCollector samples entirely, just like the Weight Average view
+    if (!r.date || r.sampleType === "LeafCollector") return; 
+
     const recordRouteKey = (r.route || "").split(" - ")[0].toLowerCase();
     const dDate = new Date(r.date);
     const day = dDate.getDate();
@@ -132,7 +134,7 @@ export default function SimpleAverage() {
       doc.setFontSize(10);
       doc.setTextColor(100, 100, 100);
       doc.setFont("helvetica", "normal");
-      doc.text(`Reporting Month: ${selectedMonth}`, 160, 56);
+      doc.text(`Reporting Month: ${selectedMonth} (Factory Samples Only)`, 160, 56);
 
       const dateObj = new Date();
       const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase();
@@ -231,6 +233,7 @@ export default function SimpleAverage() {
         const summaryCell = { ...cellStyle, font: { bold: true }, fill: { fgColor: { rgb: "F3F4F6" } } };
 
         aoa.push([{ v: sheetTitle, s: titleStyle }]);
+        aoa.push([{ v: "Data calculated using Factory Samples Only", s: { font: { italic: true, color: { rgb: "6B7280" } } } }]);
         aoa.push([]); 
 
         // Headers
@@ -370,7 +373,7 @@ export default function SimpleAverage() {
             <TableIcon size={24} /> Sheet 2: Simple Averages
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Calculation: Sum of Daily Percentages ÷ Number of Active Days
+            Calculation: Sum of Daily Percentages ÷ Number of Active Days (Factory Samples Only)
           </p>
         </div>
 
