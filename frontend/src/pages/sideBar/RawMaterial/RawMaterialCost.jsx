@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { Save, PlusCircle, Trash2, ListChecks } from "lucide-react";
-import api from '../../../api/axiosConfig';
+import { Leaf, Zap, Calculator, Save, PlusCircle, Trash2, ListChecks } from "lucide-react";
 
 export default function RawMaterialCost() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -86,7 +85,6 @@ export default function RawMaterialCost() {
     };
 
     // 3. Save All
-    // 3. Save All
     const handleSaveAll = async () => {
         if (pendingRecords.length === 0) {
             toast.error("No records in the list to save!");
@@ -97,14 +95,24 @@ export default function RawMaterialCost() {
         const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
 
         try {
-            // api.post භාවිතය (Token සහ Headers අවශ්‍ය නැත)
+            const token = localStorage.getItem('token');
             const promises = pendingRecords.map(record => 
-                api.post('/api/raw-material-cost', record)
+                fetch(`${BACKEND_URL}/api/raw-material-cost`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify(record)
+                }).then(res => {
+                    if (!res.ok) throw new Error('Failed');
+                    return res.json();
+                })
             );
 
             await Promise.all(promises);
-            
             toast.success("All records saved successfully!", { id: toastId });
+            
             setPendingRecords([]);
             
             setTimeout(() => {
@@ -113,17 +121,12 @@ export default function RawMaterialCost() {
             
         } catch (error) {
             console.error(error);
-            // Axios මගින් එන 403 Access Denied Error එක අල්ලගැනීම
-            if (error.response?.status === 403) {
-                toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
-            } else {
-                toast.error("Error saving some records. Please check.", { id: toastId });
-            }
+            toast.error("Error saving some records. Please check.", { id: toastId });
         } finally {
             setIsSaving(false);
         }
     };
-    
+
     const handleCancel = () => {
         if (pendingRecords.length > 0) {
             if (window.confirm("You have unsaved records in the list. Are you sure you want to leave?")) {

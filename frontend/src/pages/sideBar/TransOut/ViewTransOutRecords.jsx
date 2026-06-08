@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { Calendar, RefreshCw, Send, Weight, Tag, FilterX, UserCheck } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
-import api from '../../../api/axiosConfig'; // <--- මෙය අලුතින් එකතු කරන්න
 
 // Exact Colors based on your setup
 const getTeaColor = (product) => {
@@ -71,9 +70,15 @@ export default function ViewTransOutRecords() {
     const fetchHistory = async () => {
         setLoading(true); 
         try {
-            // api.get භාවිතය (Token සහ Headers අවශ්‍ය නැත, Cookie එක ඉබේම යයි)
-            const response = await api.get('/api/handmade/transfers/out');
-            const data = response.data; 
+            const token = localStorage.getItem('token');
+            // TODO: Ensure this endpoint matches your Hand Made section's "Trans Out" route
+            const response = await fetch(`${BACKEND_URL}/api/handmade/transfers/out`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) throw new Error("Failed to fetch transfer history");
+
+            const data = await response.json();
             
             // Process data for easy searching and PDF rendering
             const processedData = data.map(rec => {

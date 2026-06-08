@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { useNavigate } from 'react-router-dom';
-import api from '../../../api/axiosConfig';
 
 // Updated Colors: Softer/Dull Pastel Backgrounds with dark mode support
 const getTeaColor = (grade) => {
@@ -105,9 +104,17 @@ export default function ViewTeaGradesReceivedRecords() {
     const fetchRecords = async () => {
         setLoading(true); 
         try {
-            // api.get භාවිතය (Token/Headers අතින් සකසන්න ඕනේ නෑ)
-            const response = await api.get('/api/tea-received');
-            const data = response.data;
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BACKEND_URL}/api/tea-received`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                if(response.status === 401) throw new Error("Unauthorized. Please log in.");
+                throw new Error("Failed to fetch data");
+            }
+
+            const data = await response.json();
             
             const processedData = data.map(rec => {
                 const createdTime = rec.createdAt ? new Date(rec.createdAt).getTime() : 0;
@@ -116,14 +123,12 @@ export default function ViewTeaGradesReceivedRecords() {
                 const lastUpdatedDate = isEdited ? new Date(rec.updatedAt).toISOString().split('T')[0] : '';
                 
                 const itemsArray = rec.receivedItems || [];
+
+                // Update search string to include transaction no
                 const searchString = itemsArray.map(item => item.grade).join(' ') + ' ' + (rec.transactionNo || '');
-                
+
                 return {
-                    ...rec, 
-                    itemsArray, 
-                    searchString, 
-                    isEdited, 
-                    lastUpdatedDate,
+                    ...rec, itemsArray, searchString, isEdited, lastUpdatedDate,
                     editedBy: rec.updatedBy || rec.editorName || 'Unknown User' 
                 };
             });
@@ -137,8 +142,7 @@ export default function ViewTeaGradesReceivedRecords() {
             setRecords(sortedData);
         } catch (error) {
             console.error("Fetch Error:", error);
-            const errorMsg = error.response?.data?.message || "Could not load data from server.";
-            toast.error(errorMsg);
+            toast.error(error.message || "Could not load data from server.");
         } finally {
             setLoading(false);
         }
@@ -204,14 +208,19 @@ export default function ViewTeaGradesReceivedRecords() {
         if (!recordToDelete) return;
         const toastId = toast.loading('Deleting record...');
         try {
-            // api.delete භාවිතය
-            const response = await api.delete(`/api/tea-received/${recordToDelete._id}`);
-            
-            toast.success(response.data.message || "Record deleted successfully!", { id: toastId });
-            fetchRecords(); 
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BACKEND_URL}/api/tea-received/${recordToDelete._id}`, { 
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                toast.success("Record deleted successfully!", { id: toastId });
+                fetchRecords(); 
+            } else {
+                toast.error("Failed to delete record.", { id: toastId });
+            }
         } catch (error) {
-            // Axios error handling
-            toast.error("Failed to delete record.", { id: toastId });
+            toast.error("Network error while deleting.", { id: toastId });
         } finally {
             setRecordToDelete(null);
         }
@@ -231,6 +240,40 @@ export default function ViewTeaGradesReceivedRecords() {
         }
     };
 
+    // --- PDF GENERATION LOGIC ---
+    // const getPdfData = () => {
+    //     const pdfSortedRecords = [...filteredRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
+    //     const tableRows = [];
+
+    //     pdfSortedRecords.forEach(record => {
+    //         const baseDate = new Date(record.date).toISOString().split('T')[0];
+    //         const pdfDateCell = record.isEdited ? `${baseDate}\n(Edited by ${record.editedBy} on ${record.lastUpdatedDate})` : baseDate;
+
+    //         record.itemsArray.forEach((item, index) => {
+    //             const isFirst = index === 0;
+
+    //             tableRows.push([
+    //                 isFirst ? pdfDateCell : "",
+    //                 isFirst ? record.transactionNo : "",
+    //                 { 
+    //                     content: item.grade, 
+    //                     styles: { ...getPdfTeaColor(item.grade), fontStyle: 'bold', halign: 'center' } 
+    //                 },
+    //                 `${Number(item.qtyKg).toFixed(4)} kg`,
+    //                 isFirst ? `${Number(record.totalQtyKg).toFixed(4)} kg` : ""
+    //             ]);
+    //         });
+    //     });
+
+    //     tableRows.push([
+    //         { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' }, colSpan: 3 },
+    //         "-",
+    //         { content: `${grandTotalQty.toFixed(4)} kg`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } } 
+    //     ]);
+
+    //     return tableRows;
+    // };
+    
     // --- PDF GENERATION LOGIC ---
     const getPdfData = () => {
         const pdfSortedRecords = [...filteredRecords].sort((a, b) => new Date(a.date) - new Date(b.date));

@@ -11,7 +11,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import api from '../../../api/axiosConfig';
 
 // --- FLAVORED TEAS THAT REQUIRE RAW MATERIAL DEDUCTION (3%) ---
 const FLAVORED_TEAS_WITH_RM = [
@@ -198,54 +197,60 @@ export default function TeaCenterRecordEntry() {
     useEffect(() => {
         const fetchStocks = async () => {
             try {
-                // api.get භාවිතය
+                const token = localStorage.getItem('token');
+                
                 const [teaRes, rmRes] = await Promise.all([
-                    api.get('/api/packing-stock').catch(() => ({ data: [] })),
-                    api.get('/api/raw-materials-in/stock').catch(() => ({ data: [] }))
+                    fetch(`${BACKEND_URL}/api/packing-stock`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                    fetch(`${BACKEND_URL}/api/raw-materials-in/stock`, { headers: { 'Authorization': `Bearer ${token}` } }).catch(() => ({ ok: false }))
                 ]);
 
-                // Fetch Tea Stock
-                const data = teaRes.data;
-                const aggregatedData = Object.values(data.reduce((acc, curr) => {
-                    if (curr.productName.toLowerCase().includes('dust')) return acc; 
-                    if (!acc[curr.productName]) {
-                        acc[curr.productName] = { productName: curr.productName, bulkStockKg: 0 };
-                    }
-                    if (curr.stockBySource && curr.stockBySource.length > 0) {
-                        const sourceTotal = curr.stockBySource.reduce((sum, src) => sum + (src.quantityKg || 0), 0);
-                        acc[curr.productName].bulkStockKg += sourceTotal;
-                    } else {
-                        acc[curr.productName].bulkStockKg += (curr.bulkStockKg || 0);
-                    }
-                    return acc;
-                }, {}));
-                setAvailableTeaStock(aggregatedData);
+                if (teaRes.ok) {
+                    const data = await teaRes.json();
+                    const aggregatedData = Object.values(data.reduce((acc, curr) => {
+                        if (curr.productName.toLowerCase().includes('dust')) {
+                            return acc; 
+                        }
+                        if (!acc[curr.productName]) {
+                            acc[curr.productName] = { productName: curr.productName, bulkStockKg: 0 };
+                        }
+                        if (curr.stockBySource && curr.stockBySource.length > 0) {
+                            const sourceTotal = curr.stockBySource.reduce((sum, src) => sum + (src.quantityKg || 0), 0);
+                            acc[curr.productName].bulkStockKg += sourceTotal;
+                        } else {
+                            acc[curr.productName].bulkStockKg += (curr.bulkStockKg || 0);
+                        }
+                        return acc;
+                    }, {}));
+                    setAvailableTeaStock(aggregatedData);
+                }
 
-                // Fetch Packing Material Stock
-                const rmData = rmRes.data;
-                const allRawMaterials = Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : [];
-                
-                const flavorsOnly = allRawMaterials.filter(rm => {
-                    const matNameStr = (rm.materialName || '').toLowerCase();
-                    if (matNameStr.includes('sticker')) return false;
-                    return rm.category === 'flavor' || FLAVOR_NAMES.some(flavor => matNameStr.includes(flavor.toLowerCase()));
-                });
-                
-                const packingOnly = allRawMaterials.filter(rm => {
-                    const matNameStr = (rm.materialName || '').toLowerCase();
-                    if (matNameStr.includes('sticker')) return true;
-                    return rm.category !== 'flavor' && !FLAVOR_NAMES.some(flavor => matNameStr.includes(flavor.toLowerCase()));
-                });
-                
-                setAvailableRawStock(flavorsOnly);
-                setAvailablePackingStock(packingOnly);
-
+                if (rmRes.ok) {
+                    const rmData = await rmRes.json();
+                    const allRawMaterials = Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : [];
+                    
+                    const flavorsOnly = allRawMaterials.filter(rm => {
+                        const matNameStr = (rm.materialName || '').toLowerCase();
+                        if (matNameStr.includes('sticker')) return false;
+                        return rm.category === 'flavor' || 
+                               FLAVOR_NAMES.some(flavor => matNameStr.includes(flavor.toLowerCase()));
+                    });
+                    
+                    const packingOnly = allRawMaterials.filter(rm => {
+                        const matNameStr = (rm.materialName || '').toLowerCase();
+                        if (matNameStr.includes('sticker')) return true;
+                        return rm.category !== 'flavor' && 
+                               !FLAVOR_NAMES.some(flavor => matNameStr.includes(flavor.toLowerCase()));
+                    });
+                    
+                    setAvailableRawStock(flavorsOnly);
+                    setAvailablePackingStock(packingOnly);
+                }
             } catch (error) {
                 console.error("Error fetching stocks:", error);
             }
         };
         fetchStocks();
-    }, []);
+    }, [BACKEND_URL]);
 
     const productSummaryMap = {};
     pendingRecords.forEach(record => {
@@ -600,6 +605,7 @@ export default function TeaCenterRecordEntry() {
         const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
 
         try {
+            const token = localStorage.getItem('token');
             const promises = pendingRecords.map(record => {
                 const payload = {
                     date: record.date,
@@ -618,8 +624,20 @@ export default function TeaCenterRecordEntry() {
                     }))
                 };
 
-                // api.post භාවිතය
-                return api.post('/api/tea-center-issues', payload);
+                return fetch(`${BACKEND_URL}/api/tea-center-issues`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                }).then(async (res) => {
+                    if (!res.ok) {
+                        if (res.status === 403) throw new Error('Access Denied');
+                        throw new Error('Failed');
+                    }
+                    return res.json();
+                });
             });
 
             await Promise.all(promises);
@@ -633,8 +651,7 @@ export default function TeaCenterRecordEntry() {
 
         } catch (error) {
             console.error(error);
-            // Axios error handling
-            if (error.response?.status === 403) {
+            if (error.message === 'Access Denied') {
                 toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
             } else {
                 toast.error("Error saving some records. Please check.", { id: toastId });
@@ -643,6 +660,8 @@ export default function TeaCenterRecordEntry() {
             setShowSpinner(false);
         }
     };
+
+    
 
     return (
         <div className="p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">

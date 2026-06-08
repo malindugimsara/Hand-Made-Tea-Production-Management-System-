@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { RefreshCw, PackageSearch, Warehouse, FilterX, ArrowDownToLine, ArrowUpFromLine, Droplet, Package, Weight } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
-import api from '@/api/axiosConfig';
 
 // --- COLOR MAPPINGS ---
 const getTeaColor = (product) => {
@@ -82,68 +81,74 @@ export default function ViewPackingStock() {
     const fetchStocks = async () => {
         setLoading(true);
         try {
-            // api.get භාවිතය (Token/Headers Axios මගින් ස්වයංක්‍රීයව යැවේ)
-            const [teaRes, rmRes] = await Promise.all([
-                api.get('/api/packing-stock').catch(() => ({ data: [] })),
-                api.get('/api/raw-materials-in/stock').catch(() => ({ data: [] }))
+            const token = localStorage.getItem('token');
+            
+            const [teaRes, rawMatRes] = await Promise.all([
+                fetch(`${BACKEND_URL}/api/packing-stock`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch(`${BACKEND_URL}/api/raw-materials-in/stock`, { headers: { 'Authorization': `Bearer ${token}` } }).catch(() => ({ ok: false })) 
             ]);
 
             // --- 1. PROCESS TEA STOCK ---
-            const teaData = teaRes.data || [];
-            setRawStocks(teaData);
-            
-            const flatData = [];
-            teaData.forEach(product => {
-                const updatedAtDate = product.updatedAt ? new Date(product.updatedAt).toISOString().split('T')[0] : '';
+            if (teaRes.ok) {
+                const teaData = await teaRes.json();
+                const stockData = Array.isArray(teaData.data || teaData) ? (teaData.data || teaData) : [];
+                setRawStocks(stockData);
                 
-                if (product.stockBySource && product.stockBySource.length > 0) {
-                    product.stockBySource.forEach(src => {
-                        if (src.quantityKg > 0 || src.transInAmount > 0 || src.issueAmount > 0 || product.stockBySource.length === 1) {
-                            flatData.push({
-                                id: `${product._id}-${src.sourceName}`,
-                                productName: product.productName,
-                                source: src.sourceName,
-                                transInAmount: src.transInAmount || 0,
-                                issueAmount: src.issueAmount || 0,
-                                currentStock: src.quantityKg || 0,
-                                totalOverallQtyKg: product.totalBulkStockKg || 0,
-                                updatedAtDate: updatedAtDate
-                            });
-                        }
-                    });
-                } else {
-                    flatData.push({
-                        id: product._id,
-                        productName: product.productName,
-                        source: product.source || 'Unknown',
-                        transInAmount: product.transInAmount || 0,
-                        issueAmount: product.issueAmount || 0,
-                        currentStock: product.bulkStockKg || product.totalBulkStockKg || 0,
-                        totalOverallQtyKg: product.totalBulkStockKg || product.bulkStockKg || 0,
-                        updatedAtDate: updatedAtDate
-                    });
-                }
-            });
-            
-            flatData.sort((a, b) => {
-                const nameCompare = (a.productName || '').localeCompare(b.productName || '');
-                if(nameCompare !== 0) return nameCompare;
-                return (a.source || '').localeCompare(b.source || '');
-            });
-            setFlattenedStocks(flatData);
+                const flatData = [];
+                stockData.forEach(product => {
+                    const updatedAtDate = product.updatedAt ? new Date(product.updatedAt).toISOString().split('T')[0] : '';
+                    
+                    if (product.stockBySource && product.stockBySource.length > 0) {
+                        product.stockBySource.forEach(src => {
+                            if (src.quantityKg > 0 || src.transInAmount > 0 || src.issueAmount > 0 || product.stockBySource.length === 1) {
+                                flatData.push({
+                                    id: `${product._id}-${src.sourceName}`,
+                                    productName: product.productName,
+                                    source: src.sourceName,
+                                    transInAmount: src.transInAmount || 0,
+                                    issueAmount: src.issueAmount || 0,
+                                    currentStock: src.quantityKg || 0,
+                                    totalOverallQtyKg: product.totalBulkStockKg || 0,
+                                    updatedAtDate: updatedAtDate
+                                });
+                            }
+                        });
+                    } else {
+                        flatData.push({
+                            id: product._id,
+                            productName: product.productName,
+                            source: product.source || 'Unknown',
+                            transInAmount: product.transInAmount || 0,
+                            issueAmount: product.issueAmount || 0,
+                            currentStock: product.bulkStockKg || product.totalBulkStockKg || 0,
+                            totalOverallQtyKg: product.totalBulkStockKg || product.bulkStockKg || 0,
+                            updatedAtDate: updatedAtDate
+                        });
+                    }
+                });
+                
+                flatData.sort((a, b) => {
+                    const nameCompare = (a.productName || '').localeCompare(b.productName || '');
+                    if(nameCompare !== 0) return nameCompare;
+                    return (a.source || '').localeCompare(b.source || '');
+                });
+                setFlattenedStocks(flatData);
+            }
 
             // --- 2. PROCESS RAW MATERIAL STOCK ---
-            // සමහර විට Backend එකෙන් දත්ත එන්නේ response.data.data ලෙස නම් පහත පේළිය වෙනස් කරන්න
-            const allRm = Array.isArray(rmRes.data) ? rmRes.data : (rmRes.data?.data || []);
-            
-            const flavors = allRm.filter(rm => (rm.category || '').toLowerCase() === 'flavor');
-            const packings = allRm.filter(rm => (rm.category || '').toLowerCase() !== 'flavor');
-            
-            setFlavorStocks(flavors);
-            setPackingStocks(packings);
+            if (rawMatRes.ok) {
+                const rmData = await rawMatRes.json();
+                const allRm = Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : [];
+                
+                const flavors = allRm.filter(rm => (rm.category || '').toLowerCase() === 'flavor');
+                const packings = allRm.filter(rm => (rm.category || '').toLowerCase() !== 'flavor');
+                
+                setFlavorStocks(flavors);
+                setPackingStocks(packings);
+            }
 
         } catch (error) {
-            console.error("Error fetching stocks:", error);
+            console.error("Fetch Error:", error);
             toast.error("Error connecting to server to fetch stock.");
         } finally {
             setLoading(false);

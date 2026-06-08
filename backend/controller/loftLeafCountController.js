@@ -57,8 +57,7 @@ export const getAllLoftLeafCounts = async (req, res) => {
 // 2. CREATE NEW RECORD
 export const createLoftLeafCount = async (req, res) => {
     try {
-        // අලුතින් totalLeafQty මෙතනට extract කරගෙන ඇත
-        const { date, route, sampleType, officerName, totalLeafQty, bestQty, belowBestQty, poorQty, updatedBy } = req.body;
+        const { date, route, sampleType, officerName, bestQty, belowBestQty, poorQty, updatedBy } = req.body;
 
         // Validation
         if (!date) {
@@ -77,10 +76,8 @@ export const createLoftLeafCount = async (req, res) => {
         const newRecord = new LoftLeafCount({
             date,
             route,
-            sampleType,
-            officerName: officerName || "",
-            // Factory එකක් නම් පමණක් අගය ගන්නවා, නැතිනම් null කරනවා
-            totalLeafQty: sampleType === 'Factory' && totalLeafQty !== undefined ? Number(totalLeafQty) : null, 
+            sampleType,               // අලුතින් එකතු කළ field එක
+            officerName: officerName || "", // අලුතින් එකතු කළ field එක
             bestQty: Number(bestQty) || 0,
             belowBestQty: Number(belowBestQty) || 0,
             poorQty: Number(poorQty) || 0,
@@ -103,8 +100,7 @@ export const createLoftLeafCount = async (req, res) => {
 // 3. UPDATE RECORD
 export const updateLoftLeafCount = async (req, res) => {
     try {
-        // අලුතින් totalLeafQty මෙතනට extract කරගෙන ඇත
-        const { date, route, sampleType, officerName, totalLeafQty, bestQty, belowBestQty, poorQty, updatedBy } = req.body;
+        const { date, route, sampleType, officerName, bestQty, belowBestQty, poorQty, updatedBy } = req.body;
         const record = await LoftLeafCount.findById(req.params.id);
 
         if (!record) {
@@ -115,13 +111,7 @@ export const updateLoftLeafCount = async (req, res) => {
         if (date) record.date = date;
         if (route) record.route = route;
         if (sampleType) record.sampleType = sampleType;
-        if (officerName !== undefined) record.officerName = officerName; 
-        
-        // totalLeafQty එක update කිරීම
-        if (totalLeafQty !== undefined) {
-            const currentSampleType = sampleType || record.sampleType;
-            record.totalLeafQty = currentSampleType === 'Factory' && totalLeafQty !== "" ? Number(totalLeafQty) : null;
-        }
+        if (officerName !== undefined) record.officerName = officerName; // User clear කළොත් empty string එකක් විදිහට save වෙන්න
         
         if (bestQty !== undefined) record.bestQty = Number(bestQty);
         if (belowBestQty !== undefined) record.belowBestQty = Number(belowBestQty);

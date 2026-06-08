@@ -4,7 +4,6 @@ import { RefreshCw, Calendar, Table as TableIcon, LayoutList, LayoutGrid, FileSp
 import * as XLSX from "xlsx-js-style";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import api from '../../../api/axiosConfig'; 
 
 export default function SimpleAverage() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -40,16 +39,18 @@ export default function SimpleAverage() {
   const fetchRecords = async () => {
     setLoading(true);
     try {
-      // api.get භාවිතය - මෙහිදී Token එක ස්වයංක්‍රීයවම යැවේ
-      const response = await api.get(`/api/loft-leaf?month=${selectedMonth}`);
-      
-      // Axios වලදී දත්ත ලැබෙන්නේ response.data හරහාය
-      setRecords(response.data);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${BACKEND_URL}/api/loft-leaf?month=${selectedMonth}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch records.");
+
+      const data = await response.json();
+      setRecords(data);
     } catch (error) {
       console.error("Fetch error:", error);
-      // දෝෂයක් ආවොත් පෙන්වන්න
-      const errorMsg = error.response?.data?.message || "Could not load records.";
-      toast.error(errorMsg);
+      toast.error("Could not load records.");
     } finally {
       setLoading(false);
     }
@@ -76,9 +77,7 @@ export default function SimpleAverage() {
 
   // 2. Populate matrix
   records.forEach((r) => {
-    // CRITICAL FIX: Ignore LeafCollector samples entirely, just like the Weight Average view
-    if (!r.date || r.sampleType === "LeafCollector") return; 
-
+    if (!r.date) return;
     const recordRouteKey = (r.route || "").split(" - ")[0].toLowerCase();
     const dDate = new Date(r.date);
     const day = dDate.getDate();
@@ -133,7 +132,7 @@ export default function SimpleAverage() {
       doc.setFontSize(10);
       doc.setTextColor(100, 100, 100);
       doc.setFont("helvetica", "normal");
-      doc.text(`Reporting Month: ${selectedMonth} (Factory Samples Only)`, 160, 56);
+      doc.text(`Reporting Month: ${selectedMonth}`, 160, 56);
 
       const dateObj = new Date();
       const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase();
@@ -232,7 +231,6 @@ export default function SimpleAverage() {
         const summaryCell = { ...cellStyle, font: { bold: true }, fill: { fgColor: { rgb: "F3F4F6" } } };
 
         aoa.push([{ v: sheetTitle, s: titleStyle }]);
-        aoa.push([{ v: "Data calculated using Factory Samples Only", s: { font: { italic: true, color: { rgb: "6B7280" } } } }]);
         aoa.push([]); 
 
         // Headers
@@ -372,7 +370,7 @@ export default function SimpleAverage() {
             <TableIcon size={24} /> Sheet 2: Simple Averages
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Calculation: Sum of Daily Percentages ÷ Number of Active Days (Factory Samples Only)
+            Calculation: Sum of Daily Percentages ÷ Number of Active Days
           </p>
         </div>
 

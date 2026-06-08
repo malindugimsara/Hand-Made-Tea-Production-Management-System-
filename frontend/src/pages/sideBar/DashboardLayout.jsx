@@ -17,7 +17,7 @@ import {
   Moon,
   Sprout,
   Calculator, 
-  Search,
+  Search, // Added Search icon
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -62,7 +62,6 @@ import {
   SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
-import api from '../../api/axiosConfig';
 
 // --- ROLE-BASED DATA CONFIGURATION ---
 const DATA = {
@@ -201,21 +200,14 @@ export default function DashboardLayout() {
   const currentUsername = localStorage.getItem('username') || 'Unknown User';
   const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'Viewer'; 
 
-  const handleLogout = async () => {
-      try {
-          // api instance එක හරහා logout request එක යවන්න
-          await api.post('/api/auth/logout'); 
-          
-          // ඉන්පසු ලෝකල් ස්ටෝරේජ් එකේ තියෙන දත්ත මකන්න
-          localStorage.removeItem('token');
-          localStorage.removeItem('userRole');
-          localStorage.removeItem('username');
-          
-          navigate('/login'); // නැවත ලොගින් පිටුවට යවන්න
-      } catch (error) {
-          console.error("Logout failed", error);
-      }
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userRole'); 
+    localStorage.removeItem('username');
+    localStorage.removeItem('role'); 
+    navigate('/', { replace: true });
   };
+
   const getBreadcrumbTitle = () => {
     switch (location.pathname) {
       case '/': return 'Dashboard Overview';
@@ -239,37 +231,22 @@ export default function DashboardLayout() {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
   });
 
-  // --- ADVANCED SEARCH FILTERING ---
-  const searchResults = React.useMemo(() => {
-    if (!pageSearchQuery.trim()) return [];
-    
-    const query = pageSearchQuery.toLowerCase();
-    const results = [];
+  // Compile all accessible links for the search bar
+  const accessibleLinks = React.useMemo(() => {
+    return [
+      ...DATA.quickLinks.map(link => ({ title: link.name, url: link.url, icon: link.icon })),
+      ...DATA.navMain.flatMap(group =>
+        group.items
+          .filter(item => item.roles.includes(currentUserRole))
+          .map(item => ({ title: item.title, url: item.url, icon: group.icon }))
+      )
+    ];
+  }, [currentUserRole]);
 
-    // 1. Check Quick Links
-    DATA.quickLinks.forEach(link => {
-        if (link.name.toLowerCase().includes(query)) {
-            results.push({ title: link.name, url: link.url, icon: link.icon, group: 'Quick Links' });
-        }
-    });
-
-    // 2. Check Main Navigation (Both Group Titles & Item Titles)
-    DATA.navMain.forEach(group => {
-        const isGroupMatch = group.title.toLowerCase().includes(query);
-        
-        group.items.forEach(item => {
-            // Only consider items the user has access to
-            if (item.roles.includes(currentUserRole)) {
-                // If the group title matches, or the specific item title matches
-                if (isGroupMatch || item.title.toLowerCase().includes(query)) {
-                    results.push({ title: item.title, url: item.url, icon: group.icon, group: group.title });
-                }
-            }
-        });
-    });
-
-    return results;
-  }, [pageSearchQuery, currentUserRole]);
+  // Filter links based on user input
+  const searchResults = pageSearchQuery
+    ? accessibleLinks.filter(link => link.title.toLowerCase().includes(pageSearchQuery.toLowerCase()))
+    : [];
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -307,7 +284,7 @@ export default function DashboardLayout() {
               <Search className="absolute left-3 text-gray-400 dark:text-gray-500" size={16} />
               <input
                 type="text"
-                placeholder="Search menus or pages..."
+                placeholder="Search pages..."
                 value={pageSearchQuery}
                 onChange={(e) => setPageSearchQuery(e.target.value)}
                 className="w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-[#1B6A31] dark:focus:border-green-600 rounded-xl py-2 pl-9 pr-4 text-sm outline-none transition-all dark:text-white shadow-sm"
@@ -316,30 +293,23 @@ export default function DashboardLayout() {
 
             {/* SEARCH RESULTS DROPDOWN */}
             {pageSearchQuery && isSidebarOpen && (
-              <div className="absolute top-full mt-1 left-2 right-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg max-h-72 overflow-y-auto py-2 z-[100] custom-scrollbar">
+              <div className="absolute top-full mt-1 left-2 right-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg max-h-60 overflow-y-auto py-1 z-50 custom-scrollbar">
                 {searchResults.length > 0 ? (
-                  searchResults.map((result, idx) => (
+                  searchResults.map((result) => (
                     <div
-                      key={idx}
+                      key={result.url}
                       onClick={() => {
                         navigate(result.url);
-                        setPageSearchQuery(''); 
-                        if (isMobile) setIsSidebarOpen(false);
+                        setPageSearchQuery(''); // Clear search after navigation
                       }}
-                      className="flex flex-col px-3 py-2 hover:bg-[#F4F7F5] dark:hover:bg-zinc-700 cursor-pointer transition-colors"
+                      className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#F4F7F5] dark:hover:bg-zinc-700 cursor-pointer transition-colors"
                     >
-                      <div className="flex items-center gap-3">
-                        {result.icon && <result.icon size={16} className="text-[#4A9E46] dark:text-green-500" />}
-                        <span className="font-bold text-sm text-gray-800 dark:text-gray-200">{result.title}</span>
-                      </div>
-                      <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-7 uppercase tracking-wider">{result.group}</span>
+                      {result.icon && <result.icon size={16} className="text-gray-400 dark:text-gray-500" />}
+                      <span className="font-medium">{result.title}</span>
                     </div>
                   ))
                 ) : (
-                  <div className="px-4 py-4 text-sm text-gray-500 text-center font-medium flex flex-col items-center gap-2">
-                      <Search size={20} className="opacity-30"/>
-                      No matching pages found
-                  </div>
+                  <div className="px-4 py-3 text-sm text-gray-500 text-center">No pages found</div>
                 )}
               </div>
             )}
@@ -356,10 +326,7 @@ export default function DashboardLayout() {
                       asChild 
                       isActive={isActive}
                       tooltip={item.name}
-                      onClick={() => {
-                        navigate(item.url);
-                        if (isMobile) setIsSidebarOpen(false);
-                      }}
+                      onClick={() => navigate(item.url)}
                       className={`cursor-pointer transition-all duration-300 py-6 rounded-full mb-1 ${
                         isActive 
                         ? 'bg-white dark:bg-zinc-900 shadow-sm text-[#1B6A31] dark:text-green-500 font-bold ring-1 ring-gray-200/50 dark:ring-zinc-800' 
@@ -410,10 +377,7 @@ export default function DashboardLayout() {
                                 <SidebarMenuSubButton 
                                   asChild 
                                   isActive={isSubActive}
-                                  onClick={() => {
-                                      navigate(subItem.url);
-                                      if (isMobile) setIsSidebarOpen(false);
-                                  }}
+                                  onClick={() => navigate(subItem.url)}
                                   className={`cursor-pointer py-4 rounded-full transition-all duration-300 ${
                                     isSubActive 
                                     ? 'text-[#1B6A31] dark:text-green-500 font-bold bg-white dark:bg-zinc-900 shadow-sm ring-1 ring-gray-200/50 dark:ring-zinc-800' 

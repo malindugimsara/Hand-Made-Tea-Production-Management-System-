@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { RefreshCw, PackageCheck, AlertCircle, ArrowRightCircle, CheckCircle2, FileText, Calendar } from "lucide-react";
-import api from '../../../api/axiosConfig';
 
 // Exact Colors
 const getTeaColor = (product) => {
@@ -35,9 +34,15 @@ export default function TransIn() {
     const fetchPendingTransfers = async () => {
         setLoading(true);
         try {
-            // api.get භාවිතය (Token/Headers අතින් සකසන්න ඕනේ නෑ)
-            const response = await api.get('/api/packing/transfers/pending');
-            setPendingTransfers(response.data);
+            const token = localStorage.getItem('token');
+            // FIXED API ROUTE HERE -> /api/packing/transfers/pending
+            const response = await fetch(`${BACKEND_URL}/api/packing/transfers/pending`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error("Failed to fetch pending transfers");
+            
+            const data = await response.json();
+            setPendingTransfers(data);
             setSelectedTransfer(null); 
         } catch (error) {
             console.error(error);
@@ -79,6 +84,7 @@ export default function TransIn() {
         const toastId = toast.loading("Processing Trans In...");
 
         try {
+            const token = localStorage.getItem('token');
             const userName = localStorage.getItem('userName') || 'Packing Officer';
 
             const payload = {
@@ -90,15 +96,23 @@ export default function TransIn() {
                 }))
             };
 
-            // api.put භාවිතය
-            await api.put(`/api/packing/transfers/${selectedTransfer._id}/receive`, payload);
+            // FIXED API ROUTE HERE -> /api/packing/transfers/:id/receive
+            const response = await fetch(`${BACKEND_URL}/api/packing/transfers/${selectedTransfer._id}/receive`, {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error("Failed to process Trans In.");
 
             toast.success("Stock received successfully!", { id: toastId });
             fetchPendingTransfers(); 
 
         } catch (error) {
             console.error(error);
-            // Axios error handling
             toast.error("Error receiving stock.", { id: toastId });
         } finally {
             setSubmitting(false);

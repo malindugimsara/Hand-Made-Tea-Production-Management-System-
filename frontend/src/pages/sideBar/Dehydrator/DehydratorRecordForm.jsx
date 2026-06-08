@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast'; 
 import { Zap, Clock, PlusCircle, Trash2, ListChecks, Save, Scale, Droplets, Users, Banknote, X, Tag } from "lucide-react"; 
 import { useNavigate } from 'react-router-dom';
-import api from '../../../api/axiosConfig';
 
 export default function DehydratorRecordForm() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -34,26 +33,30 @@ export default function DehydratorRecordForm() {
 
     const fetchLastReading = async () => {
         try {
-            // use api.get 
-            const response = await api.get('/api/dehydrator');
-            const data = response.data; 
-            
-            if (data && data.length > 0) {
-                const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                const lastRecord = sortedData[0];
-                
-                setFormData(prev => ({
-                    ...prev,
-                    meterStart: lastRecord.meterEnd ? lastRecord.meterEnd.toString() : '' 
-                }));
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${BACKEND_URL}/api/dehydrator`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data && data.length > 0) {
+                    const sortedData = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    const lastRecord = sortedData[0];
+                    
+                    setFormData(prev => ({
+                        ...prev,
+                        meterStart: lastRecord.meterEnd ? lastRecord.meterEnd.toString() : '' 
+                    }));
+                }
+            } else if (response.status === 401 || response.status === 403) {
+                toast.error("Session expired. Please log in again.");
             }
         } catch (error) {
-            // Catch 403 Access Denied Error
-            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-                toast.error("Session expired or access denied. Please log in again.");
-            } else {
-                console.error("Error fetching last reading:", error);
-            }
+            console.error("Error fetching last reading:", error);
         }
     };
 
@@ -172,6 +175,7 @@ export default function DehydratorRecordForm() {
         const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
 
         try {
+            const token = localStorage.getItem('token');
             const promises = pendingRecords.map(record => {
                 const payload = {
                     date: record.date,
@@ -187,7 +191,20 @@ export default function DehydratorRecordForm() {
                     trialsData: record.trials // The array of [{trialName, startWeight, endWeight, moisturePercentage}]
                 };
 
-                return api.post('/api/dehydrator', payload);
+                return fetch(`${BACKEND_URL}/api/dehydrator`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                }).then(async (res) => {
+                    if (!res.ok) {
+                        if (res.status === 403) throw new Error('Access Denied');
+                        throw new Error('Failed');
+                    }
+                    return res.json();
+                });
             });
 
             await Promise.all(promises);
@@ -201,8 +218,7 @@ export default function DehydratorRecordForm() {
 
         } catch (error) {
             console.error(error);
-            // Check for 403 Access Denied Error specifically
-            if (error.response?.status === 403) {
+            if (error.message === 'Access Denied') {
                 toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
             } else {
                 toast.error("Error saving some records. Please check.", { id: toastId });
