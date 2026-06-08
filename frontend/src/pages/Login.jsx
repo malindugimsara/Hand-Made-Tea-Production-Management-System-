@@ -323,7 +323,7 @@ export default function Login() {
     try {
       // Axios pawichi karala POST request eka yawima
       // Api baseURL eka kalin dila thiyena nisa '/api/auth/login' vitharak dunnama athi
-      const res = await api.post("/api/auth/", { username, password });
+      const res = await api.post("/api/auth", { username, password });
 
       const data = res.data; // Axios walin automatically JSON convert karala denawa
 
