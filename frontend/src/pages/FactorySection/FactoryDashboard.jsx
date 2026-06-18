@@ -52,7 +52,7 @@ export default function FactoryDashboard() {
     useEffect(() => {
         const timer = setTimeout(() => {
             setShowCharts(true);
-        }, 150); 
+        }, 150);    
         return () => clearTimeout(timer);
     }, []);
 
