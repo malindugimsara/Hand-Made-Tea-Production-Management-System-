@@ -567,6 +567,21 @@ export default function GreenLeafForm() {
     const handleAddToList = (e) => {
         e.preventDefault();
 
+        // 1. දැනටමත් Database එකේ මේ දවස තියෙනවදැයි බැලීම
+        if (existingDates.includes(formData.date)) {
+            playErrorSound(); 
+            toast.error(`A record for ${formData.date} already exists in the database!`); 
+            return;
+        }
+
+        // 2. දැනටමත් Pending Queue එකේ මේ දවස තියෙනවදැයි බැලීම
+        const isAlreadyInQueue = pendingRecords.some(r => r.date === formData.date);
+        if (isAlreadyInQueue) {
+            playErrorSound(); 
+            toast.error(`A record for ${formData.date} is already in the pending list!`); 
+            return;
+        }
+
         const total = Number(formData.totalWeight);
         const selected = Number(formData.selectedWeight);
 
@@ -587,7 +602,7 @@ export default function GreenLeafForm() {
             selectedWeight: '', 
             expectedDryerDate: '', 
             workerCount: '', 
-            rollingType: 'Machine Rolling', 
+            rollingType: 'Machine Rolling1', 
             rollingWorkerCount: ''
         });
     };
@@ -609,7 +624,8 @@ export default function GreenLeafForm() {
             const token = localStorage.getItem('token');
             const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
-            const promises = pendingRecords.map(async (record) => {
+            // Promise.all වෙනුවට for...of භාවිතා කිරීමෙන් රෙකෝඩ්ස් පිළිවෙලට එකින් එක සේව් වේ (Overload නොවේ)
+            for (const record of pendingRecords) {
                 const total = Number(record.totalWeight);
                 const selected = Number(record.selectedWeight);
 
@@ -626,7 +642,7 @@ export default function GreenLeafForm() {
 
                 if (!glRes.ok || !labRes.ok) {
                     if (glRes.status === 403 || labRes.status === 403) throw new Error('Access Denied');
-                    throw new Error('Failed to save GL or Labour record');
+                    throw new Error(`Failed to save GL or Labour record for ${record.date}`);
                 }
 
                 // Create a single placeholder Production record waiting for Dryer Date
@@ -641,11 +657,10 @@ export default function GreenLeafForm() {
                 
                 if (!prodRes.ok) {
                     if (prodRes.status === 403) throw new Error('Access Denied');
-                    throw new Error('Failed to save a Production record');
+                    throw new Error(`Failed to save Production record for ${record.date}`);
                 }
-            });
+            }
 
-            await Promise.all(promises);
             toast.success("All records saved successfully!", { id: toastId });
             setExistingDates([...existingDates, ...pendingRecords.map(r => r.date)]);
             setPendingRecords([]); 
@@ -654,12 +669,16 @@ export default function GreenLeafForm() {
                 fetchInitialData();
                 fetchMergedRecords();
             }, 1000);
-            navigation('/view-green-leaf');
+            
+            // navigation('/view-green-leaf'); (අවශ්‍ය නම් පමණක් මෙය තබාගන්න)
 
         } catch (error) {
             playErrorSound();
-            if (error.message === 'Access Denied') toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
-            else toast.error("Error saving some records. Please check.", { id: toastId });
+            if (error.message === 'Access Denied') {
+                toast.error("Access Denied. You do not have permission.", { id: toastId });
+            } else {
+                toast.error(error.message || "Error saving some records. Please check.", { id: toastId });
+            }
         } finally {
             setIsSavingAll(false);
         }
