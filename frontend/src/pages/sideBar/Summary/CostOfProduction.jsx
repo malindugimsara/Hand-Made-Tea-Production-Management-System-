@@ -917,6 +917,9 @@ export default function CostOfProduction() {
                     const supCost = supervisionCosts[item.teaType] || 0;
                     const handRollingCost = item.hrWorkers * Number(labourRate || 0);
                     const totalCost = glCost + selectionCost + handRollingCost + electricityCost + supCost;
+                    
+                    // Added calculation for Cost Per 1 KG
+                    const costPerKg = item.madeTeaWeight > 0 ? (totalCost / item.madeTeaWeight) : 0;
 
                     return (
                         <div key={item.teaType} className={`bg-white dark:bg-zinc-900 rounded-xl sm:rounded-2xl shadow-md overflow-hidden border transition-colors duration-300 ${isViewer ? 'border-gray-200 dark:border-zinc-800 opacity-95' : 'border-gray-200 dark:border-zinc-800'}`}>
@@ -979,6 +982,13 @@ export default function CostOfProduction() {
                                             <td colSpan="2" className="py-4 sm:py-5 px-3 sm:px-4 text-sm sm:text-lg font-bold text-[#1B6A31] dark:text-green-500 whitespace-nowrap">Total Production Cost ({item.teaType})</td>
                                             <td className="py-4 sm:py-5 px-3 sm:px-4 text-right text-base sm:text-2xl font-black text-[#1B6A31] dark:text-green-400 whitespace-nowrap">
                                                 Rs. {totalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                            </td>
+                                        </tr>
+                                        {/* ADDED ROW FOR COST PER KG */}
+                                        <tr className="bg-green-100/50 dark:bg-green-800/20 transition-colors border-t border-green-200 dark:border-green-800/50">
+                                            <td colSpan="2" className="py-3 sm:py-4 px-3 sm:px-4 text-sm sm:text-md font-bold text-[#1B6A31] dark:text-green-500 whitespace-nowrap">Cost Per 1 KG (Rs.)</td>
+                                            <td className="py-3 sm:py-4 px-3 sm:px-4 text-right text-sm sm:text-xl font-black text-[#1B6A31] dark:text-green-400 whitespace-nowrap">
+                                                Rs. {costPerKg.toLocaleString(undefined, {minimumFractionDigits: 2})}
                                             </td>
                                         </tr>
                                     </tfoot>
