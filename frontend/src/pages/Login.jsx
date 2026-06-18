@@ -318,13 +318,22 @@ export default function Login() {
           {/* ALL 3 SECTIONS PERMANENTLY VISIBLE AS INFO LABELS */}
           <div className="mt-6 sm:mt-8 flex flex-wrap justify-center items-center gap-2 sm:gap-3 w-full max-w-[500px]">
             
+            {/* Factory Label */}
+            <motion.div
+              initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay: 0.3 }}
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border font-bold text-[11px] sm:text-sm backdrop-blur-md cursor-default select-none transition-colors duration-300"
+              style={{ borderColor: THEMES.factory.badgeBorder, backgroundColor: THEMES.factory.badgeBg, color: THEMES.factory.badgeText }}
+            >
+              <Factory size={14} className="opacity-80" /> Main Factory 
+            </motion.div>
+
             {/* Handmade Label */}
             <motion.div
               initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay: 0.1 }}
               className="flex items-center justify-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border font-bold text-[11px] sm:text-sm backdrop-blur-md cursor-default select-none transition-colors duration-300"
               style={{ borderColor: THEMES.handmade.badgeBorder, backgroundColor: THEMES.handmade.badgeBg, color: THEMES.handmade.badgeText }}
             >
-              <Leaf size={14} className="opacity-80" /> H/T Factory System
+              <Leaf size={14} className="opacity-80" /> H/T Factory 
             </motion.div>
             
             {/* Packing Label */}
@@ -333,18 +342,8 @@ export default function Login() {
               className="flex items-center justify-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border font-bold text-[11px] sm:text-sm backdrop-blur-md cursor-default select-none transition-colors duration-300"
               style={{ borderColor: THEMES.packing.badgeBorder, backgroundColor: THEMES.packing.badgeBg, color: THEMES.packing.badgeText }}
             >
-              <Package size={14} className="opacity-80" /> Packing Section System
+              <Package size={14} className="opacity-80" /> Packing Section 
             </motion.div>
-
-            {/* Factory Label */}
-            <motion.div
-              initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay: 0.3 }}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border font-bold text-[11px] sm:text-sm backdrop-blur-md cursor-default select-none transition-colors duration-300"
-              style={{ borderColor: THEMES.factory.badgeBorder, backgroundColor: THEMES.factory.badgeBg, color: THEMES.factory.badgeText }}
-            >
-              <Factory size={14} className="opacity-80" /> Factory System
-            </motion.div>
-            
           </div>
         </div>
       </motion.div>

@@ -670,7 +670,7 @@ export default function GreenLeafForm() {
                 fetchMergedRecords();
             }, 1000);
             
-            // navigation('/view-green-leaf'); (අවශ්‍ය නම් පමණක් මෙය තබාගන්න)
+            navigation('/view-green-leaf');
 
         } catch (error) {
             playErrorSound();
