@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import { Analytics } from "@vercel/analytics/react";
 import { HandmadeRoutes } from './pages/HandmadeRoutes';
 import { PackingRoutes } from './pages/PackingRoutes';
+import FactoryRouter from './pages/FactoryRouter';
 
 
 // 🔐 Protected Route
@@ -28,6 +29,7 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           {HandmadeRoutes()}
           {PackingRoutes()}
+          {FactoryRouter()}
           
         </Route>
 

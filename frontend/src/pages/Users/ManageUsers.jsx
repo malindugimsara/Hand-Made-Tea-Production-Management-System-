@@ -160,9 +160,10 @@ export default function ManageUsers() {
                                     <td className="px-6 py-4 border-r border-gray-100 dark:border-zinc-800/60">
                                         <span className={`px-3 py-1 rounded-full text-xs font-bold border flex w-fit items-center gap-1 transition-colors
                                             ${user.role === 'Admin' ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800/50' : 
-                                              user.role === 'HandMade Officer' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800/50' : 
-                                              user.role === 'Packing Officer' ? 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-800/50' :
-                                              'bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-zinc-700'}`}
+                                            user.role === 'HandMade Officer' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800/50' : 
+                                            user.role === 'Factory Officer' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/50' : 
+                                            user.role === 'Packing Officer' ? 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-800/50' :
+                                            'bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-zinc-700'}`}
                                         >
                                             {user.role === 'Admin' && <Shield size={12}/>}
                                             {user.role}

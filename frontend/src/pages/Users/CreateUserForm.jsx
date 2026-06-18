@@ -157,6 +157,7 @@ export default function CreateUserForm() {
                         >
                             <option value="Viewer" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Viewer (Read-Only Access)</option>
                             <option value="HandMade Officer" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">HandMade Officer (HandMade Tea Related Tasks)</option>
+                            <option value="Factory Officer" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Factory Officer (Factory Related Tasks)</option>
                             <option value="Packing Officer" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Packing Officer (Packing Related Tasks)</option>
                             <option value="Admin" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Admin (Full Control & User Management)</option>
                         </select>
