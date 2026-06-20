@@ -401,29 +401,36 @@ export default function Home() {
     {/* 1. HERO WELCOME BANNER */}
     <div className="flex flex-col gap-5 md:gap-6">
         {/* 1. WELCOME BANNER */}
-        <div className="relative rounded-2xl overflow-hidden px-5 sm:px-8 md:px-10 py-8 md:py-10 min-h-[160px] md:min-h-[200px] flex flex-col justify-center bg-gradient-to-br from-[#2e6c4c] via-[#205236] to-[#164816]">
+        <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden px-5 py-8 sm:px-8 sm:py-10 md:py-12 min-h-[180px] md:min-h-[220px] flex flex-col justify-center bg-gradient-to-br from-[#2e6c4c] via-[#205236] to-[#164816] shadow-lg border border-[#2e6c4c]/20 z-10">
+            
+            {/* Background Gradients & Shapes - Mobile Responsive Sizes & Positions */}
             <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_60%_80%_at_85%_20%,rgba(180,210,120,0.13)_0%,transparent_70%),radial-gradient(ellipse_40%_50%_at_10%_90%,rgba(90,160,80,0.10)_0%,transparent_60%)]" />
-            <div className="absolute -top-8 -right-8 w-40 h-40 md:w-56 md:h-56 rounded-full pointer-events-none border-[30px] md:border-[40px] border-white/5" />
-            <div className="absolute -bottom-16 right-8 md:right-16 w-32 h-32 md:w-40 md:h-40 rounded-full pointer-events-none border-[20px] md:border-[30px] border-[#a3d977]/5" />
+            <div className="absolute -top-8 -right-8 sm:-top-10 sm:-right-10 w-32 h-32 sm:w-48 sm:h-48 md:w-64 md:h-64 rounded-full pointer-events-none border-[20px] sm:border-[30px] md:border-[40px] border-white/5 animate-pulse" />
+            <div className="absolute -bottom-10 -right-4 sm:-bottom-16 sm:right-8 md:right-16 w-24 h-24 sm:w-32 sm:h-32 md:w-48 md:h-48 rounded-full pointer-events-none border-[15px] sm:border-[20px] md:border-[30px] border-[#a3d977]/5 animate-pulse" style={{ animationDelay: '2s' }} />
             
-            <div className="flex items-center gap-2 w-fit mb-4 px-3 py-1 rounded-full bg-white/10 border border-white/20">
-                <span className="w-2 h-2 rounded-full bg-[#a3d977] shadow-[0_0_6px_#a3d977aa]" />
-                <span className="text-[10px] md:text-xs font-medium tracking-widest uppercase text-white/70">
-                    Dashboard
-                </span>
+            <div className="relative z-10 flex flex-col items-start text-left w-full">
+                
+                {/* Dashboard Badge */}
+                <div className="flex items-center gap-2 w-fit mb-3 sm:mb-4 px-3 py-1.5 sm:px-4 sm:py-1.5 rounded-full backdrop-blur-md bg-white/10 border border-white/20 shadow-sm">
+                    <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#a3d977] shadow-[0_0_8px_rgba(163,217,119,0.8)] animate-pulse" />
+                    <span className="text-[10px] sm:text-[11px] font-bold tracking-widest uppercase text-white/80">
+                        Dashboard
+                    </span>
+                </div>
+                
+                {/* Main Heading */}
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-2 sm:mb-3 text-white font-serif tracking-tight drop-shadow-sm">
+                    Welcome to <span className="text-[#c8e88a] block sm:inline">HandMade Tea </span> 
+                    <span className="text-base sm:text-lg md:text-xl lg:text-2xl text-yellow-200/60 tracking-wide font-sans block sm:inline mt-1 sm:mt-0 sm:ml-2">
+                        (HT0049)
+                    </span>
+                </h1>
+                
+                {/* Subtitle */}
+                <p className="text-xs sm:text-sm md:text-base font-medium text-white/80 max-w-full sm:max-w-md md:max-w-xl drop-shadow-sm leading-relaxed">
+                    {getGreeting()}, &nbsp;🍃&nbsp; Here's your overview for today.
+                </p>
             </div>
-            
-            <h1 className="text-3xl md:text-4xl font-bold leading-tight mb-2 text-white font-serif tracking-tight">
-                Welcome to{' '}
-                <span className="text-[#c8e88a]">HandMade Tea </span> 
-                <span className="text-lg md:text-xl text-yellow-200/50 tracking-wide font-sans block sm:inline mt-1 sm:mt-0">
-                    (HT0049)
-                </span>
-            </h1>
-            
-            <p className="text-sm md:text-base font-normal text-white/65">
-                {getGreeting()}, &nbsp;🍃&nbsp; Here's your overview for today.
-            </p>
         </div>
 
         {/* 2. HIGHLIGHTED STATS OVERVIEW CARDS */}
