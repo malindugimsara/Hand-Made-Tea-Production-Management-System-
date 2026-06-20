@@ -5,6 +5,5 @@ const factoryrouter = express.Router();
 
 factoryrouter.get('/', getFactoryLogsByMonth);
 factoryrouter.post('/', saveDailyFactoryLog);
-factoryrouter.delete('/:id', deleteFactoryLog); // <-- Delete Route එක එකතු කළා
-
+factoryrouter.delete('/:id', deleteFactoryLog); 
 export default factoryrouter;

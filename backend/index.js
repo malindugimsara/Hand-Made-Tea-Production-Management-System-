@@ -76,6 +76,7 @@ app.use('/api/restore-tea-stock', restoreTeaStockRouter);
 
 // Factory Section Routes
 app.use('/api/factory-balance', factoryrouter);
+app.use('/api/factory-logs', factoryrouter);
 
 
 app.listen(3000, () => {
