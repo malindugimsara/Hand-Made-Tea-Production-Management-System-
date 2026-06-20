@@ -70,7 +70,7 @@ const DATA = {
     logo: () => <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain" />,
   },
   quickLinks: [
-    { name: 'Dashboard Home', url: '/packing', icon: LayoutDashboard },
+    { name: 'Dashboard Home', url: '/factory', icon: LayoutDashboard },
   ],
   navMain: [
      {
