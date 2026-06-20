@@ -1,26 +1,35 @@
 import FactoryLog from '../models/FactoryLog.js';
 
 // 1. GET MONTHLY FACTORY LOGS (සම්පූර්ණ මාසයේම දත්ත Auto-calculate කර ලබා ගැනීම)
+// 1. GET FACTORY LOGS (Now supports a Date Range!)
 export const getFactoryLogsByMonth = async (req, res) => {
   try {
-    const { month } = req.query; // Format: "YYYY-MM" (උදා: "2026-06")
-    if (!month) return res.status(400).json({ message: "Month parameter is required." });
+    const { startMonth, endMonth, month } = req.query; 
 
-    const startOfMonth = new Date(`${month}-01T00:00:00.000Z`);
-    const endOfMonth = new Date(new Date(startOfMonth).setMonth(startOfMonth.getMonth() + 1));
+    let startDate, endDate;
 
-    // පසුගිය මාසයේ අවසාන දවසේ Factory Balance එක සොයා ගැනීම (B/F සඳහා)
-    const lastMonthRecord = await FactoryLog.findOne({ date: { $lt: startOfMonth } })
-      .sort({ date: -1 });
-    
+    // Support the new range selection (e.g., "2026-01" to "2026-06")
+    if (startMonth && endMonth) {
+        startDate = new Date(`${startMonth}-01T00:00:00.000Z`);
+        endDate = new Date(`${endMonth}-01T00:00:00.000Z`);
+        endDate.setMonth(endDate.getMonth() + 1); // Push to the very end of the endMonth
+    } 
+    // Fallback for your single month logic
+    else if (month) {
+        startDate = new Date(`${month}-01T00:00:00.000Z`);
+        endDate = new Date(new Date(startDate).setMonth(startDate.getMonth() + 1));
+    } else {
+        return res.status(400).json({ message: "Please provide startMonth and endMonth." });
+    }
+
+    // Find the Factory Balance right before the startDate (for B/F)
+    const lastMonthRecord = await FactoryLog.findOne({ date: { $lt: startDate } }).sort({ date: -1 });
     const initialBF = lastMonthRecord ? lastMonthRecord.factoryBalance : 0;
 
-    // මෙම මාසයට අදාළව දැනට සේව් කර ඇති Factory Logs ලබා ගැනීම
     const currentMonthLogs = await FactoryLog.find({
-      date: { $gte: startOfMonth, $lt: endOfMonth }
+      date: { $gte: startDate, $lt: endDate }
     }).sort({ date: 1 });
 
-    // Response එක සඳහා දත්ත පිළිවෙලට සැකසීම (To-Date සහ Running Balance හැදීම)
     let runningGreenLeafToDate = 0;
     let runningMadeTeaToDate = 0;
     let currentBalance = initialBF;
@@ -28,32 +37,20 @@ export const getFactoryLogsByMonth = async (req, res) => {
     const processedRecords = currentMonthLogs.map((log, index) => {
       runningGreenLeafToDate += log.greenLeaf.today;
       runningMadeTeaToDate += log.madeTea.today;
-
-      // පළමු රෙකෝඩ් එකට පමණක් මුළු මාසයේම B/F එක පෙන්වීමට:
       const isFirstDay = index === 0;
       
-      // Factory Balance = Previous Balance + Made Tea Today - Total Out + Return Amount
       currentBalance = currentBalance + log.madeTea.today - log.totalOut + log.returnAmount;
 
       return {
         ...log._doc,
-        greenLeaf: {
-          today: log.greenLeaf.today,
-          toDate: runningGreenLeafToDate
-        },
-        madeTea: {
-          today: log.madeTea.today,
-          toDate: runningMadeTeaToDate
-        },
+        greenLeaf: { today: log.greenLeaf.today, toDate: runningGreenLeafToDate },
+        madeTea: { today: log.madeTea.today, toDate: runningMadeTeaToDate },
         bfBalance: isFirstDay ? initialBF : 0, 
         factoryBalance: currentBalance
       };
     });
 
-    res.status(200).json({
-      bfFromLastMonth: initialBF,
-      records: processedRecords
-    });
+    res.status(200).json({ bfFromLastMonth: initialBF, records: processedRecords });
 
   } catch (error) {
     console.error(error);
