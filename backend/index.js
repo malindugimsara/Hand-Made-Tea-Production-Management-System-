@@ -27,6 +27,9 @@ import teaTransactionOtherRouter from './Packing/Routes/teaTransactionOtherRoute
 import rawMaterialInRouter from './Packing/Routes/rawMaterialInRouter.js';
 import restoreTeaStockRouter from './Packing/Routes/restoreTeaStockrouter.js';
 
+// Factory Section Routes
+import factoryrouter from './factory/router/factoryRoutes.js';
+
 dotenv.config();
 const app = express();
 
@@ -70,6 +73,9 @@ app.use('/api/packing-stock', packingStockRouter);
 app.use('/api/tea-receivedother', teaTransactionOtherRouter);
 app.use('/api/raw-materials-in', rawMaterialInRouter);
 app.use('/api/restore-tea-stock', restoreTeaStockRouter);
+
+// Factory Section Routes
+app.use('/api/factory-balance', factoryrouter);
 
 
 app.listen(3000, () => {
