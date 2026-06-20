@@ -267,25 +267,30 @@ export default function PackingDashboard() {
         <div className="p-4 md:p-8 max-w-[1600px] mx-auto h-full flex flex-col space-y-8 bg-[#f8fafc] dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
             
             {/* 1. HERO WELCOME BANNER */}
-            <div className="relative rounded-3xl overflow-hidden px-8 py-10 md:py-12 min-h-[220px] flex flex-col justify-center shadow-lg border border-teal-700/20"
+            <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden px-5 py-8 sm:px-8 sm:py-10 md:py-12 min-h-[180px] md:min-h-[220px] flex flex-col justify-center shadow-lg border border-teal-700/20 z-10"
                 style={{ background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 60%, #115e59 100%)' }}>
 
-                <div className="absolute top-0 right-0 w-96 h-96 bg-teal-400 rounded-full mix-blend-multiply filter blur-[100px] opacity-20 animate-pulse"></div>
-                <div className="absolute -bottom-20 left-10 w-72 h-72 bg-emerald-400 rounded-full mix-blend-multiply filter blur-[80px] opacity-20 animate-pulse" style={{ animationDelay: '2s' }}></div>
+                {/* Background Animations - Mobile Responsive Sizes & Positions */}
+                <div className="absolute -top-10 -right-10 sm:top-0 sm:right-0 w-64 h-64 md:w-96 md:h-96 bg-teal-400 rounded-full mix-blend-multiply filter blur-[60px] md:blur-[100px] opacity-20 animate-pulse"></div>
+                <div className="absolute -bottom-10 -left-10 sm:-bottom-20 sm:left-10 w-48 h-48 md:w-72 md:h-72 bg-emerald-400 rounded-full mix-blend-multiply filter blur-[50px] md:blur-[80px] opacity-20 animate-pulse" style={{ animationDelay: '2s' }}></div>
 
-                <div className="relative z-10">
-                    <div className="flex items-center gap-2 w-fit mb-5 px-4 py-1.5 rounded-full backdrop-blur-md bg-white/10 border border-white/20 shadow-sm">
-                        <span className="w-2.5 h-2.5 rounded-full bg-teal-300 shadow-[0_0_8px_rgba(94,234,212,0.8)] animate-pulse" />
-                        <span className="text-[11px] font-bold tracking-widest uppercase text-teal-50">
+                <div className="relative z-10 flex flex-col items-start text-left w-full">
+                    
+                    {/* Live Operations Badge */}
+                    <div className="flex items-center gap-2 w-fit mb-3 sm:mb-5 px-3 py-1.5 sm:px-4 sm:py-1.5 rounded-full backdrop-blur-md bg-white/10 border border-white/20 shadow-sm">
+                        <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-teal-300 shadow-[0_0_8px_rgba(94,234,212,0.8)] animate-pulse" />
+                        <span className="text-[10px] sm:text-[11px] font-bold tracking-widest uppercase text-teal-50">
                             Live Operations
                         </span>
                     </div>
 
-                    <h1 className="text-3xl md:text-5xl font-bold leading-tight mb-3 text-white tracking-tight">
-                        Welcome to <span className="text-teal-200">Packing Section</span>
+                    {/* Main Heading */}
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-2 sm:mb-3 text-white tracking-tight drop-shadow-sm">
+                        Welcome to <span className="text-teal-200 block sm:inline">Packing Section</span>
                     </h1>
 
-                    <p className="text-sm md:text-base font-medium text-teal-50/80 max-w-xl">
+                    {/* Subtitle */}
+                    <p className="text-xs sm:text-sm md:text-base font-medium text-teal-50/80 max-w-full sm:max-w-md md:max-w-xl drop-shadow-sm leading-relaxed">
                         {getGreeting()}, here is your real-time overview of daily production, dispatches, and inventory levels.
                     </p>
                 </div>
