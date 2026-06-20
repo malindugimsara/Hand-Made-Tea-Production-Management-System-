@@ -1,0 +1,135 @@
+import FactoryLog from '../models/FactoryLog.js';
+
+// 1. GET MONTHLY FACTORY LOGS (සම්පූර්ණ මාසයේම දත්ත Auto-calculate කර ලබා ගැනීම)
+export const getFactoryLogsByMonth = async (req, res) => {
+  try {
+    const { month } = req.query; // Format: "YYYY-MM" (උදා: "2026-06")
+    if (!month) return res.status(400).json({ message: "Month parameter is required." });
+
+    const startOfMonth = new Date(`${month}-01T00:00:00.000Z`);
+    const endOfMonth = new Date(new Date(startOfMonth).setMonth(startOfMonth.getMonth() + 1));
+
+    // පසුගිය මාසයේ අවසාන දවසේ Factory Balance එක සොයා ගැනීම (B/F සඳහා)
+    const lastMonthRecord = await FactoryLog.findOne({ date: { $lt: startOfMonth } })
+      .sort({ date: -1 });
+    
+    const initialBF = lastMonthRecord ? lastMonthRecord.factoryBalance : 0;
+
+    // මෙම මාසයට අදාළව දැනට සේව් කර ඇති Factory Logs ලබා ගැනීම
+    const currentMonthLogs = await FactoryLog.find({
+      date: { $gte: startOfMonth, $lt: endOfMonth }
+    }).sort({ date: 1 });
+
+    // Response එක සඳහා දත්ත පිළිවෙලට සැකසීම (To-Date සහ Running Balance හැදීම)
+    let runningGreenLeafToDate = 0;
+    let runningMadeTeaToDate = 0;
+    let currentBalance = initialBF;
+
+    const processedRecords = currentMonthLogs.map((log, index) => {
+      runningGreenLeafToDate += log.greenLeaf.today;
+      runningMadeTeaToDate += log.madeTea.today;
+
+      // පළමු රෙකෝඩ් එකට පමණක් මුළු මාසයේම B/F එක පෙන්වීමට:
+      const isFirstDay = index === 0;
+      
+      // Factory Balance = Previous Balance + Made Tea Today - Total Out + Return Amount
+      currentBalance = currentBalance + log.madeTea.today - log.totalOut + log.returnAmount;
+
+      return {
+        ...log._doc,
+        greenLeaf: {
+          today: log.greenLeaf.today,
+          toDate: runningGreenLeafToDate
+        },
+        madeTea: {
+          today: log.madeTea.today,
+          toDate: runningMadeTeaToDate
+        },
+        bfBalance: isFirstDay ? initialBF : 0, 
+        factoryBalance: currentBalance
+      };
+    });
+
+    res.status(200).json({
+      bfFromLastMonth: initialBF,
+      records: processedRecords
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error fetching factory logs." });
+  }
+};
+
+// 2. SAVE OR UPDATE DAILY FACTORY LOG (Edit karaddi Username eka show wenne methanadi)
+export const saveDailyFactoryLog = async (req, res) => {
+  try {
+    const { date, greenLeafToday, dispatch, localSaleAndGratis, returnAmount, username } = req.body;
+
+    if (!date) return res.status(400).json({ message: "Date is required." });
+
+    const targetDate = new Date(date);
+    targetDate.setUTCHours(0, 0, 0, 0);
+
+    const glToday = Number(greenLeafToday) || 0;
+
+    // Made Tea Today = User දුන් Green Leaf Today * 21.5%
+    const madeTeaToday = glToday * 0.215;
+
+    // Total Out = Dispatch + Local Sale and Gratis
+    const totalOut = (Number(dispatch) || 0) + (Number(localSaleAndGratis) || 0);
+
+    // Record eka kalin thiyenawada kiyala check karagන්නවා (Edit check)
+    const existingRecord = await FactoryLog.findOne({ date: targetDate });
+    
+    let updateFields = {
+      greenLeaf: { today: glToday },
+      madeTea: { today: madeTeaToday },
+      dispatch: Number(dispatch) || 0,
+      localSaleAndGratis: Number(localSaleAndGratis) || 0,
+      totalOut: totalOut,
+      returnAmount: Number(returnAmount) || 0
+    };
+
+    // Kalin record ekak thibila edit wenawa nam login user ge name eka athulath karanawa
+    if (existingRecord) {
+      updateFields.isEdited = true;
+      updateFields.lastUpdatedDate = new Date();
+      updateFields.editedBy = username || req.user?.username || 'Unknown User';
+    } else {
+      updateFields.isEdited = false;
+      updateFields.editedBy = '';
+    }
+
+    const updatedLog = await FactoryLog.findOneAndUpdate(
+      { date: targetDate },
+      { $set: updateFields },
+      { new: true, upsert: true }
+    );
+
+    res.status(200).json({ message: "Daily factory log saved successfully.", data: updatedLog });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error saving daily factory log." });
+  }
+};
+
+// 3. DELETE FACTORY LOG (මකා දැමීමේ පහසුකම)
+export const deleteFactoryLog = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const log = await FactoryLog.findById(id);
+    if (!log) {
+      return res.status(404).json({ message: "Record not found." });
+    }
+
+    await FactoryLog.findByIdAndDelete(id);
+    res.status(200).json({ message: "Record deleted successfully." });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error deleting factory log." });
+  }
+};
