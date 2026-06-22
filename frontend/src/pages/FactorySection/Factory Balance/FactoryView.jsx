@@ -110,7 +110,7 @@ export default function FactoryView() {
             setRecordToDelete(null);
         }
     };
-
+    
     // --- EXPORT TO EXCEL ---
     const exportToExcel = () => {
     // 1. Prepare raw data
