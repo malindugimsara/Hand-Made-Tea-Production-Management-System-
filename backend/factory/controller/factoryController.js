@@ -1,67 +1,98 @@
-import FactoryLog from '../models/FactoryLog.js';
+import FactoryLog from "../models/FactoryLog.js";
 
-// 1. GET MONTHLY FACTORY LOGS (සම්පූර්ණ මාසයේම දත්ත Auto-calculate කර ලබා ගැනීම)
-// 1. GET FACTORY LOGS (Now supports a Date Range!)
+// 1. GET FACTORY LOGS (මාසය අනුව හෝ දින පරාසය අනුව පෙර මාසයේ B/F එකද සමඟ ලබා ගැනීම)
 export const getFactoryLogsByMonth = async (req, res) => {
   try {
-    const { startMonth, endMonth, month } = req.query; 
+    const { month, startDate, endDate } = req.query;
 
-    let startDate, endDate;
+    let query = {};
+    let beforeDateQuery = null; // B/F ගණනය කිරීම සඳහා පෙර දින සෙවීම
 
-    // Support the new range selection (e.g., "2026-01" to "2026-06")
-    if (startMonth && endMonth) {
-        startDate = new Date(`${startMonth}-01T00:00:00.000Z`);
-        endDate = new Date(`${endMonth}-01T00:00:00.000Z`);
-        endDate.setMonth(endDate.getMonth() + 1); // Push to the very end of the endMonth
-    } 
-    // Fallback for your single month logic
-    else if (month) {
-        startDate = new Date(`${month}-01T00:00:00.000Z`);
-        endDate = new Date(new Date(startDate).setMonth(startDate.getMonth() + 1));
+    // 1. මාසය පමණක් (Month) තෝරා ඇත්නම්
+    if (month) {
+      const startOfMonth = new Date(`${month}-01T00:00:00.000Z`);
+      const endOfMonth = new Date(
+        startOfMonth.getFullYear(),
+        startOfMonth.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999,
+      );
+
+      query.date = { $gte: startOfMonth, $lte: endOfMonth };
+      beforeDateQuery = { date: { $lt: startOfMonth } }; // තෝරාගත් මාසයට පෙර සියලු දත්ත
+    }
+    // 2. දින පරාසයක් (Date Range) තෝරා ඇත්නම්
+    else if (startDate && endDate) {
+      const start = new Date(`${startDate}T00:00:00.000Z`);
+      const end = new Date(`${endDate}T23:59:59.999Z`);
+
+      query.date = { $gte: start, $lte: end };
+      beforeDateQuery = { date: { $lt: start } }; // තෝරාගත් දිනට පෙර සියලු දත්ත
     } else {
-        return res.status(400).json({ message: "Please provide startMonth and endMonth." });
+      return res
+        .status(400)
+        .json({
+          message: "Please provide a 'month' or 'startDate' and 'endDate'.",
+        });
     }
 
-    // Find the Factory Balance right before the startDate (for B/F)
-    const lastMonthRecord = await FactoryLog.findOne({ date: { $lt: startDate } }).sort({ date: -1 });
-    const initialBF = lastMonthRecord ? lastMonthRecord.factoryBalance : 0;
+    // ==========================================
+    // 🌟 B/F Balance එක ගණනය කිරීම (Aggregations මගින්)
+    // ==========================================
+    let bfFromLastMonth = 0;
 
-    const currentMonthLogs = await FactoryLog.find({
-      date: { $gte: startDate, $lt: endDate }
-    }).sort({ date: 1 });
+    if (beforeDateQuery) {
+      const aggrResult = await FactoryLog.aggregate([
+        { $match: beforeDateQuery },
+        {
+          $group: {
+            _id: null,
+            totalMadeTea: { $sum: { $ifNull: ["$madeTea.today", 0] } },
+            totalDispatch: { $sum: { $ifNull: ["$dispatch", 0] } },
+            totalLocal: { $sum: { $ifNull: ["$localSaleAndGratis", 0] } },
+            totalReturn: { $sum: { $ifNull: ["$returnAmount", 0] } },
+          },
+        },
+      ]);
 
-    let runningGreenLeafToDate = 0;
-    let runningMadeTeaToDate = 0;
-    let currentBalance = initialBF;
+      if (aggrResult.length > 0) {
+        const { totalMadeTea, totalDispatch, totalLocal, totalReturn } =
+          aggrResult[0];
 
-    const processedRecords = currentMonthLogs.map((log, index) => {
-      runningGreenLeafToDate += log.greenLeaf.today;
-      runningMadeTeaToDate += log.madeTea.today;
-      const isFirstDay = index === 0;
-      
-      currentBalance = currentBalance + log.madeTea.today - log.totalOut + log.returnAmount;
+        // B/F Balance Formula = (Total Made Tea) - (Dispatch + Local Sales) + Returns
+        bfFromLastMonth =
+          totalMadeTea - (totalDispatch + totalLocal) + totalReturn;
+      }
+    }
 
-      return {
-        ...log._doc,
-        greenLeaf: { today: log.greenLeaf.today, toDate: runningGreenLeafToDate },
-        madeTea: { today: log.madeTea.today, toDate: runningMadeTeaToDate },
-        bfBalance: isFirstDay ? initialBF : 0, 
-        factoryBalance: currentBalance
-      };
-    });
+    // ==========================================
+    // 🌟 අදාල මාසයේ/දින පරාසයේ Records ලබා ගැනීම
+    // ==========================================
+    const records = await FactoryLog.find(query).sort({ date: 1 });
 
-    res.status(200).json({ bfFromLastMonth: initialBF, records: processedRecords });
-
+    // ගණනය කළ B/F අගය හා අදාළ දත්ත ටික Frontend එකට යැවීම
+    res.status(200).json({ bfFromLastMonth, records });
   } catch (error) {
-    console.error(error);
+    console.error("Error fetching factory logs:", error);
     res.status(500).json({ message: "Server error fetching factory logs." });
   }
 };
 
 // 2. SAVE OR UPDATE DAILY FACTORY LOG (Edit karaddi Username eka show wenne methanadi)
+// 2. SAVE OR UPDATE DAILY FACTORY LOG
 export const saveDailyFactoryLog = async (req, res) => {
   try {
-    const { date, greenLeafToday, dispatch, localSaleAndGratis, returnAmount, username } = req.body;
+    const {
+      date,
+      greenLeafToday,
+      dispatch,
+      localSaleAndGratis,
+      returnAmount,
+      username,
+    } = req.body;
 
     if (!date) return res.status(400).json({ message: "Date is required." });
 
@@ -69,43 +100,77 @@ export const saveDailyFactoryLog = async (req, res) => {
     targetDate.setUTCHours(0, 0, 0, 0);
 
     const glToday = Number(greenLeafToday) || 0;
-
-    // Made Tea Today = User දුන් Green Leaf Today * 21.5%
     const madeTeaToday = glToday * 0.215;
+    const totalOut =
+      (Number(dispatch) || 0) + (Number(localSaleAndGratis) || 0);
+    const retAmount = Number(returnAmount) || 0;
 
-    // Total Out = Dispatch + Local Sale and Gratis
-    const totalOut = (Number(dispatch) || 0) + (Number(localSaleAndGratis) || 0);
+    // 🌟 Backend Validation එක මෙතනින් පටන් ගන්නවා
+    // 1. මේ දවසට කලින් තිබුණු ඔක්කොම Record වල අගයන් එකතු කරලා Previous Balance එක හොයනවා
+    const aggrResult = await FactoryLog.aggregate([
+      { $match: { date: { $lt: targetDate } } },
+      {
+        $group: {
+          _id: null,
+          totalMadeTea: { $sum: { $ifNull: ["$madeTea.today", 0] } },
+          totalDispatch: { $sum: { $ifNull: ["$dispatch", 0] } },
+          totalLocal: { $sum: { $ifNull: ["$localSaleAndGratis", 0] } },
+          totalReturn: { $sum: { $ifNull: ["$returnAmount", 0] } },
+        },
+      },
+    ]);
 
-    // Record eka kalin thiyenawada kiyala check karagන්නවා (Edit check)
+    let previousBalance = 0;
+    if (aggrResult.length > 0) {
+      const r = aggrResult[0];
+      previousBalance =
+        r.totalMadeTea - (r.totalDispatch + r.totalLocal) + r.totalReturn;
+    }
+
+    // 2. මේ දවසේ අගයන් ටිකත් එක්ක අලුත් Balance එක හදනවා
+    const currentBalance =
+      previousBalance + madeTeaToday - totalOut + retAmount;
+
+    // 3. Balance එක ඍණ වෙනවනම් Save වෙන්න දෙන්නේ නෑ
+    if (currentBalance < 0) {
+      return res.status(400).json({
+        message: `Cannot save record for ${date}. Total Out exceeds the available Factory Balance.`,
+      });
+    }
+    // 🌟 Validation එක ඉවරයි
+
     const existingRecord = await FactoryLog.findOne({ date: targetDate });
-    
+
     let updateFields = {
       greenLeaf: { today: glToday },
       madeTea: { today: madeTeaToday },
       dispatch: Number(dispatch) || 0,
       localSaleAndGratis: Number(localSaleAndGratis) || 0,
       totalOut: totalOut,
-      returnAmount: Number(returnAmount) || 0
+      returnAmount: retAmount,
     };
 
-    // Kalin record ekak thibila edit wenawa nam login user ge name eka athulath karanawa
     if (existingRecord) {
       updateFields.isEdited = true;
       updateFields.lastUpdatedDate = new Date();
-      updateFields.editedBy = username || req.user?.username || 'Unknown User';
+      updateFields.editedBy = username || req.user?.username || "Unknown User";
     } else {
       updateFields.isEdited = false;
-      updateFields.editedBy = '';
+      updateFields.editedBy = "";
     }
 
     const updatedLog = await FactoryLog.findOneAndUpdate(
       { date: targetDate },
       { $set: updateFields },
-      { new: true, upsert: true }
+      { new: true, upsert: true },
     );
 
-    res.status(200).json({ message: "Daily factory log saved successfully.", data: updatedLog });
-
+    res
+      .status(200)
+      .json({
+        message: "Daily factory log saved successfully.",
+        data: updatedLog,
+      });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error saving daily factory log." });
@@ -124,7 +189,6 @@ export const deleteFactoryLog = async (req, res) => {
 
     await FactoryLog.findByIdAndDelete(id);
     res.status(200).json({ message: "Record deleted successfully." });
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error deleting factory log." });
