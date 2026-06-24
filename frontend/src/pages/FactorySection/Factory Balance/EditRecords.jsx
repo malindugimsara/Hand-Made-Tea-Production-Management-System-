@@ -143,7 +143,7 @@ export default function EditFactoryLog() {
                             <input
                                 type="number" step="0.01" name="greenLeafToday"
                                 value={formData.greenLeafToday} onChange={handleInputChange}
-                                onWheel={(e) => e.target.blur()} required
+                                onWheel={(e) => e.target.blur()} 
                                 className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#8CC63F]"
                             />
                         </div>
@@ -167,7 +167,7 @@ export default function EditFactoryLog() {
                             <input
                                 type="number" step="0.01" name="dispatch"
                                 value={formData.dispatch} onChange={handleInputChange}
-                                onWheel={(e) => e.target.blur()} required
+                                onWheel={(e) => e.target.blur()} 
                                 className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-400"
                             />
                         </div>
@@ -176,7 +176,7 @@ export default function EditFactoryLog() {
                             <input
                                 type="number" step="0.01" name="localSaleAndGratis"
                                 value={formData.localSaleAndGratis} onChange={handleInputChange}
-                                onWheel={(e) => e.target.blur()} required
+                                onWheel={(e) => e.target.blur()} 
                                 className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-400"
                             />
                         </div>
