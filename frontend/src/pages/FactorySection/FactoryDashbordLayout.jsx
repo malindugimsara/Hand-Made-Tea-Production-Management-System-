@@ -77,8 +77,9 @@ const DATA = {
       title: 'Factory Balance',
       icon: Store,
       items: [
-        { title: 'Factory entry', url: '/factory/entry', roles: ['Admin', 'Packing Officer'] },
-        { title: 'Factory View', url: '/factory/view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+        { title: 'Daily Production', url: '/factory/dailyproduction', roles: ['Admin', ' Factory Officer'] },
+        { title: 'Dispatch And Return', url: '/factory/dispatchandreturn', roles: ['Admin', ' Factory Officer'] },
+        { title: 'Factory View', url: '/factory/view', roles: ['Admin', 'Factory Officer', 'Viewer'] },
       ],
     },
   ],
