@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
-import { Leaf, Package, RefreshCcw, UserCircle, ArrowLeft, Info, AlertTriangle } from 'lucide-react';
+import toast from 'react-hot-toast'; // Removed { Toaster } from import
+import { Leaf, Package, RefreshCcw, ArrowLeft, Info, AlertTriangle } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function EditFactoryLog() {
@@ -12,14 +12,13 @@ export default function EditFactoryLog() {
     const record = location.state?.recordData || null;
 
     // 2. Initialize the state IMMEDIATELY using the passed record
+    // Username is removed from here since we don't need user input for it anymore
     const [formData, setFormData] = useState({
         date: record?.date ? new Date(record.date).toISOString().split('T')[0] : '',
-        // Check for both nested (greenLeaf.today) and flat data just to be safe
         greenLeafToday: record?.greenLeaf?.today || record?.greenLeafToday || '',
         dispatch: record?.dispatch || '',
         localSaleAndGratis: record?.localSaleAndGratis || record?.localSales || '',
-        returnAmount: record?.returnAmount || '',
-        username: ''
+        returnAmount: record?.returnAmount || ''
     });
 
     const [showSpinner, setShowSpinner] = useState(false);
@@ -48,17 +47,22 @@ export default function EditFactoryLog() {
         const toastId = toast.loading('Updating factory log...');
 
         try {
+            // AUTO CAPTURE USERNAME:
+            // ඔයාගේ Auth system එක අනුව මෙතන වෙනස් කරගන්න. 
+            // උදාහරණයක් විදියට localStorage එකේ 'username' කියලා තියෙනවා නම්:
+            const loggedInUser = localStorage.getItem('username') || 'System User';
+
             const payload = {
                 date: formData.date,
                 greenLeafToday: Number(formData.greenLeafToday) || 0,
                 dispatch: Number(formData.dispatch) || 0,
                 localSaleAndGratis: Number(formData.localSaleAndGratis) || 0,
                 returnAmount: Number(formData.returnAmount) || 0,
-                username: formData.username || 'System User'
+                username: loggedInUser // Automatically pass the editor's name
             };
 
             const response = await fetch(`${BACKEND_URL}/api/factory-logs`, {
-                method: 'POST',
+                method: 'POST', // (Make sure your backend expects POST for updates, or change to PUT if needed)
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
@@ -80,7 +84,6 @@ export default function EditFactoryLog() {
         }
     };
 
-    // Failsafe: If somehow there is still no data, show a clear error screen instead of a blank white page
     if (!record || !formData.date) {
         return (
             <div className="flex flex-col items-center justify-center h-screen text-gray-500">
@@ -94,8 +97,6 @@ export default function EditFactoryLog() {
 
     return (
         <div className="p-6 md:p-8 max-w-3xl mx-auto font-sans">
-            <Toaster position="top-right" />
-
             {/* Header & Back Button */}
             <div className="mb-8 relative flex flex-col items-center">
                 <button
@@ -119,32 +120,16 @@ export default function EditFactoryLog() {
 
             <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
 
-                {/* DATE & USER SECTION */}
-                <div className="mb-8 pb-6 border-b border-gray-100 flex flex-col md:flex-row gap-6">
-                    <div className="flex-1">
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Record Date (Locked)</label>
-                        <input
-                            type="date"
-                            name="date"
-                            value={formData.date}
-                            disabled
-                            className="w-full p-3 border border-gray-200 bg-gray-100 text-gray-500 rounded-md cursor-not-allowed"
-                        />
-                    </div>
-                    <div className="flex-1">
-                        <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-1">
-                            <UserCircle size={16} className="text-[#1B6A31]" /> Editor's Name (Required)
-                        </label>
-                        <input
-                            type="text"
-                            name="username"
-                            placeholder="Enter your name to track this edit..."
-                            value={formData.username}
-                            onChange={handleInputChange}
-                            required
-                            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#1B6A31]"
-                        />
-                    </div>
+                {/* DATE SECTION (Editor Input Removed) */}
+                <div className="mb-8 pb-6 border-b border-gray-100">
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Record Date (Locked)</label>
+                    <input
+                        type="date"
+                        name="date"
+                        value={formData.date}
+                        disabled
+                        className="w-full md:w-1/2 p-3 border border-gray-200 bg-gray-100 text-gray-500 rounded-md cursor-not-allowed"
+                    />
                 </div>
 
                 {/* 1. GREEN LEAF & MADE TEA */}

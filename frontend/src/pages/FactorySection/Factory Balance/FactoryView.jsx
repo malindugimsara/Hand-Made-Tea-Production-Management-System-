@@ -133,6 +133,9 @@ export default function FactoryView() {
           totalOut: tOut,
           returnAmount: ret,
           factoryBalance: runningBalance,
+          // 🌟 මෙන්න මේ පේළි දෙක අනිවාර්යයෙන්ම එකතු කරන්න
+          isEdited: record.isEdited || false,
+          editedBy: record.editedBy || "",
         };
       });
 
@@ -738,12 +741,15 @@ export default function FactoryView() {
                         key={record._id}
                         className="hover:bg-gray-50 transition-colors group"
                       >
+                        {/* DYNAMIC DATA ROWS ඇතුළත පළමු <td> කොටස */}
                         <td className="px-4 py-3 border-r border-gray-300 font-semibold bg-gray-50 text-gray-700 relative text-left">
                           <div className="flex flex-col items-center justify-center">
                             <span>{displayDay}</span>
                             {record.isEdited && (
-                              <span className="text-[9px] text-orange-500 font-medium whitespace-nowrap">
-                                *Edited
+                              <span className="text-[10px] text-orange-500 font-medium whitespace-nowrap">
+                                {/* 🌟 record.username වෙනුවට record.editedBy යොදන්න */}
+                                *Edited{" "}
+                                {record.editedBy ? `by ${record.editedBy}` : ""}
                               </span>
                             )}
                           </div>
