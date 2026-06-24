@@ -14,8 +14,6 @@ import {
 import {
   Bell,
   AlertTriangle,
-  Calendar,
-  CheckCircle,
   Info,
   TrendingUp,
   Sparkles,
@@ -25,11 +23,11 @@ import {
   ArrowRightLeft,
   Send,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 
 // ─────────────────────────────────────────────
-// THEME  —  Deep Green → Teal (matches HandMade Tea / Packing Section banners)
+// THEME  —  Deep Green → Teal
 // ─────────────────────────────────────────────
 const THEME = {
   pageBg: "#f3faf7",
@@ -128,12 +126,14 @@ export default function FactoryDashboard() {
           `${BACKEND_URL}/api/factory-logs?month=${selectedMonth}`,
           {
             headers: { Authorization: `Bearer ${token}` },
-          },
+          }
         );
 
         if (res.ok) {
           const data = await res.json();
-          setFactoryRecords(data.records || []);
+          // Sort records by date to ensure calculations run in chronological order
+          const sortedRecords = (data.records || []).sort((a, b) => new Date(a.date) - new Date(b.date));
+          setFactoryRecords(sortedRecords);
           setMonthBF(data.bfFromLastMonth || 0);
         } else {
           toast.error("Failed to load factory data.");
@@ -171,30 +171,49 @@ export default function FactoryDashboard() {
       };
     }
 
-    const lastRecord = factoryRecords[factoryRecords.length - 1];
-    const currentFactoryBalance = lastRecord.factoryBalance || 0;
-    const totalGreenLeafToDate = lastRecord.greenLeaf?.toDate || 0;
-    const totalMadeTeaToDate = lastRecord.madeTea?.toDate || 0;
+    // 🌟 1. Calculate Totals Manually since the Backend only sends daily raw data now
+    let totalGreenLeafToDate = 0;
+    let totalMadeTeaToDate = 0;
+    let totalOutToDate = 0;
+    let totalReturnsToDate = 0;
 
-    // Calculate Total Out for the month
-    const totalOutToDate = factoryRecords.reduce(
-      (sum, rec) => sum + (rec.totalOut || 0),
-      0,
-    );
+    const mainChartData = factoryRecords.map((rec) => {
+      const glToday = rec.greenLeaf?.today || rec.greenLeafToday || 0;
+      const mtToday = rec.madeTea?.today || rec.madeTeaToday || 0;
+      const outToday = rec.totalOut || 0;
+      const retToday = rec.returnAmount || 0;
 
-    // Chart 1: Daily Inputs vs Outputs
-    const mainChartData = factoryRecords.map((rec) => ({
-      name: rec.date.split("T")[0].substring(8, 10),
-      GreenLeaf: rec.greenLeaf?.today || 0,
-      MadeTea: rec.madeTea?.today || 0,
-      TotalOut: rec.totalOut || 0,
-    }));
+      totalGreenLeafToDate += glToday;
+      totalMadeTeaToDate += mtToday;
+      totalOutToDate += outToday;
+      totalReturnsToDate += retToday;
 
-    // Chart 2: Daily Factory Balance Trend
-    const balanceChartData = factoryRecords.map((rec) => ({
-      name: rec.date.split("T")[0].substring(8, 10),
-      Balance: rec.factoryBalance || 0,
-    }));
+      return {
+        name: rec.date ? rec.date.split("T")[0].substring(8, 10) : "",
+        GreenLeaf: glToday,
+        MadeTea: mtToday,
+        TotalOut: outToday,
+      };
+    });
+
+    // 🌟 2. Calculate Current Factory Balance
+    // Formula: B/F + Total Made Tea - Total Out + Total Returns
+    const currentFactoryBalance = monthBF + totalMadeTeaToDate - totalOutToDate + totalReturnsToDate;
+
+    // 🌟 3. Calculate Daily Balance Trend for the Area Chart
+    let runningBalance = monthBF;
+    const balanceChartData = factoryRecords.map((rec) => {
+      const mtToday = rec.madeTea?.today || rec.madeTeaToday || 0;
+      const outToday = rec.totalOut || 0;
+      const retToday = rec.returnAmount || 0;
+
+      runningBalance = runningBalance + mtToday - outToday + retToday;
+
+      return {
+        name: rec.date ? rec.date.split("T")[0].substring(8, 10) : "",
+        Balance: Number(runningBalance.toFixed(2)),
+      };
+    });
 
     // Alerts Generation
     const generatedAlerts = [];
@@ -249,7 +268,7 @@ export default function FactoryDashboard() {
         className="relative rounded-2xl sm:rounded-3xl overflow-hidden px-5 py-8 sm:px-8 sm:py-10 md:py-12 min-h-[180px] md:min-h-[200px] flex flex-col justify-center shadow-lg border border-teal-900/20 z-10"
         style={{ background: THEME.btnGradient }}
       >
-        {/* Background Animations - Mobile Responsive Sizes & Positions */}
+        {/* Background Animations */}
         <div className="absolute -top-10 -right-10 sm:top-0 sm:right-0 w-64 h-64 md:w-96 md:h-96 bg-teal-400 rounded-full mix-blend-overlay filter blur-[60px] md:blur-[100px] opacity-25 animate-pulse"></div>
         <div
           className="absolute -bottom-10 -left-10 sm:-bottom-20 sm:left-10 w-48 h-48 md:w-72 md:h-72 bg-emerald-500 rounded-full mix-blend-overlay filter blur-[50px] md:blur-[80px] opacity-25 animate-pulse"
@@ -280,18 +299,6 @@ export default function FactoryDashboard() {
               production, and factory balance.
             </p>
           </div>
-
-          {/* Month Selector (Commented out) - Also made mobile responsive if you uncomment it later */}
-          {/* <div className="flex items-center gap-2 sm:gap-3 bg-white/10 backdrop-blur-md p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-white/20 shadow-sm w-full md:w-auto mt-2 md:mt-0">
-            <Calendar className="text-white ml-1 sm:ml-2 shrink-0" size={18} sm:size={20} />
-            <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="bg-transparent border-none font-bold text-white outline-none cursor-pointer text-sm sm:text-base md:text-lg placeholder-white/70 w-full"
-                style={{ colorScheme: 'dark' }}
-            />
-        </div> */}
         </div>
       </div>
 

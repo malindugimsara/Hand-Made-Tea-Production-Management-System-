@@ -32,11 +32,9 @@ export const getFactoryLogsByMonth = async (req, res) => {
       query.date = { $gte: start, $lte: end };
       beforeDateQuery = { date: { $lt: start } }; // තෝරාගත් දිනට පෙර සියලු දත්ත
     } else {
-      return res
-        .status(400)
-        .json({
-          message: "Please provide a 'month' or 'startDate' and 'endDate'.",
-        });
+      return res.status(400).json({
+        message: "Please provide a 'month' or 'startDate' and 'endDate'.",
+      });
     }
 
     // ==========================================
@@ -150,13 +148,16 @@ export const saveDailyFactoryLog = async (req, res) => {
       returnAmount: retAmount,
     };
 
+    // factoryLogController.js එක ඇතුළේ saveDailyFactoryLog function එකේ updateFields වලට පස්සේ කොටස:
+
     if (existingRecord) {
       updateFields.isEdited = true;
       updateFields.lastUpdatedDate = new Date();
       updateFields.editedBy = username || req.user?.username || "Unknown User";
     } else {
       updateFields.isEdited = false;
-      updateFields.editedBy = "";
+      // 🌟 මුල් වතාවට record එකක් හදද්දිත් දාන කෙනාගේ නම save කරගන්න (පසුව Edit කරද්දී බලාගන්න ලේසියි)
+      updateFields.editedBy = username || req.user?.username || "System User";
     }
 
     const updatedLog = await FactoryLog.findOneAndUpdate(
@@ -165,12 +166,10 @@ export const saveDailyFactoryLog = async (req, res) => {
       { new: true, upsert: true },
     );
 
-    res
-      .status(200)
-      .json({
-        message: "Daily factory log saved successfully.",
-        data: updatedLog,
-      });
+    res.status(200).json({
+      message: "Daily factory log saved successfully.",
+      data: updatedLog,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error saving daily factory log." });
