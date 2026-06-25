@@ -149,6 +149,7 @@ const getBaseCategory = (product) => {
     "green tea",
   ];
   const pekoe = ["pekoe", "rose tea"];
+  const pekoe1 = ["mix flower"];
   const ff = ["ceylon premium - ff"];
   const op = ["op", "hibiscus"];
   const fbop = ["ceylon supreme"];
@@ -187,6 +188,7 @@ const getBaseCategory = (product) => {
   if (greenTea.includes(p)) return "Green Tea";
   if (otherPurchasing.includes(p)) return "Other Purchasing";
   if (pekoe.includes(p)) return "Pekoe";
+  if (pekoe1.includes(p)) return "Pekoe 1";
   if (ff.includes(p)) return "FF";
   if (op.includes(p)) return "OP";
   if (fbop.includes(p)) return "FBOP";

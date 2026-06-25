@@ -182,6 +182,26 @@ export default function ViewLocalSaleRecords() {
 
     const grandTotalBoxes = filteredRecords.reduce((sum, record) => sum + (Number(record.totalBoxes) || 0), 0);
     const grandTotalQty = filteredRecords.reduce((sum, record) => sum + (Number(record.totalQtyKg) || 0), 0);
+    
+    const recordsWithSpan = filteredRecords.map((record, index, arr) => {
+        const currentDate = new Date(record.date).toISOString().split('T')[0];
+        const prevDate = index > 0 ? new Date(arr[index - 1].date).toISOString().split('T')[0] : null;
+        
+        const isFirstOfDate = currentDate !== prevDate;
+        let rowSpan = 1;
+        
+        if (isFirstOfDate) {
+            for (let i = index + 1; i < arr.length; i++) {
+                if (new Date(arr[i].date).toISOString().split('T')[0] === currentDate) {
+                    rowSpan++;
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        return { ...record, isFirstOfDate, dateRowSpan: rowSpan };
+    });
 
     const handleEditClick = (record) => {
         navigate('/packing/edit-local-sale', { state: { recordData: record } });
@@ -441,20 +461,24 @@ export default function ViewLocalSaleRecords() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
-                                {filteredRecords.length > 0 ? (
-                                    filteredRecords.map((record) => (
+                                {recordsWithSpan.length > 0 ? (
+                                    recordsWithSpan.map((record) => (
                                         <tr key={record._id} className="hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors group">
                                             
-                                            <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
-                                                {record.isEdited && (
-                                                    <div className="mt-1.5 text-[10px] bg-teal-50 dark:bg-teal-900 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-700 px-2 py-1 rounded font-medium w-max leading-tight">
-                                                        <span className="font-bold">Edited by {record.editedBy}</span><br />
-                                                        <span className="opacity-100">{record.lastUpdatedDate}</span>
-                                                    </div>
-                                                )}
-                                            </td>
-                                            
+                                            {/* Date Column එක Merge කිරීම */}
+                                            {record.isFirstOfDate && (
+                                                <td rowSpan={record.dateRowSpan} className="px-4 py-4 border-r border-b border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
+                                                    {record.isEdited && (
+                                                        <div className="mt-1.5 text-[10px] bg-teal-50 dark:bg-teal-900 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-700 px-2 py-1 rounded font-medium w-max leading-tight">
+                                                            <span className="font-bold">Edited by {record.editedBy}</span><br />
+                                                            <span className="opacity-100">{record.lastUpdatedDate}</span>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            )}
+                                            {/* 👆 Date Column එක 👆 */}
+
                                             <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px">
                                                 <div className="flex flex-col w-full h-full">
                                                     {record.itemsArray.map((t, i) => {
@@ -468,7 +492,7 @@ export default function ViewLocalSaleRecords() {
                                                     })}
                                                 </div>
                                             </td>
-
+                                            
                                             <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
                                                 <div className="flex flex-col w-full h-full">
                                                     {record.itemsArray.map((t, i) => {
@@ -482,7 +506,7 @@ export default function ViewLocalSaleRecords() {
                                                     })}
                                                 </div>
                                             </td>
-                                            
+
                                             <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
                                                 <div className="flex flex-col w-full h-full">
                                                     {record.itemsArray.map((t, i) => {
@@ -541,8 +565,8 @@ export default function ViewLocalSaleRecords() {
                                                                 
                                                                 {hasFlavor && (
                                                                     <div className="flex items-center gap-1.5 justify-center leading-tight min-h-[20px]">
-                                                                        <span>{t.rawMaterialName}</span>
-                                                                        <span className="text-[10px] text-amber-600/70 dark:text-amber-400/70 font-semibold">(Flavor)</span>
+                                                                        <span className='text-blue-600'>{t.rawMaterialName}</span>
+                                                                        <span className="text-[10px] text-blue-600/70 dark:text-amber-400/70 font-semibold">(Flavor)</span>
                                                                     </div>
                                                                 )}
                                                                 
@@ -589,7 +613,6 @@ export default function ViewLocalSaleRecords() {
                                                 </div>
                                             </td>
 
-                                            {/* --- BASE TEA QTY --- */}
                                             <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
                                                 <div className="flex flex-col w-full h-full">
                                                     {record.itemsArray.map((t, i) => {

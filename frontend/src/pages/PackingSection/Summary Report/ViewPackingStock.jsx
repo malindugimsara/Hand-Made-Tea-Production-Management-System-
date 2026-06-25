@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { RefreshCw, PackageSearch, Warehouse, FilterX, ArrowDownToLine, ArrowUpFromLine, Droplet, Package, Weight } from "lucide-react";
+import { RefreshCw, PackageSearch, Warehouse, FilterX, ArrowDownToLine, ArrowUpFromLine, Droplet, Package, AlertTriangle, Weight } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
 
 // --- COLOR MAPPINGS ---
@@ -65,10 +65,13 @@ export default function ViewPackingStock() {
     // --- TEA STOCK STATES ---
     const [rawStocks, setRawStocks] = useState([]);
     const [flattenedStocks, setFlattenedStocks] = useState([]);
+    const [zeroTeaStocks, setZeroTeaStocks] = useState([]);
     
     // --- RAW MATERIAL STOCK STATES ---
     const [flavorStocks, setFlavorStocks] = useState([]);
     const [packingStocks, setPackingStocks] = useState([]);
+    const [zeroFlavorStocks, setZeroFlavorStocks] = useState([]);
+    const [zeroPackingStocks, setZeroPackingStocks] = useState([]);
 
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -95,12 +98,17 @@ export default function ViewPackingStock() {
                 setRawStocks(stockData);
                 
                 const flatData = [];
+                const zeroTeaData = [];
+                
                 stockData.forEach(product => {
                     const updatedAtDate = product.updatedAt ? new Date(product.updatedAt).toISOString().split('T')[0] : '';
                     
+                    let hasAnyValidStock = false;
+
                     if (product.stockBySource && product.stockBySource.length > 0) {
                         product.stockBySource.forEach(src => {
                             if (src.quantityKg > 0 || src.transInAmount > 0 || src.issueAmount > 0 || product.stockBySource.length === 1) {
+                                if (src.quantityKg > 0) hasAnyValidStock = true;
                                 flatData.push({
                                     id: `${product._id}-${src.sourceName}`,
                                     productName: product.productName,
@@ -114,15 +122,26 @@ export default function ViewPackingStock() {
                             }
                         });
                     } else {
+                        const curStock = product.bulkStockKg || product.totalBulkStockKg || 0;
+                        if (curStock > 0) hasAnyValidStock = true;
+                        
                         flatData.push({
                             id: product._id,
                             productName: product.productName,
                             source: product.source || 'Unknown',
                             transInAmount: product.transInAmount || 0,
                             issueAmount: product.issueAmount || 0,
-                            currentStock: product.bulkStockKg || product.totalBulkStockKg || 0,
+                            currentStock: curStock,
                             totalOverallQtyKg: product.totalBulkStockKg || product.bulkStockKg || 0,
                             updatedAtDate: updatedAtDate
+                        });
+                    }
+
+                    // Zero stock item එකක් නම් (කිසිම source එකක stock නැත්නම්)
+                    if (!hasAnyValidStock) {
+                        zeroTeaData.push({
+                            productName: product.productName,
+                            lastUpdated: updatedAtDate
                         });
                     }
                 });
@@ -132,7 +151,9 @@ export default function ViewPackingStock() {
                     if(nameCompare !== 0) return nameCompare;
                     return (a.source || '').localeCompare(b.source || '');
                 });
+
                 setFlattenedStocks(flatData);
+                setZeroTeaStocks(zeroTeaData);
             }
 
             // --- 2. PROCESS RAW MATERIAL STOCK ---
@@ -140,11 +161,26 @@ export default function ViewPackingStock() {
                 const rmData = await rawMatRes.json();
                 const allRm = Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : [];
                 
-                const flavors = allRm.filter(rm => (rm.category || '').toLowerCase() === 'flavor');
-                const packings = allRm.filter(rm => (rm.category || '').toLowerCase() !== 'flavor');
+                const flavors = [];
+                const packings = [];
+                const zeroFlavors = [];
+                const zeroPackings = [];
+                
+                allRm.forEach(rm => {
+                    const isFlavor = (rm.category || '').toLowerCase() === 'flavor';
+                    if (Number(rm.totalQuantity) > 0) {
+                        if (isFlavor) flavors.push(rm);
+                        else packings.push(rm);
+                    } else {
+                        if (isFlavor) zeroFlavors.push(rm);
+                        else zeroPackings.push(rm);
+                    }
+                });
                 
                 setFlavorStocks(flavors);
                 setPackingStocks(packings);
+                setZeroFlavorStocks(zeroFlavors);
+                setZeroPackingStocks(zeroPackings);
             }
 
         } catch (error) {
@@ -156,15 +192,14 @@ export default function ViewPackingStock() {
     };
 
     // =========================================================================
-    // --- FILTERING LOGIC (UPDATED: HIDDEN 0 STOCKS) ---
+    // --- FILTERING LOGIC (HIDDEN 0 STOCKS) ---
     // =========================================================================
 
-    // 1. Tea Tables
     const filteredTeaStocks = flattenedStocks.filter(stock => {
         const pName = stock.productName || '';
         const matchesSearch = !searchQuery || pName.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesSource = !sourceFilter || stock.source === sourceFilter;
-        const hasStock = Number(stock.currentStock) > 0; // 0 ඒවා ඉවත් කිරීම
+        const hasStock = Number(stock.currentStock) > 0;
         return matchesSearch && matchesSource && hasStock;
     });
 
@@ -178,27 +213,22 @@ export default function ViewPackingStock() {
         return matchesSearch;
     });
 
-    // 2. Flavor Table
     const filteredFlavorStocks = flavorStocks.filter(rm => {
         const rmName = rm.materialName || '';
         const matchesSearch = !searchQuery || rmName.toLowerCase().includes(searchQuery.toLowerCase());
-        const hasStock = Number(rm.totalQuantity) > 0; // 0 ඒවා ඉවත් කිරීම
-        return matchesSearch && hasStock;
+        return matchesSearch;
     });
 
-    // 3. Packing Table
     const filteredPackingStocks = packingStocks.filter(rm => {
         const rmName = rm.materialName || '';
         const matchesSearch = !searchQuery || rmName.toLowerCase().includes(searchQuery.toLowerCase());
-        const hasStock = Number(rm.totalQuantity) > 0; // 0 ඒවා ඉවත් කිරීම
-        return matchesSearch && hasStock;
+        return matchesSearch;
     });
 
-    // 4. Summary Table (Right Side)
     const summaryArray = [...filteredRawTeaStocks]
         .filter(a => {
             const qty = Number(a.totalBulkStockKg) || Number(a.bulkStockKg) || 0;
-            return qty > 0; // 0 ඒවා ඉවත් කිරීම
+            return qty > 0; 
         })
         .sort((a, b) => {
             const qtyA = Number(a.totalBulkStockKg) || Number(a.bulkStockKg) || 0;
@@ -206,19 +236,21 @@ export default function ViewPackingStock() {
             return qtyB - qtyA;
         });
 
-    // =========================================================================
+    // --- ZERO STOCKS FILTERING ---
+    const filteredZeroTeaStocks = zeroTeaStocks.filter(stock => !searchQuery || stock.productName?.toLowerCase().includes(searchQuery.toLowerCase()));
+    const filteredZeroFlavorStocks = zeroFlavorStocks.filter(rm => !searchQuery || rm.materialName?.toLowerCase().includes(searchQuery.toLowerCase()));
+    const filteredZeroPackingStocks = zeroPackingStocks.filter(rm => !searchQuery || rm.materialName?.toLowerCase().includes(searchQuery.toLowerCase()));
+
 
     // --- NEW TOTALS CALCULATION ---
     const totalTransIn = filteredTeaStocks.reduce((sum, stock) => sum + (Number(stock.transInAmount) || 0), 0);
     const totalIssue = filteredTeaStocks.reduce((sum, stock) => sum + (Number(stock.issueAmount) || 0), 0);
     const totalCurrentStock = filteredTeaStocks.reduce((sum, stock) => sum + (Number(stock.currentStock) || 0), 0);
     
-    // Flavor Totals
     const grandTotalFlavorTransIn = filteredFlavorStocks.reduce((sum, rm) => sum + (Number(rm.transInAmount) || 0), 0);
     const grandTotalFlavorIssue = filteredFlavorStocks.reduce((sum, rm) => sum + (Number(rm.issueAmount) || 0), 0);
     const grandTotalFlavorStock = filteredFlavorStocks.reduce((sum, rm) => sum + (Number(rm.totalQuantity) || 0), 0);
 
-    // Packing Totals
     const grandTotalPackingTransIn = filteredPackingStocks.reduce((sum, rm) => sum + (Number(rm.transInAmount) || 0), 0);
     const grandTotalPackingIssue = filteredPackingStocks.reduce((sum, rm) => sum + (Number(rm.issueAmount) || 0), 0);
     const grandTotalPackingStock = filteredPackingStocks.reduce((sum, rm) => sum + (Number(rm.totalQuantity) || 0), 0);
@@ -278,8 +310,7 @@ export default function ViewPackingStock() {
                 { content: `${grandTotalFlavorStock.toFixed(2)}`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } },
                 ""
             ]);
-        } else {
-            // Packing tab
+        } else if (activeTab === 'packing') {
             filteredPackingStocks.forEach(rm => {
                 tableRows.push([
                     { content: rm.materialName || 'Unknown', styles: { ...getPdfColor(rm.materialName, 'raw'), fontStyle: 'bold' } },
@@ -296,6 +327,16 @@ export default function ViewPackingStock() {
                 { content: `${grandTotalPackingStock.toString()}`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } },
                 ""
             ]);
+        } else if (activeTab === 'zero') {
+            filteredZeroTeaStocks.forEach(stock => {
+                tableRows.push([{ content: stock.productName, styles: { fontStyle: 'bold' } }, "Tea/Base Grade", stock.lastUpdated || '-']);
+            });
+            filteredZeroFlavorStocks.forEach(rm => {
+                tableRows.push([{ content: rm.materialName, styles: { fontStyle: 'bold' } }, "Spicy/Flavor", "-"]);
+            });
+            filteredZeroPackingStocks.forEach(rm => {
+                tableRows.push([{ content: rm.materialName, styles: { fontStyle: 'bold' } }, "Packing Material", "-"]);
+            });
         }
         return tableRows;
     };
@@ -303,7 +344,8 @@ export default function ViewPackingStock() {
     const getPdfTitle = () => {
         if (activeTab === 'tea') return "Tea Inventory Stock";
         if (activeTab === 'flavor') return "Spicy Inventory Stock";
-        return "Packing Materials Inventory Stock";
+        if (activeTab === 'packing') return "Packing Materials Inventory Stock";
+        return "Zero Stock Items Report";
     };
 
     const uniqueCode = `INV/STK/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
@@ -327,6 +369,7 @@ export default function ViewPackingStock() {
                         subtitle={`Filters -> Search: ${searchQuery || 'All'}`}
                         headers={
                             activeTab === 'tea' ? ["Product Name", "Source", "Trans-In Amount", "Issue Amount", "Current Stock"] 
+                            : activeTab === 'zero' ? ["Item Name", "Category", "Last Updated"]
                             : ["Material Name", "Trans-In Qty", "Issue Qty", "Current Stock", "Unit"]
                         }
                         data={getPdfData()}
@@ -336,7 +379,8 @@ export default function ViewPackingStock() {
                         disabled={loading || 
                             (activeTab === 'tea' && filteredTeaStocks.length === 0) || 
                             (activeTab === 'flavor' && filteredFlavorStocks.length === 0) ||
-                            (activeTab === 'packing' && filteredPackingStocks.length === 0)
+                            (activeTab === 'packing' && filteredPackingStocks.length === 0) ||
+                            (activeTab === 'zero' && filteredZeroTeaStocks.length === 0 && filteredZeroFlavorStocks.length === 0 && filteredZeroPackingStocks.length === 0)
                         }
                     />
                     <button onClick={fetchStocks} disabled={loading} className={`px-4 py-2.5 bg-white dark:bg-zinc-900 text-[#0f766e] dark:text-teal-400 border border-[#0d9488] dark:border-teal-800 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-50 dark:hover:bg-zinc-800'}`}>
@@ -346,50 +390,52 @@ export default function ViewPackingStock() {
             </div>
 
             {/* --- SUMMARY CARDS (Dynamic based on Tab) --- */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                {/* 1. Trans-In Amount */}
-                <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-blue-200 dark:border-blue-900/50 shadow-sm flex items-center gap-5">
-                    <div className="p-4 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
-                        <ArrowDownToLine size={32} />
+            {activeTab !== 'zero' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    {/* 1. Trans-In Amount */}
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-blue-200 dark:border-blue-900/50 shadow-sm flex items-center gap-5">
+                        <div className="p-4 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
+                            <ArrowDownToLine size={32} />
+                        </div>
+                        <div>
+                            <p className="text-[12px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Trans-In Total</p>
+                            <h3 className="text-3xl font-black text-gray-800 dark:text-gray-100 mt-1">
+                                {activeTab === 'tea' ? totalTransIn.toFixed(2) : activeTab === 'flavor' ? grandTotalFlavorTransIn.toFixed(2) : grandTotalPackingTransIn.toString()} 
+                                <span className="text-base font-semibold text-gray-500"> {activeTab === 'tea' || activeTab === 'flavor' ? 'kg' : 'Items'}</span>
+                            </h3>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-[12px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Trans-In Total</p>
-                        <h3 className="text-3xl font-black text-gray-800 dark:text-gray-100 mt-1">
-                            {activeTab === 'tea' ? totalTransIn.toFixed(2) : activeTab === 'flavor' ? grandTotalFlavorTransIn.toFixed(2) : grandTotalPackingTransIn.toString()} 
-                            <span className="text-base font-semibold text-gray-500"> {activeTab === 'tea' || activeTab === 'flavor' ? 'kg' : 'Items'}</span>
-                        </h3>
-                    </div>
-                </div>
 
-                {/* 2. Issue Amount */}
-                <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-amber-200 dark:border-amber-900/50 shadow-sm flex items-center gap-5">
-                    <div className="p-4 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl">
-                        <ArrowUpFromLine size={32} />
+                    {/* 2. Issue Amount */}
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-amber-200 dark:border-amber-900/50 shadow-sm flex items-center gap-5">
+                        <div className="p-4 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl">
+                            <ArrowUpFromLine size={32} />
+                        </div>
+                        <div>
+                            <p className="text-[12px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Issued Total</p>
+                            <h3 className="text-3xl font-black text-gray-800 dark:text-gray-100 mt-1">
+                                {activeTab === 'tea' ? totalIssue.toFixed(2) : activeTab === 'flavor' ? grandTotalFlavorIssue.toFixed(2) : grandTotalPackingIssue.toString()} 
+                                <span className="text-base font-semibold text-gray-500"> {activeTab === 'tea' || activeTab === 'flavor' ? 'kg' : 'Items'}</span>
+                            </h3>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-[12px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Issued Total</p>
-                        <h3 className="text-3xl font-black text-gray-800 dark:text-gray-100 mt-1">
-                            {activeTab === 'tea' ? totalIssue.toFixed(2) : activeTab === 'flavor' ? grandTotalFlavorIssue.toFixed(2) : grandTotalPackingIssue.toString()} 
-                            <span className="text-base font-semibold text-gray-500"> {activeTab === 'tea' || activeTab === 'flavor' ? 'kg' : 'Items'}</span>
-                        </h3>
-                    </div>
-                </div>
 
-                {/* 3. Current Stock */}
-                <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-[#99f6e4] dark:border-teal-800 shadow-sm flex items-center gap-5 relative overflow-hidden">
-                    <div className="absolute right-0 top-0 w-32 h-32 bg-teal-50 dark:bg-teal-900/20 rounded-full -mr-10 -mt-10 blur-2xl"></div>
-                    <div className="p-4 bg-teal-50 dark:bg-teal-900/40 text-[#0f766e] dark:text-teal-400 rounded-xl z-10">
-                        <Warehouse size={32} />
-                    </div>
-                    <div className="z-10">
-                        <p className="text-[12px] font-bold text-[#0f766e] dark:text-teal-500 uppercase tracking-wide">Current Stock Available</p>
-                        <h3 className="text-3xl font-black text-[#0f766e] dark:text-teal-400 mt-1">
-                            {activeTab === 'tea' ? totalCurrentStock.toFixed(2) : activeTab === 'flavor' ? grandTotalFlavorStock.toFixed(2) : grandTotalPackingStock.toString()} 
-                            <span className="text-base font-semibold opacity-70"> {activeTab === 'tea' || activeTab === 'flavor' ? 'kg' : 'Items'}</span>
-                        </h3>
+                    {/* 3. Current Stock */}
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-[#99f6e4] dark:border-teal-800 shadow-sm flex items-center gap-5 relative overflow-hidden">
+                        <div className="absolute right-0 top-0 w-32 h-32 bg-teal-50 dark:bg-teal-900/20 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+                        <div className="p-4 bg-teal-50 dark:bg-teal-900/40 text-[#0f766e] dark:text-teal-400 rounded-xl z-10">
+                            <Warehouse size={32} />
+                        </div>
+                        <div className="z-10">
+                            <p className="text-[12px] font-bold text-[#0f766e] dark:text-teal-500 uppercase tracking-wide">Current Stock Available</p>
+                            <h3 className="text-3xl font-black text-[#0f766e] dark:text-teal-400 mt-1">
+                                {activeTab === 'tea' ? totalCurrentStock.toFixed(2) : activeTab === 'flavor' ? grandTotalFlavorStock.toFixed(2) : grandTotalPackingStock.toString()} 
+                                <span className="text-base font-semibold opacity-70"> {activeTab === 'tea' || activeTab === 'flavor' ? 'kg' : 'Items'}</span>
+                            </h3>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* --- TABS --- */}
             <div className="flex flex-wrap gap-4 mb-6 border-b border-gray-200 dark:border-zinc-800 pb-2">
@@ -410,6 +456,12 @@ export default function ViewPackingStock() {
                     className={`px-6 py-2.5 rounded-t-lg font-bold transition-colors flex items-center gap-2 ${activeTab === 'packing' ? 'bg-orange-600 text-white' : 'bg-transparent text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
                 >
                     <Package size={18} /> Packing Materials Stock
+                </button>
+                <button 
+                    onClick={() => setActiveTab('zero')} 
+                    className={`px-6 py-2.5 rounded-t-lg font-bold transition-colors flex items-center gap-2 ml-auto ${activeTab === 'zero' ? 'bg-red-600 text-white' : 'bg-transparent text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'}`}
+                >
+                    <AlertTriangle size={18} /> Out of Stock (0)
                 </button>
             </div>
 
@@ -652,7 +704,115 @@ export default function ViewPackingStock() {
                     )}
                 </div>
             )}
-            
+
+            {/* --- TAB CONTENT: ZERO STOCKS --- */}
+            {activeTab === 'zero' && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Zero Tea Stock */}
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-red-200 dark:border-red-900/50 overflow-hidden w-full transition-colors duration-300 self-start">
+                        <div className="bg-red-50 dark:bg-red-950/30 px-6 py-4 border-b border-red-100 dark:border-red-900/50">
+                            <h3 className="font-bold text-red-700 dark:text-red-400 flex items-center gap-2">
+                                <AlertTriangle size={18} /> Out of Stock Base Teas
+                            </h3>
+                        </div>
+                        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 max-h-[500px]">
+                            <table className="w-full text-sm text-left border-collapse whitespace-nowrap min-w-full">
+                                <thead>
+                                    <tr className="text-gray-500 dark:text-gray-400 uppercase text-[10px] tracking-wider border-b border-gray-200 dark:border-zinc-700">
+                                        <th className="px-4 py-3 font-bold">Product Name</th>
+                                        <th className="px-4 py-3 font-bold text-right">Last Updated</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
+                                    {filteredZeroTeaStocks.length > 0 ? (
+                                        filteredZeroTeaStocks.map((stock, idx) => (
+                                            <tr key={idx} className="hover:bg-red-50/30 dark:hover:bg-red-900/10 transition-colors">
+                                                <td className="px-4 py-3">
+                                                    <span className={`px-2 py-1 rounded-md text-xs font-bold shadow-sm border border-black/5 dark:border-white/5 ${getTeaColor(stock.productName)}`}>
+                                                        {stock.productName || 'Unknown'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-gray-500 dark:text-gray-400 text-xs">
+                                                    {stock.lastUpdated || '-'}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr><td colSpan="2" className="p-8 text-center text-gray-400 italic">No zero-stock teas found</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Zero Flavor Stock */}
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-red-200 dark:border-red-900/50 overflow-hidden w-full transition-colors duration-300 self-start">
+                        <div className="bg-red-50 dark:bg-red-950/30 px-6 py-4 border-b border-red-100 dark:border-red-900/50">
+                            <h3 className="font-bold text-red-700 dark:text-red-400 flex items-center gap-2">
+                                <AlertTriangle size={18} /> Out of Stock Spices
+                            </h3>
+                        </div>
+                        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 max-h-[500px]">
+                            <table className="w-full text-sm text-left border-collapse whitespace-nowrap min-w-full">
+                                <thead>
+                                    <tr className="text-gray-500 dark:text-gray-400 uppercase text-[10px] tracking-wider border-b border-gray-200 dark:border-zinc-700">
+                                        <th className="px-4 py-3 font-bold">Material Name</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
+                                    {filteredZeroFlavorStocks.length > 0 ? (
+                                        filteredZeroFlavorStocks.map((rm, idx) => (
+                                            <tr key={idx} className="hover:bg-red-50/30 dark:hover:bg-red-900/10 transition-colors">
+                                                <td className="px-4 py-3">
+                                                    <span className={`px-2 py-1 rounded-md text-xs font-bold shadow-sm border border-black/5 dark:border-white/5 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400`}>
+                                                        {rm.materialName || 'Unknown'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr><td className="p-8 text-center text-gray-400 italic">No zero-stock spices found</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Zero Packing Material Stock */}
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-red-200 dark:border-red-900/50 overflow-hidden w-full transition-colors duration-300 self-start">
+                        <div className="bg-red-50 dark:bg-red-950/30 px-6 py-4 border-b border-red-100 dark:border-red-900/50">
+                            <h3 className="font-bold text-red-700 dark:text-red-400 flex items-center gap-2">
+                                <AlertTriangle size={18} /> Out of Stock Packing Mats
+                            </h3>
+                        </div>
+                        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 max-h-[500px]">
+                            <table className="w-full text-sm text-left border-collapse whitespace-nowrap min-w-full">
+                                <thead>
+                                    <tr className="text-gray-500 dark:text-gray-400 uppercase text-[10px] tracking-wider border-b border-gray-200 dark:border-zinc-700">
+                                        <th className="px-4 py-3 font-bold">Material Name</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
+                                    {filteredZeroPackingStocks.length > 0 ? (
+                                        filteredZeroPackingStocks.map((rm, idx) => (
+                                            <tr key={idx} className="hover:bg-red-50/30 dark:hover:bg-red-900/10 transition-colors">
+                                                <td className="px-4 py-3">
+                                                    <span className={`px-2 py-1 rounded-md text-xs font-bold shadow-sm border border-black/5 dark:border-white/5 ${getMaterialColor(rm.materialName)}`}>
+                                                        {rm.materialName || 'Unknown'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr><td className="p-8 text-center text-gray-400 italic">No zero-stock packing materials found</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }
