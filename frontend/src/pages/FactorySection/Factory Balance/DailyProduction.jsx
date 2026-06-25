@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Save, Trash2, Factory, Leaf, ListChecks, PlusCircle, Sparkles, Moon, Sun } from 'lucide-react';
+import { Save, Trash2, Factory, Leaf, ListChecks, PlusCircle, Sparkles} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function DailyProduction() {
@@ -31,7 +31,17 @@ export default function DailyProduction() {
   const userRole = localStorage.getItem('userRole') || '';
   const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
 
-  const calculatedMadeTea = (Number(formData.greenLeafToday) || 0) * 0.215;
+  // --- NEW CALCULATION LOGIC ---
+  // Extract month from the selected date (1-12)
+  const selectedMonthNumber = parseInt(formData.date.split('-')[1], 10);
+  
+  // April(4), May(5), June(6), September(9), October(10), November(11), December(12)
+  const monthsWith21Percent = [4, 5, 6, 9, 10, 11, 12];
+  
+  // Determine conversion rate based on the month
+  const conversionRate = monthsWith21Percent.includes(selectedMonthNumber) ? 0.21 : 0.215;
+  const calculatedMadeTea = (Number(formData.greenLeafToday) || 0) * conversionRate;
+  // -----------------------------
 
   // Dark Mode Toggle Effect
   useEffect(() => {
@@ -189,12 +199,14 @@ export default function DailyProduction() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Est. Made Tea (21.5%)</label>
+                    <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                      Est. Made Tea ({(conversionRate * 100).toFixed(1)}%)
+                    </label>
                     <div className="w-full p-3.5 border rounded-xl flex items-center h-[54px] font-black bg-[#f0fdfa] dark:bg-teal-900/20 border-[#99f6e4] dark:border-teal-800 text-[#0d5e4d] dark:text-teal-300 transition-colors">
                       {calculatedMadeTea > 0 ? calculatedMadeTea.toFixed(3) : '0.000'} kg
                     </div>
                     <p className="text-[10px] mt-1.5 font-bold flex items-center gap-1 text-[#0f766e] dark:text-teal-500">
-                      <Sparkles size={10}/> Auto calculated
+                      <Sparkles size={10}/> Auto calculated based on selected month
                     </p>
                   </div>
                 </div>
