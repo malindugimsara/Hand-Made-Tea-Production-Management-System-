@@ -67,3 +67,67 @@ Make sure you have [Node.js](https://nodejs.org/) and [Git](https://git-scm.com/
 ```bash
 git clone [https://github.com/malindugimsara/Hand-Made-Tea-Production-Management-System-.git](https://github.com/malindugimsara/Hand-Made-Tea-Production-Management-System-.git)
 cd Hand-Made-Tea-Production-Management-System-
+```
+
+2. Install Frontend Dependencies
+Bash
+# Navigate to the frontend directory
+cd frontend
+npm install
+(Note: Ensure xlsx-js-style is installed instead of standard xlsx to maintain Excel color formatting).
+
+3. Install Backend Dependencies
+Bash
+# Open a new terminal and navigate to the backend directory
+cd backend
+npm install
+4. Start the Application
+Backend:
+
+Bash
+cd backend
+npm run dev
+Frontend:
+
+Bash
+cd frontend
+npm run dev
+⚙️ Environment Variables
+Create a .env file in the root of both your frontend and backend directories.
+
+Frontend (frontend/.env):
+
+Code snippet
+VITE_BACKEND_URL=http://localhost:5000
+Backend (backend/.env):
+
+Code snippet
+PORT=5000
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=your_super_secret_jwt_key
+📑 Reporting & Exports
+A core focus of this system is generating professional paperwork. The application features a custom <PDFDownloader /> component and Excel export functions that map digital records into exact replicas of the physical factory ledgers.
+
+Smart Color Coding: Headers and columns are dynamically colored (e.g., Green for G/L, Purple for M/T) to match factory ledger standards.
+
+Auto-Calculations: Brought Forward (B/F) balances and daily running balances are calculated dynamically before export.
+
+Sign-off Ready: PDF exports include auto-generated timestamping and designated signature lines for management approval.
+
+🤝 Contributing
+Contributions, issues, and feature requests are welcome!
+
+Fork the Project
+
+Create your Feature Branch (git checkout -b feature/AmazingFeature)
+
+Commit your Changes (git commit -m 'Add some AmazingFeature')
+
+Push to the Branch (git push origin feature/AmazingFeature)
+
+Open a Pull Request
+
+📝 License
+Distributed under the MIT License. See LICENSE for more information.
+
+Digitizing the art of tea making for better accuracy, efficiency, and growth. 🍃
