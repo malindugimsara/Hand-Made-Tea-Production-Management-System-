@@ -5,7 +5,6 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import greenLeafRouter from './router/greenLeafRouter.js';
 import productionRouter from './router/productionRouter.js';
-import labourRouter from './router/labourRoutes.js';
 import dehydratorRouter from './router/dehydratorRouter.js';
 import costOfProductionRouter from './router/costOfProductionRoutes.js';
 import authRouter from './router/authRoute.js';
@@ -14,6 +13,7 @@ import userRouter from './router/userRouter.js';
 import sellingDetailsRouter from './router/sellingDetailsRoutes.js';
 import productionSummaryRouter from './router/productionSummaryRoute.js';
 import loftLeafCountRoutes from './router/loftLeafCountRoutes.js';
+
 
 // Packing Section Routes
 import localSaleRouter from './Packing/Routes/localSaleRoutes.js';
@@ -29,6 +29,8 @@ import restoreTeaStockRouter from './Packing/Routes/restoreTeaStockrouter.js';
 
 // Factory Section Routes
 import factoryrouter from './factory/router/factoryRoutes.js';
+import labourOutputRouter from './factory/router/labourOutputRoutes.js';
+import labourRouter from './factory/router/labourOutputRoutes.js';
 
 dotenv.config();
 const app = express();
@@ -77,6 +79,7 @@ app.use('/api/restore-tea-stock', restoreTeaStockRouter);
 // Factory Section Routes
 app.use('/api/factory-balance', factoryrouter);
 app.use('/api/factory-logs', factoryrouter);
+app.use('/api/labour-output', labourOutputRouter);
 
 
 app.listen(3000, () => {

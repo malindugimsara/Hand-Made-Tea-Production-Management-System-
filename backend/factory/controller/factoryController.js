@@ -79,7 +79,6 @@ export const getFactoryLogsByMonth = async (req, res) => {
   }
 };
 
-// 2. SAVE OR UPDATE DAILY FACTORY LOG (Edit karaddi Username eka show wenne methanadi)
 // 2. SAVE OR UPDATE DAILY FACTORY LOG
 export const saveDailyFactoryLog = async (req, res) => {
   try {
@@ -98,7 +97,14 @@ export const saveDailyFactoryLog = async (req, res) => {
     targetDate.setUTCHours(0, 0, 0, 0);
 
     const glToday = Number(greenLeafToday) || 0;
-    const madeTeaToday = glToday * 0.215;
+
+    // 🌟 FIXED: Dynamic Made Tea Calculation based on month
+    const selectedMonthNumber = targetDate.getMonth() + 1; // getMonth is 0-indexed (0-11)
+    const monthsWith21Percent = [4, 5, 6, 9, 10, 11, 12];
+    const conversionRate = monthsWith21Percent.includes(selectedMonthNumber) ? 0.21 : 0.215;
+    const madeTeaToday = glToday * conversionRate;
+    // ---------------------------------------------------
+
     const totalOut =
       (Number(dispatch) || 0) + (Number(localSaleAndGratis) || 0);
     const retAmount = Number(returnAmount) || 0;
@@ -147,8 +153,6 @@ export const saveDailyFactoryLog = async (req, res) => {
       totalOut: totalOut,
       returnAmount: retAmount,
     };
-
-    // factoryLogController.js එක ඇතුළේ saveDailyFactoryLog function එකේ updateFields වලට පස්සේ කොටස:
 
     if (existingRecord) {
       updateFields.isEdited = true;

@@ -14,7 +14,7 @@ const FLAVOR_NAMES = [
     "Cinnamon", "Chakra", "Ginger", "Masala", "Vanilla", "Mint", 
     "Moringa", "Curry Leaves", "Gotukola", "Heen Bovitiya", "Cardamom", 
     "Rose", "Strawberry", "Peach", "Mix Fruit", "Pineapple", "Mango", 
-    "Honey", "Earl Grey", "Lime", "Soursop", "Jasmine", "Flower", "Turmeric", "Black Pepper"
+    "Honey", "Earl Grey", "Lime", "Soursop", "Jasmine", "Flower", "Turmeric", "Black Pepper", "Nutmeg","Vasavasi", "Karabunati"
 ];
 
 const UNITS = ["kg", "pcs", "rolls", "bundles", "boxes", "meters"];
