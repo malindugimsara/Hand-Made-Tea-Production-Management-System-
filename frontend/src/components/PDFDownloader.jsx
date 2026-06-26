@@ -48,12 +48,12 @@ export default function PDFDownloader({
             // 2. Add Titles
             doc.setFontSize(16);
             doc.setTextColor(27, 106, 49);
-            doc.text(title, 45, 20);
+            doc.text(title, 45, 25);
 
             if (subtitle) {
                 doc.setFontSize(10);
                 doc.setTextColor(100);
-                doc.text(subtitle, 45, 27);
+                doc.text(subtitle, 45, 30);
             }
 
             // --- Generate Current Date & Time ---

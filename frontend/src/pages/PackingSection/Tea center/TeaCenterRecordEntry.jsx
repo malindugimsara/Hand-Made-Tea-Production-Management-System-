@@ -49,19 +49,20 @@ const FLAVOR_NAMES = [
     "Honey", "Earl Grey", "Lime", "Soursop", "Jasmine", "Flower", "Turmeric", "Black Pepper"
 ];
 
-// --- LOGIC: BASE TEA MAPPING ---
+// --- LOGIC: BASE TEA MAPPING ---fetchStocks
 export const getBaseTeaGrade = (productName) => {
     if (!productName) return "";
     const p = productName.toLowerCase().trim();
 
-    const bopf = ["lemongrass - bopf", "cinnamon tea - bopf", "ginger tea - bopf", "masala tea - bopf", "pineapple tea", "mix fruit", "peach", "strawberry", "jasmin - bopf", "mango tea", "carmel", "honey", "earl grey", "lime", "soursop - bopf", "cardamom", "gift pack", "guide issue-bopf"];
-    const bopfSp = ["english breakfast", "cinnamon tea - bopf sp", "ginger tea - bopf sp", "masala tea - bopf sp", "vanilla", "mint - bopf sp", "moringa - bopf sp", "curry leaves - bopf sp", "gotukola - bopf sp", "heen bovitiya - bopf sp", "black tea t/b", "english afternoon"];
+    const bopf = ["lemongrass - bopf", "cinnamon tea - bopf", "ginger tea - bopf", "masala tea - bopf", "pineapple tea", "mix fruit", "peach", "strawberry", "jasmin - bopf", "mango tea", "carmel", "honey", "earl grey", "lime", "soursop - bopf", "cardamom", "gift pack", "guide issue-bopf","pomegranate tea"];
+    const bopfSp = ["english breakfast", "cinnamon tea - bopf sp", "ginger tea - bopf sp", "masala tea - bopf sp", "vanilla", "mint - bopf sp", "moringa - bopf sp", "curry leaves - bopf sp", "gotukola - bopf sp", "heen bovitiya - bopf sp", "black tea t/b", "english afternoon", "awurudu special"];
     const greenTea = ["lemongrass - green tea", "g/t lemangrass", "mint - green tea", "soursop - green tea", "moringa - green tea", "curry leaves - green tea", "heen bovitiya - green tea", "gotukola - green tea", "jasmin - green tea", "green tea t/b"];
     const pekoe = ["pekoe", "rose tea"];
     const pekoe1 = ["mix flower"];
     const ff = ["ceylon premium - ff"];
     const op = ["op", "hibiscus"];
     const fbop = ["ceylon supreme"];
+    const purpletea = ["arabic tea"];
 
     const standaloneMap = {
         "opa": "OPA", "bop": "BOP", "bop pack": "BOP", "pink tea": "Pink Tea", "pink tea can": "Pink Tea", "pink tea pack": "Pink Tea",
@@ -81,6 +82,7 @@ export const getBaseTeaGrade = (productName) => {
     if (ff.includes(p)) return "FF";
     if (op.includes(p)) return "OP";
     if (fbop.includes(p)) return "FBOP";
+    if (purpletea.includes(p)) return "Purple Tea";
     if (standaloneMap[p]) return standaloneMap[p];
 
     return productName; 
@@ -220,20 +222,31 @@ export default function TeaCenterRecordEntry() {
                 if (teaRes.ok) {
                     const data = await teaRes.json();
                     const aggregatedData = Object.values(data.reduce((acc, curr) => {
-                        if (curr.productName.toLowerCase().includes('dust')) {
+                        if (!curr.productName) return acc;
+                        
+                        // 👇 මෙතනින් නම Standardize කරගන්නවා (Capital/Simple සහ Space ගැටළු මඟහැරීමට)
+                        const pName = curr.productName.trim();
+                        const key = pName.toLowerCase();
+
+                        if (key.includes('dust')) {
                             return acc; 
                         }
-                        if (!acc[curr.productName]) {
-                            acc[curr.productName] = { productName: curr.productName, bulkStockKg: 0 };
+                        
+                        // 'curr.productName' වෙනුවට 'key' භාවිතා කර එකතු කිරීම
+                        if (!acc[key]) {
+                            // පෙන්වීමට මුල් නමම (pName) තබාගන්නවා
+                            acc[key] = { productName: pName, bulkStockKg: 0 };
                         }
+                        
                         if (curr.stockBySource && curr.stockBySource.length > 0) {
                             const sourceTotal = curr.stockBySource.reduce((sum, src) => sum + (src.quantityKg || 0), 0);
-                            acc[curr.productName].bulkStockKg += sourceTotal;
+                            acc[key].bulkStockKg += sourceTotal;
                         } else {
-                            acc[curr.productName].bulkStockKg += (curr.bulkStockKg || 0);
+                            acc[key].bulkStockKg += (curr.bulkStockKg || 0);
                         }
                         return acc;
                     }, {}));
+                    
                     setAvailableTeaStock(aggregatedData);
                 }
 
