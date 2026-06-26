@@ -121,7 +121,7 @@ export const getBaseTeaGrade = (productName) => {
   if (!productName) return "";
   const p = productName.toLowerCase().trim();
   
-  if (p.includes("pitigala tea bags")) return "BOPF SP";
+  if (p.includes("pitigala tea bags"),("awurudu special")) return "BOPF SP";
   if (p.includes("labour drinking tea")) return "BOPF";
   
   return productName;

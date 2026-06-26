@@ -368,7 +368,14 @@ export default function ViewTeaCenterRecords() {
         return tableRows;
     };
 
-    const uniqueCode = `PS/TC/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
+    const getMonthName = (yyyymm) => {
+        const date = new Date(`${yyyymm}-01`);
+        return date
+        .toLocaleString("default", { month: "long", year: "numeric" })
+        .toUpperCase();
+    };
+
+    const uniqueCode = `PS/TC/${getMonthName(filterMonth)}`;
 
     return (
         <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen transition-colors duration-300">

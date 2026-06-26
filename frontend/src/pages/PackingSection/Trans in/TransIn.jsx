@@ -227,7 +227,7 @@ export default function TransIn() {
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-4 text-center align-middle font-bold text-gray-600 dark:text-gray-300 text-lg">
-                                                        {issued.toFixed(2)}
+                                                        {issued.toFixed(3)}
                                                     </td>
                                                     <td className="px-4 py-4 align-middle bg-[#f0fdfa] dark:bg-teal-900/10">
                                                         <div className="flex flex-col items-center">

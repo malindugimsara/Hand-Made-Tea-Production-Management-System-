@@ -244,7 +244,6 @@ export default function ViewLocalSaleRecords() {
     };
 
     // --- PDF GENERATION LOGIC ---
-    // --- PDF GENERATION LOGIC ---
     const getPdfData = () => {
         const pdfSortedRecords = [...filteredRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
         const tableRows = [];
@@ -342,8 +341,14 @@ export default function ViewLocalSaleRecords() {
 
         return tableRows;
     };
+    const getMonthName = (yyyymm) => {
+        const date = new Date(`${yyyymm}-01`);
+        return date
+        .toLocaleString("default", { month: "long", year: "numeric" })
+        .toUpperCase();
+    };
 
-    const uniqueCode = `PS/LSR/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
+    const uniqueCode = `PS/LSR/${getMonthName(filterMonth)}`;
 
     return (
         <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen transition-colors duration-300">
@@ -357,7 +362,7 @@ export default function ViewLocalSaleRecords() {
                 
                 <div className="flex items-center gap-3">
                     <PDFDownloader 
-                        title="Local Sale Records"
+                        title="Local Sale Issue Records"
                         subtitle={`Filters -> Month: ${filterMonth || 'All'} | Date: ${startDate || 'All'} to ${endDate || 'All'} | Product: ${productFilter || 'All'}`}
                         headers={["Date", "Product", "Type", "Pack Size", "Items", "Gross Qty", "RM Name", "RM Qty", "Base Qty", "Daily Items", "Daily Gross"]}
                         data={getPdfData()}
