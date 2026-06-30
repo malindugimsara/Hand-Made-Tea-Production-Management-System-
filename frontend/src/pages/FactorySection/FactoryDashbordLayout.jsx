@@ -79,8 +79,8 @@ const DATA = {
       items: [
         { title: 'Daily Production', url: '/factory/dailyproduction', roles: ['Admin', ' Factory Officer'] },
         { title: 'Dispatch And Return', url: '/factory/dispatchandreturn', roles: ['Admin', ' Factory Officer'] },
-        { title: 'Factory View', url: '/factory/view', roles: ['Admin', 'Factory Officer', 'Viewer'] },
         { title: 'Labour Output', url: '/factory/labouroutput', roles: ['Admin', 'Factory Officer'] },
+        { title: 'Factory View', url: '/factory/view', roles: ['Admin', 'Factory Officer', 'Viewer'] },
         { title: 'Labour Output List', url: '/factory/labouroutputlist', roles: ['Admin', 'Factory Officer', 'Viewer'] },
       ],
     },

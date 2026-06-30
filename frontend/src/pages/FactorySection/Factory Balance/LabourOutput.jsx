@@ -69,7 +69,7 @@ export default function LabourOutput() {
                         const selectedMonthNumber = parseInt(recordDate.split('-')[1], 10);
                         const monthsWith21Percent = [4, 5, 6, 9, 10, 11, 12];
                         const conversionRate = monthsWith21Percent.includes(selectedMonthNumber) ? 0.21 : 0.215;
-                        
+
                         const calculatedMadeTea = todaysRecord.greenLeaf.today * conversionRate;
                         setMadeTeaToday(calculatedMadeTea);
                     } else {
@@ -155,10 +155,11 @@ export default function LabourOutput() {
             const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
             // 1. සියලුම දත්ත එකම ලැයිස්තුවකට (Array) ගොනු කිරීම
+            const finalLabourOutput = totalShifts > 0 ? (madeTeaToday / totalShifts) : 0;
+
             const recordsToSave = pendingRecords.map(record => {
                 const recOtShifts = record.otHours / 5.5;
                 const recTotalShifts = record.noOfLabours + recOtShifts;
-                const recOutput = recTotalShifts > 0 ? (madeTeaToday / recTotalShifts) : 0;
 
                 return {
                     date: recordDate,
@@ -166,8 +167,8 @@ export default function LabourOutput() {
                     noOfLabours: record.noOfLabours,
                     otHours: record.otHours,
                     totalShifts: recTotalShifts,
-                    labourOutput: recOutput,
-                    username: username
+                    labourOutput: finalLabourOutput,
+                    username
                 };
             });
 
@@ -177,7 +178,7 @@ export default function LabourOutput() {
                 headers: authHeaders,
                 body: JSON.stringify({ records: recordsToSave })
             });
-            
+
             if (!res.ok) throw new Error("Failed to save records to the database.");
 
             toast.success("All labour records saved successfully!", { id: toastId });
@@ -208,24 +209,24 @@ export default function LabourOutput() {
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-                    
+
                     {/* LEFT SIDE (Form & List) */}
                     <div className="xl:col-span-7">
                         <div className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
-                            
+
                             {/* DATE & MADE TEA */}
                             <div className="grid grid-cols-2 gap-6 mb-8 pb-8 border-b border-gray-100 dark:border-gray-700">
                                 <div>
                                     <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">Record Date</label>
                                     <div className="relative">
-                                        <input 
-                                            type="date" 
-                                            value={recordDate} 
-                                            onChange={(e) => setRecordDate(e.target.value)} 
-                                            onClick={(e) => e.target.showPicker && e.target.showPicker()} 
+                                        <input
+                                            type="date"
+                                            value={recordDate}
+                                            onChange={(e) => setRecordDate(e.target.value)}
+                                            onClick={(e) => e.target.showPicker && e.target.showPicker()}
                                             className={`${inputStyles} pl-4 pr-10 cursor-pointer`}
                                         />
-                                        <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18}/>
+                                        <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                                     </div>
                                 </div>
                                 <div>
@@ -241,14 +242,14 @@ export default function LabourOutput() {
                                 <h3 className="text-lg font-bold mb-5 flex items-center gap-2 text-[#235b4e] dark:text-teal-400">
                                     <Activity size={20} /> Input Fields
                                 </h3>
-                                
+
                                 {/* 3 INPUTS + BUTTON IN ONE ROW */}
                                 <form onSubmit={handleAddToList} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                                     <div className="md:col-span-4">
                                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1.5">
                                             Select Section
                                         </label>
-                                        <select 
+                                        <select
                                             name="section" value={formData.section} onChange={handleInputChange} required
                                             className={`${inputStyles} appearance-none cursor-pointer text-sm`}
                                         >
@@ -268,11 +269,11 @@ export default function LabourOutput() {
                                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
                                             <Users size={12} /> No. of Labours
                                         </label>
-                                        <input 
-                                            type="number" min="0" step="1" name="noOfLabours" 
-                                            value={formData.noOfLabours} onChange={handleInputChange} 
-                                            onWheel={(e) => e.target.blur()} required placeholder="e.g. 12" 
-                                            className={`${inputStyles} text-sm`} 
+                                        <input
+                                            type="number" min="0" step="1" name="noOfLabours"
+                                            value={formData.noOfLabours} onChange={handleInputChange}
+                                            onWheel={(e) => e.target.blur()} required placeholder="e.g. 12"
+                                            className={`${inputStyles} text-sm`}
                                         />
                                     </div>
 
@@ -280,21 +281,21 @@ export default function LabourOutput() {
                                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
                                             <Clock size={12} /> O/T Hours
                                         </label>
-                                        <input 
-                                            type="number" min="0" step="0.5" name="otHours" 
-                                            value={formData.otHours} onChange={handleInputChange} 
-                                            onWheel={(e) => e.target.blur()} required placeholder="e.g. 11" 
-                                            className={`${inputStyles} text-sm`} 
+                                        <input
+                                            type="number" min="0" step="0.5" name="otHours"
+                                            value={formData.otHours} onChange={handleInputChange}
+                                            onWheel={(e) => e.target.blur()} required placeholder="e.g. 11"
+                                            className={`${inputStyles} text-sm`}
                                         />
                                     </div>
 
                                     <div className="md:col-span-2">
-                                        <button 
-                                            type="submit" 
+                                        <button
+                                            type="submit"
                                             disabled={isViewer || madeTeaToday === 0}
                                             className="w-full h-[50px] bg-[#3a8372] hover:bg-[#2c6557] disabled:bg-gray-300 text-white font-black rounded-xl text-[11px] uppercase tracking-wider flex items-center justify-center gap-1 transition-colors"
                                         >
-                                            <Plus size={16}/> Add
+                                            <Plus size={16} /> Add
                                         </button>
                                     </div>
                                 </form>
@@ -310,11 +311,11 @@ export default function LabourOutput() {
                                                 <div key={index} className="flex items-center justify-between bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
                                                     <div className="grid grid-cols-3 w-full gap-4 items-center">
                                                         <span className="font-bold text-sm text-[#235b4e] dark:text-teal-400 truncate">{item.section}</span>
-                                                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-1"><Users size={12}/> {item.noOfLabours} Labours</span>
-                                                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-1"><Clock size={12}/> {item.otHours} hrs OT</span>
+                                                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-1"><Users size={12} /> {item.noOfLabours} Labours</span>
+                                                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-1"><Clock size={12} /> {item.otHours} hrs OT</span>
                                                     </div>
                                                     <button onClick={() => handleRemoveFromList(index)} className="ml-4 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors">
-                                                        <Trash2 size={16}/>
+                                                        <Trash2 size={16} />
                                                     </button>
                                                 </div>
                                             ))}
@@ -324,20 +325,20 @@ export default function LabourOutput() {
                             </div>
 
                             {/* MAIN SAVE BUTTON */}
-                            <button 
+                            <button
                                 onClick={handleSaveAll}
-                                disabled={isViewer || pendingRecords.length === 0 || isSavingAll} 
+                                disabled={isViewer || pendingRecords.length === 0 || isSavingAll}
                                 className="w-full py-4 rounded-xl text-white font-black text-lg uppercase tracking-widest flex justify-center items-center gap-2 shadow-lg transition-all hover:bg-[#1a4a3e] bg-[#235b4e] disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <Save size={22} /> {isSavingAll ? "Saving..." : "Save Record"}
-                            </button> 
+                            </button>
                         </div>
                     </div>
 
                     {/* RIGHT SIDE (Live Calculations matching image) */}
                     <div className="xl:col-span-5">
                         <div className="bg-white dark:bg-gray-800 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-700 sticky top-6 overflow-hidden transition-colors">
-                            
+
                             <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3">
                                 <div className="p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300">
                                     <Calculator size={20} />
@@ -367,14 +368,13 @@ export default function LabourOutput() {
                                         <span className="block text-sm font-bold text-gray-600 dark:text-gray-300">Final Labour Output</span>
                                         <span className="block text-[10px] font-medium text-gray-400 mt-1">(Made Tea ÷ Total Shifts)</span>
                                     </div>
-                                    
-                                    <div className={`w-full py-8 rounded-2xl flex flex-col items-center justify-center border-2 transition-colors ${
-                                        labourOutput >= 30
+
+                                    <div className={`w-full py-8 rounded-2xl flex flex-col items-center justify-center border-2 transition-colors ${labourOutput >= 30
                                             ? 'bg-[#f0fdf4] dark:bg-green-900/20 border-[#bbf7d0] dark:border-green-800 text-[#166534] dark:text-green-500'
                                             : labourOutput > 0
                                                 ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-600 dark:text-red-500'
                                                 : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500'
-                                    }`}>
+                                        }`}>
                                         <span className="text-[3.5rem] leading-none font-black">
                                             {labourOutput > 0 ? labourOutput.toFixed(2) : '0.00'}
                                         </span>

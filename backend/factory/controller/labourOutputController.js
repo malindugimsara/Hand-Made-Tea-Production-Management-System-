@@ -25,3 +25,41 @@ export const getLabourOutputs = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+export const deleteLabourLogsByDate = async (req, res) => {
+    try {
+        const { date } = req.params;
+
+        if (!date) {
+            return res.status(400).json({ message: "Date parameter is required." });
+        }
+
+        // The 'date' field is stored as a string (YYYY-MM-DD), but we also
+        // support ISO timestamp strings or actual Date objects in case data
+        // changes later.
+        const result = await LabourOutput.deleteMany({
+            $or: [
+                { date },
+                { date: { $regex: `^${date}` } },
+                {
+                    date: {
+                        $gte: new Date(`${date}T00:00:00.000Z`),
+                        $lt: new Date(`${date}T23:59:59.999Z`)
+                    }
+                }
+            ]
+        });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ message: "No records found for this date." });
+        }
+
+        res.status(200).json({ 
+            message: `Successfully deleted ${result.deletedCount} record(s).`,
+            deletedCount: result.deletedCount 
+        });
+    } catch (error) {
+        console.error("Delete Error:", error);
+        res.status(500).json({ message: "Server error while deleting records." });
+    }
+};
