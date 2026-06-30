@@ -7,6 +7,7 @@ import DailyProduction from "./FactorySection/Factory Balance/DailyProduction";
 import DispatchAndReturn from "./FactorySection/Factory Balance/DispatchAndReturn";
 import LabourOutput from "./FactorySection/Factory Balance/LabourOutput";
 import LabourOutputList from "./FactorySection/Factory Balance/LabourOutputList";
+import LabourOutputEdit from "./FactorySection/Factory Balance/LabourOutputEdit";
 
 export default function FactoryRouter() {
   return (
@@ -15,9 +16,10 @@ export default function FactoryRouter() {
       <Route path="dailyproduction" element={<DailyProduction />} />
       <Route path="dispatchandreturn" element={<DispatchAndReturn />} />
       <Route path="edit" element={<EditRecords />} />
-      <Route path="view" element={<FactoryView />} />
       <Route path="labouroutput" element={<LabourOutput />} />
       <Route path="labouroutputlist" element={<LabourOutputList />} />
+      <Route path="labouroutput/edit" element={<LabourOutputEdit />} />
+      <Route path="view" element={<FactoryView />} />
     </Route>
   );
 }

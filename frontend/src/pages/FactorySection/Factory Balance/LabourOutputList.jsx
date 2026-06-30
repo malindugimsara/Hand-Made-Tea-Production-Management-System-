@@ -67,14 +67,14 @@ const LabourOutputTable = () => {
 
     // --- Action Handlers ---
     const handleEditClick = (groupData) => {
-        // Navigates to your edit route, passing the entire day's grouped data
-        navigate("/labour-output/edit", { state: { recordData: groupData } });
+        // Navigates to the labour output edit page and passes the grouped data
+        navigate("/factory/labouroutput/edit", { state: { recordData: groupData } });
     };
 
     const handleConfirmDelete = async () => {
         if (!recordToDelete) return;
         const toastId = toast.loading("Deleting records...");
-        
+
         try {
             // Note: Adjust this URL to match your backend's delete route for this specific feature.
             // Since data is grouped by date, we delete by date here.
@@ -124,7 +124,7 @@ const LabourOutputTable = () => {
 
     return (
         <div className="p-6 md:p-8 max-w-[1600px] mx-auto font-sans flex flex-col min-h-screen bg-[#f3faf7] dark:bg-gray-950 transition-colors duration-300">
-            
+
             {/* 1. Header Section */}
             <div className="mb-5 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div>
@@ -137,18 +137,18 @@ const LabourOutputTable = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                    <button 
+                    <button
                         onClick={fetchData}
                         disabled={isLoading}
                         className="px-4 py-2 h-[42px] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all"
                     >
                         <RefreshCcw size={18} className={isLoading ? "animate-spin" : ""} /> Refresh
                     </button>
-                    
+
                     <button className="px-4 py-2 h-[42px] bg-white dark:bg-gray-800 text-[#1B6A31] dark:text-green-400 border border-[#1B6A31] dark:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all">
                         <FileSpreadsheet size={18} /> Export Excel
                     </button>
-                    
+
                     <PDFDownloader
                         title="Labour Output Report"
                         subtitle={`Period: ${getPeriodText()}`}
@@ -164,7 +164,7 @@ const LabourOutputTable = () => {
                         ]}
                         uniqueCode={`LOR-${getPeriodText().replace(/ /g, "")}`}
                         fileName={`Labour_Output_${getPeriodText().replace(/ /g, "_")}.pdf`}
-                        orientation="portrait" 
+                        orientation="portrait"
                         disabled={isLoading || groupedData.length === 0}
                         autoTableOptions={{
                             theme: "grid",
@@ -194,9 +194,9 @@ const LabourOutputTable = () => {
                         <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                             Month
                         </label>
-                        <input 
-                            type="month" 
-                            value={month} 
+                        <input
+                            type="month"
+                            value={month}
                             onChange={(e) => {
                                 setMonth(e.target.value);
                                 setFromDate("");
@@ -217,13 +217,13 @@ const LabourOutputTable = () => {
                             <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                                 From Date
                             </label>
-                            <input 
-                                type="date" 
-                                value={fromDate} 
+                            <input
+                                type="date"
+                                value={fromDate}
                                 onChange={(e) => {
                                     setFromDate(e.target.value);
                                     setMonth("");
-                                }} 
+                                }}
                                 className="w-full sm:w-40 outline-none text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:bg-white dark:focus:bg-gray-800 focus:border-[#1B6A31] dark:focus:border-green-500 focus:ring-2 focus:ring-[#1B6A31]/20 dark:focus:ring-green-500/20 transition-all cursor-pointer"
                             />
                         </div>
@@ -232,14 +232,14 @@ const LabourOutputTable = () => {
                             <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                                 To Date
                             </label>
-                            <input 
-                                type="date" 
-                                value={toDate} 
+                            <input
+                                type="date"
+                                value={toDate}
                                 min={fromDate}
                                 onChange={(e) => {
                                     setToDate(e.target.value);
                                     setMonth("");
-                                }} 
+                                }}
                                 className="w-full sm:w-40 outline-none text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:bg-white dark:focus:bg-gray-800 focus:border-[#1B6A31] dark:focus:border-green-500 focus:ring-2 focus:ring-[#1B6A31]/20 dark:focus:ring-green-500/20 transition-all cursor-pointer"
                             />
                         </div>
@@ -318,7 +318,7 @@ const LabourOutputTable = () => {
                                         <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right font-bold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
                                             {labourOutputValue.toFixed(2)}
                                         </td>
-                                        
+
                                         {/* Actions Cell */}
                                         <td className="px-3 py-3 text-center">
                                             <div className="flex items-center justify-center gap-1">
@@ -358,7 +358,7 @@ const LabourOutputTable = () => {
                                                                 This action cannot be undone.
                                                             </AlertDialogDescription>
                                                         </AlertDialogHeader>
-                                                        
+
                                                         <AlertDialogFooter className="mt-6">
                                                             <AlertDialogCancel
                                                                 onClick={() => setRecordToDelete(null)}
