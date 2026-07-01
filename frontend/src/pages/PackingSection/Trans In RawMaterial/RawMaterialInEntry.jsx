@@ -209,7 +209,7 @@ export default function RawMaterialInEntry() {
             
             <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold text-[#0f766e] dark:text-teal-400">Raw Material & Spicy Inward Entry</h2>
+                    <h2 className="text-3xl font-bold text-[#0f766e] dark:text-teal-400">Trans In (Raw Material & Spicy)</h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Record incoming spices, packaging, and raw materials</p>
                 </div>
             </div>
