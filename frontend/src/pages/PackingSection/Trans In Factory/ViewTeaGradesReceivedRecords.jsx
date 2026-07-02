@@ -359,7 +359,7 @@ export default function ViewTeaGradesReceivedRecords() {
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="w-full sm:w-auto">
                     <h2 className="text-2xl font-bold text-[#0f766e] dark:text-teal-400 flex items-center gap-2">
-                        <FileText size={24} /> Received Tea Records From The Main Factory    
+                        <FileText size={24} /> Trans In Main Factory Records   
                     </h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Overview of tea grades received from main factory</p>
                 </div>
@@ -367,7 +367,7 @@ export default function ViewTeaGradesReceivedRecords() {
                 <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
                     <div className="w-full sm:w-auto">
                         <PDFDownloader 
-                            title="Tea Grades Received Records"
+                            title="Tea Grades Received From Main Factory"
                             subtitle={`Filters -> Month: ${filterMonth || 'All'} | Date: ${startDate || 'All'} to ${endDate || 'All'} | Grade: ${gradeFilter || 'All'}`}
                             headers={["Date", "Transaction No", "Grade", "Qty (KG)", "Daily Total (KG)"]}
                             data={getPdfData()}

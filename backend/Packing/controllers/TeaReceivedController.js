@@ -1,81 +1,108 @@
 import TeaReceived from '../models/TeaReceivedModel.js'; 
 import PackingStock from '../models/PackingStock.js'; 
+import PendingTransfer from '../models/PendingTransfer.js'; // 🌟 අලුත් Pending Model එක Import කරන්න
 
-// @desc    Create new tea received record
-// @route   POST /api/tea-received
-// @access  Private
-export const createTeaReceivedRecord = async (req, res) => {
+// ==========================================
+// 1. GET PENDING TRANSFERS (Factory එකෙන් එන ඒවා බලාගන්න)
+// ==========================================
+export const getPendingTransfers = async (req, res) => {
     try {
-        const { date, transactionNo, totalQtyKg, receivedItems } = req.body;
-
-        if (!receivedItems || receivedItems.length === 0) {
-            return res.status(400).json({ message: 'No received items provided' });
-        }
-
-        const newTeaReceived = new TeaReceived({
-            date,
-            transactionNo,
-            totalQtyKg,
-            receivedItems,
-        });
-
-        // 👇 AUTOMATED INVENTORY ADDITION LOGIC (FACTORY) 👇
-        for (const item of receivedItems) {
-            const productName = item.product || item.grade || item.productName;
-            const incomingQty = Number(item.qtyKg || item.weight || item.receivedQtyKg || 0);
-
-            if (incomingQty <= 0) continue; 
-
-            let stock = await PackingStock.findOne({ productName: productName });
-
-            if (stock) {
-                let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Factory');
-                
-                if (sourceObj) {
-                    sourceObj.quantityKg += incomingQty;
-                
-                    sourceObj.transInAmount = (sourceObj.transInAmount || 0) + incomingQty;
-                } else {
-                    stock.stockBySource.push({ 
-                        sourceName: 'Factory', 
-                        quantityKg: incomingQty,
-                        transInAmount: incomingQty, 
-                        issueAmount: 0 
-                    });
-                }
-                
-                stock.totalBulkStockKg += incomingQty;
-                await stock.save();
-
-            } else {
-                const newStock = new PackingStock({
-                    productName: productName,
-                    stockBySource: [{ 
-                        sourceName: 'Factory', 
-                        quantityKg: incomingQty,
-                        transInAmount: incomingQty, 
-                        issueAmount: 0
-                    }],
-                    totalBulkStockKg: incomingQty,
-                    packedItems: []
-                });
-                await newStock.save();
-            }
-        }
-        // 👆 END OF AUTOMATED INVENTORY ADDITION 👆
-
-        const savedRecord = await newTeaReceived.save();
-        res.status(201).json(savedRecord);
-
+        const pendingTransfers = await PendingTransfer.find({ status: "Pending" }).sort({ date: -1 });
+        res.status(200).json(pendingTransfers);
     } catch (error) {
-        console.error('Error saving tea received record:', error);
-        res.status(500).json({ message: 'Server error failed to save record', error: error.message });
+        console.error('Error fetching pending transfers:', error);
+        res.status(500).json({ message: "Server error fetching pending transfers" });
     }
 };
 
-// @desc    Get all tea received records
-// @route   GET /api/tea-received
-// @access  Private
+// ==========================================
+// 2. ACCEPT TRANSFER & AUTO STOCK UPDATE (Manual Create වෙනුවට)
+// ==========================================
+export const acceptTransfer = async (req, res) => {
+    try {
+        const { transferId, receivedQtyKg, username } = req.body;
+
+        // 1. Pending Record එක හොයාගන්නවා
+        const pendingRecord = await PendingTransfer.findById(transferId);
+        
+        if (!pendingRecord || pendingRecord.status !== "Pending") {
+            return res.status(400).json({ message: "Transfer record not found or already processed." });
+        }
+
+        const finalQty = Number(receivedQtyKg);
+        if (finalQty <= 0) {
+            return res.status(400).json({ message: "Received quantity must be greater than 0" });
+        }
+
+        // 2. Tea Received (Trans In) Record එක Auto හදනවා
+        const newTeaReceived = new TeaReceived({
+            date: new Date(), 
+            transactionNo: `PACK/TI/${pendingRecord.transferNo}`,
+            totalQtyKg: finalQty,
+            receivedItems: [{
+                grade: pendingRecord.grade,
+                qtyKg: finalQty,
+            }]
+        });
+
+        // 3. 👇 AUTOMATED INVENTORY ADDITION LOGIC (Packing Stock Update) 👇
+        const productName = pendingRecord.grade;
+        let stock = await PackingStock.findOne({ productName: productName });
+
+        if (stock) {
+            let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Factory');
+            
+            if (sourceObj) {
+                sourceObj.quantityKg += finalQty;
+                sourceObj.transInAmount = (sourceObj.transInAmount || 0) + finalQty;
+            } else {
+                stock.stockBySource.push({ 
+                    sourceName: 'Factory', 
+                    quantityKg: finalQty,
+                    transInAmount: finalQty, 
+                    issueAmount: 0 
+                });
+            }
+            
+            stock.totalBulkStockKg += finalQty;
+            await stock.save();
+        } else {
+            const newStock = new PackingStock({
+                productName: productName,
+                stockBySource: [{ 
+                    sourceName: 'Factory', 
+                    quantityKg: finalQty,
+                    transInAmount: finalQty, 
+                    issueAmount: 0
+                }],
+                totalBulkStockKg: finalQty,
+                packedItems: []
+            });
+            await newStock.save();
+        }
+        // 👆 END OF AUTOMATED INVENTORY ADDITION 👆
+
+        await newTeaReceived.save();
+
+        // 4. Pending Record එකේ Status එක Accepted කියලා වෙනස් කරනවා
+        pendingRecord.status = "Accepted";
+        pendingRecord.acceptedBy = username || "Packing Officer";
+        pendingRecord.acceptedDate = new Date();
+        // Packing officer කිරපු බර (අවශ්‍යනම් Pending table එකෙත් save කරගන්න පුළුවන් වෙනස බලාගන්න)
+        pendingRecord.receivedQtyKg = finalQty; 
+        await pendingRecord.save();
+
+        res.status(200).json({ message: 'Transfer Accepted & Stock Updated Successfully!', data: newTeaReceived });
+
+    } catch (error) {
+        console.error('Error accepting transfer:', error);
+        res.status(500).json({ message: 'Server error failed to accept transfer', error: error.message });
+    }
+};
+
+// ==========================================
+// 3. GET ALL TEA RECEIVED RECORDS
+// ==========================================
 export const getTeaReceivedRecords = async (req, res) => {
     try {
         const records = await TeaReceived.find().sort({ date: -1 });
@@ -86,12 +113,11 @@ export const getTeaReceivedRecords = async (req, res) => {
     }
 };
 
-// @desc    Delete a tea received record
-// @route   DELETE /api/tea-received/:id
-// @access  Private
+// ==========================================
+// 4. DELETE TEA RECEIVED RECORD (Auto Reversal එක්ක)
+// ==========================================
 export const deleteTeaReceivedRecord = async (req, res) => {
     try {
-        
         const record = await TeaReceived.findById(req.params.id);
 
         if (!record) {
@@ -111,10 +137,8 @@ export const deleteTeaReceivedRecord = async (req, res) => {
                 let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Factory');
                 
                 if (sourceObj) {
-                   
                     sourceObj.quantityKg -= qtyToRemove;
                     sourceObj.transInAmount -= qtyToRemove; 
-                    
                     
                     if(sourceObj.quantityKg < 0) sourceObj.quantityKg = 0;
                     if(sourceObj.transInAmount < 0) sourceObj.transInAmount = 0;
@@ -136,13 +160,12 @@ export const deleteTeaReceivedRecord = async (req, res) => {
     }
 };
 
-// @desc    Update a tea received record
-// @route   PUT /api/tea-received/:id
-// @access  Private
+// ==========================================
+// 5. UPDATE TEA RECEIVED RECORD (Auto Stock Update එක්ක)
+// ==========================================
 export const updateTeaReceivedRecord = async (req, res) => {
     try {
         const { date, transactionNo, totalQtyKg, receivedItems, updatedBy } = req.body;
-
         const record = await TeaReceived.findById(req.params.id);
 
         if (!record) {
@@ -150,17 +173,15 @@ export const updateTeaReceivedRecord = async (req, res) => {
         }
 
         // 👇 AUTOMATED STOCK UPDATE LOGIC 👇
-        
         // 1. අලුත් Items වල Quantity වෙනස ගණනය කිරීම
         for (const newItem of receivedItems) {
             const productName = newItem.grade || newItem.product || newItem.productName;
             const newQty = Number(newItem.qtyKg || newItem.weight || newItem.receivedQtyKg || 0);
 
-            // පරණ record එකෙන් මේ item එක හොයාගන්නවා
             const oldItem = record.receivedItems.find(i => (i.grade || i.product || i.productName) === productName);
             const oldQty = oldItem ? Number(oldItem.qtyKg || oldItem.weight || oldItem.receivedQtyKg || 0) : 0;
 
-            const difference = newQty - oldQty; // කොච්චර වෙනස් වෙලාද (අලුත් ගාණ - පරණ ගාණ)
+            const difference = newQty - oldQty; 
 
             if (difference !== 0) {
                 let stock = await PackingStock.findOne({ productName: productName });
@@ -186,7 +207,6 @@ export const updateTeaReceivedRecord = async (req, res) => {
                     
                     await stock.save();
                 } else if (difference > 0) {
-                    // Stock එකක් කලින් තිබිලම නැත්නම් අලුතින් හදනවා
                     const newStock = new PackingStock({
                         productName: productName,
                         stockBySource: [{
@@ -230,12 +250,10 @@ export const updateTeaReceivedRecord = async (req, res) => {
         }
         // 👆 END OF AUTOMATED STOCK UPDATE LOGIC 👆
 
-        // අලුත් දත්ත සමඟ Record එක Update කිරීම
         record.date = date;
         record.transactionNo = transactionNo;
         record.totalQtyKg = totalQtyKg;
         record.receivedItems = receivedItems;
-
         if (updatedBy) record.updatedBy = updatedBy;
 
         const updatedRecord = await record.save();
@@ -244,5 +262,78 @@ export const updateTeaReceivedRecord = async (req, res) => {
     } catch (error) {
         console.error('Error updating tea received record:', error);
         res.status(500).json({ message: 'Server error failed to update record', error: error.message });
+    }
+};
+
+// ==========================================
+// 6. CREATE MANUAL TEA RECEIVED RECORD
+// ==========================================
+export const createTeaReceivedRecord = async (req, res) => {
+    try {
+        const { date, transactionNo, totalQtyKg, receivedItems } = req.body;
+
+        if (!receivedItems || receivedItems.length === 0) {
+            return res.status(400).json({ message: 'No received items provided' });
+        }
+
+        // 1. New Record එක හදනවා
+        const newTeaReceived = new TeaReceived({
+            date,
+            transactionNo,
+            totalQtyKg,
+            receivedItems,
+            isManual: true // මෙය manual එකක් බව හඳුනාගැනීමට
+        });
+
+        // 2. 👇 AUTOMATED INVENTORY ADDITION LOGIC 👇
+        for (const item of receivedItems) {
+            const productName = item.grade || item.product || item.productName;
+            const incomingQty = Number(item.qtyKg || item.weight || item.receivedQtyKg || 0);
+
+            if (incomingQty <= 0) continue; 
+
+            let stock = await PackingStock.findOne({ productName: productName });
+
+            if (stock) {
+                // Manual entry සඳහා වෙනම 'Manual' හෝ 'Other' කියලා source එකක් ගන්නවා
+                let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Manual');
+                
+                if (sourceObj) {
+                    sourceObj.quantityKg += incomingQty;
+                    sourceObj.transInAmount = (sourceObj.transInAmount || 0) + incomingQty;
+                } else {
+                    stock.stockBySource.push({ 
+                        sourceName: 'Manual', 
+                        quantityKg: incomingQty,
+                        transInAmount: incomingQty, 
+                        issueAmount: 0 
+                    });
+                }
+                
+                stock.totalBulkStockKg += incomingQty;
+                await stock.save();
+            } else {
+                const newStock = new PackingStock({
+                    productName: productName,
+                    stockBySource: [{ 
+                        sourceName: 'Manual', 
+                        quantityKg: incomingQty,
+                        transInAmount: incomingQty, 
+                        issueAmount: 0
+                    }],
+                    totalBulkStockKg: incomingQty,
+                    packedItems: []
+                });
+                await newStock.save();
+            }
+        }
+        // 👆 END OF AUTOMATED INVENTORY ADDITION 👆
+
+        const savedRecord = await newTeaReceived.save();
+        res.status(201).json(savedRecord);
+
+    } catch (error) {
+        console.error('Error saving manual tea received record:', error);
+        res.status(500).json({ message: 'Server error failed to save manual record', error: error.message });
     }
 };

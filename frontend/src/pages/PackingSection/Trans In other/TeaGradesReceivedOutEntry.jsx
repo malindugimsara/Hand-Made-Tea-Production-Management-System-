@@ -217,7 +217,7 @@ export default function TeaGradesReceivedOutEntry() {
             
             <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold text-[#0f766e] dark:text-teal-400">Tea Received from Other Parties</h2>
+                    <h2 className="text-3xl font-bold text-[#0f766e] dark:text-teal-400">Trans In (Other Parties) </h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Record incoming tea grades from external sources</p>
                 </div>
             </div>
