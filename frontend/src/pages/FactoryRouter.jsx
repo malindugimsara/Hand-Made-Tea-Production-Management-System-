@@ -14,6 +14,7 @@ export default function FactoryRouter() {
       <Route path="dispatchandreturn" element={<DispatchAndReturn />} />
       <Route path="edit" element={<EditRecords />} />
       <Route path="view" element={<FactoryView />} />
+      
     </Route>
   );
 }

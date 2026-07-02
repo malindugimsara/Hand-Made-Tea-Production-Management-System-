@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { RefreshCw, PackageSearch, Warehouse, FilterX, ArrowDownToLine, ArrowUpFromLine, Droplet, Package, AlertTriangle, Weight } from "lucide-react";
+import { RefreshCw, PackageSearch, Warehouse, FilterX, ArrowDownToLine, ArrowUpFromLine, Droplet, Package, AlertTriangle, Weight, Settings2 } from "lucide-react";
 import PDFDownloader from '@/components/PDFDownloader';
 
 // --- COLOR MAPPINGS ---
@@ -103,42 +103,42 @@ export default function ViewPackingStock() {
                 stockData.forEach(product => {
                     const updatedAtDate = product.updatedAt ? new Date(product.updatedAt).toISOString().split('T')[0] : '';
                     
-                    let hasAnyValidStock = false;
+                    // 1. Calculate Total TransIn & Issue from all sources
+                    let totalTransIn = product.transInAmount || 0;
+                    let totalIssue = product.issueAmount || 0;
+                    let sources = new Set();
+
+                    if (product.source) sources.add(product.source);
 
                     if (product.stockBySource && product.stockBySource.length > 0) {
                         product.stockBySource.forEach(src => {
-                            if (src.quantityKg > 0 || src.transInAmount > 0 || src.issueAmount > 0 || product.stockBySource.length === 1) {
-                                if (src.quantityKg > 0) hasAnyValidStock = true;
-                                flatData.push({
-                                    id: `${product._id}-${src.sourceName}`,
-                                    productName: product.productName,
-                                    source: src.sourceName,
-                                    transInAmount: src.transInAmount || 0,
-                                    issueAmount: src.issueAmount || 0,
-                                    currentStock: src.quantityKg || 0,
-                                    totalOverallQtyKg: product.totalBulkStockKg || 0,
-                                    updatedAtDate: updatedAtDate
-                                });
-                            }
-                        });
-                    } else {
-                        const curStock = product.bulkStockKg || product.totalBulkStockKg || 0;
-                        if (curStock > 0) hasAnyValidStock = true;
-                        
-                        flatData.push({
-                            id: product._id,
-                            productName: product.productName,
-                            source: product.source || 'Unknown',
-                            transInAmount: product.transInAmount || 0,
-                            issueAmount: product.issueAmount || 0,
-                            currentStock: curStock,
-                            totalOverallQtyKg: product.totalBulkStockKg || product.bulkStockKg || 0,
-                            updatedAtDate: updatedAtDate
+                            totalTransIn += (src.transInAmount || 0);
+                            totalIssue += (src.issueAmount || 0);
+                            if (src.sourceName) sources.add(src.sourceName);
                         });
                     }
 
-                    // Zero stock item එකක් නම් (කිසිම source එකක stock නැත්නම්)
-                    if (!hasAnyValidStock) {
+                    const sourceText = sources.size > 1 ? "Multiple Sources" : (Array.from(sources)[0] || "Unknown");
+                    const currentStock = product.totalBulkStockKg || product.bulkStockKg || 0;
+
+                    // 2. Calculate Manual Adjustments
+                    // Current Stock = (TransIn - Issue) + Adjustments
+                    // Therefore: Adjustments = Current Stock - (TransIn - Issue)
+                    const manualAdjustments = currentStock - (totalTransIn - totalIssue);
+
+                    if (currentStock > 0 || totalTransIn > 0 || totalIssue > 0 || manualAdjustments !== 0) {
+                        flatData.push({
+                            id: product._id,
+                            productName: product.productName,
+                            source: sourceText,
+                            transInAmount: totalTransIn,
+                            issueAmount: totalIssue,
+                            adjustments: manualAdjustments, // අලුතින් ගණනය කරපු අගය
+                            currentStock: currentStock,
+                            totalOverallQtyKg: currentStock,
+                            updatedAtDate: updatedAtDate
+                        });
+                    } else {
                         zeroTeaData.push({
                             productName: product.productName,
                             lastUpdated: updatedAtDate
@@ -146,12 +146,7 @@ export default function ViewPackingStock() {
                     }
                 });
                 
-                flatData.sort((a, b) => {
-                    const nameCompare = (a.productName || '').localeCompare(b.productName || '');
-                    if(nameCompare !== 0) return nameCompare;
-                    return (a.source || '').localeCompare(b.source || '');
-                });
-
+                flatData.sort((a, b) => (a.productName || '').localeCompare(b.productName || ''));
                 setFlattenedStocks(flatData);
                 setZeroTeaStocks(zeroTeaData);
             }
@@ -519,6 +514,7 @@ export default function ViewPackingStock() {
                                             <th className="px-6 py-4 font-bold border-r border-gray-200 dark:border-zinc-500 text-center">Source</th>
                                             <th className="px-6 py-4 font-bold text-blue-700 dark:text-blue-500 border-r border-gray-200 dark:border-zinc-600 bg-blue-50/50 dark:bg-blue-950/20 text-center"><ArrowDownToLine size={14} className="inline mr-1"/> Trans-In Amount (Kg)</th>
                                             <th className="px-6 py-4 font-bold text-amber-700 dark:text-amber-500 border-r border-gray-200 dark:border-zinc-600 bg-amber-50/50 dark:bg-amber-950/20 text-center"><ArrowUpFromLine size={14} className="inline mr-1"/> Issue Amount (Kg)</th>
+                                            <th className="px-6 py-4 font-bold text-purple-700 dark:text-purple-500 border-r border-gray-200 dark:border-zinc-600 bg-purple-50/50 dark:bg-purple-950/20 text-center"><Settings2 size={14} className="inline mr-1"/> Adjustments (Kg)</th>
                                             <th className="px-6 py-4 font-bold text-[#0f766e] dark:text-teal-400 bg-teal-50/30 dark:bg-teal-950/20 text-center text-sm"><Warehouse size={14} className="inline mr-1"/> Current Stock (Kg)</th>
                                         </tr>
                                     </thead>
@@ -550,6 +546,11 @@ export default function ViewPackingStock() {
                                                         </td>
                                                         <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 align-middle text-center bg-amber-50/10 dark:bg-amber-950/5">
                                                             <span className="font-bold text-amber-700 dark:text-amber-500 text-base">{(Number(stock.issueAmount) || 0).toFixed(3)}</span>
+                                                        </td>
+                                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 align-middle text-center bg-purple-50/10 dark:bg-purple-950/5">
+                                                            <span className={`font-bold text-base ${stock.adjustments > 0 ? 'text-green-600' : stock.adjustments < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                                                                {stock.adjustments > 0 ? '+' : ''}{(Number(stock.adjustments) || 0).toFixed(3)}
+                                                            </span>
                                                         </td>
                                                         <td className="px-6 py-4 text-center align-middle bg-teal-50/10 dark:bg-teal-950/10">
                                                             <span className="font-black text-[#0f766e] dark:text-teal-400 text-lg">{(Number(stock.currentStock) || 0).toFixed(3)}</span>

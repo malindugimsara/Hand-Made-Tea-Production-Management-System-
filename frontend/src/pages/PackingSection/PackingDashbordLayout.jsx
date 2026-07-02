@@ -117,6 +117,14 @@ const DATA = {
           { title: 'Raw Material - Trans In View', url: '/packing/trans-in-view-raw-material', roles: ['Admin', 'Packing Officer', 'Viewer'] },
         ],
     }, 
+    {
+        title: 'Stock Adjustment',
+        icon: PackagePlus,
+        items: [
+          { title: 'Stock Adjustment Entry', url: '/packing/stock-adjustment-entry', roles: ['Admin'] },
+          { title: 'Stock Adjustment View', url: '/packing/stock-adjustment-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+        ],
+    }, 
   ],
 };
 
@@ -215,7 +223,8 @@ export default function DashboardLayoutP() {
       case '/packing/trans-in-view-raw-material': return 'Raw Material View';
       case '/packing/product-issue-summary': return 'Product Issue Summary';
       case '/packing/summary-reports': return 'Stock Summary Reports';
-      
+      case '/packing/stock-adjustment-entry': return 'Stock Adjustment Entry';
+      case '/packing/stock-adjustment-view': return 'Stock Adjustment View';
       default: return 'System';
     }
   };
