@@ -247,22 +247,31 @@ export default function LabourOutput() {
                                 <form onSubmit={handleAddToList} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                                     <div className="md:col-span-4">
                                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1.5">
-                                            Select Section
+                                            Select or Type Section
                                         </label>
-                                        <select
-                                            name="section" value={formData.section} onChange={handleInputChange} required
-                                            className={`${inputStyles} appearance-none cursor-pointer text-sm`}
-                                        >
-                                            <option value="" disabled>-- Select Factory Section --</option>
-                                            <option value="Withering">Withering</option>
-                                            <option value="Rolling">Rolling</option>
-                                            <option value="Fermentation">Fermentation</option>
-                                            <option value="Drying">Drying</option>
-                                            <option value="Sorting">Sorting / Grading</option>
-                                            <option value="Packing">Packing</option>
-                                            <option value="Maintenance">Maintenance</option>
-                                            <option value="General">General / Other</option>
-                                        </select>
+                                        
+                                        {/* Select එක වෙනුවට Input එකක් පාවිච්චි කරනවා, ඒකට list එකක් link කරනවා */}
+                                        <input
+                                            type="text"
+                                            list="section-options"
+                                            name="section"
+                                            value={formData.section}
+                                            onChange={handleInputChange}
+                                            required
+                                            placeholder="-- Select or Type Section --"
+                                            className={`${inputStyles} text-sm w-full`}
+                                            autoComplete="off"
+                                        />
+                                        
+                                        {/* Input එකට පෙන්නන්න ඕන options ටික datalist එක ඇතුළෙ දෙනවා */}
+                                        <datalist id="section-options">
+                                            <option value="Withering" />
+                                            <option value="Rolling" />
+                                            <option value="Drying" />
+                                            <option value="Sifting" />
+                                            <option value="Packing" />
+                                            <option value="Firewood" />
+                                        </datalist>
                                     </div>
 
                                     <div className="md:col-span-3">
