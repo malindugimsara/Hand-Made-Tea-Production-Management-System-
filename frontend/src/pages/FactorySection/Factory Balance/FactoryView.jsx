@@ -5,8 +5,8 @@ import {
   AlertCircle,
   RefreshCcw,
   Filter,
-  Sun,
-  Moon,
+  TrendingDown, 
+  Percent, 
 } from "lucide-react";
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
@@ -89,7 +89,7 @@ export default function FactoryView() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-        },
+        }
       );
 
       if (!response.ok) {
@@ -104,7 +104,7 @@ export default function FactoryView() {
 
       // 1. මුලින්ම දින අනුපිළිවෙලට (පරණ දවසේ ඉඳන් අලුත් දවසට) Sort කරනවා - Calculations සඳහා
       let sortedRecordsAsc = [...(data.records || [])].sort(
-        (a, b) => new Date(a.date) - new Date(b.date),
+        (a, b) => new Date(a.date) - new Date(b.date)
       );
 
       let currentMonthTracker = "";
@@ -165,7 +165,7 @@ export default function FactoryView() {
           const disp = processedRecordsAsc[j].totalOut || 0;
           const ret = processedRecordsAsc[j].returnAmount || 0;
 
-          // ඔබ සඳහන් කළ පරිදි: Made Tea අඩු කර, Dispatch අඩු කර, Return එකතු කරයි
+          // Made Tea අඩු කර, Dispatch අඩු කර, Return එකතු කරයි
           tempBal = tempBal - mt - disp + ret;
         }
 
@@ -232,7 +232,7 @@ export default function FactoryView() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-        },
+        }
       );
 
       if (!response.ok) {
@@ -409,9 +409,21 @@ export default function FactoryView() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Factory Logs");
     XLSX.writeFile(
       workbook,
-      `Factory_Logs_${periodText.replace(/ /g, "_")}.xlsx`,
+      `Factory_Logs_${periodText.replace(/ /g, "_")}.xlsx`
     );
   };
+
+  // --- SUMMARY CALCULATIONS ---
+  const totalGL = records.reduce((sum, r) => sum + (r.greenLeaf?.today || 0), 0);
+  const totalMadeTea = records.reduce((sum, r) => sum + (r.madeTea?.today || 0), 0);
+  const totalDispatch = records.reduce((sum, r) => sum + (r.dispatch || 0), 0);
+  const totalLocalSale = records.reduce((sum, r) => sum + (r.localSaleAndGratis || 0), 0);
+
+  // 1. Dispatch Out Turn ((Dispatch / G/L) * 100)
+  const dispatchOutTurn = totalGL > 0 ? ((totalDispatch / totalGL) * 100).toFixed(2) : "0.00";
+
+  // 2. Local Sale Percentage ((Local Sale / Made Tea) * 100%)
+  const localSalePercentage = totalMadeTea > 0 ? ((totalLocalSale / totalMadeTea) * 100).toFixed(2) : "0.00";
 
   return (
     <div className="p-6 md:p-8 max-w-[1600px] mx-auto font-sans flex flex-col min-h-screen bg-[#f3faf7] dark:bg-gray-950 transition-colors duration-300">
@@ -503,7 +515,7 @@ export default function FactoryView() {
                 doc.text(
                   `Factory Balance: ${getLastFactoryBalance().toFixed(2)} Kg`,
                   data.settings.margin.left,
-                  37,
+                  37
                 );
               },
               headStyles: {
@@ -588,6 +600,62 @@ export default function FactoryView() {
           </div>
         </div>
       </div>
+
+      {/* --- SUMMARY CARDS (OUTSIDE THE TABLE) --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        
+        {/* Card 1: Dispatch Out Turn */}
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm flex items-center justify-between transition-colors">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-green-50 dark:bg-green-900/30 rounded-lg">
+                <TrendingDown className="text-[#1B6A31] dark:text-green-400" size={24} />
+            </div>
+            <div>
+                <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                Dispatch Out Turn
+                </h3>
+                <p className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
+                (Total Dispatch ÷ Total G/L) × 100%
+                </p>
+            </div>
+          </div>
+          <div className="text-right flex items-baseline justify-end gap-1">
+            <span className="text-3xl font-black text-[#1B6A31] dark:text-green-400">
+              {dispatchOutTurn}
+            </span>
+            <span className="text-xl font-bold text-[#1B6A31]/70 dark:text-green-400/70">
+              %
+            </span>
+          </div>
+        </div>
+
+        {/* Card 2: Local Sale Percentage */}
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm flex items-center justify-between transition-colors">
+            <div className="flex items-center gap-4">
+            <div className="p-3 bg-orange-50 dark:bg-orange-900/30 rounded-lg">
+                <Percent className="text-orange-600 dark:text-orange-400" size={24} />
+            </div>
+            <div>
+                <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                Local Sale Percentage
+                </h3>
+                <p className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
+                (Local Sale ÷ Made Tea) × 100%
+                </p>
+            </div>
+          </div>
+          <div className="text-right flex items-baseline justify-end gap-1">
+            <span className="text-3xl font-black text-orange-600 dark:text-orange-400">
+              {localSalePercentage}
+            </span>
+            <span className="text-xl font-bold text-orange-600/70 dark:text-orange-400/70">
+              %
+            </span>
+          </div>
+        </div>
+
+      </div>
+      {/* ----------------------------------------- */}
 
       {/* --- TABLE CONTAINER --- */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 overflow-hidden w-full transition-colors">
