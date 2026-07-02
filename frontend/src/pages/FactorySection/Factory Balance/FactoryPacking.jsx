@@ -103,7 +103,6 @@ const FactoryPacking = () => {
                                     onChange={(e) => setRecordDate(e.target.value)}
                                     className="w-full pl-4 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 outline-none focus:border-[#1B6A31] transition-colors"
                                 />
-                                <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                             </div>
                         </div>
 

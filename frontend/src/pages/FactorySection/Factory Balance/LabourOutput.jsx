@@ -226,7 +226,6 @@ export default function LabourOutput() {
                                             onClick={(e) => e.target.showPicker && e.target.showPicker()}
                                             className={`${inputStyles} pl-4 pr-10 cursor-pointer`}
                                         />
-                                        <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                                     </div>
                                 </div>
                                 <div>
