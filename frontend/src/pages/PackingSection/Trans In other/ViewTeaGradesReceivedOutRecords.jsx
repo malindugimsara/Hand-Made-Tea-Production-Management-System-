@@ -235,8 +235,6 @@ export default function ViewTeaReceivedOtherRecords() {
     };
 
     // --- PDF GENERATION LOGIC ---
-    // --- PDF GENERATION LOGIC ---
-    // --- PDF GENERATION LOGIC ---
     const getPdfData = () => {
         const pdfSortedRecords = [...filteredRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
         const tableRows = [];
@@ -303,7 +301,7 @@ export default function ViewTeaReceivedOtherRecords() {
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="w-full sm:w-auto">
                     <h2 className="text-2xl font-bold text-[#0f766e] dark:text-teal-400 flex items-center gap-2">
-                        <ArrowDownToLine size={24} /> Tea Received (Other Parties)
+                        <ArrowDownToLine size={24} /> Trans In Other Parties Records
                     </h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Overview of tea grades received from external sources</p>
                 </div>

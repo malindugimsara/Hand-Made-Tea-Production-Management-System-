@@ -111,7 +111,6 @@ export default function ViewTeaCenterRecords() {
 
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer';
-    // Add this new line right below them:
     const isAdmin = userRole.toLowerCase() === 'admin';
 
     // --- FILTER STATES ---
@@ -186,25 +185,19 @@ export default function ViewTeaCenterRecords() {
     };
 
     const filteredRecords = records.reduce((acc, record) => {
-        // 1. Date සහ Month filters චෙක් කිරීම
         const monthMatch = !filterMonth || record.date.startsWith(filterMonth);
         const dateMatch = (!startDate || record.date >= startDate) && (!endDate || record.date <= endDate);
         
         if (!monthMatch || !dateMatch) return acc;
 
-        // 2. Product filter එකක් දීලා තියෙනවා නම්, ඒකට ගැලපෙන items විතරක් වෙන් කිරීම
         let matchedItems = record.itemsArray;
         if (productFilter) {
-            // exact match (===) භාවිතා කරන නිසා 'BOPF' සෙවුමකට 'BOPF SP' අහුවෙන්නේ නැත.
             matchedItems = record.itemsArray.filter(
                 item => item.product.toLowerCase() === productFilter.toLowerCase()
             );
         }
 
-        // 3. ගැලපෙන items තියෙනවා නම් විතරක් ඒ දවස පෙන්නන්න එකතු කිරීම
         if (matchedItems.length > 0) {
-            // Filter වුන items වලට අදාලව Daily Items සහ Daily Gross අලුතෙන් එකතු කිරීම 
-            // (එවිට පල්ලෙහා තියෙන Grand Total එකත් නිවැරදිව හැදේවි)
             const filteredTotalBoxes = matchedItems.reduce((sum, item) => sum + (Number(item.numberOfBoxes) || 0), 0);
             const filteredTotalQtyKg = matchedItems.reduce((sum, item) => sum + (Number(item.totalQtyKg) || 0), 0);
 
@@ -218,8 +211,30 @@ export default function ViewTeaCenterRecords() {
 
         return acc;
     }, []);
+
     const grandTotalBoxes = filteredRecords.reduce((sum, record) => sum + (Number(record.totalBoxes) || 0), 0);
     const grandTotalQty = filteredRecords.reduce((sum, record) => sum + (Number(record.totalQtyKg) || 0), 0);
+
+    // --- Add rowSpan grouping logic ---
+    const recordsWithSpan = filteredRecords.map((record, index, arr) => {
+        const currentDate = new Date(record.date).toISOString().split('T')[0];
+        const prevDate = index > 0 ? new Date(arr[index - 1].date).toISOString().split('T')[0] : null;
+        
+        const isFirstOfDate = currentDate !== prevDate;
+        let rowSpan = 1;
+        
+        if (isFirstOfDate) {
+            for (let i = index + 1; i < arr.length; i++) {
+                if (new Date(arr[i].date).toISOString().split('T')[0] === currentDate) {
+                    rowSpan++;
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        return { ...record, isFirstOfDate, dateRowSpan: rowSpan };
+    });
 
     const handleEditClick = (record) => {
         navigate('/packing/edit-tea-center-issue', { state: { recordData: record } });
@@ -262,7 +277,6 @@ export default function ViewTeaCenterRecords() {
     };
 
     // --- PDF GENERATION LOGIC ---
-    // --- PDF GENERATION LOGIC ---
     const getPdfData = () => {
         const pdfSortedRecords = [...filteredRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
         const tableRows = [];
@@ -271,19 +285,16 @@ export default function ViewTeaCenterRecords() {
             const baseDate = new Date(record.date).toISOString().split('T')[0];
             const pdfDateCell = record.isEdited ? `${baseDate}\n(Edited by ${record.editedBy} on ${record.lastUpdatedDate})` : baseDate;
 
-            // මේ record එකේ items කීයක් තියෙනවද කියලා ගණන් කිරීම (RowSpan එක සඳහා)
             const itemsCount = record.itemsArray.length;
 
             record.itemsArray.forEach((item, index) => {
                 const isFirst = index === 0;
 
-                // දශම 3ක් දක්වා රවුම් කර, අගට ඇති බිංදු ඉවත් කිරීම
                 const packSizeStr = parseFloat(Number(item.packSizeKg).toFixed(3)).toString();
                 const totalQtyStr = parseFloat(Number(item.totalQtyKg || 0).toFixed(3)).toString();
                 const baseTeaQtyStr = item.baseTeaQtyKg ? parseFloat(Number(item.baseTeaQtyKg).toFixed(3)).toString() : "-";
                 const recordTotalQtyStr = parseFloat(Number(record.totalQtyKg).toFixed(3)).toString();
 
-                // Combine raw materials for PDF
                 const rmNames = [];
                 const rmQtys = [];
 
@@ -305,7 +316,6 @@ export default function ViewTeaCenterRecords() {
                 const rmNameCell = rmNames.length > 0 ? rmNames.join('\n') : "-";
                 const rmQtyCell = rmQtys.length > 0 ? rmQtys.join('\n') : "-";
 
-                // Cell Styles
                 const productCell = { 
                     content: item.product, 
                     styles: { ...getPdfTeaColor(item.product), fontStyle: 'bold', halign: 'center', valign: 'top' } 
@@ -319,7 +329,6 @@ export default function ViewTeaCenterRecords() {
                 const baseTeaQtyCell = { content: baseTeaQtyStr !== "-" ? `${baseTeaQtyStr} kg` : "-", styles: { halign: 'right', valign: 'top' } };
 
                 if (isFirst) {
-                    // පළමු අයිතමයේදී අවශ්‍ය තීරුවලට rowSpan ලබා දීම
                     tableRows.push([
                         { content: pdfDateCell, rowSpan: itemsCount, styles: { valign: 'top', halign: 'center' } },
                         productCell,
@@ -334,7 +343,6 @@ export default function ViewTeaCenterRecords() {
                         { content: `${recordTotalQtyStr} kg`, rowSpan: itemsCount, styles: { valign: 'top', halign: 'right', fontStyle: 'bold', textColor: [15, 118, 110] } }
                     ]);
                 } else {
-                    // ඉතිරි අයිතම සඳහා RowSpan වූ Columns 3 මඟහැර යැවීම
                     tableRows.push([
                         productCell,
                         typeCell,
@@ -349,11 +357,10 @@ export default function ViewTeaCenterRecords() {
             });
         });
 
-        // Grand Total එක දශම 3කට රවුම් කර බිංදු ඉවත් කිරීම
         const grandTotalStr = parseFloat(Number(grandTotalQty).toFixed(3)).toString();
 
         tableRows.push([
-            { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' }, colSpan: 9 }, // මුල් තීරු 9ක් Group කිරීම
+            { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' }, colSpan: 9 }, 
             { content: grandTotalBoxes.toString(), styles: { fontStyle: 'bold', halign: 'center' } },
             { content: `${grandTotalStr} kg`, styles: { fontStyle: 'bold', halign: 'right', textColor: [15, 118, 110] } } 
         ]);
@@ -361,7 +368,14 @@ export default function ViewTeaCenterRecords() {
         return tableRows;
     };
 
-    const uniqueCode = `PS/TC/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
+    const getMonthName = (yyyymm) => {
+        const date = new Date(`${yyyymm}-01`);
+        return date
+        .toLocaleString("default", { month: "long", year: "numeric" })
+        .toUpperCase();
+    };
+
+    const uniqueCode = `PS/TC/${getMonthName(filterMonth)}`;
 
     return (
         <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen transition-colors duration-300">
@@ -479,24 +493,29 @@ export default function ViewTeaCenterRecords() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
-                                {filteredRecords.length > 0 ? (
-                                    filteredRecords.map((record) => (
+                                {recordsWithSpan.length > 0 ? (
+                                    recordsWithSpan.map((record) => (
                                         <tr key={record._id} className="hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors group">
                                             
-                                            <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
-                                                {record.isEdited && (
-                                                    <div className="mt-1.5 text-[10px] bg-teal-50 dark:bg-teal-900 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-700 px-2 py-1 rounded font-medium w-max leading-tight">
-                                                        <span className="font-bold">Edited by {record.editedBy}</span><br />
-                                                        <span className="opacity-100">{record.lastUpdatedDate}</span>
-                                                    </div>
-                                                )}
-                                            </td>
+                                            {/* Changed Column with rowSpan */}
+                                            {record.isFirstOfDate && (
+                                                <td 
+                                                    rowSpan={record.dateRowSpan} 
+                                                    className="px-4 py-4 border-r border-b border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900"
+                                                >
+                                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
+                                                    {record.isEdited && (
+                                                        <div className="mt-1.5 text-[10px] bg-teal-50 dark:bg-teal-900 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-700 px-2 py-1 rounded font-medium w-max leading-tight">
+                                                            <span className="font-bold">Edited by {record.editedBy}</span><br />
+                                                            <span className="opacity-100">{record.lastUpdatedDate}</span>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            )}
                                             
                                             <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px">
                                                 <div className="flex flex-col w-full h-full">
                                                     {record.itemsArray.map((t, i) => {
-                                                        // Calculate height dynamically based on RM items to keep rows aligned
                                                         const rmCount = (t.rawMaterialName ? 1 : 0) + (t.packingMaterials ? t.packingMaterials.length : 0);
                                                         const hasAnyRm = rmCount > 0;
                                                         return (

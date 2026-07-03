@@ -124,7 +124,7 @@ export default function TransIn() {
             <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-[#0f766e] dark:text-teal-400 flex items-center gap-3">
-                        <ArrowRightCircle size={28} /> Trans In (Receive Stock)
+                        <ArrowRightCircle size={28} /> Trans In (H/T Receive Stock)
                     </h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Verify and accept incoming bulk tea from Handmade Section.</p>
                 </div>
@@ -227,7 +227,7 @@ export default function TransIn() {
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-4 text-center align-middle font-bold text-gray-600 dark:text-gray-300 text-lg">
-                                                        {issued.toFixed(2)}
+                                                        {issued.toFixed(3)}
                                                     </td>
                                                     <td className="px-4 py-4 align-middle bg-[#f0fdfa] dark:bg-teal-900/10">
                                                         <div className="flex flex-col items-center">

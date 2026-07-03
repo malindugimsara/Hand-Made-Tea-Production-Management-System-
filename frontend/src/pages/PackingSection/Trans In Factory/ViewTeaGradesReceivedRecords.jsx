@@ -190,6 +190,26 @@ export default function ViewTeaGradesReceivedRecords() {
 
     const grandTotalQty = filteredRecords.reduce((sum, record) => sum + (Number(record.totalQtyKg) || 0), 0);
 
+    const recordsWithSpan = filteredRecords.map((record, index, arr) => {
+        const currentDate = new Date(record.date).toISOString().split('T')[0];
+        const prevDate = index > 0 ? new Date(arr[index - 1].date).toISOString().split('T')[0] : null;
+        
+        const isFirstOfDate = currentDate !== prevDate;
+        let rowSpan = 1;
+        
+        if (isFirstOfDate) {
+            for (let i = index + 1; i < arr.length; i++) {
+                if (new Date(arr[i].date).toISOString().split('T')[0] === currentDate) {
+                    rowSpan++;
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        return { ...record, isFirstOfDate, dateRowSpan: rowSpan };
+    });
+
     // --- GENERATE DATA FOR SUMMARY TABLE ---
     const gradeSummaryMap = {};
     filteredRecords.forEach(record => {
@@ -339,7 +359,7 @@ export default function ViewTeaGradesReceivedRecords() {
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="w-full sm:w-auto">
                     <h2 className="text-2xl font-bold text-[#0f766e] dark:text-teal-400 flex items-center gap-2">
-                        <FileText size={24} /> Received Tea Records From The Main Factory    
+                        <FileText size={24} /> Trans In Main Factory Records   
                     </h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Overview of tea grades received from main factory</p>
                 </div>
@@ -347,7 +367,7 @@ export default function ViewTeaGradesReceivedRecords() {
                 <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
                     <div className="w-full sm:w-auto">
                         <PDFDownloader 
-                            title="Tea Grades Received Records"
+                            title="Tea Grades Received From Main Factory"
                             subtitle={`Filters -> Month: ${filterMonth || 'All'} | Date: ${startDate || 'All'} to ${endDate || 'All'} | Grade: ${gradeFilter || 'All'}`}
                             headers={["Date", "Transaction No", "Grade", "Qty (KG)", "Daily Total (KG)"]}
                             data={getPdfData()}
@@ -445,19 +465,24 @@ export default function ViewTeaGradesReceivedRecords() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
-                                    {filteredRecords.length > 0 ? (
-                                        filteredRecords.map((record) => (
+                                    {/* 👇 මෙතන සිට වෙනස් කරන්න 👇 */}
+                                    {recordsWithSpan.length > 0 ? (
+                                        recordsWithSpan.map((record) => (
                                             <tr key={record._id} className="hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors group">
                                                 
-                                                <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
-                                                    {record.isEdited && (
-                                                        <div className="mt-1.5 text-[10px] bg-teal-50 dark:bg-teal-900 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-700 px-2 py-1 rounded font-medium w-max leading-tight">
-                                                            <span className="font-bold">Edited by {record.editedBy}</span><br />
-                                                            <span className="opacity-100">{record.lastUpdatedDate}</span>
-                                                        </div>
-                                                    )}
-                                                </td>
+                                                {/* Date Column එක Merge කිරීම */}
+                                                {record.isFirstOfDate && (
+                                                    <td rowSpan={record.dateRowSpan} className="px-4 py-4 border-r border-b border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                        <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
+                                                        {record.isEdited && (
+                                                            <div className="mt-1.5 text-[10px] bg-teal-50 dark:bg-teal-900 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-700 px-2 py-1 rounded font-medium w-max leading-tight">
+                                                                <span className="font-bold">Edited by {record.editedBy}</span><br />
+                                                                <span className="opacity-100">{record.lastUpdatedDate}</span>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                )}
+                                                {/* 👆 Date Column එක 👆 */}
                                                 
                                                 <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
                                                     <span className="font-semibold text-[#0d9488] dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-2 py-1 rounded">{record.transactionNo}</span>
@@ -477,7 +502,7 @@ export default function ViewTeaGradesReceivedRecords() {
                                                     <div className="flex flex-col w-full h-full">
                                                         {record.itemsArray.map((t, i) => (
                                                             <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-800 dark:text-gray-200 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                                <span className="text-gray-600 dark:text-green-500">{Number(Number(t.qtyKg).toFixed(4))}</span>                                                            </div>
+                                                                <span className="text-gray-600 dark:text-green-500">{Number(Number(t.qtyKg).toFixed(4))}</span>                                                             </div>
                                                         ))}
                                                     </div>
                                                 </td>
@@ -513,6 +538,7 @@ export default function ViewTeaGradesReceivedRecords() {
                                     ) : (
                                         <tr><td colSpan={isViewer ? "5" : "6"} className="p-16 text-center text-gray-400"><p>No records found</p></td></tr>
                                     )}
+                                    {/* 👆 මෙතනින් අවසන් වේ 👆 */}
                                 </tbody>
                                 {filteredRecords.length > 0 && (
                                     <tfoot className="bg-gray-100/90 dark:bg-zinc-900/90 border-t-2 border-gray-200 dark:border-zinc-700">

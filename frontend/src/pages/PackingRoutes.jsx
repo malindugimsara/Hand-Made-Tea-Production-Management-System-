@@ -20,6 +20,9 @@ import RawMaterialInEntry from "./PackingSection/Trans In RawMaterial/RawMateria
 import ViewRawMaterialInRecords from "./PackingSection/Trans In RawMaterial/ViewRawMaterialInRecords";
 import EditTeaReceivedOutRecord from "./PackingSection/Trans In other/EditTeaReceivedOutRecord";
 import EditRawMaterialIn from "./PackingSection/Trans In RawMaterial/EditRawMaterialIn";
+import StockAdjustment from "./PackingSection/Stock Adjustment/StockAdjustment";
+import StockAdjustmentHistory from "./PackingSection/Stock Adjustment/StockAdjustmentHistory";
+import EditStockAdjustment from "./PackingSection/Stock Adjustment/EditStockAdjustment";
 
 
 
@@ -49,5 +52,11 @@ export const PackingRoutes = () => (
     <Route path="trans-in-raw-material" element={<RawMaterialInEntry />} />
     <Route path="trans-in-view-raw-material" element={<ViewRawMaterialInRecords />} />
     <Route path="edit-raw-material-in" element={<EditRawMaterialIn />} />
+
+    <Route path="stock-adjustment-entry" element={<StockAdjustment />} />
+    <Route path="stock-adjustment-view" element={<StockAdjustmentHistory />} />
+    <Route path="edit-stock-adjustment/:id" element={<EditStockAdjustment />} />
+
+
   </Route>
 );

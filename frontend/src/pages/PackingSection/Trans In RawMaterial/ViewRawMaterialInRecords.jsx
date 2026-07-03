@@ -299,7 +299,7 @@ export default function ViewRawMaterialInRecords() {
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="w-full sm:w-auto">
                     <h2 className="text-2xl font-bold text-[#0f766e] dark:text-teal-400 flex items-center gap-2">
-                        <PackagePlus size={24} /> Raw Material Inward Records
+                        <PackagePlus size={24} /> Trans In Raw Material Records
                     </h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Overview of received packaging and raw materials</p>
                 </div>

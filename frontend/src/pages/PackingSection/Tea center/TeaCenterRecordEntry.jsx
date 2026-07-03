@@ -30,6 +30,17 @@ const FLAVORED_TEAS_WITH_RM = [
     "heen bovitiya - bopf sp"
 ];
 
+// --- PURE SPICES THAT REQUIRE 100% RAW MATERIAL DEDUCTION (NO TEA STOCK DEDUCTION) ---
+const PURE_SPICES = [
+    "black pepper",
+    "black pepar",
+    "cinnamon stick",
+    "cinnamon can",
+    "cinnamon pack",
+    "cinnaamon box",
+    "turmeric"
+];
+
 // --- FLAVORS LIST FOR FILTERING ---
 const FLAVOR_NAMES = [
     "Cinnamon", "Chakra", "Ginger", "Masala", "Vanilla", "Mint", 
@@ -38,18 +49,20 @@ const FLAVOR_NAMES = [
     "Honey", "Earl Grey", "Lime", "Soursop", "Jasmine", "Flower", "Turmeric", "Black Pepper"
 ];
 
-// --- LOGIC: BASE TEA MAPPING ---
+// --- LOGIC: BASE TEA MAPPING ---fetchStocks
 export const getBaseTeaGrade = (productName) => {
     if (!productName) return "";
     const p = productName.toLowerCase().trim();
 
-    const bopf = ["lemongrass - bopf", "cinnamon tea - bopf", "ginger tea - bopf", "masala tea - bopf", "pineapple tea", "mix fruit", "peach", "strawberry", "jasmin - bopf", "mango tea", "carmel", "honey", "earl grey", "lime", "soursop - bopf", "cardamom", "gift pack", "guide issue-bopf"];
-    const bopfSp = ["english breakfast", "cinnamon tea - bopf sp", "ginger tea - bopf sp", "masala tea - bopf sp", "vanilla", "mint - bopf sp", "moringa - bopf sp", "curry leaves - bopf sp", "gotukola - bopf sp", "heen bovitiya - bopf sp", "black t/b", "english afternoon"];
-    const greenTea = ["lemongrass - green tea", "g/t lemangrass", "mint - green tea", "soursop - green tea", "moringa - green tea", "curry leaves - green tea", "heen bovitiya - green tea", "gotukola - green tea", "jasmin - green tea", "green tea t/b"];
+    const bopf = ["lemongrass - bopf", "cinnamon tea - bopf", "ginger tea - bopf", "masala tea - bopf", "pineapple tea", "mix fruit", "peach", "strawberry", "jasmin - bopf", "mango tea", "carmel", "honey", "earl grey", "lime", "soursop - bopf", "cardamom", "gift pack", "guide issue-bopf","pomegranate tea"];
+    const bopfSp = ["english breakfast", "cinnamon tea - bopf sp", "ginger tea - bopf sp", "masala tea - bopf sp", "vanilla", "mint - bopf sp", "moringa - bopf sp", "curry leaves - bopf sp", "gotukola - bopf sp", "heen bovitiya - bopf sp", "english afternoon", "awurudu special"];
+    const greenTea = ["lemongrass - green tea", "g/t lemangrass", "mint - green tea", "soursop - green tea", "moringa - green tea", "curry leaves - green tea", "heen bovitiya - green tea", "gotukola - green tea", "jasmin - green tea"];
     const pekoe = ["pekoe", "rose tea"];
+    const pekoe1 = ["mix flower"];
     const ff = ["ceylon premium - ff"];
     const op = ["op", "hibiscus"];
     const fbop = ["ceylon supreme"];
+    const purpletea = ["arabic tea"];
 
     const standaloneMap = {
         "opa": "OPA", "bop": "BOP", "bop pack": "BOP", "pink tea": "Pink Tea", "pink tea can": "Pink Tea", "pink tea pack": "Pink Tea",
@@ -65,9 +78,11 @@ export const getBaseTeaGrade = (productName) => {
     if (bopfSp.includes(p)) return "BOPF SP";
     if (greenTea.includes(p)) return "Green Tea";
     if (pekoe.includes(p)) return "Pekoe";
+    if (pekoe1.includes(p)) return "Pekoe 1";
     if (ff.includes(p)) return "FF";
     if (op.includes(p)) return "OP";
     if (fbop.includes(p)) return "FBOP";
+    if (purpletea.includes(p)) return "Purple Tea";
     if (standaloneMap[p]) return standaloneMap[p];
 
     return productName; 
@@ -207,20 +222,31 @@ export default function TeaCenterRecordEntry() {
                 if (teaRes.ok) {
                     const data = await teaRes.json();
                     const aggregatedData = Object.values(data.reduce((acc, curr) => {
-                        if (curr.productName.toLowerCase().includes('dust')) {
+                        if (!curr.productName) return acc;
+                        
+                        // 👇 මෙතනින් නම Standardize කරගන්නවා (Capital/Simple සහ Space ගැටළු මඟහැරීමට)
+                        const pName = curr.productName.trim();
+                        const key = pName.toLowerCase();
+
+                        if (key.includes('dust')) {
                             return acc; 
                         }
-                        if (!acc[curr.productName]) {
-                            acc[curr.productName] = { productName: curr.productName, bulkStockKg: 0 };
+                        
+                        // 'curr.productName' වෙනුවට 'key' භාවිතා කර එකතු කිරීම
+                        if (!acc[key]) {
+                            // පෙන්වීමට මුල් නමම (pName) තබාගන්නවා
+                            acc[key] = { productName: pName, bulkStockKg: 0 };
                         }
+                        
                         if (curr.stockBySource && curr.stockBySource.length > 0) {
                             const sourceTotal = curr.stockBySource.reduce((sum, src) => sum + (src.quantityKg || 0), 0);
-                            acc[curr.productName].bulkStockKg += sourceTotal;
+                            acc[key].bulkStockKg += sourceTotal;
                         } else {
-                            acc[curr.productName].bulkStockKg += (curr.bulkStockKg || 0);
+                            acc[key].bulkStockKg += (curr.bulkStockKg || 0);
                         }
                         return acc;
                     }, {}));
+                    
                     setAvailableTeaStock(aggregatedData);
                 }
 
@@ -362,9 +388,25 @@ export default function TeaCenterRecordEntry() {
 
                 if (['product', 'packSizeKg', 'numberOfBoxes'].includes(field)) {
                     const prod = (field === 'product' ? value : newRow.product) || '';
-                    const isFlavored = FLAVORED_TEAS_WITH_RM.includes(prod.toLowerCase().trim());
+                    const prodLower = prod.toLowerCase().trim();
+                    const isFlavored = FLAVORED_TEAS_WITH_RM.includes(prodLower);
+                    const isPureSpice = PURE_SPICES.includes(prodLower);
                     
-                    if (isFlavored) {
+                    if (isPureSpice) {
+                        const packSize = Number(field === 'packSizeKg' ? value : newRow.packSizeKg) || 0;
+                        const boxCount = Number(field === 'numberOfBoxes' ? value : newRow.numberOfBoxes) || 0;
+                        const totalWeight = packSize * boxCount;
+                        
+                        if (totalWeight > 0) {
+                            newRow.rawMaterialWeight = totalWeight.toFixed(3);
+                            // Auto-select corresponding raw material name if apparent
+                            if (prodLower.includes("cinnamon")) newRow.rawMaterialName = "Cinnamon";
+                            else if (prodLower.includes("turmeric")) newRow.rawMaterialName = "Turmeric";
+                            else if (prodLower.includes("pepper") || prodLower.includes("pepar")) newRow.rawMaterialName = "Black Pepper";
+                        } else {
+                            newRow.rawMaterialWeight = '';
+                        }
+                    } else if (isFlavored) {
                         const packSize = Number(field === 'packSizeKg' ? value : newRow.packSizeKg) || 0;
                         const boxCount = Number(field === 'numberOfBoxes' ? value : newRow.numberOfBoxes) || 0;
                         const totalWeight = packSize * boxCount;
@@ -402,15 +444,17 @@ export default function TeaCenterRecordEntry() {
     const handleAddToList = (e) => {
         e.preventDefault();
         const hasEmptyItem = itemsList.some(row => {
-            const isFlavored = FLAVORED_TEAS_WITH_RM.includes(row.product?.toLowerCase()?.trim());
-            if (isFlavored) {
+            const prodLower = row.product?.toLowerCase()?.trim();
+            const isFlavored = FLAVORED_TEAS_WITH_RM.includes(prodLower);
+            const isPureSpice = PURE_SPICES.includes(prodLower);
+            if (isFlavored || isPureSpice) {
                 return !row.product || !row.type || row.packSizeKg === '' || row.numberOfBoxes === '' || !row.rawMaterialName;
             }
             return !row.product || !row.type || row.packSizeKg === '' || row.numberOfBoxes === '';
         });
 
         if (hasEmptyItem) {
-            toast.error("Please fill out all required details (including Flavor Name for flavored teas)!");
+            toast.error("Please fill out all required details (including Flavor/Spice Name for flavored teas or pure spices)!");
             return;
         }
 
@@ -423,7 +467,9 @@ export default function TeaCenterRecordEntry() {
         pendingRecords.forEach(record => {
             record.items.forEach(item => {
                 const baseGrade = getBaseTeaGrade(item.product);
-                pendingTea[baseGrade] = (pendingTea[baseGrade] || 0) + Number(item.baseTeaQtyKg);
+                if (Number(item.baseTeaQtyKg) > 0) {
+                    pendingTea[baseGrade] = (pendingTea[baseGrade] || 0) + Number(item.baseTeaQtyKg);
+                }
 
                 if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
                     pendingRM[item.rawMaterialName] = (pendingRM[item.rawMaterialName] || 0) + Number(item.rawMaterialQtyKg);
@@ -442,12 +488,27 @@ export default function TeaCenterRecordEntry() {
         // 2. Add stock requested by the current input fields
         itemsList.forEach(item => {
             const total = Number(item.packSizeKg) * Number(item.numberOfBoxes);
-            const isFlavored = FLAVORED_TEAS_WITH_RM.includes(item.product?.toLowerCase()?.trim());
-            const rawMatQty = isFlavored ? (item.rawMaterialWeight !== '' ? Number(item.rawMaterialWeight) : (total * 0.03)) : 0;
-            const baseTeaQty = total - rawMatQty;
+            const prodLower = item.product?.toLowerCase()?.trim();
+            const isFlavored = FLAVORED_TEAS_WITH_RM.includes(prodLower);
+            const isPureSpice = PURE_SPICES.includes(prodLower);
+            
+            let rawMatQty = 0;
+            let baseTeaQty = 0;
+
+            if (isPureSpice) {
+                rawMatQty = item.rawMaterialWeight !== '' ? Number(item.rawMaterialWeight) : total;
+                baseTeaQty = 0; // Pure spices do NOT use base tea
+            } else if (isFlavored) {
+                rawMatQty = item.rawMaterialWeight !== '' ? Number(item.rawMaterialWeight) : (total * 0.03);
+                baseTeaQty = total - rawMatQty;
+            } else {
+                baseTeaQty = total;
+            }
 
             const baseGrade = getBaseTeaGrade(item.product);
-            pendingTea[baseGrade] = (pendingTea[baseGrade] || 0) + baseTeaQty;
+            if (baseTeaQty > 0) {
+                pendingTea[baseGrade] = (pendingTea[baseGrade] || 0) + baseTeaQty;
+            }
 
             if (item.rawMaterialName && rawMatQty > 0) {
                 pendingRM[item.rawMaterialName] = (pendingRM[item.rawMaterialName] || 0) + rawMatQty;
@@ -464,8 +525,7 @@ export default function TeaCenterRecordEntry() {
 
         // 3. Compare accumulated requirement against available stock
         for (const [baseGrade, reqQty] of Object.entries(pendingTea)) {
-            const stockData = availableTeaStock.find(s => s.productName === baseGrade);
-            const available = stockData ? stockData.bulkStockKg : 0;
+            const stockData = availableTeaStock.find(s => s.productName?.toLowerCase() === baseGrade.toLowerCase());            const available = stockData ? stockData.bulkStockKg : 0;
             if (reqQty > available) {
                 stockError = `Cannot add! Insufficient Tea Stock for '${baseGrade}'. Required: ${reqQty.toFixed(2)}kg, Available: ${available.toFixed(2)}kg.`;
                 break;
@@ -474,8 +534,7 @@ export default function TeaCenterRecordEntry() {
 
         if (!stockError) {
             for (const [rmName, reqQty] of Object.entries(pendingRM)) {
-                const rmStockData = availableRawStock.find(s => s.materialName === rmName);
-                const available = rmStockData ? rmStockData.totalQuantity : 0;
+                const rmStockData = availableRawStock.find(s => s.materialName?.toLowerCase() === rmName.toLowerCase());                const available = rmStockData ? rmStockData.totalQuantity : 0;
                 if (reqQty > available) {
                     stockError = `Cannot add! Insufficient Spicy Stock for '${rmName}'. Required: ${reqQty.toFixed(2)}kg, Available: ${available.toFixed(2)}kg.`;
                     break;
@@ -485,8 +544,7 @@ export default function TeaCenterRecordEntry() {
 
         if (!stockError) {
             for (const [pmName, reqQty] of Object.entries(pendingPack)) {
-                const pmStockData = availablePackingStock.find(s => s.materialName === pmName);
-                const available = pmStockData ? pmStockData.totalQuantity : 0;
+                const pmStockData = availablePackingStock.find(s => s.materialName?.toLowerCase() === pmName.toLowerCase());                const available = pmStockData ? pmStockData.totalQuantity : 0;
                 if (reqQty > available) {
                     stockError = `Cannot add! Insufficient Packing Material for '${pmName}'. Required: ${reqQty}, Available: ${available}.`;
                     break;
@@ -504,10 +562,22 @@ export default function TeaCenterRecordEntry() {
             date: formData.date,
             items: itemsList.map(item => {
                 const total = Number(item.packSizeKg) * Number(item.numberOfBoxes);
-                const isFlavored = FLAVORED_TEAS_WITH_RM.includes(item.product?.toLowerCase()?.trim());
+                const prodLower = item.product?.toLowerCase()?.trim();
+                const isFlavored = FLAVORED_TEAS_WITH_RM.includes(prodLower);
+                const isPureSpice = PURE_SPICES.includes(prodLower);
                 
-                const rawMatQty = isFlavored ? (item.rawMaterialWeight !== '' ? Number(item.rawMaterialWeight) : (total * 0.03)) : 0;
-                const baseTeaQty = total - rawMatQty;
+                let rawMatQty = 0;
+                let baseTeaQty = 0;
+
+                if (isPureSpice) {
+                    rawMatQty = item.rawMaterialWeight !== '' ? Number(item.rawMaterialWeight) : total;
+                    baseTeaQty = 0;
+                } else if (isFlavored) {
+                    rawMatQty = item.rawMaterialWeight !== '' ? Number(item.rawMaterialWeight) : (total * 0.03);
+                    baseTeaQty = total - rawMatQty;
+                } else {
+                    baseTeaQty = total;
+                }
 
                 return {
                     ...item,
@@ -548,8 +618,10 @@ export default function TeaCenterRecordEntry() {
         pendingRecords.forEach(record => {
             record.items.forEach(item => {
                 const baseGrade = getBaseTeaGrade(item.product);
-                if (!requestedByBaseGrade[baseGrade]) requestedByBaseGrade[baseGrade] = 0;
-                requestedByBaseGrade[baseGrade] += Number(item.baseTeaQtyKg); 
+                if (Number(item.baseTeaQtyKg) > 0) {
+                    if (!requestedByBaseGrade[baseGrade]) requestedByBaseGrade[baseGrade] = 0;
+                    requestedByBaseGrade[baseGrade] += Number(item.baseTeaQtyKg); 
+                }
 
                 if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
                     if (!requestedRM[item.rawMaterialName]) requestedRM[item.rawMaterialName] = 0;
@@ -568,19 +640,18 @@ export default function TeaCenterRecordEntry() {
         });
 
         for (const [baseGrade, requestedQty] of Object.entries(requestedByBaseGrade)) {
-            const stockData = availableTeaStock.find(s => s.productName === baseGrade);
+            const stockData = availableTeaStock.find(s => s.productName?.toLowerCase() === baseGrade.toLowerCase());            
             const available = stockData ? stockData.bulkStockKg : 0;
             if (requestedQty > available) stockWarning = true;
         }
 
         for (const [rmName, requestedQty] of Object.entries(requestedRM)) {
-            const rmStockData = availableRawStock.find(s => s.materialName === rmName);
-            const available = rmStockData ? rmStockData.totalQuantity : 0;
+            const rmStockData = availableRawStock.find(s => s.materialName?.toLowerCase() === rmName.toLowerCase());            const available = rmStockData ? rmStockData.totalQuantity : 0;
             if (requestedQty > available) rmStockWarning = true;
         }
 
         for (const [pmName, requestedQty] of Object.entries(requestedPacking)) {
-            const pmStockData = availablePackingStock.find(s => s.materialName === pmName);
+            const pmStockData = availablePackingStock.find(s => s.materialName?.toLowerCase() === pmName.toLowerCase());
             const available = pmStockData ? pmStockData.totalQuantity : 0;
             if (requestedQty > available) packingStockWarning = true;
         }
@@ -803,29 +874,35 @@ export default function TeaCenterRecordEntry() {
                                 {itemsList.map((row) => {
                                     const availableSizes = getPackSizes(row.product);
                                     const baseGrade = getBaseTeaGrade(row.product);
-                                    const stockData = availableTeaStock.find(s => s.productName === baseGrade);
+                                    const stockData = availableTeaStock.find(s => s.productName?.toLowerCase() === baseGrade.toLowerCase());                                    
                                     const availableForProduct = stockData ? stockData.bulkStockKg : 0;
                                     
-                                    const isFlavoredUI = FLAVORED_TEAS_WITH_RM.includes(row.product?.toLowerCase()?.trim());
+                                    const prodLowerForUI = row.product?.toLowerCase()?.trim();
+                                    const isFlavoredUI = FLAVORED_TEAS_WITH_RM.includes(prodLowerForUI);
+                                    const isPureSpiceUI = PURE_SPICES.includes(prodLowerForUI);
+                                    const needsFlavorSelection = isFlavoredUI || isPureSpiceUI;
                                     
                                     const totalIssuedForBaseGradeSoFar = itemsList.reduce((sum, currentItem) => {
                                         if (getBaseTeaGrade(currentItem.product) === baseGrade) {
-                                            const isFlavoredLoop = FLAVORED_TEAS_WITH_RM.includes(currentItem.product?.toLowerCase()?.trim());
+                                            const currentProdLower = currentItem.product?.toLowerCase()?.trim();
+                                            const isPureLoop = PURE_SPICES.includes(currentProdLower);
+                                            if (isPureLoop) return sum; // Pure spices do not deduct base tea
+
+                                            const isFlavoredLoop = FLAVORED_TEAS_WITH_RM.includes(currentProdLower);
                                             const total = (Number(currentItem.packSizeKg) * Number(currentItem.numberOfBoxes)) || 0;
                                             const rawMat = isFlavoredLoop ? (Number(currentItem.rawMaterialWeight) || (total * 0.03)) : 0;
-                                             return sum + (total - rawMat); 
+                                            return sum + (total - rawMat); 
                                         }
                                         return sum;
                                     }, 0);
 
                                     const issuedNum = (Number(row.packSizeKg) * Number(row.numberOfBoxes)) || 0;
-                                    const isOverCapacity = row.product && totalIssuedForBaseGradeSoFar > availableForProduct;
+                                    const isOverCapacity = row.product && !isPureSpiceUI && totalIssuedForBaseGradeSoFar > availableForProduct;
                                     const remaining = Math.max(0, availableForProduct - totalIssuedForBaseGradeSoFar);
 
-                                    const rmStockData = availableRawStock.find(s => s.materialName === row.rawMaterialName);
+                                    const rmStockData = availableRawStock.find(s => s.materialName?.toLowerCase() === (row.rawMaterialName || '').toLowerCase());
                                     const availableRM = rmStockData ? rmStockData.totalQuantity : 0;
-                                    const isRMOverCapacity = isFlavoredUI && row.rawMaterialName && Number(row.rawMaterialWeight) > availableRM;
-
+                                    const isRMOverCapacity = needsFlavorSelection && row.rawMaterialName && Number(row.rawMaterialWeight) > availableRM;
                                     return (
                                         <div key={row.id} className={`relative bg-white dark:bg-zinc-950 p-5 rounded-xl border transition-colors shadow-sm ${isOverCapacity || isRMOverCapacity ? 'border-amber-400 dark:border-amber-500/50 bg-amber-50/30 dark:bg-amber-900/10' : 'border-teal-100 dark:border-teal-900/40'}`}>
                                             
@@ -880,7 +957,7 @@ export default function TeaCenterRecordEntry() {
                                                                                 }}
                                                                                 onMouseEnter={() => setFocusedOptionIndex(idx)}
                                                                                 className={`px-4 py-2 text-sm cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex items-center gap-2 transition-colors
-                                                                                    ${isFocused ? 'bg-[#ccfbf1] dark:bg-teal-900/60 text-[#0f766e] dark:text-teal-300 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30'}`}
+                                                                                ${isFocused ? 'bg-[#ccfbf1] dark:bg-teal-900/60 text-[#0f766e] dark:text-teal-300 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30'}`}
                                                                             >
                                                                                 <div className={`w-3 h-3 rounded-full ${getTeaColor(tea).split(' ')[0]} border border-white/20`}></div> {tea}
                                                                             </li>
@@ -932,7 +1009,7 @@ export default function TeaCenterRecordEntry() {
                                                                                 }} 
                                                                                 onMouseEnter={() => setFocusedOptionIndex(idx)}
                                                                                 className={`px-4 py-2 text-sm cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 transition-colors
-                                                                                    ${isFocused ? 'bg-[#ccfbf1] dark:bg-teal-900/60 text-[#0f766e] dark:text-teal-300 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30'}`}
+                                                                                ${isFocused ? 'bg-[#ccfbf1] dark:bg-teal-900/60 text-[#0f766e] dark:text-teal-300 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30'}`}
                                                                             >
                                                                                 {type}
                                                                             </li>
@@ -974,25 +1051,25 @@ export default function TeaCenterRecordEntry() {
                                                                 {availableSizes
                                                                     .filter(size => size.toString().includes((row.packSizeKg || '').toString()))
                                                                     .map((size, idx) => {
-                                                                    const isFocused = focusedOptionIndex === idx;
-                                                                    return (
-                                                                        <li 
-                                                                            key={idx} 
-                                                                            ref={isFocused ? activeOptionRef : null}
-                                                                            onMouseDown={(e) => e.preventDefault()} 
-                                                                            onClick={() => { 
-                                                                                handleItemChange(row.id, 'packSizeKg', size); 
-                                                                                setOpenDropdownId(null); 
-                                                                                setFocusedOptionIndex(-1);
-                                                                            }} 
-                                                                            onMouseEnter={() => setFocusedOptionIndex(idx)}
-                                                                            className={`px-4 py-2 text-sm cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 transition-colors
+                                                                        const isFocused = focusedOptionIndex === idx;
+                                                                        return (
+                                                                            <li 
+                                                                                key={idx} 
+                                                                                ref={isFocused ? activeOptionRef : null}
+                                                                                onMouseDown={(e) => e.preventDefault()} 
+                                                                                onClick={() => { 
+                                                                                    handleItemChange(row.id, 'packSizeKg', size); 
+                                                                                    setOpenDropdownId(null); 
+                                                                                    setFocusedOptionIndex(-1);
+                                                                                }} 
+                                                                                onMouseEnter={() => setFocusedOptionIndex(idx)}
+                                                                                className={`px-4 py-2 text-sm cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 transition-colors
                                                                                 ${isFocused ? 'bg-[#ccfbf1] dark:bg-teal-900/60 text-[#0f766e] dark:text-teal-300 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30'}`}
-                                                                        >
-                                                                            {size} kg
-                                                                        </li>
-                                                                    );
-                                                                })}
+                                                                            >
+                                                                                {size} kg
+                                                                            </li>
+                                                                        );
+                                                                    })}
                                                             </ul>
                                                         )}
                                                     </div>
@@ -1005,7 +1082,7 @@ export default function TeaCenterRecordEntry() {
 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-zinc-800/50">
                                                     <div className="relative" ref={el => dropdownRefs.current[`rmName-${row.id}`] = el}>
-                                                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap">Flavor</label>
+                                                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap">Flavor / Spice</label>
                                                         <input 
                                                             type="text" 
                                                             value={row.rawMaterialName} 
@@ -1014,23 +1091,23 @@ export default function TeaCenterRecordEntry() {
                                                                 setFocusedOptionIndex(-1);
                                                             }} 
                                                             onFocus={() => { 
-                                                                if(isFlavoredUI) {
+                                                                if(needsFlavorSelection) {
                                                                     setOpenDropdownId(`rmName-${row.id}`);
                                                                     setFocusedOptionIndex(-1);
                                                                 }
                                                             }}
                                                             onKeyDown={(e) => {
-                                                                if(isFlavoredUI) {
+                                                                if(needsFlavorSelection) {
                                                                     const filteredOptions = FLAVOR_NAMES.filter(rm => rm.toLowerCase().includes((row.rawMaterialName || '').toLowerCase()));
                                                                     handleKeyDown(e, row.id, filteredOptions, 'rawMaterialName');
                                                                 }
                                                             }}
-                                                            disabled={!isFlavoredUI}
-                                                            placeholder={isFlavoredUI ? "Select Flavor..." : "Not applicable"} 
+                                                            disabled={!needsFlavorSelection}
+                                                            placeholder={needsFlavorSelection ? "Select Flavor/Spice..." : "Not applicable"} 
                                                             className={`w-full p-2.5 h-[42px] border text-sm rounded-md outline-none transition-colors 
-                                                            ${!isFlavoredUI ? 'bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 cursor-not-allowed opacity-60' : isRMOverCapacity ? 'border-amber-400 focus:ring-2 focus:ring-amber-500/50' : 'bg-white dark:bg-zinc-950 border-teal-200 dark:border-teal-800/50 focus:ring-2 focus:ring-[#2dd4bf]/50'}`} 
+                                                            ${!needsFlavorSelection ? 'bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 cursor-not-allowed opacity-60' : isRMOverCapacity ? 'border-amber-400 focus:ring-2 focus:ring-amber-500/50' : 'bg-white dark:bg-zinc-950 border-teal-200 dark:border-teal-800/50 focus:ring-2 focus:ring-[#2dd4bf]/50'}`} 
                                                         />
-                                                        {openDropdownId === `rmName-${row.id}` && isFlavoredUI && (
+                                                        {openDropdownId === `rmName-${row.id}` && needsFlavorSelection && (
                                                             <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar z-20">
                                                                 {FLAVOR_NAMES
                                                                     .filter(rm => rm.toLowerCase().includes((row.rawMaterialName || '').toLowerCase()))
@@ -1048,7 +1125,7 @@ export default function TeaCenterRecordEntry() {
                                                                                 }} 
                                                                                 onMouseEnter={() => setFocusedOptionIndex(idx)}
                                                                                 className={`px-4 py-2 text-sm cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 transition-colors
-                                                                                    ${isFocused ? 'bg-[#ccfbf1] dark:bg-teal-900/60 text-[#0f766e] dark:text-teal-300 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30'}`}
+                                                                                ${isFocused ? 'bg-[#ccfbf1] dark:bg-teal-900/60 text-[#0f766e] dark:text-teal-300 font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30'}`}
                                                                             >
                                                                                 {rm}
                                                                             </li>
@@ -1059,7 +1136,7 @@ export default function TeaCenterRecordEntry() {
                                                     </div>
 
                                                     <div>
-                                                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap" title={isFlavoredUI ? "Auto calculates to 3% for this tea" : "Not applicable for this tea"}>
+                                                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap" title={needsFlavorSelection ? "Auto calculates based on product type" : "Not applicable for this tea"}>
                                                             Spicy Qty (kg)
                                                         </label>
                                                         <input 
@@ -1069,10 +1146,10 @@ export default function TeaCenterRecordEntry() {
                                                             value={row.rawMaterialWeight} 
                                                             onChange={(e) => handleItemChange(row.id, 'rawMaterialWeight', e.target.value)} 
                                                             onWheel={(e) => e.target.blur()}
-                                                            disabled={!isFlavoredUI}
-                                                            placeholder={isFlavoredUI ? "3%" : "N/A"} 
+                                                            disabled={!needsFlavorSelection}
+                                                            placeholder={isPureSpiceUI ? "100%" : isFlavoredUI ? "3%" : "N/A"} 
                                                             className={`w-full p-2.5 h-[42px] border text-sm rounded-md outline-none transition-colors 
-                                                            ${!isFlavoredUI ? 'bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 cursor-not-allowed opacity-60' : isRMOverCapacity ? 'border-amber-400 focus:ring-2 focus:ring-amber-500/50' : 'bg-white dark:bg-zinc-950 border-teal-200 dark:border-teal-800/50 focus:ring-2 focus:ring-[#2dd4bf]/50'}`} 
+                                                            ${!needsFlavorSelection ? 'bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 cursor-not-allowed opacity-60' : isRMOverCapacity ? 'border-amber-400 focus:ring-2 focus:ring-amber-500/50' : 'bg-white dark:bg-zinc-950 border-teal-200 dark:border-teal-800/50 focus:ring-2 focus:ring-[#2dd4bf]/50'}`} 
                                                         />
                                                     </div>
                                                 </div>
@@ -1088,7 +1165,7 @@ export default function TeaCenterRecordEntry() {
                                                     </div>
 
                                                     {row.packingMaterials && row.packingMaterials.map((pm, pmIdx) => {
-                                                        const pmStockData = availablePackingStock.find(s => s.materialName === pm.name);
+                                                        const pmStockData = availablePackingStock.find(s => s.materialName?.toLowerCase() === (pm.name || '').toLowerCase());                                                        
                                                         const availablePM = pmStockData ? pmStockData.totalQuantity : 0;
                                                         const isPMOverCapacity = pm.name && Number(pm.qty) > availablePM;
 
@@ -1135,7 +1212,7 @@ export default function TeaCenterRecordEntry() {
                                                                                             }} 
                                                                                             onMouseEnter={() => setFocusedOptionIndex(idx)}
                                                                                             className={`px-4 py-2 text-sm cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex justify-between items-center transition-colors
-                                                                                                ${isFocused ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 text-gray-700 dark:text-gray-300'}`}
+                                                                                            ${isFocused ? 'bg-amber-50 dark:bg-amber-900/30' : 'hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 text-gray-700 dark:text-gray-300'}`}
                                                                                         >
                                                                                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getMaterialColor(rm.materialName).replace('bg-', 'border-')}`}>
                                                                                                 {rm.materialName}
@@ -1179,20 +1256,20 @@ export default function TeaCenterRecordEntry() {
 
                                             <div className="mt-4 flex flex-col md:flex-row justify-between items-start md:items-center min-h-[16px] gap-2">
                                                 <div className="text-[10px]">
-                                                    {isFlavoredUI && issuedNum > 0 && (
+                                                    {needsFlavorSelection && issuedNum > 0 && (
                                                         <span className="text-gray-500 dark:text-gray-400 font-bold bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded">
-                                                            Base Tea Use: <span className="text-gray-700 dark:text-gray-300">{(issuedNum - (Number(row.rawMaterialWeight) || 0)).toFixed(3)} kg</span>
+                                                            Base Tea Use: <span className="text-gray-700 dark:text-gray-300">{isPureSpiceUI ? "0.000" : (issuedNum - (Number(row.rawMaterialWeight) || 0)).toFixed(3)} kg</span>
                                                         </span>
                                                     )}
                                                 </div>
 
                                                 <div className="flex flex-col md:flex-row items-end md:items-center gap-3 flex-wrap justify-end">
-                                                    {row.product && (
+                                                    {row.product && !isPureSpiceUI && (
                                                         <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded" title={`Base Grade: ${baseGrade}`}>
                                                             Avail {baseGrade}: <span className="text-gray-600 dark:text-gray-300">{availableForProduct.toFixed(2)}</span>
                                                         </span>
                                                     )}
-                                                    {row.rawMaterialName && isFlavoredUI && (
+                                                    {row.rawMaterialName && needsFlavorSelection && (
                                                         <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded">
                                                             Avail {row.rawMaterialName}: <span className="text-gray-600 dark:text-gray-300">{availableRM.toFixed(2)}</span>
                                                         </span>
@@ -1211,7 +1288,7 @@ export default function TeaCenterRecordEntry() {
                                                             <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
                                                                 <AlertTriangle size={11} /> Exceeds Material Stock!
                                                             </div>
-                                                        ) : issuedNum > 0 ? (
+                                                        ) : (!isPureSpiceUI && issuedNum > 0) ? (
                                                             <div className="flex items-center gap-1 text-[10px] font-bold text-teal-600 dark:text-teal-400 bg-[#f0fdfa] dark:bg-teal-900/20 px-2 py-1 rounded">
                                                                 <ArrowRight size={11} /> Remaining Base: {remaining.toFixed(2)}kg
                                                             </div>

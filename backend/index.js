@@ -29,6 +29,7 @@ import restoreTeaStockRouter from './Packing/Routes/restoreTeaStockrouter.js';
 
 // Factory Section Routes
 import factoryrouter from './factory/router/factoryRoutes.js';
+import StockAdjustmentRouter from './Packing/Routes/stockAdjustmentRoutes.js';
 import labourOutputRouter from './factory/router/labourOutputRoutes.js';
 import labourRouter from './factory/router/labourOutputRoutes.js';
 
@@ -80,6 +81,8 @@ app.use('/api/restore-tea-stock', restoreTeaStockRouter);
 app.use('/api/factory-balance', factoryrouter);
 app.use('/api/factory-logs', factoryrouter);
 app.use('/api/labour-output', labourOutputRouter);
+
+app.use('/api/stock-adjustment', StockAdjustmentRouter);
 
 
 app.listen(3000, () => {

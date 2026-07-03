@@ -200,8 +200,6 @@ export const updateLocalSale = async (req, res) => {
 };
 
 // @desc    Delete a local sale record
-// @route   DELETE /api/local-sales/:id
-// @access  Private
 export const deleteLocalSale = async (req, res) => {
     try {
         const { id } = req.params;

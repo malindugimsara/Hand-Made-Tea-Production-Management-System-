@@ -128,6 +128,7 @@ const getBaseCategory = (product) => {
     "heen bovitiya - bopf sp",
     "black t/b",
     "english afternoon",
+    "pomegranate tea"
   ];
   const greenTea = [
     "lemongrass - green tea",
@@ -141,14 +142,9 @@ const getBaseCategory = (product) => {
     "jasmin - green tea",
     "green tea t/b",
   ];
-  const otherPurchasing = [
-    "silver tips",
-    "golden tips",
-    "flower",
-    "chakra",
-    "green tea",
-  ];
+  
   const pekoe = ["pekoe", "rose tea"];
+  const pekoe1 = ["mix flower"];
   const ff = ["ceylon premium - ff"];
   const op = ["op", "hibiscus"];
   const fbop = ["ceylon supreme"];
@@ -185,8 +181,8 @@ const getBaseCategory = (product) => {
   if (bopf.includes(p)) return "BOPF";
   if (bopfSp.includes(p)) return "BOPF SP";
   if (greenTea.includes(p)) return "Green Tea";
-  if (otherPurchasing.includes(p)) return "Other Purchasing";
   if (pekoe.includes(p)) return "Pekoe";
+  if (pekoe1.includes(p)) return "Pekoe 1";
   if (ff.includes(p)) return "FF";
   if (op.includes(p)) return "OP";
   if (fbop.includes(p)) return "FBOP";
@@ -567,7 +563,7 @@ export default function ProductIssueSummary() {
                                 </td>
                                 <td className="p-3 border-r border-gray-900 font-semibold text-center text-gray-700">
                                   {prod.qty % 1 !== 0
-                                    ? prod.qty.toFixed(2)
+                                    ? prod.qty.toFixed(3)
                                     : prod.qty}
                                 </td>
 
@@ -602,12 +598,12 @@ export default function ProductIssueSummary() {
                             </td>
                             <td className="p-3 border-r border-gray-900 text-center text-blue-700">
                               {sectionData.sectionTotal % 1 !== 0
-                                ? sectionData.sectionTotal.toFixed(2)
+                                ? sectionData.sectionTotal.toFixed(3)
                                 : sectionData.sectionTotal}
                             </td>
                             <td className="p-3 text-center text-red-700">
                               {sectionData.sectionTotal % 1 !== 0
-                                ? sectionData.sectionTotal.toFixed(2)
+                                ? sectionData.sectionTotal.toFixed(3)
                                 : sectionData.sectionTotal}
                             </td>
                           </tr>
