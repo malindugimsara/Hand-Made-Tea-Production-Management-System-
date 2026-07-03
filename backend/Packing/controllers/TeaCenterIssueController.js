@@ -25,6 +25,7 @@ const getBaseTeaGrade = (productName) => {
         "golden tips": "Golden Tips", "flower": "Flower", "chakra": "Chakra", "green tea": "Green Tea"
     };
 
+    if (p.includes("labour")) return "BOPF";
     if (bopf.includes(p)) return "BOPF";
     if (bopfSp.includes(p)) return "BOPF SP";
     if (greenTea.includes(p)) return "Green Tea";

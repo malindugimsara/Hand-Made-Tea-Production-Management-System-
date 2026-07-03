@@ -292,7 +292,7 @@ export default function LabourOutput() {
                                         <input
                                             type="number" min="0" step="0.5" name="otHours"
                                             value={formData.otHours} onChange={handleInputChange}
-                                            onWheel={(e) => e.target.blur()} required placeholder="e.g. 11"
+                                            onWheel={(e) => e.target.blur()}  placeholder="e.g. 11"
                                             className={`${inputStyles} text-sm`}
                                         />
                                     </div>
