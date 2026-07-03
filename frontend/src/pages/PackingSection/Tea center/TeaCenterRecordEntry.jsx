@@ -221,10 +221,10 @@ export default function TeaCenterRecordEntry() {
 
                 if (teaRes.ok) {
                     const data = await teaRes.json();
+                    
                     const aggregatedData = Object.values(data.reduce((acc, curr) => {
                         if (!curr.productName) return acc;
                         
-                        // 👇 මෙතනින් නම Standardize කරගන්නවා (Capital/Simple සහ Space ගැටළු මඟහැරීමට)
                         const pName = curr.productName.trim();
                         const key = pName.toLowerCase();
 
@@ -232,36 +232,36 @@ export default function TeaCenterRecordEntry() {
                             return acc; 
                         }
                         
-                        // 'curr.productName' වෙනුවට 'key' භාවිතා කර එකතු කිරීම
                         if (!acc[key]) {
-                            // පෙන්වීමට මුල් නමම (pName) තබාගන්නවා
                             acc[key] = { productName: pName, bulkStockKg: 0 };
                         }
                         
-                        if (curr.stockBySource && curr.stockBySource.length > 0) {
-                            const sourceTotal = curr.stockBySource.reduce((sum, src) => sum + (src.quantityKg || 0), 0);
-                            acc[key].bulkStockKg += sourceTotal;
-                        } else {
-                            acc[key].bulkStockKg += (curr.bulkStockKg || 0);
-                        }
+                        const validStock = Number(curr.totalBulkStockKg) || Number(curr.bulkStockKg) || 0;
+                        acc[key].bulkStockKg += validStock;
+                        
                         return acc;
                     }, {}));
                     
-                    setAvailableTeaStock(aggregatedData);
+                    // 👇 වෙනස් වුණු තැන: Stock එක 0 ට වඩා වැඩි ඒවා පමණක් ලබාගැනීම
+                    const inStockTeas = aggregatedData.filter(item => item.bulkStockKg > 0);
+                    setAvailableTeaStock(inStockTeas);
                 }
 
                 if (rmRes.ok) {
                     const rmData = await rmRes.json();
                     const allRawMaterials = Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : [];
                     
-                    const flavorsOnly = allRawMaterials.filter(rm => {
+                    // 👇 වෙනස් වුණු තැන: Raw Materials වලත් Stock එක 0 ට වඩා වැඩි ඒවා පමණක් ලබාගැනීම
+                    const inStockRawMaterials = allRawMaterials.filter(rm => Number(rm.totalQuantity) > 0);
+                    
+                    const flavorsOnly = inStockRawMaterials.filter(rm => {
                         const matNameStr = (rm.materialName || '').toLowerCase();
                         if (matNameStr.includes('sticker')) return false;
                         return rm.category === 'flavor' || 
                                FLAVOR_NAMES.some(flavor => matNameStr.includes(flavor.toLowerCase()));
                     });
                     
-                    const packingOnly = allRawMaterials.filter(rm => {
+                    const packingOnly = inStockRawMaterials.filter(rm => {
                         const matNameStr = (rm.materialName || '').toLowerCase();
                         if (matNameStr.includes('sticker')) return true;
                         return rm.category !== 'flavor' && 
