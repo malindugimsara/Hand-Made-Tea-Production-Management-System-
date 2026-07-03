@@ -456,7 +456,7 @@ export default function ViewPackingStock() {
                     onClick={() => setActiveTab('zero')} 
                     className={`px-6 py-2.5 rounded-t-lg font-bold transition-colors flex items-center gap-2 ml-auto ${activeTab === 'zero' ? 'bg-red-600 text-white' : 'bg-transparent text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'}`}
                 >
-                    <AlertTriangle size={18} /> Out of Stock (0)
+                    <AlertTriangle size={18} /> Out of Stock
                 </button>
             </div>
 

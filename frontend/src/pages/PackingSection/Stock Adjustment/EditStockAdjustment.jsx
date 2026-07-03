@@ -193,7 +193,7 @@ export default function EditStockAdjustment() {
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Adjustment Amount</label>
                                 <input 
-                                    type="number" step="0.01" min="0" 
+                                    type="number" step="0.001" min="0" 
                                     value={amount} onChange={(e) => setAmount(e.target.value)} 
                                     required 
                                     className={inputStyles} 
