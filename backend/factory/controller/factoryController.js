@@ -1,28 +1,32 @@
 import FactoryLog from "../models/FactoryLog.js";
 import PendingTransfer from "../../Packing/models/PendingTransfer.js";
-import TeaReceived from "../../Packing/models/TeaReceivedModel.js"; // <-- Add this line
+import TeaReceived from "../../Packing/models/TeaReceivedModel.js"; 
 
-// 1. GET FACTORY LOGS
+// 1. GET FACTORY LOGS (UPDATED WITH AGE OF STOCK LOGIC)
 export const getFactoryLogsByMonth = async (req, res) => {
   try {
     const { month, startDate, endDate } = req.query;
     let query = {};
     let beforeDateQuery = null;
+    let maxRequestedDate = new Date();
 
     if (month) {
       const startOfMonth = new Date(`${month}-01T00:00:00.000Z`);
       const endOfMonth = new Date(startOfMonth.getFullYear(), startOfMonth.getMonth() + 1, 0, 23, 59, 59, 999);
       query.date = { $gte: startOfMonth, $lte: endOfMonth };
       beforeDateQuery = { date: { $lt: startOfMonth } };
+      maxRequestedDate = endOfMonth;
     } else if (startDate && endDate) {
       const start = new Date(`${startDate}T00:00:00.000Z`);
       const end = new Date(`${endDate}T23:59:59.999Z`);
       query.date = { $gte: start, $lte: end };
       beforeDateQuery = { date: { $lt: start } };
+      maxRequestedDate = end;
     } else {
       return res.status(400).json({ message: "Please provide a 'month' or 'startDate' and 'endDate'." });
     }
 
+    // 1. Calculate Standard B/F Balance (Actual Balance for UI)
     let bfFromLastMonth = 0;
     if (beforeDateQuery) {
       const aggrResult = await FactoryLog.aggregate([
@@ -43,15 +47,79 @@ export const getFactoryLogsByMonth = async (req, res) => {
       }
     }
 
-    const records = await FactoryLog.find(query).sort({ date: 1 });
-    res.status(200).json({ bfFromLastMonth, records });
+    // 2. Fetch the records for the currently requested month/date range
+    // .lean() is used for performance and easier object manipulation
+    const records = await FactoryLog.find(query).sort({ date: 1 }).lean();
+
+    // ========================================================
+    // 3. DAYS TO ZERO (AGE OF STOCK) CALCULATION LOGIC
+    // ========================================================
+    
+    // Determine April 1st of the relevant financial year
+    let reqYear = maxRequestedDate.getFullYear();
+    // If the requested month is Jan, Feb, or Mar (0, 1, 2), 
+    // the financial year started in April of the PREVIOUS year.
+    if (maxRequestedDate.getMonth() < 3) {
+        reqYear -= 1; 
+    }
+    const aprilFirstDate = new Date(`${reqYear}-04-01T00:00:00.000Z`);
+
+    // Fetch all records from April 1st up to the max requested date
+    const allRecordsSinceApril = await FactoryLog.find({
+        date: { $gte: aprilFirstDate, $lte: maxRequestedDate }
+    }).sort({ date: 1 }).lean();
+
+    let virtualBalance = 0;
+
+    // Process all records since April to calculate daysToZero for each
+    const processedAllRecords = allRecordsSinceApril.map((record, index) => {
+        const mt = record.madeTea?.today || 0;
+        const disp = record.dispatch || 0;
+        const loc = record.localSaleAndGratis || 0;
+        const ret = record.returnAmount || 0;
+        const totalOut = disp + loc;
+
+        // Running virtual balance starting from 0 on April 1st
+        virtualBalance = virtualBalance + mt - totalOut + ret;
+
+        let tempBal = virtualBalance;
+        let days = 0;
+
+        // Calculate days to zero (FIFO backward reduction)
+        for (let j = index; j >= 0; j--) {
+            if (tempBal <= 0) break;
+            days++;
+            const pastMt = allRecordsSinceApril[j].madeTea?.today || 0;
+            tempBal = tempBal - pastMt; // Reduce past made tea from balance
+        }
+
+        return {
+            ...record,
+            daysToZero: days
+        };
+    });
+
+    // 4. Attach calculated daysToZero back to the specifically requested records
+    const finalRecords = records.map(record => {
+        const processedMatch = processedAllRecords.find(
+            pr => pr._id.toString() === record._id.toString()
+        );
+        return {
+            ...record,
+            daysToZero: processedMatch ? processedMatch.daysToZero : 0
+        };
+    });
+
+    // ========================================================
+
+    res.status(200).json({ bfFromLastMonth, records: finalRecords });
   } catch (error) {
     console.error("Error fetching factory logs:", error);
     res.status(500).json({ message: "Server error fetching factory logs." });
   }
 };
 
-// 2. SAVE OR UPDATE DAILY FACTORY LOG
+// 2. SAVE OR UPDATE DAILY FACTORY LOG (Unchanged)
 export const saveDailyFactoryLog = async (req, res) => {
   try {
     const { date, greenLeafToday, dispatch, localSaleAndGratis, returnAmount, username, isExplicitEdit } = req.body;
@@ -185,7 +253,7 @@ export const saveDailyFactoryLog = async (req, res) => {
   }
 };
 
-// 3. DELETE FACTORY LOG
+// 3. DELETE FACTORY LOG (Unchanged)
 export const deleteFactoryLog = async (req, res) => {
   try {
     const { id } = req.params;

@@ -12,7 +12,6 @@ import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
 import { useLocation, useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 
-// IMPORT YOUR CUSTOM PDF DOWNLOADER
 import PDFDownloader from "@/components/PDFDownloader";
 
 import {
@@ -39,19 +38,16 @@ export default function FactoryView() {
   const [loading, setLoading] = useState(true);
   const [recordToDelete, setRecordToDelete] = useState(null);
 
-  // Dark Mode State
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem("theme") === "dark" || false;
   });
 
-  // Filter States
   const [filterMonth, setFilterMonth] = useState(() => {
       return location.state?.returnMonth || currentMonthStr;
   });  
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
-  // Dark Mode Toggle Effect
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add("dark");
@@ -105,7 +101,6 @@ export default function FactoryView() {
 
       let runningBalance = data.bfFromLastMonth || 0;
 
-      // 1. මුලින්ම දින අනුපිළිවෙලට (පරණ දවසේ ඉඳන් අලුත් දවසට) Sort කරනවා - Calculations සඳහා
       let sortedRecordsAsc = [...(data.records || [])].sort(
         (a, b) => new Date(a.date) - new Date(b.date)
       );
@@ -149,34 +144,12 @@ export default function FactoryView() {
           factoryBalance: runningBalance,
           isEdited: record.isEdited || false,
           editedBy: record.editedBy || "",
+          // Backend එකෙන් එන daysToZero එක කෙලින්ම ගන්නවා
+          daysToZero: record.daysToZero || 0,
         };
       });
 
       setBfBalance(data.bfFromLastMonth || 0);
-
-      // --- NEW LOGIC: Days to Zero Calculation ---
-      for (let i = 0; i < processedRecordsAsc.length; i++) {
-        let tempBal = processedRecordsAsc[i].factoryBalance;
-        let days = 0;
-
-        // වත්මන් දිනයේ සිට පසුපසට ගණනය කිරීම
-        for (let j = i; j >= 0; j--) {
-          if (tempBal <= 0) break;
-          days++;
-          
-          const mt = processedRecordsAsc[j].madeTea?.today || 0;
-          const disp = processedRecordsAsc[j].totalOut || 0;
-          const ret = processedRecordsAsc[j].returnAmount || 0;
-
-          // Made Tea අඩු කර, Dispatch අඩු කර, Return එකතු කරයි
-          tempBal = tempBal - mt - disp + ret;
-        }
-
-        processedRecordsAsc[i].daysToZero = days;
-      }
-      // ------------------------------------------
-
-      // 2. Calculations ඉවර උනාට පස්සේ, අලුත්ම දවස උඩට එන විදියට Array එක රිවර්ස් (Reverse) කරනවා
       setRecords(processedRecordsAsc.reverse());
     } catch (error) {
       console.error("Fetch Error:", error);
@@ -186,7 +159,14 @@ export default function FactoryView() {
     }
   };
 
-  // අවසාන Factory Balance එක ලබා ගැනීම සඳහා (PDF එකට යැවීමට)
+  const totalGL = records.reduce((sum, r) => sum + (r.greenLeaf?.today || 0), 0);
+  const totalMadeTea = records.reduce((sum, r) => sum + (r.madeTea?.today || 0), 0);
+  const totalDispatch = records.reduce((sum, r) => sum + (r.dispatch || 0), 0);
+  const totalLocalSale = records.reduce((sum, r) => sum + (r.localSaleAndGratis || 0), 0);
+
+  const dispatchOutTurn = totalGL > 0 ? ((totalDispatch / totalGL) * 100).toFixed(2) : "0.00";
+  const localSalePercentage = totalMadeTea > 0 ? ((totalLocalSale / totalMadeTea) * 100).toFixed(2) : "0.00";
+
   const getLastFactoryBalance = () => {
     if (records.length > 0) {
       return records[0].factoryBalance;
@@ -201,7 +181,7 @@ export default function FactoryView() {
       return num.toFixed(2);
     };
 
-    return [
+    const tableRows = [
       ["B/F", "-", "-", "-", "-", "-", "-", "-", "-", bfBalance.toFixed(2)],
       ...records.map((r) => [
         r.date ? r.date.split("T")[0] : "-",
@@ -216,6 +196,16 @@ export default function FactoryView() {
         r.factoryBalance ? r.factoryBalance.toFixed(2) : "0.00", 
       ]),
     ];
+
+    if (records.length > 0) {
+      tableRows.push([
+        "TOTAL", "-", "-", "-", "-","-", "-",
+        totalDispatch > 0 ? totalDispatch.toFixed(2) : "-",
+        "-", "-"
+      ]);
+    }
+
+    return tableRows;
   };
 
   const handleEditClick = (record) => {
@@ -268,6 +258,14 @@ export default function FactoryView() {
       Number((r.returnAmount || 0).toFixed(2)),
       Number((r.factoryBalance || 0).toFixed(2)),
     ]);
+
+    if (records.length > 0) {
+      dataRows.push([
+        "TOTAL", "-", "-", "-", "-",
+        Number(totalDispatch.toFixed(2)), 
+        "-", "-", "-", "-"
+      ]);
+    }
 
     const tableData = [
       [
@@ -380,6 +378,11 @@ export default function FactoryView() {
           else if (C === 9)
             currentStyle.font = { color: { rgb: "1E40AF" }, bold: true };
 
+          if (worksheet[XLSX.utils.encode_cell({ r: R, c: 0 })]?.v === "TOTAL") {
+             currentStyle.font = { bold: true };
+             currentStyle.fill = { fgColor: { rgb: "FDE68A" } }; 
+          }
+
           worksheet[cellAddress].s = currentStyle;
           if (C > 0 && typeof worksheet[cellAddress].v === "number")
             worksheet[cellAddress].z = "#,##0.00";
@@ -416,17 +419,6 @@ export default function FactoryView() {
     );
   };
 
-  // --- SUMMARY CALCULATIONS ---
-  const totalGL = records.reduce((sum, r) => sum + (r.greenLeaf?.today || 0), 0);
-  const totalMadeTea = records.reduce((sum, r) => sum + (r.madeTea?.today || 0), 0);
-  const totalDispatch = records.reduce((sum, r) => sum + (r.dispatch || 0), 0);
-  const totalLocalSale = records.reduce((sum, r) => sum + (r.localSaleAndGratis || 0), 0);
-
-  // 1. Dispatch Out Turn ((Dispatch / G/L) * 100)
-  const dispatchOutTurn = totalGL > 0 ? ((totalDispatch / totalGL) * 100).toFixed(2) : "0.00";
-
-  // 2. Local Sale Percentage ((Local Sale / Made Tea) * 100%)
-  const localSalePercentage = totalMadeTea > 0 ? ((totalLocalSale / totalMadeTea) * 100).toFixed(2) : "0.00";
 
   return (
     <div className="p-6 md:p-8 max-w-[1600px] mx-auto font-sans flex flex-col min-h-screen bg-[#f3faf7] dark:bg-gray-950 transition-colors duration-300">
@@ -441,7 +433,6 @@ export default function FactoryView() {
           </p>
         </div>
 
-        {/* ACTION BUTTONS */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={fetchFactoryLogs}
@@ -462,7 +453,7 @@ export default function FactoryView() {
           <PDFDownloader
            title="Factory Production Report"
             subtitle={`Period: ${getPeriodText()}`}
-            data={getCleanTableData()}                                            
+            data={getCleanTableData()}                                          
             headers={[
               [
                 {
@@ -512,7 +503,6 @@ export default function FactoryView() {
             autoTableOptions={{
               theme: "grid",
               didDrawPage: (data) => {
-                // 🌟 ADD THIS CONDITION: Check if it is the first page
                 if (data.pageNumber === 1) {
                   const doc = data.doc;
                   doc.setFontSize(10);
@@ -607,10 +597,8 @@ export default function FactoryView() {
         </div>
       </div>
 
-      {/* --- SUMMARY CARDS (OUTSIDE THE TABLE) --- */}
+      {/* --- SUMMARY CARDS --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        
-        {/* Card 1: Dispatch Out Turn */}
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm flex items-center justify-between transition-colors">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-green-50 dark:bg-green-900/30 rounded-lg">
@@ -635,7 +623,6 @@ export default function FactoryView() {
           </div>
         </div>
 
-        {/* Card 2: Local Sale Percentage */}
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm flex items-center justify-between transition-colors">
             <div className="flex items-center gap-4">
             <div className="p-3 bg-orange-50 dark:bg-orange-900/30 rounded-lg">
@@ -661,7 +648,6 @@ export default function FactoryView() {
         </div>
 
       </div>
-      {/* ----------------------------------------- */}
 
       {/* --- TABLE CONTAINER --- */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-300 dark:border-gray-700 overflow-hidden w-full transition-colors">
@@ -756,7 +742,6 @@ export default function FactoryView() {
               </thead>
 
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700 transition-colors">
-                {/* B/F ROW */}
                 <tr className="bg-gray-100 dark:bg-gray-800/80 font-bold text-gray-800 dark:text-gray-200 border-b-2 border-red-400 dark:border-red-500/50">
                   <td className="px-4 py-3 border-r border-gray-300 dark:border-gray-700 bg-gray-200 dark:bg-gray-700/50">
                     B/F
@@ -791,149 +776,159 @@ export default function FactoryView() {
                   <td className="px-3 py-3 bg-gray-100 dark:bg-gray-800/80"></td>
                 </tr>
 
-                {/* DYNAMIC DATA ROWS */}
                 {records.length > 0 ? (
-                  records.map((record) => {
-                    const displayDay = record.date
-                      ? record.date.split("T")[0]
-                      : "";
+                  <>
+                    {records.map((record) => {
+                      const displayDay = record.date
+                        ? record.date.split("T")[0]
+                        : "";
 
-                    return (
-                      <tr
-                        key={record._id}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
-                      >
-                        <td className="px-4 py-3 border-r border-gray-300 dark:border-gray-700 font-semibold bg-gray-50 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300 relative text-left">
-                          <div className="flex flex-col items-center justify-center">
-                            <span>{displayDay}</span>
-                            {record.isEdited && (
-                              <span className="text-[10px] text-orange-500 dark:text-orange-400 font-medium whitespace-nowrap">
-                                *Edited{" "}
-                                {record.editedBy ? `by ${record.editedBy}` : ""}
+                      return (
+                        <tr
+                          key={record._id}
+                          className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
+                        >
+                          <td className="px-4 py-3 border-r border-gray-300 dark:border-gray-700 font-semibold bg-gray-50 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300 relative text-left">
+                            <div className="flex flex-col items-center justify-center">
+                              <span>{displayDay}</span>
+                              {record.isEdited && (
+                                <span className="text-[10px] text-orange-500 dark:text-orange-400 font-medium whitespace-nowrap">
+                                  *Edited{" "}
+                                  {record.editedBy ? `by ${record.editedBy}` : ""}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="px-3 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-200">
+                            {(record.greenLeaf?.today || 0).toFixed(2)}
+                          </td>
+                          <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 font-medium text-gray-900 dark:text-gray-200">
+                            {(record.greenLeaf?.toDate || 0).toFixed(2)}
+                          </td>
+
+                          <td className="px-3 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-200">
+                            {(record.madeTea?.today || 0).toFixed(2)}
+                          </td>
+                          <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 font-medium text-gray-900 dark:text-gray-200">
+                            {(record.madeTea?.toDate || 0).toFixed(2)}
+                          </td>
+
+                          <td className="px-3 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
+                            {(record.dispatch || 0) === 0
+                              ? "-"
+                              : record.dispatch.toFixed(2)}
+                          </td>
+                          <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400">
+                            {(record.localSaleAndGratis || 0) === 0
+                              ? "-"
+                              : record.localSaleAndGratis.toFixed(2)}
+                          </td>
+
+                          <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 font-bold text-gray-800 dark:text-gray-200 bg-orange-50/30 dark:bg-orange-900/20">
+                            {(record.totalOut || 0).toFixed(2)}
+                          </td>
+                          <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 text-red-600 dark:text-red-400">
+                            {(record.returnAmount || 0) === 0
+                              ? "-"
+                              : record.returnAmount.toFixed(2)}
+                          </td>
+                          
+                          <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 bg-blue-50/30 dark:bg-blue-900/20 align-middle">
+                            <div className="flex flex-col items-center justify-center">
+                              <span className="font-bold text-blue-800 dark:text-blue-400">
+                                {(record.factoryBalance || 0).toFixed(2)}
                               </span>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="px-3 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-200">
-                          {(record.greenLeaf?.today || 0).toFixed(2)}
-                        </td>
-                        <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 font-medium text-gray-900 dark:text-gray-200">
-                          {(record.greenLeaf?.toDate || 0).toFixed(2)}
-                        </td>
-
-                        <td className="px-3 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-200">
-                          {(record.madeTea?.today || 0).toFixed(2)}
-                        </td>
-                        <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 font-medium text-gray-900 dark:text-gray-200">
-                          {(record.madeTea?.toDate || 0).toFixed(2)}
-                        </td>
-
-                        <td className="px-3 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
-                          {(record.dispatch || 0) === 0
-                            ? "-"
-                            : record.dispatch.toFixed(2)}
-                        </td>
-                        <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400">
-                          {(record.localSaleAndGratis || 0) === 0
-                            ? "-"
-                            : record.localSaleAndGratis.toFixed(2)}
-                        </td>
-
-                        <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 font-bold text-gray-800 dark:text-gray-200 bg-orange-50/30 dark:bg-orange-900/20">
-                          {(record.totalOut || 0).toFixed(2)}
-                        </td>
-                        <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 text-red-600 dark:text-red-400">
-                          {(record.returnAmount || 0) === 0
-                            ? "-"
-                            : record.returnAmount.toFixed(2)}
-                        </td>
-                        
-                        {/* --- යාවත්කාලීන කළ Factory Balance තීරුව --- */}
-                        <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 bg-blue-50/30 dark:bg-blue-900/20 align-middle">
-                          <div className="flex flex-col items-center justify-center">
-                            <span className="font-bold text-blue-800 dark:text-blue-400">
-                              {(record.factoryBalance || 0).toFixed(2)}
-                            </span>
-                            {record.daysToZero !== undefined && (
-                              <span
-                                className={`text-[11px] font-extrabold mt-0.5 ${
-                                  record.daysToZero > 10
-                                    ? "text-red-600 dark:text-red-400"
-                                    : record.daysToZero < 10
-                                    ? "text-green-600 dark:text-green-400"
-                                    : "text-blue-600 dark:text-blue-400"
-                                }`}
-                              >
-                                {record.daysToZero} Days
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* ACTIONS CELL */}
-                        <td className="px-3 py-3 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => handleEditClick(record)}
-                              className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-[#1B6A31] dark:hover:text-green-400 hover:bg-[#8CC63F]/20 dark:hover:bg-green-900/30 rounded transition-all"
-                              title="Edit Record"
-                            >
-                              <MdOutlineEdit size={20} />
-                            </button>
-
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <button
-                                  onClick={() => setRecordToDelete(record)}
-                                  className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all"
-                                  title="Delete Record"
+                              {record.daysToZero !== undefined && record.daysToZero > 0 && (
+                                <span
+                                  className={`text-[11px] font-extrabold mt-0.5 ${
+                                    record.daysToZero > 10
+                                      ? "text-red-600 dark:text-red-400"
+                                      : record.daysToZero < 10
+                                      ? "text-green-600 dark:text-green-400"
+                                      : "text-blue-600 dark:text-blue-400"
+                                  }`}
                                 >
-                                  <MdOutlineDeleteOutline size={20} />
-                                </button>
-                              </AlertDialogTrigger>
+                                  {record.daysToZero} Days
+                                </span>
+                              )}
+                            </div>
+                          </td>
 
-                              <AlertDialogContent className="bg-white dark:bg-gray-800 rounded-2xl border-gray-100 dark:border-gray-700 shadow-xl max-w-md">
-                                <AlertDialogHeader>
-                                  <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4 border border-red-200 dark:border-red-800/50">
-                                    <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
-                                  </div>
-                                  <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                                    Delete Factory Log
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-base">
-                                    Are you sure you want to permanently delete
-                                    the log for{" "}
-                                    <span className="font-bold text-gray-800 dark:text-gray-200 ml-1">
-                                      {displayDay}
-                                    </span>
-                                    ?<br />
-                                    <br />
-                                    This action cannot be undone and will affect
-                                    running balances.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter className="mt-6">
-                                  <AlertDialogCancel
-                                    onClick={() => setRecordToDelete(null)}
-                                    className="border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg px-6 font-semibold"
+                          <td className="px-3 py-3 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => handleEditClick(record)}
+                                className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-[#1B6A31] dark:hover:text-green-400 hover:bg-[#8CC63F]/20 dark:hover:bg-green-900/30 rounded transition-all"
+                                title="Edit Record"
+                              >
+                                <MdOutlineEdit size={20} />
+                              </button>
+
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <button
+                                    onClick={() => setRecordToDelete(record)}
+                                    className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all"
+                                    title="Delete Record"
                                   >
-                                    Cancel
-                                  </AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={handleConfirmDelete}
-                                    className="bg-red-600 hover:bg-red-700 text-white dark:bg-red-600 dark:hover:bg-red-700 rounded-lg px-6 font-semibold shadow-sm transition-colors"
-                                  >
-                                    Delete Record
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
+                                    <MdOutlineDeleteOutline size={20} />
+                                  </button>
+                                </AlertDialogTrigger>
+
+                                <AlertDialogContent className="bg-white dark:bg-gray-800 rounded-2xl border-gray-100 dark:border-gray-700 shadow-xl max-w-md">
+                                  <AlertDialogHeader>
+                                    <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4 border border-red-200 dark:border-red-800/50">
+                                      <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                                    </div>
+                                    <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                                      Delete Factory Log
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-base">
+                                      Are you sure you want to permanently delete
+                                      the log for{" "}
+                                      <span className="font-bold text-gray-800 dark:text-gray-200 ml-1">
+                                        {displayDay}
+                                      </span>
+                                      ?<br />
+                                      <br />
+                                      This action cannot be undone and will affect
+                                      running balances.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter className="mt-6">
+                                    <AlertDialogCancel
+                                      onClick={() => setRecordToDelete(null)}
+                                      className="border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg px-6 font-semibold"
+                                    >
+                                      Cancel
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={handleConfirmDelete}
+                                      className="bg-red-600 hover:bg-red-700 text-white dark:bg-red-600 dark:hover:bg-red-700 rounded-lg px-6 font-semibold shadow-sm transition-colors"
+                                    >
+                                      Delete Record
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    <tr className="bg-orange-50 dark:bg-orange-900/20 font-bold border-t-2 border-orange-200 dark:border-orange-800/50">
+                      <td colSpan="7" className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 text-right text-orange-800 dark:text-orange-400 uppercase tracking-wider">
+                        Total Dispatch For Period:
+                      </td>
+                      <td className="px-3 py-4 border-r border-gray-300 dark:border-gray-700 text-orange-700 dark:text-orange-300 text-lg bg-orange-100 dark:bg-orange-900/40">
+                        {totalDispatch > 0 ? totalDispatch.toFixed(2) : "-"}
+                      </td>
+                      <td colSpan="5" className="px-3 py-4 bg-gray-50 dark:bg-gray-800/50"></td>
+                    </tr>
+
+                  </>
                 ) : (
                   <tr>
                     <td colSpan="11" className="p-16 text-center">

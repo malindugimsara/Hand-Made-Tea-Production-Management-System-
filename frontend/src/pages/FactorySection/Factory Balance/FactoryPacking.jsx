@@ -80,7 +80,7 @@ const FactoryPacking = () => {
     const highlightedInputStyle = "w-full pl-10 pr-4 py-3.5 bg-[#eef8f2] dark:bg-teal-900/20 border border-[#a3d9b8] dark:border-teal-800 rounded-xl text-sm font-bold text-[#1c4b3a] dark:text-teal-300 outline-none focus:ring-2 focus:ring-[#1B6A31]/20 dark:focus:ring-teal-400/20 transition-all placeholder:text-[#1c4b3a]/50 dark:placeholder:text-teal-300/50";
 
     return (
-        <div className="p-4 sm:p-6 md:p-8 max-w-[1200px] mx-auto font-sans min-h-screen bg-[#f3faf7] dark:bg-gray-900 transition-colors duration-300">
+        <div className="p-4 sm:p-6 md:p-8 max-w-[1200px] mx-auto font-sans min-h-screen transition-colors duration-300">
             
             {/* Header Section */}
             <div className="flex items-center gap-4 mb-8">
