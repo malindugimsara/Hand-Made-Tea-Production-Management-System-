@@ -27,6 +27,15 @@ export default function DailyProduction() {
     greenLeafToday: '',
   });
 
+  useEffect(() => {
+    if (formData.date) {
+      const selectedDateMonth = formData.date.substring(0, 7); // උදා: '2024-04'
+      if (selectedDateMonth !== selectedMonth) {
+        setSelectedMonth(selectedDateMonth);
+      }
+    }
+  }, [formData.date, selectedMonth]);
+
   const username = localStorage.getItem('username') || 'Unknown User';
   const userRole = localStorage.getItem('userRole') || '';
   const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
