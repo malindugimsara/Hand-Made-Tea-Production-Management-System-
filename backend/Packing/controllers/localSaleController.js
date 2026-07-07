@@ -8,7 +8,7 @@ const getBaseTeaGrade = (productName) => {
     const p = productName.toLowerCase().trim();
 
     const bopf = ["lemongrass - bopf", "cinnamon tea - bopf", "ginger tea - bopf", "masala tea - bopf", "pineapple tea", "mix fruit", "peach", "strawberry", "jasmin - bopf", "mango tea", "carmel", "honey", "earl grey", "lime", "soursop - bopf", "cardamom", "gift pack", "guide issue-bopf"];
-    const bopfSp = ["english breakfast", "cinnamon tea - bopf sp", "ginger tea - bopf sp", "masala tea - bopf sp", "vanilla", "mint - bopf sp", "moringa - bopf sp", "curry leaves - bopf sp", "gotukola - bopf sp", "heen bovitiya - bopf sp", "black t/b", "english afternoon"];
+    const bopfSp = ["english breakfast", "cinnamon tea - bopf sp", "ginger tea - bopf sp", "masala tea - bopf sp", "vanilla", "mint - bopf sp", "moringa - bopf sp", "curry leaves - bopf sp", "gotukola - bopf sp", "heen bovitiya - bopf sp", "black t/b", "english afternoon", "awurudu special"];
     const greenTea = ["lemongrass - green tea", "g/t lemangrass", "mint - green tea", "soursop - green tea", "moringa - green tea", "curry leaves - green tea", "heen bovitiya - green tea", "gotukola - green tea", "jasmin - green tea", "green tea t/b"];
     const pekoe = ["pekoe", "rose tea"];
     const ff = ["ceylon premium - ff"];
@@ -26,6 +26,7 @@ const getBaseTeaGrade = (productName) => {
     };
 
     if (p.includes("labour")) return "BOPF";
+    if (p.includes("awurudu special")) return "BOPF SP";
     if (bopf.includes(p)) return "BOPF";
     if (bopfSp.includes(p)) return "BOPF SP";
     if (greenTea.includes(p)) return "Green Tea";

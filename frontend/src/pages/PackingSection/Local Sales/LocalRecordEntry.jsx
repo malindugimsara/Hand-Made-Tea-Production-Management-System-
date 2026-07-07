@@ -95,7 +95,6 @@ const TEA_TYPES = [
   "Premium",
   "Green tea",
   "Green tea bag (25)",
-  "New edition",
   "Pitigala tea bags",
   "Pitigala tea 400g",
   "Awurudu Special",
