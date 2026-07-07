@@ -54,7 +54,7 @@ export const getFactoryLogsByMonth = async (req, res) => {
 // 2. SAVE OR UPDATE DAILY FACTORY LOG
 export const saveDailyFactoryLog = async (req, res) => {
   try {
-    const { date, greenLeafToday, dispatch, localSaleAndGratis, returnAmount, username } = req.body;
+    const { date, greenLeafToday, dispatch, localSaleAndGratis, returnAmount, username, isExplicitEdit } = req.body;
 
     if (!date) return res.status(400).json({ message: "Date is required." });
 
@@ -103,7 +103,6 @@ export const saveDailyFactoryLog = async (req, res) => {
     }
 
     const existingRecord = await FactoryLog.findOne({ date: targetDate });
-
     let updateFields = {
       greenLeaf: { today: glToday },
       
@@ -121,10 +120,16 @@ export const saveDailyFactoryLog = async (req, res) => {
     };
 
     if (existingRecord) {
-      updateFields.isEdited = true;
-      updateFields.lastUpdatedDate = new Date();
-      updateFields.editedBy = username || req.user?.username || "Unknown User";
+      // Edit Page එකෙන් එවනවා නම් විතරක් isEdited: true වෙනවා
+      if (isExplicitEdit) {
+        updateFields.isEdited = true;
+        updateFields.lastUpdatedDate = new Date();
+        updateFields.editedBy = username || req.user?.username || "Unknown User";
+      }
+      // isExplicitEdit නැත්නම් (ඒ කියන්නේ Dispatch add කරනවා වගේ නම්),
+      // isEdited status එකට මුකුත් කරන්නේ නෑ. ඒක තිබ්බ විදියටම තියෙනවා.
     } else {
+      // අලුත්ම රෙකෝඩ් එකක් නම්
       updateFields.isEdited = false;
       updateFields.editedBy = username || req.user?.username || "System User";
     }

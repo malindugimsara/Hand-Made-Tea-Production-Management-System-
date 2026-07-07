@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import toast from 'react-hot-toast'; // Removed { Toaster } from import
+import toast from 'react-hot-toast';
 import { Leaf, Package, RefreshCcw, ArrowLeft, Info, AlertTriangle } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -12,7 +12,6 @@ export default function EditFactoryLog() {
     const record = location.state?.recordData || null;
 
     // 2. Initialize the state IMMEDIATELY using the passed record
-    // Username is removed from here since we don't need user input for it anymore
     const [formData, setFormData] = useState({
         date: record?.date ? new Date(record.date).toISOString().split('T')[0] : '',
         greenLeafToday: record?.greenLeaf?.today || record?.greenLeafToday || '',
@@ -32,9 +31,20 @@ export default function EditFactoryLog() {
         }
     }, [record, navigate, location]);
 
+    // --- NEW DYNAMIC CALCULATION LOGIC ---
+    // Extract month from the selected date (1-12)
+    const selectedMonthNumber = formData.date ? parseInt(formData.date.split('-')[1], 10) : new Date().getMonth() + 1;
+    
+    // April(4), May(5), June(6), September(9), October(10), November(11), December(12)
+    const monthsWith21Percent = [4, 5, 6, 9, 10, 11, 12];
+    
+    // Determine conversion rate based on the month
+    const conversionRate = monthsWith21Percent.includes(selectedMonthNumber) ? 0.21 : 0.215;
+    
     // Real-time calculations
-    const calculatedMadeTea = (Number(formData.greenLeafToday) || 0) * 0.215;
+    const calculatedMadeTea = (Number(formData.greenLeafToday) || 0) * conversionRate;
     const calculatedTotalOut = (Number(formData.dispatch) || 0) + (Number(formData.localSaleAndGratis) || 0);
+    // -------------------------------------
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -47,9 +57,7 @@ export default function EditFactoryLog() {
         const toastId = toast.loading('Updating factory log...');
 
         try {
-            // AUTO CAPTURE USERNAME:
-            // ඔයාගේ Auth system එක අනුව මෙතන වෙනස් කරගන්න. 
-            // උදාහරණයක් විදියට localStorage එකේ 'username' කියලා තියෙනවා නම්:
+            // AUTO CAPTURE USERNAME
             const loggedInUser = localStorage.getItem('username') || 'System User';
 
             const payload = {
@@ -58,11 +66,12 @@ export default function EditFactoryLog() {
                 dispatch: Number(formData.dispatch) || 0,
                 localSaleAndGratis: Number(formData.localSaleAndGratis) || 0,
                 returnAmount: Number(formData.returnAmount) || 0,
-                username: loggedInUser // Automatically pass the editor's name
+                username: loggedInUser,
+                isExplicitEdit: true
             };
 
             const response = await fetch(`${BACKEND_URL}/api/factory-logs`, {
-                method: 'POST', // (Make sure your backend expects POST for updates, or change to PUT if needed)
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
@@ -70,8 +79,10 @@ export default function EditFactoryLog() {
             if (response.ok) {
                 toast.success('Factory log updated successfully!', { id: toastId });
                 setTimeout(() => {
-                    navigate(-1);
-                }, 1500);
+                    // Navigate back to the Factory View page, passing the month of the edited record
+                    const editMonth = formData.date.substring(0, 7);
+                    navigate('/factory/view', { state: { returnMonth: editMonth } });
+                }, 500);
             } else {
                 const errorData = await response.json();
                 toast.error(errorData.message || 'Failed to update factory log.', { id: toastId });
@@ -120,7 +131,7 @@ export default function EditFactoryLog() {
 
             <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
 
-                {/* DATE SECTION (Editor Input Removed) */}
+                {/* DATE SECTION (Locked) */}
                 <div className="mb-8 pb-6 border-b border-gray-100">
                     <label className="block text-sm font-bold text-gray-700 mb-2">Record Date (Locked)</label>
                     <input
@@ -148,7 +159,10 @@ export default function EditFactoryLog() {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Est. Made Tea (21.5%)</label>
+                            {/* Dynamically display 21% or 21.5% based on selected month */}
+                            <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                Est. Made Tea ({conversionRate === 0.21 ? '21%' : '21.5%'})
+                            </label>
                             <div className="w-full p-3 border border-[#A3D9A5] bg-white text-[#1B6A31] font-bold rounded-md flex items-center h-[50px]">
                                 {calculatedMadeTea > 0 ? calculatedMadeTea.toFixed(3) : '0.000'} kg
                             </div>
