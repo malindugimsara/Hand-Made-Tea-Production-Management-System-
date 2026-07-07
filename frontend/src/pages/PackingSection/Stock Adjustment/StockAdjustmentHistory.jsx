@@ -10,6 +10,9 @@ import {
   Edit3,
   Trash2,
   ShieldAlert,
+  Leaf, // Using Leaf for Tea icon
+  Flame, // Using Flame for Spicy icon
+  Package, // Using Package for Raw Materials icon
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PDFDownloader from "@/components/PDFDownloader";
@@ -21,7 +24,7 @@ const THEME = {
   textSecondary: "#0f766e",
 };
 
-// --- PRODUCT COLOR MAPPING (Match with reference image style) ---
+// --- PRODUCT COLOR MAPPING ---
 const getProductColor = (productName) => {
   const p = productName?.toLowerCase() || "";
   if (p.includes("premium")) return "bg-pink-100 text-pink-800";
@@ -40,8 +43,12 @@ export default function StockAdjustmentHistory() {
   const [logs, setLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // --- NEW: Active Tab State ---
+  const [activeTab, setActiveTab] = useState("Tea"); 
+
   // Filters States
   const [searchQuery, setSearchQuery] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("All Sources");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
@@ -62,7 +69,6 @@ export default function StockAdjustmentHistory() {
       if (!res.ok) throw new Error("Failed to fetch logs");
 
       const data = await res.json();
-      // Sort by latest date first
       const sortedData = data.sort(
         (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
       );
@@ -74,14 +80,23 @@ export default function StockAdjustmentHistory() {
     }
   };
 
-  // Formats date to YYYY-MM-DD
   const formatDateOnly = (dateString) => {
     if (!dateString) return "";
     return new Date(dateString).toISOString().split("T")[0];
   };
 
-  // Filter Logic
+  // --- UPDATED: Filter Logic to include Tabs ---
   const filteredLogs = logs.filter((log) => {
+    // 1. Tab Filter
+    // Ensure these strings match the exact itemType values saved in your database (e.g., "tea", "spicy", "raw")
+    const logType = log.itemType?.toLowerCase() || "";
+    let matchesTab = false;
+    
+    if (activeTab === "Tea" && logType === "tea") matchesTab = true;
+    if (activeTab === "Spicy" && logType === "spicy") matchesTab = true;
+    if (activeTab === "Raw Materials" && logType === "raw") matchesTab = true;
+
+    // 2. Other Filters
     const matchesSearch =
       log.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (log.reason &&
@@ -91,12 +106,13 @@ export default function StockAdjustmentHistory() {
     const matchesFrom = fromDate ? logDate >= fromDate : true;
     const matchesTo = toDate ? logDate <= toDate : true;
 
-    return matchesSearch && matchesFrom && matchesTo;
+    const matchesSource =
+      sourceFilter === "All Sources" ? true : log.source === sourceFilter;
+
+    return matchesTab && matchesSearch && matchesFrom && matchesTo && matchesSource;
   });
 
-  // Calculate Rowspans for Date Grouping (Like the image)
   const processLogsForTable = () => {
-    let currentSpan = 0;
     return filteredLogs.map((log, index, arr) => {
       const date = formatDateOnly(log.createdAt);
       const prevDate =
@@ -118,11 +134,11 @@ export default function StockAdjustmentHistory() {
 
   const handleClearFilters = () => {
     setSearchQuery("");
+    setSourceFilter("All Sources");
     setFromDate("");
     setToDate("");
   };
 
-  // Placeholder actions for Edit/Delete
   const handleEdit = (id) => {
     navigate(`/packing/edit-stock-adjustment/${id}`);
   };
@@ -133,7 +149,6 @@ export default function StockAdjustmentHistory() {
     const toastId = toast.loading("Reversing stock and deleting record...");
     try {
       const token = localStorage.getItem("token");
-      // කලින් අපි හැදූ DELETE route එකට call කරනවා
       const response = await fetch(
         `${BACKEND_URL}/api/stock-adjustment/${recordToDelete._id}`,
         {
@@ -146,7 +161,7 @@ export default function StockAdjustmentHistory() {
         toast.success("Adjustment deleted and stock reversed successfully!", {
           id: toastId,
         });
-        fetchLogs(); // Table එක refresh කරන්න
+        fetchLogs(); 
       } else {
         const data = await response.json();
         toast.error(data.message || "Failed to delete record.", {
@@ -156,12 +171,11 @@ export default function StockAdjustmentHistory() {
     } catch (error) {
       toast.error("Network error while deleting.", { id: toastId });
     } finally {
-      setRecordToDelete(null); // Modal එක Close කරන්න
+      setRecordToDelete(null); 
     }
   };
 
   const getPdfData = () => {
-    // 1. දත්ත දින අනුව Sort කරන්න (අනිවාර්යයි)
     const sortedLogs = [...filteredLogs].sort(
       (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
     );
@@ -174,7 +188,6 @@ export default function StockAdjustmentHistory() {
         .toISOString()
         .split("T")[0];
 
-      // එකම දිනයක් තියෙන දත්ත කීයක් තියෙනවද කියලා බලන්න
       while (
         j < sortedLogs.length &&
         new Date(sortedLogs[j].createdAt).toISOString().split("T")[0] ===
@@ -183,14 +196,12 @@ export default function StockAdjustmentHistory() {
         j++;
       }
 
-      const count = j - i; // මේ තමයි rowSpan එක
+      const count = j - i; 
 
-      // එම දින කණ්ඩායම හරහා Loop කිරීම
       for (let k = i; k < j; k++) {
         const log = sortedLogs[k];
         const row = [];
 
-        // පලවෙනි පේළියේදී විතරක් Date එක සහ RowSpan එක එකතු කරන්න
         if (k === i) {
           row.push({
             content: currentDate,
@@ -199,11 +210,15 @@ export default function StockAdjustmentHistory() {
           });
         }
 
-        // අනිත් Column ටික
+        // Format item type dynamically for the PDF
+        const formattedType = log.itemType 
+          ? log.itemType.charAt(0).toUpperCase() + log.itemType.slice(1) 
+          : "-";
+
         row.push(
           { content: log.itemName, styles: { valign: "middle" } },
           {
-            content: log.itemType === "tea" ? "Tea" : "Raw",
+            content: formattedType,
             styles: { halign: "center", valign: "middle" },
           },
           {
@@ -239,7 +254,7 @@ export default function StockAdjustmentHistory() {
     >
       <div className="max-w-[1400px] mx-auto relative z-10">
         {/* HEADER */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
             <History size={32} className="text-[#0d5e4d]" />
             <div>
@@ -254,7 +269,7 @@ export default function StockAdjustmentHistory() {
 
           <div className="flex gap-3">
             <PDFDownloader
-              title="Stock Adjustment Records"
+              title={`${activeTab} Stock Adjustment Records`}
               subtitle={`Filter: ${searchQuery ? searchQuery : "All"}`}
               headers={[
                 "Date",
@@ -264,9 +279,9 @@ export default function StockAdjustmentHistory() {
                 "Reason",
                 "User",
               ]}
-              data={getPdfData()} // උඩ හදපු function එක
+              data={getPdfData()} 
               uniqueCode={`ADJ/LOG/${new Date().getFullYear()}`}
-              fileName={`Stock_Adjustment_History_${new Date().toISOString().split("T")[0]}.pdf`}
+              fileName={`${activeTab.replace(" ", "_")}_Adjustment_History_${new Date().toISOString().split("T")[0]}.pdf`}
               orientation="portrait"
               disabled={logs.length === 0}
             />
@@ -279,9 +294,82 @@ export default function StockAdjustmentHistory() {
           </div>
         </div>
 
-        {/* FILTER SECTION (Matched to Image) */}
+        {/* --- NEW: TABS SECTION --- */}
+        <div className="flex items-center gap-2 mb-6 border-b border-gray-200">
+          <button
+            onClick={() => { setActiveTab("Tea"); handleClearFilters(); }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-t-lg font-bold text-sm transition-all ${
+              activeTab === "Tea"
+                ? "bg-[#307a6a] text-white shadow-sm"
+                : "bg-transparent text-gray-500 hover:text-[#307a6a] hover:bg-gray-100"
+            }`}
+          >
+            <Leaf size={16} /> Tea Products Stock
+          </button>
+          
+          <button
+            onClick={() => { setActiveTab("Spicy"); handleClearFilters(); }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-t-lg font-bold text-sm transition-all ${
+              activeTab === "Spicy"
+                ? "bg-[#307a6a] text-white shadow-sm"
+                : "bg-transparent text-gray-500 hover:text-[#307a6a] hover:bg-gray-100"
+            }`}
+          >
+            <Flame size={16} /> Spicy Stock
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("Raw Materials"); handleClearFilters(); }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-t-lg font-bold text-sm transition-all ${
+              activeTab === "Raw Materials"
+                ? "bg-[#307a6a] text-white shadow-sm"
+                : "bg-transparent text-gray-500 hover:text-[#307a6a] hover:bg-gray-100"
+            }`}
+          >
+            <Package size={16} /> Packing Materials Stock
+          </button>
+        </div>
+
+        {/* FILTER SECTION */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+            
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Search Product
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. BOPF, Premium..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Filter by Source
+              </label>
+              <div className="relative">
+                <select
+                  value={sourceFilter}
+                  onChange={(e) => setSourceFilter(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none appearance-none cursor-pointer"
+                >
+                  <option value="All Sources">All Sources</option>
+                  <option value="Internal">Internal</option>
+                  <option value="Supplier A">Supplier A</option>
+                  <option value="Supplier B">Supplier B</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                 From Date
@@ -291,7 +379,7 @@ export default function StockAdjustmentHistory() {
                   type="date"
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
-                  className="w-full pl-3 pr-10 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none"
+                  className="w-full pl-3 pr-10 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none cursor-pointer"
                 />
               </div>
             </div>
@@ -305,22 +393,9 @@ export default function StockAdjustmentHistory() {
                   type="date"
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
-                  className="w-full pl-3 pr-10 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none"
+                  className="w-full pl-3 pr-10 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none cursor-pointer"
                 />
               </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                Product (Search)
-              </label>
-              <input
-                type="text"
-                placeholder="Type to search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none"
-              />
             </div>
 
             <div className="flex justify-end">
@@ -328,7 +403,7 @@ export default function StockAdjustmentHistory() {
                 onClick={handleClearFilters}
                 className="px-5 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-lg border border-transparent hover:bg-gray-200 transition-colors flex items-center gap-2 text-sm w-full md:w-auto justify-center"
               >
-                <FilterX size={16} /> Clear
+                <FilterX size={16} /> Clear Filters
               </button>
             </div>
           </div>
@@ -340,7 +415,7 @@ export default function StockAdjustmentHistory() {
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-20 text-gray-400">
                 <div className="w-8 h-8 border-4 border-teal-200 border-t-teal-700 rounded-full animate-spin mb-4"></div>
-                Loading History...
+                Loading {activeTab} History...
               </div>
             ) : (
               <table className="w-full text-left border-collapse">
@@ -400,7 +475,7 @@ export default function StockAdjustmentHistory() {
                           </div>
                         </td>
 
-                        {/* ACTION TYPE (Width reduced) */}
+                        {/* ACTION TYPE */}
                         <td className="p-4 border-r border-gray-200 text-center">
                           {log.action === "add" ? (
                             <span className="inline-flex items-center gap-1 text-teal-600 font-bold text-xs bg-teal-50 px-2 py-1 rounded border border-teal-100">
@@ -422,7 +497,7 @@ export default function StockAdjustmentHistory() {
                           </span>
                         </td>
 
-                        {/* REASON (Width Increased) */}
+                        {/* REASON */}
                         <td className="p-4 border-r border-gray-200 text-sm text-gray-600 font-medium break-words">
                           {log.reason || (
                             <span className="italic text-gray-400">N/A</span>
@@ -461,7 +536,7 @@ export default function StockAdjustmentHistory() {
                         colSpan="7"
                         className="py-16 text-center text-gray-400 font-semibold text-sm"
                       >
-                        No adjustment records found.
+                        No adjustment records found for {activeTab}.
                       </td>
                     </tr>
                   )}
@@ -469,7 +544,7 @@ export default function StockAdjustmentHistory() {
               </table>
             )}
 
-            {/* Confirmation Modal - Using React Portal to break out of containers */}
+            {/* Confirmation Modal */}
             {recordToDelete &&
               createPortal(
                 <div className="fixed inset-0 bg-black/60 z-[99999] flex items-center justify-center p-4">
