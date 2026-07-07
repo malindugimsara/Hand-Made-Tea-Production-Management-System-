@@ -4,14 +4,14 @@ const stockAdjustmentLogSchema = new mongoose.Schema({
     itemType: { 
         type: String, 
         required: true, 
-        enum: ['tea', 'raw'] 
+        enum: ['tea', 'raw', 'spicy'] // Added 'spicy' here
     },
     itemName: { 
         type: String, 
         required: true 
     },
     sourceName: { 
-        type: String // 'Factory', 'Handmade', 'Other' (Meka thiyenne Tea walata witarai)
+        type: String // 'Factory', 'Handmade', 'Other' (Only for Tea)
     }, 
     action: { 
         type: String, 
