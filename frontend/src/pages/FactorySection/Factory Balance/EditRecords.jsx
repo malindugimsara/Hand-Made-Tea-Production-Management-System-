@@ -58,7 +58,8 @@ export default function EditFactoryLog() {
                 dispatch: Number(formData.dispatch) || 0,
                 localSaleAndGratis: Number(formData.localSaleAndGratis) || 0,
                 returnAmount: Number(formData.returnAmount) || 0,
-                username: loggedInUser // Automatically pass the editor's name
+                username: loggedInUser, // Automatically pass the editor's name
+                isExplicitEdit: true
             };
 
             const response = await fetch(`${BACKEND_URL}/api/factory-logs`, {

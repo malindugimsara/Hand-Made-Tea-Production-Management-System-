@@ -457,9 +457,9 @@ export default function FactoryView() {
           </button>
 
           <PDFDownloader
-            title="Factory Production Report"
+           title="Factory Production Report"
             subtitle={`Period: ${getPeriodText()}`}
-            data={getCleanTableData()}
+            data={getCleanTableData()}                                            
             headers={[
               [
                 {
@@ -509,14 +509,17 @@ export default function FactoryView() {
             autoTableOptions={{
               theme: "grid",
               didDrawPage: (data) => {
-                const doc = data.doc;
-                doc.setFontSize(10);
-                doc.setTextColor(220, 38, 38);
-                doc.text(
-                  `Factory Balance: ${getLastFactoryBalance().toFixed(2)} Kg`,
-                  data.settings.margin.left,
-                  37
-                );
+                // 🌟 ADD THIS CONDITION: Check if it is the first page
+                if (data.pageNumber === 1) {
+                  const doc = data.doc;
+                  doc.setFontSize(10);
+                  doc.setTextColor(220, 38, 38);
+                  doc.text(
+                    `Factory Balance: ${getLastFactoryBalance().toFixed(2)} Kg`,
+                    data.settings.margin.left,
+                    37
+                  );
+                }
               },
               headStyles: {
                 fillColor: [243, 244, 246],

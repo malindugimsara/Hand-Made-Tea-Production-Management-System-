@@ -29,6 +29,15 @@ export default function DispatchAndReturn() {
     returnAmount: '',
   });
 
+  useEffect(() => {
+    if (formData.date) {
+      const selectedDateMonth = formData.date.substring(0, 7); // උදා: '2024-04'
+      if (selectedDateMonth !== selectedMonth) {
+        setSelectedMonth(selectedDateMonth);
+      }
+    }
+  }, [formData.date, selectedMonth]);
+
   const username = localStorage.getItem('username') || 'Unknown User';
   const userRole = localStorage.getItem('userRole') || '';
   const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
@@ -89,7 +98,7 @@ export default function DispatchAndReturn() {
     const newRecord = {
       ...formData,
       calculatedTotalOut,
-      greenLeafToday: existingRecord ? existingRecord.greenLeaf?.today || existingRecord.greenLeafToday : 0,
+      greenLeafToday: existingRecord ? (existingRecord.greenLeaf?.today || existingRecord.greenLeafToday || 0) : 0,    
     };
 
     setPendingRecords([...pendingRecords, newRecord]);
