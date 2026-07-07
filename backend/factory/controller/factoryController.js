@@ -1,5 +1,7 @@
 import FactoryLog from "../models/FactoryLog.js";
 import PendingTransfer from "../../Packing/models/PendingTransfer.js";
+import TeaReceived from "../../Packing/models/TeaReceivedModel.js"; // <-- Add this line
+
 // 1. GET FACTORY LOGS
 export const getFactoryLogsByMonth = async (req, res) => {
   try {
@@ -104,11 +106,18 @@ export const saveDailyFactoryLog = async (req, res) => {
 
     let updateFields = {
       greenLeaf: { today: glToday },
-      madeTea: { today: madeTeaToday },
+      
+      // madeTea එක දශම 2 කට සීමා කිරීම
+      madeTea: { today: Number(madeTeaToday.toFixed(2)) }, 
+      
       dispatch: Number(dispatch) || 0,
       localSaleAndGratis: Number(localSaleAndGratis) || 0,
       totalOut: totalOut,
       returnAmount: retAmount,
+      
+      // Balances දශම 2 කට සීමා කිරීම
+      bfBalance: Number(previousBalance.toFixed(2)),
+      factoryBalance: Number(currentBalance.toFixed(2)),
     };
 
     if (existingRecord) {
