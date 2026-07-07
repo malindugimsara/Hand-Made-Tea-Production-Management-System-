@@ -1,5 +1,7 @@
 import FactoryLog from "../models/FactoryLog.js";
 import PendingTransfer from "../../Packing/models/PendingTransfer.js";
+import TeaReceived from "../../Packing/models/TeaReceivedModel.js"; // <-- Add this line
+
 // 1. GET FACTORY LOGS
 export const getFactoryLogsByMonth = async (req, res) => {
   try {
