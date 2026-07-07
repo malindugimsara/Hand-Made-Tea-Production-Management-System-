@@ -9,7 +9,7 @@ import {
   Percent, 
 } from "lucide-react";
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 
 // IMPORT YOUR CUSTOM PDF DOWNLOADER
@@ -30,6 +30,7 @@ import {
 export default function FactoryView() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const navigate = useNavigate();
+  const location = useLocation();
 
   const currentMonthStr = new Date().toISOString().slice(0, 7);
 
@@ -44,7 +45,9 @@ export default function FactoryView() {
   });
 
   // Filter States
-  const [filterMonth, setFilterMonth] = useState(currentMonthStr);
+  const [filterMonth, setFilterMonth] = useState(() => {
+      return location.state?.returnMonth || currentMonthStr;
+  });  
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
