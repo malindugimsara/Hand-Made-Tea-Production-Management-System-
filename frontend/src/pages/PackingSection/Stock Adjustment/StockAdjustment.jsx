@@ -12,6 +12,7 @@ import {
   ListChecks,
   Save,
   Trash2,
+  Flame
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -32,7 +33,7 @@ export default function StockAdjustment() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Pending List States (NEW)
+  // Pending List States
   const [pendingRecords, setPendingRecords] = useState([]);
   const [isSavingAll, setIsSavingAll] = useState(false);
 
@@ -71,7 +72,7 @@ export default function StockAdjustment() {
 
       const [teaRes, rawRes] = await Promise.all([
         fetch(`${BACKEND_URL}/api/packing-stock`, { headers }),
-        fetch(`${BACKEND_URL}/api/raw-materials-in/stock`, { headers }), // Make sure this endpoint is correct
+        fetch(`${BACKEND_URL}/api/raw-materials-in/stock`, { headers }),
       ]);
 
       if (teaRes.ok) {
@@ -89,7 +90,7 @@ export default function StockAdjustment() {
     }
   };
 
-  // Filter items for the custom dropdown
+  // Filter items for the custom dropdown (Separating Spicy and Packing)
   const filteredItems = useMemo(() => {
     if (activeTab === "tea") {
       return teaStocks
@@ -102,26 +103,32 @@ export default function StockAdjustment() {
           category: "Tea Stock",
           colorClass: "bg-[#bbf7d0]",
         }));
-    } else {
+    } else if (activeTab === "spicy") {
       return rawMaterials
+        .filter((item) => (item.category || "").toLowerCase() === "flavor")
         .filter((item) => {
           const name = item.materialName || item.itemName || item.name || "";
           return name.toLowerCase().includes(searchQuery.toLowerCase());
         })
-        .map((item) => {
-          const name =
-            item.materialName ||
-            item.itemName ||
-            item.name ||
-            "Unknown Material";
-          const isFlavor = (item.category || "").toLowerCase() === "flavor";
-          return {
-            name: name,
-            category: isFlavor ? "Spicy (Flavor)" : "Packing Material",
-            colorClass: isFlavor ? "bg-blue-300" : "bg-[#fed7aa]",
-          };
+        .map((item) => ({
+          name: item.materialName || item.itemName || item.name || "Unknown Spice",
+          category: "Spicy Stock",
+          colorClass: "bg-blue-300",
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    } else { // activeTab === "raw"
+      return rawMaterials
+        .filter((item) => (item.category || "").toLowerCase() !== "flavor")
+        .filter((item) => {
+          const name = item.materialName || item.itemName || item.name || "";
+          return name.toLowerCase().includes(searchQuery.toLowerCase());
         })
-        .sort((a, b) => a.category.localeCompare(b.category));
+        .map((item) => ({
+          name: item.materialName || item.itemName || item.name || "Unknown Material",
+          category: "Packing Material",
+          colorClass: "bg-[#fed7aa]",
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
     }
   }, [activeTab, teaStocks, rawMaterials, searchQuery]);
 
@@ -140,6 +147,7 @@ export default function StockAdjustment() {
         unit: "kg",
       };
     } else {
+      // Both 'raw' and 'spicy' pull from rawMaterials
       const raw = rawMaterials.find(
         (r) => (r.materialName || r.itemName || r.name) === selectedItem,
       );
@@ -147,12 +155,11 @@ export default function StockAdjustment() {
       return {
         name: raw.materialName || raw.itemName || raw.name,
         qty: raw.totalQuantity,
-        unit: raw.unit || "units",
+        unit: raw.unit || (activeTab === "spicy" ? "g" : "units"),
       };
     }
   }, [selectedItem, activeTab, teaStocks, rawMaterials]);
 
-  // --- NEW: Add to Pending List ---
   const handleAddToList = (e) => {
     e.preventDefault();
 
@@ -161,7 +168,6 @@ export default function StockAdjustment() {
       return;
     }
 
-    // Calculate effective stock based on DB stock + already pending items
     let pendingEffect = 0;
     pendingRecords.forEach((record) => {
       if (record.itemName === selectedItem) {
@@ -170,13 +176,10 @@ export default function StockAdjustment() {
       }
     });
 
-    const trueAvailableStock =
-      (currentStockInfo ? currentStockInfo.qty : 0) + pendingEffect;
+    const trueAvailableStock = (currentStockInfo ? currentStockInfo.qty : 0) + pendingEffect;
 
     if (adjustmentType === "remove" && Number(amount) > trueAvailableStock) {
-      toast.error(
-        "Cannot issue more than the available stock (including pending items)!",
-      );
+      toast.error("Cannot issue more than the available stock (including pending items)!");
       return;
     }
 
@@ -194,7 +197,6 @@ export default function StockAdjustment() {
     setPendingRecords([...pendingRecords, newRecord]);
     toast.success("Adjustment added to pending list!");
 
-    // Reset fields
     setAmount("");
     setReason("");
     setSelectedItem("");
@@ -207,7 +209,6 @@ export default function StockAdjustment() {
     );
   };
 
-  // --- NEW: Save All to Database ---
   const handleSaveAll = async () => {
     if (pendingRecords.length === 0) {
       toast.error("No records in the list to save!");
@@ -220,7 +221,6 @@ export default function StockAdjustment() {
     try {
       const token = localStorage.getItem("token");
 
-      // We use Promise.all to send all pending records to the backend
       const promises = pendingRecords.map((record) => {
         const payload = {
           date: record.date,
@@ -249,28 +249,22 @@ export default function StockAdjustment() {
 
       await Promise.all(promises);
 
-      toast.success("All stock adjustments saved successfully!", {
-        id: toastId,
-      });
+      toast.success("All stock adjustments saved successfully!", { id: toastId });
       setPendingRecords([]);
-      fetchStockData(); // Refresh actual stock
+      fetchStockData(); 
 
-      // Navigate to History page
       setTimeout(() => {
         navigate("/packing/stock-adjustment-view");
       }, 1000);
     } catch (error) {
       console.error(error);
-      toast.error("Error saving some records. Please check the history.", {
-        id: toastId,
-      });
+      toast.error("Error saving some records. Please check the history.", { id: toastId });
     } finally {
       setIsSavingAll(false);
     }
   };
 
-  const inputStyles =
-    "w-full p-3.5 bg-gray-50 border border-teal-200 rounded-xl font-medium text-gray-700 focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all";
+  const inputStyles = "w-full p-3.5 bg-gray-50 border border-teal-200 rounded-xl font-medium text-gray-700 focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all";
 
   return (
     <div
@@ -278,6 +272,7 @@ export default function StockAdjustment() {
       style={{ backgroundColor: THEME.pageBg }}
     >
       <div className="max-w-[1400px] mx-auto relative z-10">
+        
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div className="flex items-center gap-4">
@@ -285,12 +280,8 @@ export default function StockAdjustment() {
               <Settings2 size={25} />
             </div>
             <div>
-              <h2 className="text-2xl sm:text-3xl font-black text-[#0d5e4d]">
-                Stock Adjustments
-              </h2>
-              <p className="font-semibold mt-1 uppercase tracking-wider text-sm text-[#0f766e]">
-                Correct & Balance Inventory
-              </p>
+              <h2 className="text-2xl sm:text-3xl font-black text-[#0d5e4d]">Stock Adjustments</h2>
+              <p className="font-semibold mt-1 uppercase tracking-wider text-sm text-[#0f766e]">Correct & Balance Inventory</p>
             </div>
           </div>
           <button
@@ -306,27 +297,26 @@ export default function StockAdjustment() {
           {/* --- LEFT SIDE: FORM --- */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
-              {/* TABS */}
-              <div className="flex border-b border-gray-200 bg-gray-50">
+              
+              {/* TABS (Now 3 Tabs) */}
+              <div className="flex border-b border-gray-200 bg-gray-50 overflow-x-auto whitespace-nowrap">
                 <button
-                  className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === "tea" ? "bg-green-500 text-white border-b-2 border-green-700" : "text-gray-500 hover:bg-gray-100"}`}
-                  onClick={() => {
-                    setActiveTab("tea");
-                    setSelectedItem("");
-                    setSearchQuery("");
-                  }}
+                  className={`flex-1 min-w-[120px] py-4 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === "tea" ? "bg-green-500 text-white border-b-2 border-green-700" : "text-gray-500 hover:bg-gray-100"}`}
+                  onClick={() => { setActiveTab("tea"); setSelectedItem(""); setSearchQuery(""); }}
                 >
                   <Leaf size={18} /> Tea Stock
                 </button>
                 <button
-                  className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === "raw" ? "bg-blue-500 text-white border-b-2 border-blue-800" : "text-gray-500 hover:bg-gray-100"}`}
-                  onClick={() => {
-                    setActiveTab("raw");
-                    setSelectedItem("");
-                    setSearchQuery("");
-                  }}
+                  className={`flex-1 min-w-[120px] py-4 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === "spicy" ? "bg-blue-500 text-white border-b-2 border-blue-800" : "text-gray-500 hover:bg-gray-100"}`}
+                  onClick={() => { setActiveTab("spicy"); setSelectedItem(""); setSearchQuery(""); }}
                 >
-                  <Package size={18} /> Raw Materials
+                  <Flame size={18} /> Spicy Stock
+                </button>
+                <button
+                  className={`flex-1 min-w-[120px] py-4 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === "raw" ? "bg-orange-500 text-white border-b-2 border-orange-800" : "text-gray-500 hover:bg-gray-100"}`}
+                  onClick={() => { setActiveTab("raw"); setSelectedItem(""); setSearchQuery(""); }}
+                >
+                  <Package size={18} /> Packing Materials
                 </button>
               </div>
 
@@ -337,10 +327,8 @@ export default function StockAdjustment() {
                     Loading Inventory Data...
                   </div>
                 ) : (
-                  <form
-                    onSubmit={handleAddToList}
-                    className="space-y-6 bg-teal-50/40 p-6 rounded-2xl border border-teal-100"
-                  >
+                  <form onSubmit={handleAddToList} className="space-y-6 bg-teal-50/40 p-6 rounded-2xl border border-teal-100">
+                    
                     {/* 1. DATE SELECTION */}
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -359,14 +347,10 @@ export default function StockAdjustment() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="relative" ref={dropdownRef}>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                          Select{" "}
-                          {activeTab === "tea" ? "Tea Product" : "Material"}
+                          Select {activeTab === "tea" ? "Tea Product" : activeTab === "spicy" ? "Spicy Ingredient" : "Packing Material"}
                         </label>
 
-                        <div
-                          className={`${inputStyles} flex items-center justify-between cursor-text bg-white`}
-                          onClick={() => setIsDropdownOpen(true)}
-                        >
+                        <div className={`${inputStyles} flex items-center justify-between cursor-text bg-white`} onClick={() => setIsDropdownOpen(true)}>
                           <input
                             type="text"
                             className="w-full bg-transparent outline-none cursor-text placeholder-gray-400"
@@ -375,16 +359,11 @@ export default function StockAdjustment() {
                             onChange={(e) => {
                               setSearchQuery(e.target.value);
                               setIsDropdownOpen(true);
-                              if (
-                                selectedItem &&
-                                e.target.value !== selectedItem
-                              )
-                                setSelectedItem("");
+                              if (selectedItem && e.target.value !== selectedItem) setSelectedItem("");
                             }}
                           />
                         </div>
 
-                        {/* Dropdown Options */}
                         {isDropdownOpen && (
                           <div className="absolute z-50 w-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl max-h-60 overflow-y-auto py-2 custom-scrollbar">
                             {filteredItems.length > 0 ? (
@@ -399,20 +378,13 @@ export default function StockAdjustment() {
                                   }}
                                 >
                                   <div className="flex items-center gap-3">
-                                    <div
-                                      className={`w-2.5 h-2.5 rounded-full ${item.colorClass}`}
-                                    ></div>
-                                    <span className="text-gray-700 font-semibold">
-                                      {item.name}
-                                    </span>
+                                    <div className={`w-2.5 h-2.5 rounded-full ${item.colorClass}`}></div>
+                                    <span className="text-gray-700 font-semibold">{item.name}</span>
                                   </div>
-                                  <span
-                                    className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md ${
-                                      item.category.includes("Spicy")
-                                        ? "bg-blue-100 text-blue-800"
-                                        : item.category.includes("Packing")
-                                          ? "bg-orange-100 text-orange-800"
-                                          : "bg-green-100 text-green-800"
+                                  <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md ${
+                                      item.category.includes("Spicy") ? "bg-blue-100 text-blue-800"
+                                      : item.category.includes("Packing") ? "bg-orange-100 text-orange-800"
+                                      : "bg-green-100 text-green-800"
                                     }`}
                                   >
                                     {item.category}
@@ -420,9 +392,7 @@ export default function StockAdjustment() {
                                 </div>
                               ))
                             ) : (
-                              <div className="px-4 py-3 text-gray-400 text-sm italic">
-                                No items found
-                              </div>
+                              <div className="px-4 py-3 text-gray-400 text-sm italic">No items found</div>
                             )}
                           </div>
                         )}
@@ -437,20 +407,13 @@ export default function StockAdjustment() {
                             <Search size={20} />
                           </div>
                           <div>
-                            <p className="text-[11px] font-bold text-teal-700 uppercase tracking-wider">
-                              DB Available Stock
-                            </p>
-                            <p className="font-bold text-gray-800 text-sm">
-                              {currentStockInfo.name}
-                            </p>
+                            <p className="text-[11px] font-bold text-teal-700 uppercase tracking-wider">DB Available Stock</p>
+                            <p className="font-bold text-gray-800 text-sm">{currentStockInfo.name}</p>
                           </div>
                         </div>
                         <div className="text-right">
                           <h3 className="text-2xl font-black text-[#0d5e4d]">
-                            {currentStockInfo.qty.toFixed(2)}{" "}
-                            <span className="text-sm">
-                              {currentStockInfo.unit}
-                            </span>
+                            {currentStockInfo.qty.toFixed(2)} <span className="text-sm">{currentStockInfo.unit}</span>
                           </h3>
                         </div>
                       </div>
@@ -462,65 +425,31 @@ export default function StockAdjustment() {
                         Adjustment Action
                       </label>
                       <div className="grid grid-cols-2 gap-4">
-                        <label
-                          className={`cursor-pointer border-2 rounded-xl p-4 flex items-center gap-3 transition-all ${adjustmentType === "add" ? "border-[#0d5e4d] bg-[#f0fdfa]" : "border-gray-200 bg-white hover:bg-gray-50"}`}
-                        >
+                        <label className={`cursor-pointer border-2 rounded-xl p-4 flex items-center gap-3 transition-all ${adjustmentType === "add" ? "border-[#0d5e4d] bg-[#f0fdfa]" : "border-gray-200 bg-white hover:bg-gray-50"}`}>
                           <input
-                            type="radio"
-                            name="action"
-                            value="add"
+                            type="radio" name="action" value="add"
                             checked={adjustmentType === "add"}
                             onChange={() => setAdjustmentType("add")}
                             className="hidden"
                           />
-                          <ArrowDownCircle
-                            size={24}
-                            className={
-                              adjustmentType === "add"
-                                ? "text-[#0d5e4d]"
-                                : "text-gray-400"
-                            }
-                          />
+                          <ArrowDownCircle size={24} className={adjustmentType === "add" ? "text-[#0d5e4d]" : "text-gray-400"} />
                           <div>
-                            <p
-                              className={`font-bold ${adjustmentType === "add" ? "text-[#0d5e4d]" : "text-gray-600"}`}
-                            >
-                              Trans In (Add)
-                            </p>
-                            <p className="text-[10px] text-gray-400 font-semibold">
-                              Increase stock level
-                            </p>
+                            <p className={`font-bold ${adjustmentType === "add" ? "text-[#0d5e4d]" : "text-gray-600"}`}>Trans In (Add)</p>
+                            <p className="text-[10px] text-gray-400 font-semibold">Increase stock level</p>
                           </div>
                         </label>
 
-                        <label
-                          className={`cursor-pointer border-2 rounded-xl p-4 flex items-center gap-3 transition-all ${adjustmentType === "remove" ? "border-red-600 bg-red-50" : "border-gray-200 bg-white hover:bg-gray-50"}`}
-                        >
+                        <label className={`cursor-pointer border-2 rounded-xl p-4 flex items-center gap-3 transition-all ${adjustmentType === "remove" ? "border-red-600 bg-red-50" : "border-gray-200 bg-white hover:bg-gray-50"}`}>
                           <input
-                            type="radio"
-                            name="action"
-                            value="remove"
+                            type="radio" name="action" value="remove"
                             checked={adjustmentType === "remove"}
                             onChange={() => setAdjustmentType("remove")}
                             className="hidden"
                           />
-                          <ArrowUpCircle
-                            size={24}
-                            className={
-                              adjustmentType === "remove"
-                                ? "text-red-600"
-                                : "text-gray-400"
-                            }
-                          />
+                          <ArrowUpCircle size={24} className={adjustmentType === "remove" ? "text-red-600" : "text-gray-400"} />
                           <div>
-                            <p
-                              className={`font-bold ${adjustmentType === "remove" ? "text-red-600" : "text-gray-600"}`}
-                            >
-                              Issue (Remove)
-                            </p>
-                            <p className="text-[10px] text-gray-400 font-semibold">
-                              Decrease stock level
-                            </p>
+                            <p className={`font-bold ${adjustmentType === "remove" ? "text-red-600" : "text-gray-600"}`}>Issue (Remove)</p>
+                            <p className="text-[10px] text-gray-400 font-semibold">Decrease stock level</p>
                           </div>
                         </label>
                       </div>
@@ -529,25 +458,19 @@ export default function StockAdjustment() {
                     {/* 5. AMOUNT & REASON */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                          Adjustment Amount
-                        </label>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Adjustment Amount</label>
                         <input
-                          type="number"
-                          step="0.001"
-                          min="0"
+                          type="number" step="0.001" min="0"
                           value={amount}
                           onChange={(e) => setAmount(e.target.value)}
-                          onWheel={(e) => e.target.blur()} // 👈 මේ කොටස එකතු කරන්න
+                          onWheel={(e) => e.target.blur()} 
                           required
                           placeholder="Enter amount..."
                           className={inputStyles}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                          Reason (Optional)
-                        </label>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Reason (Optional)</label>
                         <textarea
                           value={reason}
                           onChange={(e) => setReason(e.target.value)}
@@ -561,10 +484,7 @@ export default function StockAdjustment() {
                     {adjustmentType === "remove" && (
                       <div className="flex items-start gap-3 p-3 bg-orange-50 border border-orange-200 rounded-xl text-orange-800 text-sm font-semibold">
                         <ShieldAlert size={18} className="shrink-0 mt-0.5" />
-                        <p>
-                          Ensure the amount is correct to avoid negative overall
-                          stock.
-                        </p>
+                        <p>Ensure the amount is correct to avoid negative overall stock.</p>
                       </div>
                     )}
 
@@ -590,9 +510,7 @@ export default function StockAdjustment() {
                   <div className="p-2 bg-white rounded-lg text-[#0f766e] shadow-sm">
                     <ListChecks size={20} />
                   </div>
-                  <h3 className="font-bold text-[#0d5e4d] text-lg">
-                    Pending List
-                  </h3>
+                  <h3 className="font-bold text-[#0d5e4d] text-lg">Pending List</h3>
                 </div>
                 <span className="bg-[#0f766e] text-white text-xs font-bold px-3 py-1 rounded-full shadow-inner">
                   {pendingRecords.length} Items
@@ -608,10 +526,7 @@ export default function StockAdjustment() {
                 ) : (
                   <div className="space-y-3">
                     {pendingRecords.map((record) => (
-                      <div
-                        key={record.id}
-                        className="p-4 border border-gray-200 rounded-xl bg-white relative group shadow-sm hover:border-[#2dd4bf] transition-colors"
-                      >
+                      <div key={record.id} className="p-4 border border-gray-200 rounded-xl bg-white relative group shadow-sm hover:border-[#2dd4bf] transition-colors">
                         <button
                           onClick={() => handleRemoveFromList(record.id)}
                           className="absolute top-2 right-2 text-gray-300 hover:text-red-500 bg-gray-50 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
@@ -621,19 +536,17 @@ export default function StockAdjustment() {
                         </button>
 
                         <div className="flex items-center gap-2 mb-2">
-                          <span
-                            className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${record.itemType === "tea" ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"}`}
-                          >
+                          <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
+                            record.itemType === "tea" ? "bg-green-100 text-green-800" 
+                            : record.itemType === "spicy" ? "bg-blue-100 text-blue-800" 
+                            : "bg-orange-100 text-orange-800"
+                          }`}>
                             {record.itemType}
                           </span>
-                          <span className="text-[10px] text-gray-400 font-semibold">
-                            {record.date}
-                          </span>
+                          <span className="text-[10px] text-gray-400 font-semibold">{record.date}</span>
                         </div>
 
-                        <h4 className="font-bold text-gray-800 text-sm mb-2 pr-6">
-                          {record.itemName}
-                        </h4>
+                        <h4 className="font-bold text-gray-800 text-sm mb-2 pr-6">{record.itemName}</h4>
 
                         <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
                           {record.action === "add" ? (
@@ -645,14 +558,8 @@ export default function StockAdjustment() {
                               <ArrowUpCircle size={12} /> Issue
                             </span>
                           )}
-                          <span
-                            className={`font-black ${record.action === "add" ? "text-teal-600" : "text-red-600"}`}
-                          >
-                            {record.action === "add" ? "+" : "-"}
-                            {record.amount}{" "}
-                            <span className="text-[10px] text-gray-400">
-                              {record.unit}
-                            </span>
+                          <span className={`font-black ${record.action === "add" ? "text-teal-600" : "text-red-600"}`}>
+                            {record.action === "add" ? "+" : "-"}{record.amount} <span className="text-[10px] text-gray-400">{record.unit}</span>
                           </span>
                         </div>
                       </div>
@@ -667,12 +574,12 @@ export default function StockAdjustment() {
                   disabled={isSavingAll || pendingRecords.length === 0}
                   className={`w-full py-3.5 rounded-xl text-white text-base uppercase tracking-wider font-bold flex justify-center items-center gap-2 shadow-lg transition-all ${isSavingAll || pendingRecords.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-gradient-to-r from-[#0f766e] to-[#0d9488] hover:-translate-y-0.5 hover:shadow-teal-500/30"}`}
                 >
-                  <Save size={20} />{" "}
-                  {isSavingAll ? "Saving..." : "Save All Records"}
+                  <Save size={20} /> {isSavingAll ? "Saving..." : "Save All Records"}
                 </button>
               </div>
             </div>
           </div>
+
         </div>
       </div>
     </div>
