@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Edit3, ArrowDownCircle, ArrowUpCircle, Search, ShieldAlert, Calendar, ArrowLeft } from 'lucide-react';
+import { Edit3, ArrowDownCircle, ArrowUpCircle, Calendar, ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 const THEME = {
@@ -11,7 +11,7 @@ const THEME = {
 };
 
 export default function EditStockAdjustment() {
-    const { id } = useParams(); // Get ID from URL
+    const { id } = useParams();
     const navigate = useNavigate();
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     
@@ -26,7 +26,6 @@ export default function EditStockAdjustment() {
     const [amount, setAmount] = useState('');
     const [reason, setReason] = useState('');
 
-    // Fetch Existing Data on Mount
     useEffect(() => {
         fetchAdjustmentDetails();
     }, [id]);
@@ -39,19 +38,30 @@ export default function EditStockAdjustment() {
             });
             
             if (!res.ok) throw new Error("Failed to fetch log details");
-            const data = await res.json();
+            const resData = await res.json();
 
-            // Populate States
-            setDate(new Date(data.createdAt).toISOString().split('T')[0]);
-            setActiveTab(data.itemType);
-            setSelectedItem(data.itemName);
-            setAdjustmentType(data.action);
-            setAmount(data.amount);
+            // Handle both { data: {...} } and {...} formats commonly used in Express/Nest backends
+            const data = resData.data || resData;
+
+            // Use the actual 'date' field if available, fallback to 'createdAt'
+            if (data.date) {
+                setDate(data.date.split('T')[0]);
+            } else if (data.createdAt) {
+                setDate(new Date(data.createdAt).toISOString().split('T')[0]);
+            } else {
+                setDate(new Date().toISOString().split('T')[0]);
+            }
+            
+            setActiveTab(data.itemType || 'tea');
+            setSelectedItem(data.itemName || '');
+            setAdjustmentType(data.action || 'add');
+            setAmount(data.amount || '');
             setReason(data.reason || '');
 
         } catch (error) {
+            console.error(error);
             toast.error("Error loading adjustment details");
-            navigate('/packing/stock-adjustment-view'); // Go back on error
+            navigate('/packing/stock-adjustment-view');
         } finally {
             setIsLoading(false);
         }
@@ -71,6 +81,7 @@ export default function EditStockAdjustment() {
         try {
             const token = localStorage.getItem('token');
             const payload = {
+                _id: id, // Including ID in the body (Sometimes required by specific backends)
                 date,
                 itemType: activeTab,
                 itemName: selectedItem,
@@ -89,13 +100,19 @@ export default function EditStockAdjustment() {
             });
 
             if (!res.ok) {
-                const errData = await res.json();
-                throw new Error(errData.message || "Update failed");
+                let errorMessage = "Update failed";
+                try {
+                    // Try to parse the backend error message
+                    const errData = await res.json();
+                    errorMessage = errData.message || errData.error || errorMessage;
+                } catch (e) {
+                    errorMessage = `Error ${res.status}: Details could not be fetched`;
+                }
+                throw new Error(errorMessage);
             }
 
             toast.success("Adjustment Updated Successfully!", { id: toastId });
             
-            // Redirect back to History Page
             setTimeout(() => navigate('/packing/stock-adjustment-view'), 1000);
             
         } catch (error) {
@@ -108,13 +125,15 @@ export default function EditStockAdjustment() {
     const inputStyles = "w-full p-3.5 bg-gray-50 border border-teal-200 rounded-xl font-medium text-gray-700 focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all";
 
     if (isLoading) {
-        return <div className="min-h-screen flex items-center justify-center bg-[#f3faf7]">
-            <div className="w-10 h-10 border-4 border-teal-200 border-t-teal-700 rounded-full animate-spin"></div>
-        </div>;
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#f3faf7]">
+                <div className="w-10 h-10 border-4 border-teal-200 border-t-teal-700 rounded-full animate-spin"></div>
+            </div>
+        );
     }
 
     return (
-        <div className="min-h-screen p-4 sm:p-6 md:p-8 font-sans" style={{ backgroundColor: THEME.pageBg }}>     
+        <div className="min-h-screen p-4 sm:p-6 md:p-8 font-sans" style={{ backgroundColor: THEME.pageBg }}>    
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center gap-4 mb-8">
