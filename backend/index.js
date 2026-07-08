@@ -3,6 +3,8 @@ import bodyParser from 'body-parser';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import webpush from 'web-push'; // --- Web Push Import
+
 import greenLeafRouter from './router/greenLeafRouter.js';
 import productionRouter from './router/productionRouter.js';
 import dehydratorRouter from './router/dehydratorRouter.js';
@@ -35,6 +37,14 @@ import labourOutputRouter from './factory/router/labourOutputRoutes.js';
 
 dotenv.config();
 const app = express();
+
+// --- Web Push VAPID Setup (Aluthin) ---
+// VAPID keys .env file eken gannawa
+webpush.setVapidDetails(
+  process.env.EMAIL,
+  process.env.PUBLIC_VAPID_KEY,
+  process.env.PRIVATE_VAPID_KEY
+);
 
 // Enable CORS for all routes
 app.use(cors());
@@ -81,9 +91,27 @@ app.use('/api/restore-tea-stock', restoreTeaStockRouter);
 app.use('/api/factory-balance', factoryrouter);
 app.use('/api/factory-logs', factoryrouter);
 app.use('/api/labour-output', labourOutputRouter);
-
 app.use('/api/stock-adjustment', StockAdjustmentRouter);
 
+// --- Push Notification Subscribe Route (Aluthin) ---
+app.post('/api/notifications/subscribe', (req, res) => {
+  const subscription = req.body;
+  
+  // NOTE: Methanadi thamai oyage user ge database record ekata me 'subscription' object eka save karanna oni. 
+  // (e.g., User.findByIdAndUpdate(userId, { pushSubscription: subscription }))
+
+  res.status(201).json({ message: "Subscription received successfully." });
+
+  // App eka open karalama test karala balanna welcome notification ekak
+  const payload = JSON.stringify({ 
+    title: 'Unified Management System', 
+    body: 'Welcome to the Athukorala Group! You will now receive notifications.' 
+  });
+
+  webpush.sendNotification(subscription, payload)
+    .catch(err => console.error('Notification sending error:', err));
+});
+// ----------------------------------------------------
 
 app.listen(3000, () => {
   console.log('Server is running on port 3000');

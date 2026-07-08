@@ -66,7 +66,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const DATA = {
   factory: {
     name: 'Athukorala Group',
-    plan: 'Packing Section',
+    plan: 'Factory Section',
     logo: () => <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain" />,
   },
   quickLinks: [

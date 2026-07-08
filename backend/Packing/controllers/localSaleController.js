@@ -3,13 +3,13 @@ import PackingStock from '../models/PackingStock.js';
 import RawMaterialStock from '../models/RawMaterialStock.js';
 
 // --- NEW LOGIC: BASE TEA MAPPING (Should match frontend) ---
+// --- NEW LOGIC: BASE TEA MAPPING ---
 const getBaseTeaGrade = (productName) => {
     if (!productName) return "";
     const p = productName.toLowerCase().trim();
 
     const bopf = ["lemongrass - bopf", "cinnamon tea - bopf", "ginger tea - bopf", "masala tea - bopf", "pineapple tea", "mix fruit", "peach", "strawberry", "jasmin - bopf", "mango tea", "carmel", "honey", "earl grey", "lime", "soursop - bopf", "cardamom", "gift pack", "guide issue-bopf"];
     const bopfSp = ["english breakfast", "cinnamon tea - bopf sp", "ginger tea - bopf sp", "masala tea - bopf sp", "vanilla", "mint - bopf sp", "moringa - bopf sp", "curry leaves - bopf sp", "gotukola - bopf sp", "heen bovitiya - bopf sp", "black t/b", "english afternoon", "awurudu special"];
-    const greenTea = ["lemongrass - green tea", "g/t lemangrass", "mint - green tea", "soursop - green tea", "moringa - green tea", "curry leaves - green tea", "heen bovitiya - green tea", "gotukola - green tea", "jasmin - green tea", "green tea t/b"];
     const pekoe = ["pekoe", "rose tea"];
     const ff = ["ceylon premium - ff"];
     const op = ["op", "hibiscus"];
@@ -27,9 +27,9 @@ const getBaseTeaGrade = (productName) => {
 
     if (p.includes("labour")) return "BOPF";
     if (p.includes("awurudu special")) return "BOPF SP";
+    if (p.includes("green tea")) return "Green Tea"; // ADDED: Matches any type of green tea (e.g., Green tea bag (25))
     if (bopf.includes(p)) return "BOPF";
     if (bopfSp.includes(p)) return "BOPF SP";
-    if (greenTea.includes(p)) return "Green Tea";
     if (pekoe.includes(p)) return "Pekoe";
     if (ff.includes(p)) return "FF";
     if (op.includes(p)) return "OP";
@@ -41,7 +41,6 @@ const getBaseTeaGrade = (productName) => {
 
 // @desc    Create a new local sale record
 // @route   POST /api/local-sales
-// @access  Private
 export const createLocalSale = async (req, res) => {
     try {
         const { date, totalBoxes, totalQtyKg, salesItems } = req.body;
@@ -59,16 +58,26 @@ export const createLocalSale = async (req, res) => {
 
         // 👇 AUTOMATED INVENTORY DEDUCTION LOGIC 👇
         for (const item of salesItems) {
+            
             // ==========================================
             // 1. DEDUCT FROM TEA STOCK (PackingStock)
             // ==========================================
             let remainingToDeduct = Number(item.baseTeaQtyKg) || Number(item.totalQtyKg);
             const baseGradeName = getBaseTeaGrade(item.product);
-            const stock = await PackingStock.findOne({ productName: baseGradeName });
+            
+            // FIX 1: Case-Insensitive Search එකක් දැමීම
+            const stock = await PackingStock.findOne({ 
+                productName: { $regex: new RegExp(`^${baseGradeName}$`, 'i') } 
+            });
 
             if (stock) {
                 const originalDeductAmount = remainingToDeduct;
 
+                // FIX 2: අනිවාර්යයෙන්ම පළමුව Main Stock එකෙන් අඩු කිරීම
+                stock.totalBulkStockKg -= originalDeductAmount;
+                if (stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
+
+                // ඉන්පසු Source (Factory/Other) වලින් අඩු කිරීම
                 if (stock.stockBySource && stock.stockBySource.length > 0) {
                     for (let source of stock.stockBySource) {
                         if (remainingToDeduct <= 0) break; 
@@ -89,14 +98,10 @@ export const createLocalSale = async (req, res) => {
                     }
                 }
 
-                const successfullyDeducted = originalDeductAmount - remainingToDeduct;
-                stock.totalBulkStockKg -= successfullyDeducted;
-                if (stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
-
                 await stock.save();
 
                 if (remainingToDeduct > 0) {
-                    console.warn(`Warning: Local Sale issued ${item.totalQtyKg}kg of ${item.product} (Base: ${baseGradeName}) but bulk stock was short by ${remainingToDeduct}kg.`);
+                    console.warn(`Warning: Sources did not fully cover ${originalDeductAmount}kg for ${baseGradeName}. Total stock was still updated.`);
                 }
             } else {
                 console.warn(`Warning: Base product ${baseGradeName} not found in inventory.`);
@@ -107,8 +112,8 @@ export const createLocalSale = async (req, res) => {
             // ==========================================
             if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
                 const rmDeductAmount = Number(item.rawMaterialQtyKg);
-                
-                const rmStock = await RawMaterialStock.findOne({ materialName: item.rawMaterialName });
+                // Case Insensitive Search
+                const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${item.rawMaterialName}$`, 'i') } });
 
                 if (rmStock) {
                     rmStock.totalQuantity -= rmDeductAmount;
@@ -116,8 +121,6 @@ export const createLocalSale = async (req, res) => {
 
                     if (rmStock.totalQuantity < 0) rmStock.totalQuantity = 0; 
                     await rmStock.save();
-                } else {
-                    console.warn(`Warning: Raw Material (Flavor) ${item.rawMaterialName} not found in stock.`);
                 }
             }
 
@@ -127,7 +130,7 @@ export const createLocalSale = async (req, res) => {
             if (item.packingMaterials && item.packingMaterials.length > 0) {
                 for (const pm of item.packingMaterials) {
                     if (pm.name && Number(pm.qty) > 0) {
-                        const pmStock = await RawMaterialStock.findOne({ materialName: pm.name });
+                        const pmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${pm.name}$`, 'i') } });
                         
                         if (pmStock) {
                             pmStock.totalQuantity -= Number(pm.qty);
@@ -135,8 +138,6 @@ export const createLocalSale = async (req, res) => {
                             
                             if (pmStock.totalQuantity < 0) pmStock.totalQuantity = 0;
                             await pmStock.save();
-                        } else {
-                            console.warn(`Warning: Packing Material ${pm.name} not found in stock.`);
                         }
                     }
                 }
