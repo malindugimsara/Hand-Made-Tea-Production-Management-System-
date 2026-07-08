@@ -119,19 +119,79 @@ export const updateStockAdjustment = async (req, res) => {
         const { id } = req.params;
         const { date, itemType, itemName, action, amount, reason } = req.body;
         
-        // Validation: Cannot change Item or Type
         const log = await StockAdjustmentLog.findById(id);
+        if (!log) return res.status(404).json({ message: "Log not found" });
+
+        // Validation: Cannot change Item or Type
         if (log.itemName !== itemName || log.itemType !== itemType) {
             return res.status(400).json({ message: "Cannot change Item/Type during edit." });
         }
 
-        // Logic is identical to DELETE + ADJUST (reverse old, apply new)
-        // ... (Re-use the same logic as deleteStockAdjustment to reverse oldAmount/oldAction)
-        // ... (Then run the same logic as adjustStock to apply newAmount/action)
-        
-        // Save new log details...
-        res.status(200).json({ message: "Updated successfully" });
+        const oldAction = log.action;
+        const oldAmount = log.amount;
+        const newAction = action;
+        const newAmount = Number(amount);
+
+        // Update Tea Stock
+        if (itemType === 'tea') {
+            const stock = await PackingStock.findOne({ productName: itemName });
+            if (!stock) return res.status(404).json({ message: "Tea product not found" });
+
+            // 1. Reverse the old action
+            if (oldAction === 'add') stock.totalBulkStockKg -= oldAmount;
+            else stock.totalBulkStockKg += oldAmount;
+
+            // 2. Apply the new action
+            if (newAction === 'add') {
+                stock.totalBulkStockKg += newAmount;
+            } else {
+                if (stock.totalBulkStockKg < newAmount) {
+                    return res.status(400).json({ message: "Insufficient stock for this update!" });
+                }
+                stock.totalBulkStockKg -= newAmount;
+            }
+            await stock.save();
+
+        // Update Raw Materials OR Spicy Stock
+        } else if (itemType === 'raw' || itemType === 'spicy') {
+            const rawStock = await RawMaterialStock.findOne({ materialName: itemName });
+            if (!rawStock) return res.status(404).json({ message: "Material/Spice not found" });
+
+            // 1. Reverse the old action
+            if (oldAction === 'add') {
+                rawStock.totalQuantity -= oldAmount;
+                rawStock.transInAmount = Math.max(0, (rawStock.transInAmount || 0) - oldAmount);
+            } else {
+                rawStock.totalQuantity += oldAmount;
+                rawStock.issueAmount = Math.max(0, (rawStock.issueAmount || 0) - oldAmount);
+            }
+
+            // 2. Apply the new action
+            if (newAction === 'add') {
+                rawStock.totalQuantity += newAmount;
+                rawStock.transInAmount = (rawStock.transInAmount || 0) + newAmount;
+            } else {
+                if (rawStock.totalQuantity < newAmount) {
+                    return res.status(400).json({ message: "Insufficient stock for this update!" });
+                }
+                rawStock.totalQuantity -= newAmount;
+                rawStock.issueAmount = (rawStock.issueAmount || 0) + newAmount;
+            }
+            await rawStock.save();
+        }
+
+        // 3. Update and save the Log Entry itself
+        log.action = newAction;
+        log.amount = newAmount;
+        log.reason = reason;
+        if (date) {
+            log.createdAt = new Date(date);
+        }
+        await log.save();
+
+        res.status(200).json({ message: "Updated successfully", data: log });
     } catch (error) {
+        console.error("Update Error:", error);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };

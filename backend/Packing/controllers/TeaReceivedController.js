@@ -303,7 +303,7 @@ export const createTeaReceivedRecord = async (req, res) => {
                     sourceObj.transInAmount = (sourceObj.transInAmount || 0) + incomingQty;
                 } else {
                     stock.stockBySource.push({ 
-                        sourceName: 'Manual', 
+                        sourceName: 'Factory', 
                         quantityKg: incomingQty,
                         transInAmount: incomingQty, 
                         issueAmount: 0 
@@ -316,7 +316,7 @@ export const createTeaReceivedRecord = async (req, res) => {
                 const newStock = new PackingStock({
                     productName: productName,
                     stockBySource: [{ 
-                        sourceName: 'Manual', 
+                        sourceName: 'Factory', 
                         quantityKg: incomingQty,
                         transInAmount: incomingQty, 
                         issueAmount: 0
