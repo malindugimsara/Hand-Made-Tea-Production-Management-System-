@@ -4,6 +4,9 @@ import { Filter, RefreshCcw, FileSpreadsheet, AlertCircle, Edit, Trash2 } from "
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
+// IMPORT EXCEL STYLING LIBRARY (Make sure you ran: npm install xlsx-js-style)
+import * as XLSX from 'xlsx-js-style';
+
 // Import your Dialog components
 import {
     AlertDialog,
@@ -35,7 +38,6 @@ const LabourOutputTable = () => {
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            // Note: Append your filter states to this URL when you implement backend filtering
             const response = await fetch('http://localhost:3000/api/labour-output');
             if (!response.ok) {
                 throw new Error(`Error fetching data: ${response.statusText}`);
@@ -58,7 +60,7 @@ const LabourOutputTable = () => {
         } finally {
             setIsLoading(false);
         }
-    }, []); // Add filter dependencies here if you want it to re-fetch automatically
+    }, []);
 
     // Fetch on mount
     useEffect(() => {
@@ -67,7 +69,6 @@ const LabourOutputTable = () => {
 
     // --- Action Handlers ---
     const handleEditClick = (groupData) => {
-        // Navigates to the labour output edit page and passes the grouped data
         navigate("/factory/labouroutput/edit", { state: { recordData: groupData } });
     };
 
@@ -76,8 +77,6 @@ const LabourOutputTable = () => {
         const toastId = toast.loading("Deleting records...");
 
         try {
-            // Note: Adjust this URL to match your backend's delete route for this specific feature.
-            // Since data is grouped by date, we delete by date here.
             const response = await fetch(`http://localhost:3000/api/labour-output/date/${recordToDelete.date}`, {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" }
@@ -88,7 +87,7 @@ const LabourOutputTable = () => {
             }
 
             toast.success("Records deleted successfully!", { id: toastId });
-            fetchData(); // Refresh the table
+            fetchData(); 
         } catch (error) {
             console.error("Delete Error:", error);
             toast.error(error.message || "Failed to delete record.", { id: toastId });
@@ -97,7 +96,7 @@ const LabourOutputTable = () => {
         }
     };
 
-    // --- Helper for PDF File Name & Subtitle ---
+    // --- Helper for File Name & Subtitle ---
     const getPeriodText = () => {
         if (fromDate && toDate) return `${fromDate} to ${toDate}`;
         if (month) return month;
@@ -120,6 +119,128 @@ const LabourOutputTable = () => {
                 avgLabourOutput.toFixed(2)
             ];
         });
+    };
+
+    // =======================================================================
+    // --- EXCEL EXPORT LOGIC (WITH CUSTOM UI COLORS) ---
+    // =======================================================================
+    const exportToExcel = () => {
+        if (groupedData.length === 0) {
+            toast.error("No data to export.");
+            return;
+        }
+
+        // Generate dynamic rows mimicking the UI grouping
+        const dataRows = groupedData.map(group => {
+            const { date, entries } = group;
+            const sections = entries.map(item => item.section).join(', ');
+            const totalWorkers = entries.reduce((sum, item) => sum + (item.noOfLabours || 0), 0);
+            const totalOtHours = entries.reduce((sum, item) => sum + (item.otHours || 0), 0);
+            const avgLabourOutput = entries.length > 0 
+                ? entries.reduce((sum, item) => sum + (item.labourOutput || 0), 0) / entries.length 
+                : 0;
+
+            return [
+                date,
+                sections,
+                Number(totalWorkers),
+                Number(totalOtHours.toFixed(2)),
+                Number(avgLabourOutput.toFixed(2))
+            ];
+        });
+
+        const tableData = [
+            [`LABOUR OUTPUT REPORT`],
+            [`Period: ${getPeriodText()}`],
+            [`Generated on ${new Date().toLocaleString()}`],
+            [""], // Spacer
+            ["DATE", "SECTIONS", "TOTAL WORKERS", "TOTAL O/T HOURS", "AVG LABOUR OUTPUT"],
+            ...dataRows
+        ];
+
+        const worksheet = XLSX.utils.aoa_to_sheet(tableData);
+
+        // Merges for titles
+        worksheet['!merges'] = [
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Title
+            { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } }, // Subtitle
+            { s: { r: 2, c: 0 }, e: { r: 2, c: 4 } }, // Timestamp
+        ];
+
+        // Styles
+        const borderAll = {
+            top: { style: "thin", color: { rgb: "CBD5E1" } },
+            bottom: { style: "thin", color: { rgb: "CBD5E1" } },
+            left: { style: "thin", color: { rgb: "CBD5E1" } },
+            right: { style: "thin", color: { rgb: "CBD5E1" } }
+        };
+
+        const centerAlign = { horizontal: "center", vertical: "center", wrapText: true };
+        const leftAlign = { horizontal: "left", vertical: "center", wrapText: true };
+
+        const titleStyle = { font: { bold: true, sz: 16, color: { rgb: "1B6A31" } } };
+        const subtitleStyle = { font: { italic: true, sz: 10, color: { rgb: "64748B" } } };
+
+        const headerStyle = {
+            fill: { fgColor: { rgb: "1B6A31" } }, // Dark Green Header
+            font: { bold: true, color: { rgb: "FFFFFF" } },
+            alignment: centerAlign,
+            border: borderAll
+        };
+
+        const bodyEven = { alignment: centerAlign, border: borderAll };
+        const bodyOdd = { fill: { fgColor: { rgb: "F9FAFB" } }, alignment: centerAlign, border: borderAll };
+        const bodyLeftEven = { alignment: leftAlign, border: borderAll };
+        const bodyLeftOdd = { fill: { fgColor: { rgb: "F9FAFB" } }, alignment: leftAlign, border: borderAll };
+
+        // Highlight for Avg Output (matches the blue block in your UI)
+        const highlightEven = { font: { bold: true, color: { rgb: "2563EB" } }, fill: { fgColor: { rgb: "EFF6FF" } }, alignment: centerAlign, border: borderAll };
+        const highlightOdd = { font: { bold: true, color: { rgb: "2563EB" } }, fill: { fgColor: { rgb: "DBEAFE" } }, alignment: centerAlign, border: borderAll };
+
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                if (!worksheet[cellAddress]) worksheet[cellAddress] = { t: 's', v: '' };
+
+                if (R === 0) worksheet[cellAddress].s = titleStyle;
+                else if (R === 1 || R === 2) worksheet[cellAddress].s = subtitleStyle;
+                else if (R === 3) continue; // Spacer
+                else if (R === 4) worksheet[cellAddress].s = headerStyle;
+                else {
+                    const isOddRow = R % 2 !== 0;
+                    
+                    if (C === 1) { // Sections Column (Left Align)
+                        worksheet[cellAddress].s = isOddRow ? bodyLeftOdd : bodyLeftEven;
+                    } else if (C === 4) { // Avg Labour Output (Blue Highlight)
+                        worksheet[cellAddress].s = isOddRow ? highlightOdd : highlightEven;
+                    } else { // General numbers
+                        worksheet[cellAddress].s = isOddRow ? bodyOdd : bodyEven;
+                    }
+
+                    if (C >= 3 && typeof worksheet[cellAddress].v === 'number') {
+                        worksheet[cellAddress].z = "#,##0.00"; // Format to 2 decimal places
+                    }
+                }
+            }
+        }
+
+        // Set specific column widths
+        worksheet['!cols'] = [
+            { wch: 15 }, // DATE
+            { wch: 45 }, // SECTIONS (Wide for lists)
+            { wch: 20 }, // TOTAL WORKERS
+            { wch: 20 }, // TOTAL O/T HOURS
+            { wch: 25 }, // AVG LABOUR OUTPUT
+        ];
+
+        worksheet['!rows'] = [
+            { hpt: 30 }, { hpt: 15 }, { hpt: 20 }, { hpt: 10 }, { hpt: 30 }
+        ];
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Labour Output");
+        XLSX.writeFile(workbook, `Labour_Output_${getPeriodText().replace(/ /g, "_")}.xlsx`);
     };
 
     return (
@@ -145,7 +266,11 @@ const LabourOutputTable = () => {
                         <RefreshCcw size={18} className={isLoading ? "animate-spin" : ""} /> Refresh
                     </button>
 
-                    <button className="px-4 py-2 h-[42px] bg-white dark:bg-gray-800 text-[#1B6A31] dark:text-green-400 border border-[#1B6A31] dark:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all">
+                    {/* NEW: Export to Excel Button bound to exportToExcel() */}
+                    <button 
+                        onClick={exportToExcel}
+                        className="px-4 py-2 h-[42px] bg-white dark:bg-gray-800 text-[#1B6A31] dark:text-green-400 border border-[#1B6A31] dark:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all"
+                    >
                         <FileSpreadsheet size={18} /> Export Excel
                     </button>
 
@@ -169,8 +294,8 @@ const LabourOutputTable = () => {
                         autoTableOptions={{
                             theme: "grid",
                             headStyles: {
-                                fillColor: [243, 244, 246],
-                                textColor: [55, 65, 81],
+                                fillColor: [27, 106, 49], // Replaced gray with Dark Green
+                                textColor: [255, 255, 255], // White text
                                 lineColor: [209, 213, 219],
                                 lineWidth: 0.1,
                                 fontStyle: "bold",

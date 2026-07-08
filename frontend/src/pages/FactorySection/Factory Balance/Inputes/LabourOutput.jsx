@@ -4,11 +4,9 @@ import { Save, Users, Clock, Activity, Plus, Trash2, Calculator, Calendar } from
 import { useNavigate } from 'react-router-dom';
 
 export default function LabourOutput() {
-    // දෝෂය මගහැරීම සඳහා මෙහි දෘඪ කේතනය (hardcode) කර ඇත
-    const BACKEND_URL = "http://localhost:3000";
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
     const navigate = useNavigate();
 
-    // අඳුරු තේමාව (Dark Mode) තත්වය
     const [isDarkMode, setIsDarkMode] = useState(() => {
         return localStorage.getItem('theme') === 'dark' || false;
     });
@@ -17,24 +15,20 @@ export default function LabourOutput() {
     const userRole = localStorage.getItem('userRole') || '';
     const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
 
-    // ගෝලීය දිනය (Global Date) තත්වය
     const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0]);
 
-    // පෝරමයේ තත්වය (වත්මන් ආදානය)
     const [formData, setFormData] = useState({
         section: '',
         noOfLabours: '',
         otHours: '',
     });
 
-    // පෝලිමේ තත්වය (Queue State)
     const [pendingRecords, setPendingRecords] = useState([]);
 
     const [madeTeaToday, setMadeTeaToday] = useState(0);
     const [isLoadingTea, setIsLoadingTea] = useState(false);
     const [isSavingAll, setIsSavingAll] = useState(false);
 
-    // අඳුරු තේමාව වෙනස් කිරීමේ ක්‍රියාවලිය
     useEffect(() => {
         if (isDarkMode) {
             document.documentElement.classList.add('dark');
@@ -45,7 +39,6 @@ export default function LabourOutput() {
         }
     }, [isDarkMode]);
 
-    // දිනය වෙනස් වන විට කර්මාන්තශාලා ලඝු-සටහන් වලින් සාදන ලද තේ (Made Tea) ලබා ගැනීම
     useEffect(() => {
         const fetchMadeTeaForDate = async () => {
             setIsLoadingTea(true);
@@ -126,7 +119,7 @@ export default function LabourOutput() {
         setPendingRecords(pendingRecords.filter((_, index) => index !== indexToRemove));
     };
 
-    // --- සජීවී ගණනය කිරීම් (ලැයිස්තුව + වත්මන් ආදානය) ---
+    // --- Live Calculations ---
     const currentLabours = Number(formData.noOfLabours) || 0;
     const currentOtHours = Number(formData.otHours) || 0;
 
@@ -141,7 +134,7 @@ export default function LabourOutput() {
     const labourOutput = totalShifts > 0 ? (madeTeaToday / totalShifts) : 0;
     // ------------------------------------------------
 
-    // --- සියල්ල එකවර සුරැකීමේ (Bulk Save) තර්කය ---
+    // --- Bulk Save Handler ---
     const handleSaveAll = async () => {
         if (pendingRecords.length === 0) {
             toast.error("Please add at least one section to the list.");
@@ -154,7 +147,6 @@ export default function LabourOutput() {
             const token = localStorage.getItem('token');
             const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
-            // 1. සියලුම දත්ත එකම ලැයිස්තුවකට (Array) ගොනු කිරීම
             const finalLabourOutput = totalShifts > 0 ? (madeTeaToday / totalShifts) : 0;
 
             const recordsToSave = pendingRecords.map(record => {
@@ -163,6 +155,7 @@ export default function LabourOutput() {
 
                 return {
                     date: recordDate,
+                    madeTea: madeTeaToday, // Added to prevent Mongoose validation error
                     section: record.section,
                     noOfLabours: record.noOfLabours,
                     otHours: record.otHours,
@@ -172,7 +165,6 @@ export default function LabourOutput() {
                 };
             });
 
-            // 2. සියලුම දත්ත එකම ඉල්ලීමක් (Single Request) හරහා යැවීම
             const res = await fetch(`${BACKEND_URL}/api/labour-output`, {
                 method: 'POST',
                 headers: authHeaders,
@@ -182,14 +174,19 @@ export default function LabourOutput() {
             if (!res.ok) throw new Error("Failed to save records to the database.");
 
             toast.success("All labour records saved successfully!", { id: toastId });
-            setPendingRecords([]); // Clear list on success
+            setPendingRecords([]); 
+            
+            // --- REDIRECT HAPPENS HERE ---
+            setTimeout(() => {
+                navigate("/factory/labouroutputlist");
+            }, 600); // Tiny delay so the user sees the success message
+
         } catch (error) {
             toast.error(error.message || "Error saving records.", { id: toastId });
         } finally {
             setIsSavingAll(false);
         }
     };
-    // -------------------------
 
     const inputStyles = "w-full p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-bold text-gray-700 dark:text-gray-200 focus:ring-4 focus:ring-teal-500/20 dark:focus:ring-teal-400/20 focus:outline-none transition-all";
 
@@ -242,14 +239,11 @@ export default function LabourOutput() {
                                     <Activity size={20} /> Input Fields
                                 </h3>
 
-                                {/* 3 INPUTS + BUTTON IN ONE ROW */}
                                 <form onSubmit={handleAddToList} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                                     <div className="md:col-span-4">
                                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1.5">
                                             Select or Type Section
                                         </label>
-                                        
-                                        {/* Select එක වෙනුවට Input එකක් පාවිච්චි කරනවා, ඒකට list එකක් link කරනවා */}
                                         <input
                                             type="text"
                                             list="section-options"
@@ -261,8 +255,6 @@ export default function LabourOutput() {
                                             className={`${inputStyles} text-sm w-full`}
                                             autoComplete="off"
                                         />
-                                        
-                                        {/* Input එකට පෙන්නන්න ඕන options ටික datalist එක ඇතුළෙ දෙනවා */}
                                         <datalist id="section-options">
                                             <option value="Withering" />
                                             <option value="Rolling" />
@@ -346,7 +338,6 @@ export default function LabourOutput() {
                     {/* RIGHT SIDE (Live Calculations matching image) */}
                     <div className="xl:col-span-5">
                         <div className="bg-white dark:bg-gray-800 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-700 sticky top-6 overflow-hidden transition-colors">
-
                             <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3">
                                 <div className="p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300">
                                     <Calculator size={20} />

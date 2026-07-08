@@ -22,9 +22,12 @@ const LabourOutputEdit = () => {
 
     // --- Form State ---
     const [recordDate, setRecordDate] = useState("");
-    const [madeTea, setMadeTea] = useState(0);
     const [sections, setSections] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
+
+    // --- Auto Fetch Made Tea State ---
+    const [madeTeaToday, setMadeTeaToday] = useState(0);
+    const [isLoadingTea, setIsLoadingTea] = useState(false);
 
     // --- Live Calculation State ---
     const [liveMetrics, setLiveMetrics] = useState({
@@ -46,20 +49,51 @@ const LabourOutputEdit = () => {
         // Populate sections from the existing entries
         if (groupData.entries && groupData.entries.length > 0) {
             const mappedSections = groupData.entries.map(entry => ({
-                id: entry._id || Math.random().toString(36).substr(2, 9), // Keep ID for updates
+                id: entry._id || Math.random().toString(36).substr(2, 9),
                 section: entry.section || "",
                 noOfLabours: entry.noOfLabours || "",
                 otHours: entry.otHours || ""
             }));
             setSections(mappedSections);
-
-            // Assuming Made Tea is the same for the whole day, grab it from the first entry
-            setMadeTea(groupData.entries[0].madeTea || 0);
         } else {
-            // Fallback empty row if no entries
             setSections([{ id: Date.now(), section: "", noOfLabours: "", otHours: "" }]);
         }
     }, [groupData, navigate]);
+
+    // --- FETCH MADE TEA FROM DAILY PRODUCTION ---
+    useEffect(() => {
+        if (!recordDate) return;
+
+        const fetchMadeTea = async () => {
+            setIsLoadingTea(true);
+            try {
+                const token = localStorage.getItem('token');
+                const month = recordDate.substring(0, 7); // Extract YYYY-MM
+                const response = await fetch(`${BACKEND_URL}/api/factory-logs?month=${month}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    // Find the log for this specific date
+                    const dailyLog = data.records?.find(r => r.date.split('T')[0] === recordDate);
+                    
+                    // Extract Made Tea (Check both nested and flat structures based on your DB)
+                    const teaAmount = dailyLog?.madeTea?.today || dailyLog?.calculatedMadeTea || 0;
+                    setMadeTeaToday(teaAmount);
+                } else {
+                    setMadeTeaToday(0);
+                }
+            } catch (error) {
+                console.error("Failed to fetch made tea", error);
+                setMadeTeaToday(0);
+            } finally {
+                setIsLoadingTea(false);
+            }
+        };
+
+        fetchMadeTea();
+    }, [recordDate, BACKEND_URL]);
 
     // --- Live Calculations Effect ---
     useEffect(() => {
@@ -71,17 +105,16 @@ const LabourOutputEdit = () => {
             totalOtHours += Number(sec.otHours) || 0;
         });
 
-        // Calculations strictly based on your UI screenshot
         const otShifts = totalOtHours / 5.5;
         const totalEquivalentShifts = totalLabours + otShifts;
-        const finalOutput = totalEquivalentShifts > 0 ? (Number(madeTea) / totalEquivalentShifts) : 0;
+        const finalOutput = totalEquivalentShifts > 0 ? (Number(madeTeaToday) / totalEquivalentShifts) : 0;
 
         setLiveMetrics({
             otShifts,
             totalEquivalentShifts,
             finalOutput
         });
-    }, [sections, madeTea]);
+    }, [sections, madeTeaToday]);
 
     // --- Section Handlers ---
     const handleAddSection = () => {
@@ -100,7 +133,6 @@ const LabourOutputEdit = () => {
 
     // --- Save Handler ---
     const handleSave = async () => {
-        // Validation
         if (!recordDate) return toast.error("Record Date is required.");
         if (sections.length === 0) return toast.error("Please add at least one section.");
 
@@ -111,30 +143,32 @@ const LabourOutputEdit = () => {
         const toastId = toast.loading("Updating records...");
 
         try {
-            // Prepare payload. 
-            // Note: You will need to adjust this depending on what your backend PUT endpoint expects.
+            const loggedInUser = localStorage.getItem('username') || 'System User';
+
             const payload = {
                 date: recordDate,
-                madeTea: Number(madeTea),
+                madeTea: Number(madeTeaToday),
+                username: loggedInUser,
                 entries: sections.map(sec => ({
-                    _id: sec.id.toString().length > 15 ? sec.id : undefined, // Only send valid MongoDB IDs
+                    _id: sec.id.toString().length > 15 ? sec.id : undefined, 
                     section: sec.section,
                     noOfLabours: Number(sec.noOfLabours),
                     otHours: Number(sec.otHours),
-                    labourOutput: liveMetrics.finalOutput // Optional: send calculated output if DB stores it
+                    labourOutput: liveMetrics.finalOutput 
                 }))
             };
 
-            // Assuming you have an endpoint that accepts a bulk update by date
+            const token = localStorage.getItem('token');
             const response = await fetch(`${BACKEND_URL}/api/labour-output/date/${groupData.date}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify(payload)
             });
-
-            if (!response.ok) {
-                throw new Error("Failed to update records.");
-            }
+            
+            if (!response.ok) throw new Error("Failed to update records.");
 
             toast.success("Records updated successfully!", { id: toastId });
             navigate("/factory/labouroutputlist");
@@ -181,34 +215,32 @@ const LabourOutputEdit = () => {
                         {/* Top Inputs */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                             <div className="flex flex-col gap-2">
-                                <label className="text-xs font-bold text-gray-500 tracking-wide uppercase">
+                                <label className="text-[11px] font-bold text-gray-500 tracking-widest uppercase mb-1">
                                     Record Date
                                 </label>
                                 <div className="relative">
                                     <input
                                         type="date"
                                         value={recordDate}
-                                        disabled // Usually date is disabled on grouped edits, remove if backend supports changing it
-                                        onChange={(e) => setRecordDate(e.target.value)}
+                                        disabled
                                         className="w-full pl-4 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 outline-none focus:border-[#1B6A31] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                     />
                                     <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                 </div>
                             </div>
 
-                            <div className="flex flex-col gap-2">
-                                <label className="text-xs font-bold text-gray-500 tracking-wide uppercase">
-                                    Made Tea (KG)
+                            {/* AUTO-FETCHED MADE TEA FIELD */}
+                            <div>
+                                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2">
+                                    Made Tea (kg)
                                 </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={madeTea}
-                                    onChange={(e) => setMadeTea(e.target.value)}
-                                    className="w-full px-4 py-3 bg-[#eef8f2] border border-[#a3d9b8] rounded-xl text-sm font-bold text-[#1c4b3a] outline-none focus:ring-2 focus:ring-[#1B6A31]/20 transition-all placeholder:text-[#1c4b3a]/50"
-                                    placeholder="0.00"
-                                />
+                                <div className={`w-full p-3 border rounded-xl flex items-center h-[50px] font-black transition-colors ${
+                                    isLoadingTea 
+                                        ? 'bg-gray-50 text-gray-400 border-gray-200' 
+                                        : 'bg-[#f0fdf4] border-[#bbf7d0] text-[#166534]'
+                                }`}>
+                                    {isLoadingTea ? 'Fetching...' : madeTeaToday.toFixed(2)}
+                                </div>
                             </div>
                         </div>
 
@@ -273,7 +305,7 @@ const LabourOutputEdit = () => {
                                         <div className="col-span-1 md:col-span-2 flex justify-end md:justify-center">
                                             <button
                                                 onClick={() => handleRemoveSection(sec.id)}
-                                                disabled={sections.length === 1} // Prevent deleting last row
+                                                disabled={sections.length === 1} 
                                                 className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
                                                 title="Remove Section"
                                             >
