@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 
 const FactoryPacking = () => {
     const navigate = useNavigate();
-    
+
     // --- State ---
     const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0]);
     const [noOfBags, setNoOfBags] = useState("");
@@ -47,26 +47,21 @@ const FactoryPacking = () => {
                 quantity: Number(quantityKg)
             };
 
-            // TODO: Replace with your actual backend endpoint
-            /*
-            const response = await fetch('http://localhost:3000/api/factory-packing', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            // Persist the packing entry locally so other factory views can read it by date.
+            const existingRecords = JSON.parse(localStorage.getItem("factoryPackingRecords") || "[]");
+            const updatedRecords = [...existingRecords, payload];
+            localStorage.setItem("factoryPackingRecords", JSON.stringify(updatedRecords));
 
-            if (!response.ok) throw new Error("Failed to save data");
-            */
-
-            // Simulating API call delay
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Notify other tabs/windows and this page that packing data changed.
+            window.dispatchEvent(new Event("storage"));
+            window.dispatchEvent(new CustomEvent("factoryPackingUpdated"));
 
             toast.success("Packing details saved successfully!", { id: toastId });
-            
+
             // Clear form after success
             setNoOfBags("");
             setQuantityKg("");
-            
+
         } catch (error) {
             console.error("Save Error:", error);
             toast.error(error.message || "Failed to save packing details.", { id: toastId });
@@ -81,10 +76,10 @@ const FactoryPacking = () => {
 
     return (
         <div className="p-4 sm:p-6 md:p-8 max-w-[1200px] mx-auto font-sans min-h-screen transition-colors duration-300">
-            
+
             {/* Header Section */}
             <div className="flex items-center gap-4 mb-8">
-               
+
                 <div className="flex items-center gap-3">
                     <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm border bg-[#f0fdfa] dark:bg-teal-900/30 border-[#99f6e4] dark:border-teal-800 transition-colors">
                         <Package className="text-[#0d5e4d] dark:text-teal-400" size={28} />
@@ -101,18 +96,18 @@ const FactoryPacking = () => {
             {/* Form Section */}
             <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 md:p-8 transition-colors">
                 <form onSubmit={handleSave} className="space-y-8">
-                    
+
                     {/* Inputs Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        
+
                         {/* Record Date */}
                         <div className="flex flex-col gap-2">
                             <label className="text-xs font-bold text-gray-500 dark:text-gray-400 tracking-wide uppercase">
                                 Record Date
                             </label>
                             <div className="relative">
-                                <input 
-                                    type="date" 
+                                <input
+                                    type="date"
                                     value={recordDate}
                                     onChange={(e) => setRecordDate(e.target.value)}
                                     className={standardInputStyle}
@@ -126,8 +121,8 @@ const FactoryPacking = () => {
                                 No of Bags (pic)
                             </label>
                             <div className="relative">
-                                <input 
-                                    type="number" 
+                                <input
+                                    type="number"
                                     min="0"
                                     value={noOfBags}
                                     onChange={(e) => setNoOfBags(e.target.value)}
@@ -144,8 +139,8 @@ const FactoryPacking = () => {
                                 Quantity (Kg)
                             </label>
                             <div className="relative">
-                                <input 
-                                    type="number" 
+                                <input
+                                    type="number"
                                     min="0"
                                     step="0.01"
                                     value={quantityKg}
@@ -164,8 +159,8 @@ const FactoryPacking = () => {
                         <div className="bg-[#f8fbf9] dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 rounded-xl p-4 flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 font-medium transition-colors">
                             <div className="w-2 h-2 rounded-full bg-[#1B6A31] dark:bg-teal-500"></div>
                             <p>
-                                Ready to save: <span className="font-bold text-[#1c4b3a] dark:text-teal-300">{noOfBags || 0}</span> bags 
-                                totaling <span className="font-bold text-[#1c4b3a] dark:text-teal-300">{quantityKg || 0} Kg</span> 
+                                Ready to save: <span className="font-bold text-[#1c4b3a] dark:text-teal-300">{noOfBags || 0}</span> bags
+                                totaling <span className="font-bold text-[#1c4b3a] dark:text-teal-300">{quantityKg || 0} Kg</span>
                                 for {recordDate}.
                             </p>
                         </div>
@@ -173,7 +168,7 @@ const FactoryPacking = () => {
 
                     {/* Action Buttons */}
                     <div className="flex flex-col-reverse sm:flex-row justify-end pt-6 border-t border-gray-100 dark:border-gray-700 gap-3">
-                        <button 
+                        <button
                             type="button"
                             onClick={() => {
                                 setNoOfBags("");
@@ -183,8 +178,8 @@ const FactoryPacking = () => {
                         >
                             CLEAR
                         </button>
-                        
-                        <button 
+
+                        <button
                             type="submit"
                             disabled={isSaving}
                             className="flex items-center justify-center gap-2 px-8 py-3.5 text-white font-black text-sm tracking-widest uppercase rounded-2xl transition-all shadow-lg hover:-translate-y-0.5 bg-gradient-to-br from-[#163d2e] via-[#0d5e4d] to-[#0f766e] dark:from-teal-700 dark:via-teal-600 dark:to-teal-800 disabled:opacity-50 disabled:cursor-not-allowed"

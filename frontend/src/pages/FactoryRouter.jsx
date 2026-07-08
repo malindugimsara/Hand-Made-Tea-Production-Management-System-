@@ -1,14 +1,14 @@
 import { Route } from "react-router-dom";
 import FactoryDashboard from "./FactorySection/FactoryDashboard";
 import FactoryDashboardLayout from "./FactorySection/FactoryDashbordLayout";
-import FactoryView from "./FactorySection/Factory Balance/FactoryView";
-import EditRecords from "./FactorySection/Factory Balance/EditRecords";
-import DailyProduction from "./FactorySection/Factory Balance/DailyProduction";
-import DispatchAndReturn from "./FactorySection/Factory Balance/DispatchAndReturn";
-import LabourOutput from "./FactorySection/Factory Balance/LabourOutput";
-import LabourOutputList from "./FactorySection/Factory Balance/LabourOutputList";
-import LabourOutputEdit from "./FactorySection/Factory Balance/LabourOutputEdit";
-import FactoryPacking from "./FactorySection/Factory Balance/FactoryPacking";
+import FactoryView from "./FactorySection/Factory Balance/Views/FactoryView";
+import EditRecords from "./FactorySection/Factory Balance/Views/EditRecords";
+import DailyProduction from "./FactorySection/Factory Balance/Inputes/DailyProduction";
+import DispatchAndReturn from "./FactorySection/Factory Balance/Inputes/DispatchAndReturn";
+import LabourOutput from "./FactorySection/Factory Balance/Inputes/LabourOutput";
+import LabourOutputList from "./FactorySection/Factory Balance/Views/LabourOutputList";
+import LabourOutputEdit from "./FactorySection/Factory Balance/Views/LabourOutputEdit";
+import FactoryPacking from "./FactorySection/Factory Balance/Inputes/FactoryPacking";
 
 export default function FactoryRouter() {
   return (
