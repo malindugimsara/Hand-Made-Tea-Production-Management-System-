@@ -34,6 +34,23 @@ const LabourOutputTable = () => {
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
 
+    const getPackingSummaryForDate = useCallback((date) => {
+        if (typeof window === "undefined") return { totalBags: 0, totalKgs: 0 };
+
+        try {
+            const storedRecords = JSON.parse(localStorage.getItem("factoryPackingRecords") || "[]");
+            const matchingRecords = storedRecords.filter((record) => String(record.date) === String(date));
+
+            return {
+                totalBags: matchingRecords.reduce((sum, record) => sum + Number(record.noOfBags || 0), 0),
+                totalKgs: matchingRecords.reduce((sum, record) => sum + Number(record.quantity || 0), 0)
+            };
+        } catch (error) {
+            console.error("Error reading factory packing records:", error);
+            return { totalBags: 0, totalKgs: 0 };
+        }
+    }, []);
+
     // --- Extracted Fetch Function ---
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -51,7 +68,11 @@ const LabourOutputTable = () => {
                 return acc;
             }, {});
 
-            const groupedArray = Object.entries(grouped).map(([date, entries]) => ({ date, entries }));
+            const groupedArray = Object.entries(grouped).map(([date, entries]) => ({
+                date,
+                entries,
+                packingSummary: getPackingSummaryForDate(date)
+            }));
             setGroupedData(groupedArray);
             setError(null);
         } catch (err) {
@@ -60,11 +81,22 @@ const LabourOutputTable = () => {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [getPackingSummaryForDate]);
 
     // Fetch on mount
     useEffect(() => {
         fetchData();
+
+        const handlePackingDataChange = () => {
+            fetchData();
+        };
+
+        window.addEventListener("storage", handlePackingDataChange);
+        window.addEventListener("factoryPackingUpdated", handlePackingDataChange);
+        return () => {
+            window.removeEventListener("storage", handlePackingDataChange);
+            window.removeEventListener("factoryPackingUpdated", handlePackingDataChange);
+        };
     }, [fetchData]);
 
     // --- Action Handlers ---
@@ -87,7 +119,7 @@ const LabourOutputTable = () => {
             }
 
             toast.success("Records deleted successfully!", { id: toastId });
-            fetchData(); 
+            fetchData();
         } catch (error) {
             console.error("Delete Error:", error);
             toast.error(error.message || "Failed to delete record.", { id: toastId });
@@ -105,10 +137,13 @@ const LabourOutputTable = () => {
 
     // --- Helper to convert Table Data for the PDF ---
     const getCleanTableData = () => {
-        return groupedData.map(({ date, entries }) => {
+        return groupedData.map((group) => {
+            const { date, entries, packingSummary } = group;
             const sections = entries.map(item => item.section).join(', ');
             const totalWorkers = entries.reduce((sum, item) => sum + (item.noOfLabours || 0), 0);
             const totalOtHours = entries.reduce((sum, item) => sum + (item.otHours || 0), 0);
+            const totalBags = Number((packingSummary?.totalBags ?? entries.reduce((sum, item) => sum + (Number(item.noOfBags || 0)), 0)) || 0);
+            const totalKgs = Number((packingSummary?.totalKgs ?? entries.reduce((sum, item) => sum + (Number(item.totalKgs || 0)), 0)) || 0);
             const avgLabourOutput = entries.reduce((sum, item) => sum + (item.labourOutput || 0), 0) / entries.length;
 
             return [
@@ -116,6 +151,8 @@ const LabourOutputTable = () => {
                 sections,
                 totalWorkers.toString(),
                 totalOtHours.toFixed(2),
+                totalBags.toString(),
+                totalKgs.toFixed(2),
                 avgLabourOutput.toFixed(2)
             ];
         });
@@ -136,8 +173,10 @@ const LabourOutputTable = () => {
             const sections = entries.map(item => item.section).join(', ');
             const totalWorkers = entries.reduce((sum, item) => sum + (item.noOfLabours || 0), 0);
             const totalOtHours = entries.reduce((sum, item) => sum + (item.otHours || 0), 0);
-            const avgLabourOutput = entries.length > 0 
-                ? entries.reduce((sum, item) => sum + (item.labourOutput || 0), 0) / entries.length 
+            const totalBags = Number((group?.packingSummary?.totalBags ?? entries.reduce((sum, item) => sum + (Number(item.noOfBags || 0)), 0)) || 0);
+            const totalKgs = Number((group?.packingSummary?.totalKgs ?? entries.reduce((sum, item) => sum + (Number(item.totalKgs || 0)), 0)) || 0);
+            const avgLabourOutput = entries.length > 0
+                ? entries.reduce((sum, item) => sum + (item.labourOutput || 0), 0) / entries.length
                 : 0;
 
             return [
@@ -145,6 +184,8 @@ const LabourOutputTable = () => {
                 sections,
                 Number(totalWorkers),
                 Number(totalOtHours.toFixed(2)),
+                Number(totalBags),
+                Number(totalKgs.toFixed(2)),
                 Number(avgLabourOutput.toFixed(2))
             ];
         });
@@ -154,7 +195,7 @@ const LabourOutputTable = () => {
             [`Period: ${getPeriodText()}`],
             [`Generated on ${new Date().toLocaleString()}`],
             [""], // Spacer
-            ["DATE", "SECTIONS", "TOTAL WORKERS", "TOTAL O/T HOURS", "AVG LABOUR OUTPUT"],
+            ["DATE", "SECTIONS", "TOTAL WORKERS", "TOTAL O/T HOURS", "NO OF BAGS", "TOTAL KGS", "AVG LABOUR OUTPUT"],
             ...dataRows
         ];
 
@@ -162,9 +203,9 @@ const LabourOutputTable = () => {
 
         // Merges for titles
         worksheet['!merges'] = [
-            { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Title
-            { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } }, // Subtitle
-            { s: { r: 2, c: 0 }, e: { r: 2, c: 4 } }, // Timestamp
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, // Title
+            { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } }, // Subtitle
+            { s: { r: 2, c: 0 }, e: { r: 2, c: 6 } }, // Timestamp
         ];
 
         // Styles
@@ -209,10 +250,10 @@ const LabourOutputTable = () => {
                 else if (R === 4) worksheet[cellAddress].s = headerStyle;
                 else {
                     const isOddRow = R % 2 !== 0;
-                    
+
                     if (C === 1) { // Sections Column (Left Align)
                         worksheet[cellAddress].s = isOddRow ? bodyLeftOdd : bodyLeftEven;
-                    } else if (C === 4) { // Avg Labour Output (Blue Highlight)
+                    } else if (C === 6) { // Avg Labour Output (Blue Highlight)
                         worksheet[cellAddress].s = isOddRow ? highlightOdd : highlightEven;
                     } else { // General numbers
                         worksheet[cellAddress].s = isOddRow ? bodyOdd : bodyEven;
@@ -231,6 +272,8 @@ const LabourOutputTable = () => {
             { wch: 45 }, // SECTIONS (Wide for lists)
             { wch: 20 }, // TOTAL WORKERS
             { wch: 20 }, // TOTAL O/T HOURS
+            { wch: 15 }, // NO OF BAGS
+            { wch: 15 }, // TOTAL KGS
             { wch: 25 }, // AVG LABOUR OUTPUT
         ];
 
@@ -267,7 +310,7 @@ const LabourOutputTable = () => {
                     </button>
 
                     {/* NEW: Export to Excel Button bound to exportToExcel() */}
-                    <button 
+                    <button
                         onClick={exportToExcel}
                         className="px-4 py-2 h-[42px] bg-white dark:bg-gray-800 text-[#1B6A31] dark:text-green-400 border border-[#1B6A31] dark:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all"
                     >
@@ -284,6 +327,8 @@ const LabourOutputTable = () => {
                                 { content: "Sections", styles: { halign: "left" } },
                                 { content: "Total No. of Workers", styles: { halign: "right" } },
                                 { content: "Total O/T Hours", styles: { halign: "right" } },
+                                { content: "No of Bags", styles: { halign: "right" } },
+                                { content: "Total Kgs", styles: { halign: "right" } },
                                 { content: "Average Labour Output", styles: { halign: "right" } },
                             ]
                         ]}
@@ -382,6 +427,8 @@ const LabourOutputTable = () => {
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700">Sections</th>
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">Total Workers</th>
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">Total O/T Hours</th>
+                                <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">No of Bags</th>
+                                <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">Total Kgs</th>
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">Avg Labour Output</th>
                                 <th className="px-4 py-4 text-center w-24">Actions</th>
                             </tr>
@@ -389,7 +436,7 @@ const LabourOutputTable = () => {
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700 transition-colors">
                             {isLoading && (
                                 <tr>
-                                    <td colSpan="6" className="p-16 text-center text-gray-500 dark:text-gray-400">
+                                    <td colSpan="8" className="p-16 text-center text-gray-500 dark:text-gray-400">
                                         <div className="flex flex-col items-center justify-center">
                                             <div className="w-8 h-8 border-4 border-[#8CC63F] border-t-[#1B6A31] dark:border-green-600 dark:border-t-green-400 rounded-full animate-spin mb-4"></div>
                                             <p className="font-medium">Loading labour output...</p>
@@ -400,7 +447,7 @@ const LabourOutputTable = () => {
 
                             {!isLoading && error && (
                                 <tr>
-                                    <td colSpan="6" className="p-8 text-center text-red-500 dark:text-red-400 font-medium">
+                                    <td colSpan="8" className="p-8 text-center text-red-500 dark:text-red-400 font-medium">
                                         {error}
                                     </td>
                                 </tr>
@@ -408,7 +455,7 @@ const LabourOutputTable = () => {
 
                             {!isLoading && !error && groupedData.length === 0 && (
                                 <tr>
-                                    <td colSpan="6" className="p-16 text-center">
+                                    <td colSpan="8" className="p-16 text-center">
                                         <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
                                             <AlertCircle size={40} className="mb-3 opacity-20" />
                                             <p className="text-lg font-medium text-gray-500 dark:text-gray-400">
@@ -420,11 +467,13 @@ const LabourOutputTable = () => {
                             )}
 
                             {!isLoading && !error && groupedData.map((group) => {
-                                const { date, entries } = group;
+                                const { date, entries, packingSummary } = group;
                                 const sections = entries.map(item => item.section).join(', ');
                                 const totalWorkers = entries.reduce((sum, item) => sum + (item.noOfLabours || 0), 0);
                                 const totalOtHours = entries.reduce((sum, item) => sum + (item.otHours || 0), 0);
-                                const labourOutputValue = entries.length > 0 ? (entries[0].labourOutput || 0) : 0;
+                                const totalBags = Number((packingSummary?.totalBags ?? entries.reduce((sum, item) => sum + (Number(item.noOfBags || 0)), 0)) || 0);
+                                const totalKgs = Number((packingSummary?.totalKgs ?? entries.reduce((sum, item) => sum + (Number(item.totalKgs || 0)), 0)) || 0);
+                                const labourOutputValue = entries.length > 0 ? (entries.reduce((sum, item) => sum + (item.labourOutput || 0), 0) / entries.length) : 0;
 
                                 return (
                                     <tr key={date} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
@@ -439,6 +488,12 @@ const LabourOutputTable = () => {
                                         </td>
                                         <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right text-gray-600 dark:text-gray-400">
                                             {totalOtHours.toFixed(2)}
+                                        </td>
+                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right text-gray-600 dark:text-gray-400">
+                                            {totalBags}
+                                        </td>
+                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right text-gray-600 dark:text-gray-400">
+                                            {totalKgs.toFixed(2)}
                                         </td>
                                         <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right font-bold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
                                             {labourOutputValue.toFixed(2)}
