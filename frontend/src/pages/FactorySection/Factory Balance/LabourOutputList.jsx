@@ -257,7 +257,7 @@ const LabourOutputTable = () => {
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700">Sections</th>
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">Total Workers</th>
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">Total O/T Hours</th>
-                                <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">Avg Labour Output (kg)</th>
+                                <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">Avg Labour Output</th>
                                 <th className="px-4 py-4 text-center w-24">Actions</th>
                             </tr>
                         </thead>
