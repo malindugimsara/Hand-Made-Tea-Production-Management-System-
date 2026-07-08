@@ -228,14 +228,23 @@ export default function EditRecordPage() {
 
             const promises = [];
 
-            // 1. Update Green Leaf
+            // 1. Update Green Leaf (Fixed to handle creation on edit)
             if (formData.greenLeafId) {
                 promises.push(fetchWithErr(`${BACKEND_URL}/api/green-leaf/${formData.greenLeafId}`, {
                     method: 'PUT', headers: authHeaders, body: JSON.stringify({ totalWeight: total, selectedWeight: selected, updatedBy: currentUser })
                 }, "Failed to update Green Leaf record."));
+            } else if (total > 0 || selected > 0) {
+                promises.push(fetchWithErr(`${BACKEND_URL}/api/green-leaf`, {
+                    method: 'POST', headers: authHeaders, body: JSON.stringify({ 
+                        date: formData.date, 
+                        totalWeight: total, 
+                        selectedWeight: selected, 
+                        updatedBy: currentUser 
+                    })
+                }, "Failed to create new Green Leaf record."));
             }
 
-            // 2. Update Labour
+            // 2. Update Labour (Fixed to handle creation on edit)
             if (formData.labourId) {
                 promises.push(fetchWithErr(`${BACKEND_URL}/api/labour/${formData.labourId}`, {
                     method: 'PUT', headers: authHeaders, 
@@ -246,6 +255,17 @@ export default function EditRecordPage() {
                         updatedBy: currentUser
                     })
                 }, "Failed to update Labour record."));
+            } else if (Number(formData.workerCount) > 0 || Number(formData.rollingWorkerCount) > 0) {
+                promises.push(fetchWithErr(`${BACKEND_URL}/api/labour`, {
+                    method: 'POST', headers: authHeaders, 
+                    body: JSON.stringify({ 
+                        date: formData.date,
+                        workerCount: Number(formData.workerCount),
+                        rollingType: formData.rollingType,
+                        rollingWorkerCount: formData.rollingType === 'Hand Rolling' ? Number(formData.rollingWorkerCount) : 0,
+                        updatedBy: currentUser
+                    })
+                }, "Failed to create new Labour record."));
             }
 
             // 3. Update the Primary Production Record (outputs[0] & dryers[0])
@@ -333,7 +353,8 @@ export default function EditRecordPage() {
 
     return (
         <div className="p-8 max-w-4xl mx-auto font-sans bg-gray-50 dark:bg-zinc-950 min-h-screen transition-colors">
-           
+            
+            <Toaster />
             
             <div className="mb-8 flex items-center gap-4">
                 <button onClick={() => navigate(-1)} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-zinc-700 rounded font-bold transition-colors">
