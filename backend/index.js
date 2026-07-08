@@ -15,7 +15,7 @@ import userRouter from './router/userRouter.js';
 import sellingDetailsRouter from './router/sellingDetailsRoutes.js';
 import productionSummaryRouter from './router/productionSummaryRoute.js';
 import loftLeafCountRoutes from './router/loftLeafCountRoutes.js';
-
+import labourRouter from './router/labourRoutes.js';
 
 // Packing Section Routes
 import localSaleRouter from './Packing/Routes/localSaleRoutes.js';
@@ -33,7 +33,7 @@ import restoreTeaStockRouter from './Packing/Routes/restoreTeaStockrouter.js';
 import factoryrouter from './factory/router/factoryRoutes.js';
 import StockAdjustmentRouter from './Packing/Routes/stockAdjustmentRoutes.js';
 import labourOutputRouter from './factory/router/labourOutputRoutes.js';
-import labourRouter from './factory/router/labourOutputRoutes.js';
+
 
 dotenv.config();
 const app = express();

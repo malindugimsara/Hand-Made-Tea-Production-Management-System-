@@ -1,4 +1,4 @@
-import LabourOutput from '../models/LabourOutput.js'; // Ensure the path is correct
+import LabourOutput from '../models/LabourOutput.js'; 
 
 export const saveLabourOutput = async (req, res) => {
   try {
