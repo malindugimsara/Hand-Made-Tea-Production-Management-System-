@@ -1,14 +1,16 @@
 import { Route } from "react-router-dom";
 import FactoryDashboard from "./FactorySection/FactoryDashboard";
 import FactoryDashboardLayout from "./FactorySection/FactoryDashbordLayout";
-import FactoryView from "./FactorySection/Factory Balance/Views/FactoryView";
-import EditRecords from "./FactorySection/Factory Balance/Views/EditRecords";
+import FactoryView from "./FactorySection/Factory Balance/Views/Factory Log/FactoryView";
+import EditRecords from "./FactorySection/Factory Balance/Views/Factory Log/EditRecords";
 import DailyProduction from "./FactorySection/Factory Balance/Inputes/DailyProduction";
 import DispatchAndReturn from "./FactorySection/Factory Balance/Inputes/DispatchAndReturn";
 import LabourOutput from "./FactorySection/Factory Balance/Inputes/LabourOutput";
-import LabourOutputList from "./FactorySection/Factory Balance/Views/LabourOutputList";
-import LabourOutputEdit from "./FactorySection/Factory Balance/Views/LabourOutputEdit";
+import LabourOutputList from "./FactorySection/Factory Balance/Views/Labour Output/LabourOutputList";
+import LabourOutputEdit from "./FactorySection/Factory Balance/Views/Labour Output/LabourOutputEdit";
 import FactoryPacking from "./FactorySection/Factory Balance/Inputes/FactoryPacking";
+import DispatchRecordsView from "./FactorySection/Factory Balance/Views/DIspatch View/DispatchRecordsView";
+import EditDispatchLog from "./FactorySection/Factory Balance/Views/DIspatch View/EditDispatchLog";
 
 export default function FactoryRouter() {
   return (
@@ -22,6 +24,8 @@ export default function FactoryRouter() {
       <Route path="labouroutput/edit" element={<LabourOutputEdit />} />
       <Route path="view" element={<FactoryView />} />
       <Route path="factorypacking" element={<FactoryPacking />} />
+      <Route path="dispatchrecords" element={<DispatchRecordsView />} />
+      <Route path="dispatch/edit" element={<EditDispatchLog />} />
     </Route>
   );
 }

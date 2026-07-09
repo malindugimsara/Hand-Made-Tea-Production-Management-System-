@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { IoMdArrowRoundBack } from "react-icons/io";
 import { PlusCircle, X, Leaf, Factory, CalendarClock, Users } from "lucide-react";
@@ -26,7 +26,7 @@ export default function EditRecordPage() {
         outputs: [{ teaType: '', madeTeaWeight: '' }], 
         dryers: [{ dryerName: '', meterStart: '', meterEnd: '', rollerPoints: '' }], 
         workerCount: '',
-        rollingType: 'Machine Rolling',
+        rollingType: 'Machine Rolling1',
         rollingWorkerCount: ''
     });
 
@@ -60,7 +60,7 @@ export default function EditRecordPage() {
                     rollerPoints: data.rollerPoints !== undefined && data.rollerPoints !== '-' ? data.rollerPoints : ''
                 }],
                 workerCount: data.workerCount || '',
-                rollingType: data.rollingType && data.rollingType !== '-' ? data.rollingType : 'Machine Rolling',
+                rollingType: data.rollingType && data.rollingType !== '-' ? data.rollingType : 'Machine Rolling1',
                 rollingWorkerCount: data.rollingWorkerCount || ''
             });
         } else {
@@ -156,19 +156,6 @@ export default function EditRecordPage() {
         }
     };
 
-    const playErrorSound = () => {
-        try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = ctx.createOscillator();
-            const gainNode = ctx.createGain();
-            osc.type = 'square'; osc.frequency.setValueAtTime(150, ctx.currentTime); 
-            gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-            osc.connect(gainNode); gainNode.connect(ctx.destination);
-            osc.start(); osc.stop(ctx.currentTime + 0.3);
-        } catch (e) { console.error("Audio error", e); }
-    };
-
     const fetchWithErr = (url, options, defaultErrorMsg) => {
         return fetch(url, options).then(async res => {
             if (!res.ok) {
@@ -195,23 +182,16 @@ export default function EditRecordPage() {
         let totalMade = 0;
         for (let out of formData.outputs) {
             if (!out.teaType || out.madeTeaWeight === '') {
-                playErrorSound(); toast.error("Please fill all Tea Types and Weights!"); return;
+                toast.error("Please fill all Tea Types and Weights!"); return;
             }
             totalMade += Number(out.madeTeaWeight);
-        }
-
-        if (selected > total) {
-            playErrorSound(); toast.error("Selected weight must be less than Total!"); return;
-        }
-        if (totalMade > selected) {
-            playErrorSound(); toast.error("Total Made Tea weight must be less than Selected weight!"); return;
         }
 
         // Validate Dryers
         for (let dryer of formData.dryers) {
             if (dryer.dryerName && dryer.meterEnd !== '') {
                 if (Number(dryer.meterEnd) < Number(dryer.meterStart)) {
-                    playErrorSound(); toast.error(`End Reading must be greater than Start for ${dryer.dryerName}!`); return;
+                    toast.error(`End Reading must be greater than Start for ${dryer.dryerName}!`); return;
                 }
             }
         }
@@ -340,7 +320,6 @@ export default function EditRecordPage() {
 
         } catch (error) {
             console.error("Update Error:", error);
-            playErrorSound();
             toast.error(`Update Error: ${error.message}`, { id: toastId });
         } finally {
             setShowSpinner(false); 
@@ -353,9 +332,6 @@ export default function EditRecordPage() {
 
     return (
         <div className="p-8 max-w-4xl mx-auto font-sans bg-gray-50 dark:bg-zinc-950 min-h-screen transition-colors">
-            
-            <Toaster />
-            
             <div className="mb-8 flex items-center gap-4">
                 <button onClick={() => navigate(-1)} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-zinc-700 rounded font-bold transition-colors">
                     <IoMdArrowRoundBack size={20} />

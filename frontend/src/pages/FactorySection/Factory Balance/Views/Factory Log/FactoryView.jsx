@@ -164,7 +164,7 @@ export default function FactoryView() {
   const totalDispatch = records.reduce((sum, r) => sum + (r.dispatch || 0), 0);
   const totalLocalSale = records.reduce((sum, r) => sum + (r.localSaleAndGratis || 0), 0);
 
-  const dispatchOutTurn = totalGL > 0 ? ((totalDispatch / totalGL) * 100).toFixed(2) : "0.00";
+  const dispatchOutTurn = totalMadeTea > 0 ? ((totalDispatch / totalMadeTea) * 100).toFixed(2) : "0.00";
   const localSalePercentage = totalMadeTea > 0 ? ((totalLocalSale / totalMadeTea) * 100).toFixed(2) : "0.00";
 
   const getLastFactoryBalance = () => {
@@ -429,7 +429,7 @@ export default function FactoryView() {
             Factory Logs View
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Master overview of Green Leaf, Production, & Labour
+            Master overview of Green Leaf, Production & Dispatch records with Factory Balance calculations.
           </p>
         </div>
 
@@ -609,7 +609,7 @@ export default function FactoryView() {
                 Dispatch Out Turn
                 </h3>
                 <p className="text-[11px] font-medium text-gray-400 dark:text-gray-500">
-                (Total Dispatch ÷ Total G/L) × 100%
+                (Total Dispatch ÷ Total M/T) × 100%
                 </p>
             </div>
           </div>

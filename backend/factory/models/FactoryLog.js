@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const factoryLogSchema = new mongoose.Schema({
   date: { type: Date, required: true, unique: true },
+  
   greenLeaf: {
     today: { type: Number, default: 0 },
     toDate: { type: Number, default: 0 }
@@ -10,8 +11,16 @@ const factoryLogSchema = new mongoose.Schema({
     today: { type: Number, default: 0 },
     toDate: { type: Number, default: 0 }
   },
+  
+  // --- DISPATCH DETAILS ---
   dispatch: { type: Number, default: 0 },
+  invoiceNo: { type: String, default: '' },          // අලුතින් එකතු කළ Field එක
+  dispatchTeaType: { type: String, default: '' },    // අලුතින් එකතු කළ Field එක
+  
+  // --- LOCAL SALE DETAILS ---
   localSaleAndGratis: { type: Number, default: 0 },
+  localSaleTeaType: { type: String, default: '' },   // අලුතින් එකතු කළ Field එක
+  
   totalOut: { type: Number, default: 0 },
   returnAmount: { type: Number, default: 0 },
   bfBalance: { type: Number, default: 0 },

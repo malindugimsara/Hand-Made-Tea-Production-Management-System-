@@ -1,8 +1,109 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { Save, Trash2, Package, RefreshCcw, ListChecks, PlusCircle, Moon, Sun } from 'lucide-react';
+import { Save, Trash2, Package, RefreshCcw, ListChecks, PlusCircle, Truck, Store, Tag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+// --- Shared Input Styles ---
+const inputStyles = "w-full p-3.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-bold text-gray-700 dark:text-gray-200 focus:ring-4 focus:ring-teal-500/20 dark:focus:ring-teal-400/20 focus:outline-none transition-all";
+
+// --- Tea Type Predefined Options ---
+const teaTypeOptions = [
+  "BOPF", "BOPF SP", "OPA", "OP 1", "OP", "Pekoe", "BOP",
+  "FBOP", "FF SP", "FF EX SP", "Dust", "Dust 1", "Premium"
+];
+
+// --- Custom Autocomplete Component ---
+const TeaTypeAutocomplete = ({ name, value, onChange, placeholder }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const wrapperRef = useRef(null);
+
+  // Filter options based on what the user types
+  const filteredOptions = teaTypeOptions.filter(opt =>
+    opt.toLowerCase().includes((value || '').toLowerCase())
+  );
+
+  // Close dropdown if clicked outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleKeyDown = (e) => {
+    if (!isOpen) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") setIsOpen(true);
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex(prev => (prev < filteredOptions.length - 1 ? prev + 1 : prev));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex(prev => (prev > 0 ? prev - 1 : 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault(); // Prevent form submission
+      if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
+        onChange({ target: { name, value: filteredOptions[highlightedIndex] } });
+        setIsOpen(false);
+      }
+    } else if (e.key === "Escape") {
+      setIsOpen(false);
+    }
+  };
+
+  return (
+    <div className="relative" ref={wrapperRef}>
+      <Tag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+      <input
+        type="text"
+        name={name}
+        value={value}
+        onChange={(e) => {
+          onChange(e);
+          setIsOpen(true);
+          setHighlightedIndex(-1);
+        }}
+        onFocus={() => setIsOpen(true)}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        className={`${inputStyles} pl-10 relative z-0`}
+        autoComplete="off"
+      />
+      {/* Dropdown Menu */}
+      {isOpen && filteredOptions.length > 0 && (
+        <ul className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl max-h-56 overflow-y-auto custom-scrollbar overflow-hidden">
+          {filteredOptions.map((opt, index) => (
+            <li
+              key={opt}
+              className={`px-4 py-2.5 cursor-pointer text-sm font-bold transition-colors ${
+                highlightedIndex === index
+                  ? "bg-teal-50 dark:bg-teal-900/40 text-teal-700 dark:text-teal-400"
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              }`}
+              onMouseDown={(e) => {
+                e.preventDefault(); // Prevents input from losing focus
+                onChange({ target: { name, value: opt } });
+                setIsOpen(false);
+              }}
+              onMouseEnter={() => setHighlightedIndex(index)}
+            >
+              {opt}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+
+// --- MAIN COMPONENT ---
 export default function DispatchAndReturn() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const navigate = useNavigate();
@@ -24,14 +125,17 @@ export default function DispatchAndReturn() {
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
-    dispatch: '',
-    localSaleAndGratis: '',
+    invoiceNo: '',
+    dispatchTeaType: '',
+    dispatch: '', // Total Gross Weight
+    localSaleTeaType: '',
+    localSaleAndGratis: '', // Total qty (kg)
     returnAmount: '',
   });
 
   useEffect(() => {
     if (formData.date) {
-      const selectedDateMonth = formData.date.substring(0, 7); // උදා: '2024-04'
+      const selectedDateMonth = formData.date.substring(0, 7); 
       if (selectedDateMonth !== selectedMonth) {
         setSelectedMonth(selectedDateMonth);
       }
@@ -42,6 +146,7 @@ export default function DispatchAndReturn() {
   const userRole = localStorage.getItem('userRole') || '';
   const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
 
+  // Calculate Total Out based on Dispatch weight + Local Sale weight
   const calculatedTotalOut = (Number(formData.dispatch) || 0) + (Number(formData.localSaleAndGratis) || 0);
 
   // Dark Mode Toggle Effect
@@ -103,7 +208,17 @@ export default function DispatchAndReturn() {
 
     setPendingRecords([...pendingRecords, newRecord]);
     toast.success("Added to list!");
-    setFormData({ ...formData, dispatch: '', localSaleAndGratis: '', returnAmount: '' });
+    
+    // Reset Form (except date)
+    setFormData({ 
+      ...formData, 
+      invoiceNo: '',
+      dispatchTeaType: '',
+      dispatch: '', 
+      localSaleTeaType: '',
+      localSaleAndGratis: '', 
+      returnAmount: '' 
+    });
   };
 
   const handleRemoveFromList = (indexToRemove) => {
@@ -126,6 +241,9 @@ export default function DispatchAndReturn() {
           dispatch: Number(record.dispatch) || 0,
           localSaleAndGratis: Number(record.localSaleAndGratis) || 0,
           returnAmount: Number(record.returnAmount) || 0,
+          invoiceNo: record.invoiceNo,
+          dispatchTeaType: record.dispatchTeaType,
+          localSaleTeaType: record.localSaleTeaType,
           username: username
         };
 
@@ -146,9 +264,6 @@ export default function DispatchAndReturn() {
       setIsSavingAll(false);
     }
   };
-
-  // Reusable dynamic input styles for Light & Dark modes
-  const inputStyles = "w-full p-3.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-bold text-gray-700 dark:text-gray-200 focus:ring-4 focus:ring-teal-500/20 dark:focus:ring-teal-400/20 focus:outline-none transition-all";
 
   return (
     <div className="min-h-screen p-4 sm:p-6 md:p-8 font-sans transition-colors duration-300 bg-[#f3faf7] dark:bg-gray-900">
@@ -181,39 +296,81 @@ export default function DispatchAndReturn() {
                 />
               </div>
 
-              {/* Dispatch & Sales Section */}
+              {/* 1. DISPATCH SECTION */}
               <div className="bg-gray-50/50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 rounded-2xl p-5 shadow-sm mb-6 transition-colors">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-[#0f766e] dark:text-teal-400">
-                  <div className="p-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"><Package size={18}/></div>
-                  Dispatch & Sales
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-[#0f766e] dark:text-teal-400 border-b border-gray-200 dark:border-gray-700 pb-3">
+                  <div className="p-1.5 rounded-lg bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300"><Truck size={18}/></div>
+                  Dispatch Details
                 </h3>
-                <div className="grid grid-cols-2 gap-4 mb-4">
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Dispatch</label>
+                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Invoice No.</label>
                     <input 
-                      type="number" step="0.01" min="0" name="dispatch" 
-                      value={formData.dispatch} onChange={handleInputChange} 
-                      onWheel={(e) => e.target.blur()} placeholder="0.00" className={inputStyles} 
+                      type="text" name="invoiceNo" value={formData.invoiceNo} onChange={handleInputChange} 
+                      placeholder="Enter Invoice Number" className={inputStyles} 
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Local Sales</label>
-                    <input 
-                      type="number" step="0.01" min="0" name="localSaleAndGratis" 
-                      value={formData.localSaleAndGratis} onChange={handleInputChange} 
-                      onWheel={(e) => e.target.blur()} placeholder="0.00" className={inputStyles} 
+                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
+                    {/* 🌟 New Custom Dropdown component added here */}
+                    <TeaTypeAutocomplete
+                      name="dispatchTeaType"
+                      value={formData.dispatchTeaType}
+                      onChange={handleInputChange}
+                      placeholder="E.g. BOPF, Pekoe"
                     />
                   </div>
                 </div>
+
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Total Out</label>
-                  <div className="w-full p-3.5 border rounded-xl flex items-center h-[54px] font-black bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 transition-colors">
-                    {calculatedTotalOut > 0 ? calculatedTotalOut.toFixed(2) : '0.00'} kg
+                  <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Total Gross Weight (kg)</label>
+                  <input 
+                    type="number" step="0.01" min="0" name="dispatch" 
+                    value={formData.dispatch} onChange={handleInputChange} 
+                    onWheel={(e) => e.target.blur()} placeholder="0.00 kg" className={inputStyles} 
+                  />
+                </div>
+              </div>
+
+              {/* 2. LOCAL SALES SECTION */}
+              <div className="bg-gray-50/50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 rounded-2xl p-5 shadow-sm mb-6 transition-colors">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-[#b45309] dark:text-orange-400 border-b border-gray-200 dark:border-gray-700 pb-3">
+                  <div className="p-1.5 rounded-lg bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300"><Store size={18}/></div>
+                  Local Sales Details
+                </h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
+                    {/* 🌟 New Custom Dropdown component added here */}
+                    <TeaTypeAutocomplete
+                      name="localSaleTeaType"
+                      value={formData.localSaleTeaType}
+                      onChange={handleInputChange}
+                      placeholder="E.g. Dust, Fannings"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Total Qty (kg)</label>
+                    <input 
+                      type="number" step="0.01" min="0" name="localSaleAndGratis" 
+                      value={formData.localSaleAndGratis} onChange={handleInputChange} 
+                      onWheel={(e) => e.target.blur()} placeholder="0.00 kg" className={inputStyles} 
+                    />
                   </div>
                 </div>
               </div>
 
-              {/* Returns Section */}
+              {/* TOTAL OUT SUMMARY */}
+              <div className="mb-6 p-4 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Total Out (Dispatch + Local Sales)</label>
+                <div className="w-full text-xl flex items-center font-black text-gray-800 dark:text-gray-200 transition-colors">
+                  {calculatedTotalOut > 0 ? calculatedTotalOut.toFixed(2) : '0.00'} <span className="text-sm text-gray-500 ml-1">kg</span>
+                </div>
+              </div>
+
+              {/* 3. RETURNS SECTION */}
               <div className="bg-gray-50/50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 rounded-2xl p-5 shadow-sm mb-6 transition-colors">
                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-700 dark:text-gray-300">
                   <div className="p-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"><RefreshCcw size={18}/></div> Returns
@@ -274,16 +431,32 @@ export default function DispatchAndReturn() {
                         <div className="flex flex-col gap-3 pr-8">
                           <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase">{item.date}</span>
                           
-                          <div className="grid grid-cols-2 gap-2 text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-                            <div className="flex justify-between bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border border-gray-100 dark:border-gray-700 transition-colors">
-                              <span>Dispatch:</span><span className="font-bold text-gray-700 dark:text-gray-200">{item.dispatch || '0'} kg</span>
+                          <div className="text-xs font-medium text-gray-600 dark:text-gray-300 space-y-2 mb-1">
+                            {/* Dispatch Summary Line */}
+                            <div className="flex flex-col bg-teal-50/50 dark:bg-teal-900/10 p-2 rounded-lg border border-teal-100 dark:border-teal-800/30">
+                              <div className="flex justify-between items-center text-[#0f766e] dark:text-teal-400 mb-1">
+                                <span className="font-bold flex items-center gap-1"><Truck size={12}/> Dispatch</span>
+                                <span className="font-black">{item.dispatch || '0'} kg</span>
+                              </div>
+                              <div className="text-[10px] text-gray-500 dark:text-gray-400 flex gap-2">
+                                {item.invoiceNo && <span>Inv: {item.invoiceNo}</span>}
+                                {item.dispatchTeaType && <span>Type: {item.dispatchTeaType}</span>}
+                              </div>
                             </div>
-                            <div className="flex justify-between bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border border-gray-100 dark:border-gray-700 transition-colors">
-                              <span>Local:</span><span className="font-bold text-gray-700 dark:text-gray-200">{item.localSaleAndGratis || '0'} kg</span>
+                            
+                            {/* Local Sale Summary Line */}
+                            <div className="flex flex-col bg-orange-50/50 dark:bg-orange-900/10 p-2 rounded-lg border border-orange-100 dark:border-orange-800/30">
+                              <div className="flex justify-between items-center text-[#b45309] dark:text-orange-400 mb-1">
+                                <span className="font-bold flex items-center gap-1"><Store size={12}/> Local Sales</span>
+                                <span className="font-black">{item.localSaleAndGratis || '0'} kg</span>
+                              </div>
+                              <div className="text-[10px] text-gray-500 dark:text-gray-400">
+                                {item.localSaleTeaType && <span>Type: {item.localSaleTeaType}</span>}
+                              </div>
                             </div>
                           </div>
                           
-                          <div className="bg-orange-50/50 dark:bg-orange-900/20 p-2 rounded-lg border border-orange-100 dark:border-orange-800/50 flex justify-between px-3 text-xs font-bold text-orange-800 dark:text-orange-400 transition-colors">
+                          <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-lg border border-gray-200 dark:border-gray-600 flex justify-between px-3 text-xs font-bold text-gray-800 dark:text-gray-200 transition-colors">
                             <span>Total Out:</span><span>{item.calculatedTotalOut.toFixed(2)} kg</span>
                           </div>
                           

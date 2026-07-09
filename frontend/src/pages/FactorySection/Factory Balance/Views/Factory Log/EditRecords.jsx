@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Leaf, Package, RefreshCcw, ArrowLeft, Info, AlertTriangle } from 'lucide-react';
+import { Leaf, Package, RefreshCcw, ArrowLeft, Info, AlertTriangle, Lock } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function EditFactoryLog() {
@@ -15,9 +15,16 @@ export default function EditFactoryLog() {
     const [formData, setFormData] = useState({
         date: record?.date ? new Date(record.date).toISOString().split('T')[0] : '',
         greenLeafToday: record?.greenLeaf?.today || record?.greenLeafToday || '',
+        
+        // Dispatch & Sales data (Locked in UI, but needed for payload)
         dispatch: record?.dispatch || '',
         localSaleAndGratis: record?.localSaleAndGratis || record?.localSales || '',
-        returnAmount: record?.returnAmount || ''
+        returnAmount: record?.returnAmount || '',
+        
+        // 🌟 FIXED: Keep the new dispatch fields in state so they don't get wiped out!
+        invoiceNo: record?.invoiceNo || '',
+        dispatchTeaType: record?.dispatchTeaType || '',
+        localSaleTeaType: record?.localSaleTeaType || ''
     });
 
     const [showSpinner, setShowSpinner] = useState(false);
@@ -66,6 +73,12 @@ export default function EditFactoryLog() {
                 dispatch: Number(formData.dispatch) || 0,
                 localSaleAndGratis: Number(formData.localSaleAndGratis) || 0,
                 returnAmount: Number(formData.returnAmount) || 0,
+                
+                // 🌟 FIXED: Send these back to the backend so they are not overwritten with ""
+                invoiceNo: formData.invoiceNo,
+                dispatchTeaType: formData.dispatchTeaType,
+                localSaleTeaType: formData.localSaleTeaType,
+
                 username: loggedInUser,
                 isExplicitEdit: true
             };
@@ -117,7 +130,7 @@ export default function EditFactoryLog() {
                 >
                     <ArrowLeft size={24} />
                 </button>
-                <h2 className="text-3xl font-bold text-[#1B6A31]"> Factory Log</h2>
+                <h2 className="text-3xl font-bold text-[#1B6A31]"> Edit Factory Log</h2>
                 <p className="text-gray-500 mt-2">Modify existing daily production data</p>
             </div>
 
@@ -170,52 +183,56 @@ export default function EditFactoryLog() {
                     </div>
                 </div>
 
-                {/* 2. DISPATCH & LOCAL SALES */}
-                <div className="mb-8 bg-orange-50 border border-orange-200 rounded-lg p-6">
-                    <h3 className="text-lg font-bold text-orange-600 mb-4 flex items-center gap-2">
-                        <Package size={20} /> Dispatch & Sales
+                {/* 2. DISPATCH, LOCAL SALES & RETURNS (LOCKED) */}
+                <div className="mb-8 bg-gray-50 border border-gray-200 rounded-lg p-6 relative overflow-hidden">
+                    
+                    {/* Lock Overlay Banner */}
+                    <div className="mb-5 bg-orange-100 border border-orange-300 text-orange-800 p-3 rounded-lg flex items-start gap-2 text-sm shadow-sm">
+                        <Lock size={18} className="mt-0.5 flex-shrink-0 text-orange-600" />
+                        <p>
+                            Dispatch, Local Sales, and Returns editing is locked here. If you need to modify these records, please visit the <strong>Dispatch Records</strong> page.
+                        </p>
+                    </div>
+
+                    <h3 className="text-lg font-bold text-gray-600 mb-4 flex items-center gap-2">
+                        <Package size={20} /> Dispatch, Sales & Returns
                     </h3>
+                    
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Dispatch</label>
+                            <label className="block text-sm font-semibold text-gray-500 mb-1">Dispatch</label>
                             <input
                                 type="number" step="0.01" name="dispatch"
-                                value={formData.dispatch} onChange={handleInputChange}
-                                onWheel={(e) => e.target.blur()} 
-                                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-400"
+                                value={formData.dispatch} 
+                                disabled
+                                className="w-full p-3 border border-gray-200 bg-gray-100 text-gray-500 rounded-md cursor-not-allowed"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Local Sales & Gratis</label>
+                            <label className="block text-sm font-semibold text-gray-500 mb-1">Local Sales & Gratis</label>
                             <input
                                 type="number" step="0.01" name="localSaleAndGratis"
-                                value={formData.localSaleAndGratis} onChange={handleInputChange}
-                                onWheel={(e) => e.target.blur()} 
-                                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-400"
+                                value={formData.localSaleAndGratis} 
+                                disabled
+                                className="w-full p-3 border border-gray-200 bg-gray-100 text-gray-500 rounded-md cursor-not-allowed"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Total Out</label>
-                            <div className="w-full p-3 border border-orange-300 bg-orange-100 text-orange-800 font-bold rounded-md flex items-center h-[50px]">
+                            <label className="block text-sm font-semibold text-gray-500 mb-1">Total Out</label>
+                            <div className="w-full p-3 border border-gray-300 bg-gray-200 text-gray-500 font-bold rounded-md flex items-center h-[50px]">
                                 {calculatedTotalOut > 0 ? calculatedTotalOut.toFixed(2) : '0.00'}
                             </div>
                         </div>
                     </div>
-                </div>
 
-                {/* 3. RETURNS */}
-                <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-                    <h3 className="text-lg font-bold text-blue-700 mb-4 flex items-center gap-2">
-                        <RefreshCcw size={20} /> Returns
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1">Return Amount</label>
+                            <label className="block text-sm font-semibold text-gray-500 mb-1">Return Amount</label>
                             <input
                                 type="number" step="0.01" name="returnAmount"
-                                value={formData.returnAmount} onChange={handleInputChange}
-                                onWheel={(e) => e.target.blur()}
-                                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400"
+                                value={formData.returnAmount} 
+                                disabled
+                                className="w-full p-3 border border-gray-200 bg-gray-100 text-gray-500 rounded-md cursor-not-allowed"
                             />
                         </div>
                     </div>
