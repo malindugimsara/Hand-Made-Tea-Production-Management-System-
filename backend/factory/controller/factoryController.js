@@ -26,7 +26,6 @@ export const getFactoryLogsByMonth = async (req, res) => {
       return res.status(400).json({ message: "Please provide a 'month' or 'startDate' and 'endDate'." });
     }
 
-    // 1. Calculate Standard B/F Balance (Actual Balance for UI)
     let bfFromLastMonth = 0;
     if (beforeDateQuery) {
       const aggrResult = await FactoryLog.aggregate([
@@ -47,31 +46,24 @@ export const getFactoryLogsByMonth = async (req, res) => {
       }
     }
 
-    // 2. Fetch the records for the currently requested month/date range
-    // .lean() is used for performance and easier object manipulation
     const records = await FactoryLog.find(query).sort({ date: 1 }).lean();
 
     // ========================================================
     // 3. DAYS TO ZERO (AGE OF STOCK) CALCULATION LOGIC
     // ========================================================
     
-    // Determine April 1st of the relevant financial year
     let reqYear = maxRequestedDate.getFullYear();
-    // If the requested month is Jan, Feb, or Mar (0, 1, 2), 
-    // the financial year started in April of the PREVIOUS year.
     if (maxRequestedDate.getMonth() < 3) {
         reqYear -= 1; 
     }
     const aprilFirstDate = new Date(`${reqYear}-04-01T00:00:00.000Z`);
 
-    // Fetch all records from April 1st up to the max requested date
     const allRecordsSinceApril = await FactoryLog.find({
         date: { $gte: aprilFirstDate, $lte: maxRequestedDate }
     }).sort({ date: 1 }).lean();
 
     let virtualBalance = 0;
 
-    // Process all records since April to calculate daysToZero for each
     const processedAllRecords = allRecordsSinceApril.map((record, index) => {
         const mt = record.madeTea?.today || 0;
         const disp = record.dispatch || 0;
@@ -79,18 +71,15 @@ export const getFactoryLogsByMonth = async (req, res) => {
         const ret = record.returnAmount || 0;
         const totalOut = disp + loc;
 
-        // Running virtual balance starting from 0 on April 1st
         virtualBalance = virtualBalance + mt - totalOut + ret;
-
         let tempBal = virtualBalance;
         let days = 0;
 
-        // Calculate days to zero (FIFO backward reduction)
         for (let j = index; j >= 0; j--) {
             if (tempBal <= 0) break;
             days++;
             const pastMt = allRecordsSinceApril[j].madeTea?.today || 0;
-            tempBal = tempBal - pastMt; // Reduce past made tea from balance
+            tempBal = tempBal - pastMt; 
         }
 
         return {
@@ -99,7 +88,6 @@ export const getFactoryLogsByMonth = async (req, res) => {
         };
     });
 
-    // 4. Attach calculated daysToZero back to the specifically requested records
     const finalRecords = records.map(record => {
         const processedMatch = processedAllRecords.find(
             pr => pr._id.toString() === record._id.toString()
@@ -119,10 +107,22 @@ export const getFactoryLogsByMonth = async (req, res) => {
   }
 };
 
-// 2. SAVE OR UPDATE DAILY FACTORY LOG (Unchanged)
+// 2. SAVE OR UPDATE DAILY FACTORY LOG (UPDATED WITH NEW FIELDS)
 export const saveDailyFactoryLog = async (req, res) => {
   try {
-    const { date, greenLeafToday, dispatch, localSaleAndGratis, returnAmount, username, isExplicitEdit } = req.body;
+    // 🌟 Added new fields to destructuring from req.body
+    const { 
+      date, 
+      greenLeafToday, 
+      dispatch, 
+      localSaleAndGratis, 
+      returnAmount, 
+      invoiceNo,           // NEW
+      dispatchTeaType,     // NEW
+      localSaleTeaType,    // NEW
+      username, 
+      isExplicitEdit 
+    } = req.body;
 
     if (!date) return res.status(400).json({ message: "Date is required." });
 
@@ -131,18 +131,14 @@ export const saveDailyFactoryLog = async (req, res) => {
 
     const glToday = Number(greenLeafToday) || 0;
 
-    // 🌟 FIXED: Dynamic Made Tea Calculation based on month
-    const selectedMonthNumber = targetDate.getMonth() + 1; // getMonth is 0-indexed (0-11)
+    const selectedMonthNumber = targetDate.getMonth() + 1; 
     const monthsWith21Percent = [4, 5, 6, 9, 10, 11, 12];
     const conversionRate = monthsWith21Percent.includes(selectedMonthNumber) ? 0.21 : 0.215;
     const madeTeaToday = glToday * conversionRate;
-    // ---------------------------------------------------
 
-    const totalOut =
-      (Number(dispatch) || 0) + (Number(localSaleAndGratis) || 0);
+    const totalOut = (Number(dispatch) || 0) + (Number(localSaleAndGratis) || 0);
     const retAmount = Number(returnAmount) || 0;
 
-    // 🌟 Backend Validation
     const aggrResult = await FactoryLog.aggregate([
       { $match: { date: { $lt: targetDate } } },
       {
@@ -171,33 +167,35 @@ export const saveDailyFactoryLog = async (req, res) => {
     }
 
     const existingRecord = await FactoryLog.findOne({ date: targetDate });
+    
+    // 🌟 Added new fields to the update document
     let updateFields = {
       greenLeaf: { today: glToday },
-      
-      // madeTea එක දශම 2 කට සීමා කිරීම
       madeTea: { today: Number(madeTeaToday.toFixed(2)) }, 
       
+      // Dispatch Fields
       dispatch: Number(dispatch) || 0,
+      invoiceNo: invoiceNo || "",              // NEW
+      dispatchTeaType: dispatchTeaType || "",  // NEW
+      
+      // Local Sale Fields
       localSaleAndGratis: Number(localSaleAndGratis) || 0,
+      localSaleTeaType: localSaleTeaType || "", // NEW
+      
       totalOut: totalOut,
       returnAmount: retAmount,
       
-      // Balances දශම 2 කට සීමා කිරීම
       bfBalance: Number(previousBalance.toFixed(2)),
       factoryBalance: Number(currentBalance.toFixed(2)),
     };
 
     if (existingRecord) {
-      // Edit Page එකෙන් එවනවා නම් විතරක් isEdited: true වෙනවා
       if (isExplicitEdit) {
         updateFields.isEdited = true;
         updateFields.lastUpdatedDate = new Date();
         updateFields.editedBy = username || req.user?.username || "Unknown User";
       }
-      // isExplicitEdit නැත්නම් (ඒ කියන්නේ Dispatch add කරනවා වගේ නම්),
-      // isEdited status එකට මුකුත් කරන්නේ නෑ. ඒක තිබ්බ විදියටම තියෙනවා.
     } else {
-      // අලුත්ම රෙකෝඩ් එකක් නම්
       updateFields.isEdited = false;
       updateFields.editedBy = username || req.user?.username || "System User";
     }
@@ -215,11 +213,13 @@ export const saveDailyFactoryLog = async (req, res) => {
       const existingPending = await PendingTransfer.findOne({
         date: targetDate,
         grade: "Local Sale (Auto)",
-        status: "Pending" // තාම Accept කරපු නැති ඒවා විතරක් Update වෙන්න
+        status: "Pending" 
       });
 
       if (existingPending) {
         existingPending.sentQtyKg = updateFields.localSaleAndGratis;
+        // Optionally pass Tea Type to packing if they need it later
+        // existingPending.notes = `Type: ${updateFields.localSaleTeaType}`; 
         await existingPending.save();
       } else {
         const autoTransNo = `FACT/TO/${Date.now().toString().slice(-6)}`;
@@ -227,14 +227,13 @@ export const saveDailyFactoryLog = async (req, res) => {
         const newPendingTransfer = new PendingTransfer({
           date: targetDate,
           transferNo: autoTransNo,
-          grade: "Local Sale (Auto)",
+          grade: `Local Sale - ${updateFields.localSaleTeaType || 'General'}`,          
           sentQtyKg: updateFields.localSaleAndGratis,
           factoryUsername: updateFields.editedBy
         });
         await newPendingTransfer.save();
       }
     } else {
-      // Local sale එක 0 කරොත් Pending තියෙන එක අයින් වෙන්න ඕනේ
       await PendingTransfer.findOneAndDelete({
         date: targetDate,
         grade: "Local Sale (Auto)",
@@ -263,7 +262,6 @@ export const deleteFactoryLog = async (req, res) => {
       return res.status(404).json({ message: "Record not found." });
     }
 
-    // 🌟 Factory Log එක මකද්දි ඒකට අදාල Auto Packing Record එකත් මකන්න
     await TeaReceived.findOneAndDelete({
         date: new Date(log.date).toISOString().split('T')[0], 
         "receivedItems.grade": "Local Sale (Auto)"

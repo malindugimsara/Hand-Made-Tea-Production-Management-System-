@@ -122,6 +122,8 @@ export const getBaseTeaGrade = (productName) => {
   
   if (p === "awurudu special") return "BOPF SP";
   if (p === "labour drinking tea") return "BOPF";
+  if (p === "pitigala tea bags") return "Black Tea T/B";
+  if (p === "green tea bag (25)") return "Green Tea T/B";
   
   return productName;
 };

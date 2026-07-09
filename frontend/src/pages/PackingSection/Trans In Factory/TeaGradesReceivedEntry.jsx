@@ -13,6 +13,7 @@ const getTeaColor = (grade) => {
     if (p.includes('awrudu')) return 'bg-[#c084fc] text-white border-purple-500'; 
     if (p.includes('green')) return 'bg-[#4ade80] text-green-900 border-green-600'; 
     if (p.includes('local sale (auto)')) return 'bg-[#fed7aa] text-orange-900 border-orange-500'; 
+    if (p.includes('local sale (auto)')) return 'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-700'; 
     return 'bg-white dark:bg-zinc-800 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-zinc-700'; 
 };
 
@@ -265,9 +266,11 @@ export default function TeaGradesReceivedEntry() {
                                         : 'border-transparent bg-white dark:bg-zinc-900 hover:border-teal-200 dark:hover:border-zinc-600'
                                     }`}
                                 >
-                                    <div className="flex justify-between items-start mb-2">
-                                        <span className="font-bold text-gray-800 dark:text-gray-200 text-sm">ID: {transfer.transferNo}</span>
-                                        <span className="text-[10px] font-bold text-orange-600 bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400 px-2 py-0.5 rounded">PENDING</span>
+                                    <div className="flex justify-between items-center mt-2">
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border shadow-sm ${getTeaColor(transfer.grade)}`}>
+                                            {transfer.grade === 'Local Sale (Auto)' ? 'Local Sale' : transfer.grade}
+                                        </span>
+                                        <span className="text-xs font-black text-gray-600 dark:text-gray-300">{transfer.sentQtyKg} Kg</span>
                                     </div>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mb-3">
                                         <Calendar size={12}/> Sent: {new Date(transfer.date).toISOString().split('T')[0]}
