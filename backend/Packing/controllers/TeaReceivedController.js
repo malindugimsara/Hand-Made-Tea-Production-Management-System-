@@ -66,7 +66,6 @@ export const acceptTransfer = async (req, res) => {
             acceptedBy: username, 
 
             receivedItems: [{
-                // 🌟 3. මෙතන 'cleanProductName' වෙනුවට 'finalCleanName' විය යුතුයි 🌟
                 grade: finalCleanName,   
                 teaType: finalCleanName, 
                 qtyKg: finalQty,
