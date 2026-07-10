@@ -6,7 +6,8 @@ import {
     getTeaReceivedRecords,
     deleteTeaReceivedRecord,
     updateTeaReceivedRecord,
-    rejectTransfer
+    rejectTransfer,
+    getRejectedTransfers
 } from '../controllers/TeaReceivedController.js'; 
 
 const teaReceivedRouter = express.Router();
@@ -36,5 +37,6 @@ teaReceivedRouter.route('/:id')
     .put(updateTeaReceivedRecord); 
 
 teaReceivedRouter.post('/reject', rejectTransfer);
+teaReceivedRouter.get('/rejected-transfers', getRejectedTransfers); // Get Rejected Transfers
 
 export default teaReceivedRouter;
