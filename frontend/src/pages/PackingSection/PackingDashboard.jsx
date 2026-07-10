@@ -35,8 +35,9 @@ export default function PackingDashboard() {
     const [currentStockData, setCurrentStockData] = useState([]);
     const [rawMaterialStock, setRawMaterialStock] = useState([]); 
     
-    // Pending Handmade Transfers State
+    // Pending Transfers State (Handmade & Factory)
     const [pendingHandmadeCount, setPendingHandmadeCount] = useState(0); 
+    const [pendingFactoryCount, setPendingFactoryCount] = useState(0); 
 
     // Dates Setup
     const todayDateObj = new Date();
@@ -64,13 +65,13 @@ export default function PackingDashboard() {
                 const token = localStorage.getItem('token');
                 const headers = { 'Authorization': `Bearer ${token}` };
 
-                const [resLocal, resTeaCenter, resStock, resRawMats, resPendingHandmade] = await Promise.all([
+                const [resLocal, resTeaCenter, resStock, resRawMats, resPendingHandmade, resPendingFactory] = await Promise.all([
                     fetch(`${BACKEND_URL}/api/local-sales`, { headers }).catch(() => ({ ok: false })),
                     fetch(`${BACKEND_URL}/api/tea-center-issues`, { headers }).catch(() => ({ ok: false })),
                     fetch(`${BACKEND_URL}/api/packing-stock`, { headers }).catch(() => ({ ok: false })),
                     fetch(`${BACKEND_URL}/api/raw-materials-in/stock`, { headers }).catch(() => ({ ok: false })),
-                    // Fetch only pending handmade transfers
-                    fetch(`${BACKEND_URL}/api/packing/transfers/pending`, { headers }).catch(() => ({ ok: false }))
+                    fetch(`${BACKEND_URL}/api/packing/transfers/pending`, { headers }).catch(() => ({ ok: false })),
+                    fetch(`${BACKEND_URL}/api/tea-received/pending`, { headers }).catch(() => ({ ok: false })) // Fetching Factory Pending
                 ]);
 
                 const localData = resLocal.ok ? await resLocal.json() : [];
@@ -78,6 +79,7 @@ export default function PackingDashboard() {
                 const stockData = resStock.ok ? await resStock.json() : [];
                 const rawMatData = resRawMats.ok ? await resRawMats.json() : [];
                 const pendingHandmadeData = resPendingHandmade.ok ? await resPendingHandmade.json() : [];
+                const pendingFactoryData = resPendingFactory.ok ? await resPendingFactory.json() : [];
 
                 // Combine Outward Issues for Charts
                 const combinedRecords = [
@@ -89,8 +91,9 @@ export default function PackingDashboard() {
                 setCurrentStockData(Array.isArray(stockData) ? stockData : []);
                 setRawMaterialStock(Array.isArray(rawMatData.data || rawMatData) ? (rawMatData.data || rawMatData) : []);
                 
-                // Set pending transfers from Handmade count
+                // Set pending transfers from Handmade & Factory count
                 setPendingHandmadeCount(Array.isArray(pendingHandmadeData) ? pendingHandmadeData.length : 0);
+                setPendingFactoryCount(Array.isArray(pendingFactoryData) ? pendingFactoryData.length : 0);
 
             } catch (error) {
                 console.error("Dashboard Fetch Error:", error);
@@ -117,7 +120,6 @@ export default function PackingDashboard() {
         }
 
         // --- Calculate Bulk Tea Stock ---
-        // Changed bulkStockKg to totalBulkStockKg to fix the NaN issue
         const totalStockKg = currentStockData.reduce((sum, item) => sum + (Number(item.totalBulkStockKg) || 0), 0);
         
         // Find Purple Tea Stock specifically
@@ -189,16 +191,25 @@ export default function PackingDashboard() {
         const generatedAlerts = [];
         const lowStockItems = []; 
 
-        // Pending Transfers Alert එක විතරක් Smart Alerts වලට දානවා
+        // Pending Handmade Transfers Alert
         if (pendingHandmadeCount > 0) {
             generatedAlerts.push({
-                id: 'trans-in', type: 'warning', icon: <PackagePlus size={20}/>,
+                id: 'trans-in-handmade', type: 'warning', icon: <PackagePlus size={20}/>,
                 title: 'Pending Handmade Transfers',
                 message: `You have ${pendingHandmadeCount} pending stock transfer(s) from Handmade waiting for approval.`
             });
         }
+
+        // Pending Factory Transfers Alert (New)
+        if (pendingFactoryCount > 0) {
+            generatedAlerts.push({
+                id: 'trans-in-factory', type: 'warning', icon: <Truck size={20}/>,
+                title: 'Pending Factory Transfers',
+                message: `You have ${pendingFactoryCount} pending stock transfer(s) from Main Factory waiting for approval.`
+            });
+        }
         
-        // 1. Check Bulk Tea Stock (Limit: <= 100kg) - Card එකට විතරයි
+        // 1. Check Bulk Tea Stock (Limit: <= 100kg)
         if (currentStockData && currentStockData.length > 0) {
             currentStockData.forEach(tea => {
                 const qty = Number(tea.totalBulkStockKg) || 0;
@@ -208,7 +219,7 @@ export default function PackingDashboard() {
             });
         }
 
-        // 2. Check Raw Materials Stock (Flavor Limit: <= 5kg | Other Limit: <= 500pcs) - Card එකට විතරයි
+        // 2. Check Raw Materials Stock (Flavor Limit: <= 5kg | Other Limit: <= 500pcs)
         if (rawMaterialStock && rawMaterialStock.length > 0) {
             rawMaterialStock.forEach((rm) => {
                 const qty = Number(rm.totalQuantity) || 0;
@@ -247,7 +258,7 @@ export default function PackingDashboard() {
             })),
             alerts: generatedAlerts
         };
-    }, [allRecords, currentStockData, rawMaterialStock, selectedMonth, todayStr, selectedTeaType, pendingHandmadeCount]); 
+    }, [allRecords, currentStockData, rawMaterialStock, selectedMonth, todayStr, selectedTeaType, pendingHandmadeCount, pendingFactoryCount]); 
 
     const getChartDateLabel = () => {
         if (!selectedMonth) return "";
@@ -270,7 +281,7 @@ export default function PackingDashboard() {
             <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden px-5 py-8 sm:px-8 sm:py-10 md:py-12 min-h-[180px] md:min-h-[220px] flex flex-col justify-center shadow-lg border border-teal-700/20 z-10"
                 style={{ background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 60%, #115e59 100%)' }}>
 
-                {/* Background Animations - Mobile Responsive Sizes & Positions */}
+                {/* Background Animations */}
                 <div className="absolute -top-10 -right-10 sm:top-0 sm:right-0 w-64 h-64 md:w-96 md:h-96 bg-teal-400 rounded-full mix-blend-multiply filter blur-[60px] md:blur-[100px] opacity-20 animate-pulse"></div>
                 <div className="absolute -bottom-10 -left-10 sm:-bottom-20 sm:left-10 w-48 h-48 md:w-72 md:h-72 bg-emerald-400 rounded-full mix-blend-multiply filter blur-[50px] md:blur-[80px] opacity-20 animate-pulse" style={{ animationDelay: '2s' }}></div>
 
@@ -322,26 +333,41 @@ export default function PackingDashboard() {
                     </div>
                 </div>
 
-                {/* 2. Card: Pending Handmade Trans-In */}
+                {/* 2. Card: Pending Incoming Transfers (Handmade & Factory) */}
                 <div 
-                    onClick={() => pendingHandmadeCount > 0 && navigate('/packing/trans-in-entry')}
-                    className={`bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 relative overflow-hidden transition-all group ${pendingHandmadeCount > 0 ? 'cursor-pointer hover:shadow-md hover:border-teal-200 dark:hover:border-teal-900/50' : ''}`}
+                    className={`bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 relative overflow-hidden transition-all group ${(pendingHandmadeCount > 0 || pendingFactoryCount > 0) ? 'hover:shadow-md hover:border-teal-200 dark:hover:border-teal-900/50' : ''}`}
                 >
                     <div className="flex justify-between items-start mb-4">
                         <div className="w-12 h-12 bg-teal-50 dark:bg-teal-900/20 rounded-xl flex items-center justify-center text-teal-600 dark:text-teal-400 group-hover:scale-110 transition-transform">
                             <ArrowRightCircle size={24} />
                         </div>
-                        {pendingHandmadeCount > 0 ? (
+                        {(pendingHandmadeCount > 0 || pendingFactoryCount > 0) ? (
                             <span className="text-[10px] font-bold px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg uppercase animate-pulse">Action Needed</span>
                         ) : (
                             <span className="text-[10px] font-bold px-2 py-1 bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 rounded-lg uppercase">Up to date</span>
                         )}
                     </div>
                     <div>
-                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Pending Handmade Trans-In</p>
-                        <h3 className={`text-3xl font-black ${pendingHandmadeCount > 0 ? 'text-orange-500' : 'text-teal-600 dark:text-teal-500'}`}>
-                            {isLoading ? '...' : pendingHandmadeCount} <span className="text-sm text-gray-400 font-semibold lowercase">transfers</span>
+                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Pending Trans-In</p>
+                        <h3 className={`text-3xl font-black ${(pendingHandmadeCount > 0 || pendingFactoryCount > 0) ? 'text-orange-500' : 'text-teal-600 dark:text-teal-500'}`}>
+                            {isLoading ? '...' : (pendingHandmadeCount + pendingFactoryCount)} <span className="text-sm text-gray-400 font-semibold lowercase">total</span>
                         </h3>
+                        
+                        {/* Interactive Badges for Handmade and Factory */}
+                        <div className="flex flex-wrap gap-2 mt-3">
+                            <div 
+                                onClick={() => pendingHandmadeCount > 0 && navigate('/packing/trans-in-entry')}
+                                className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-colors ${pendingHandmadeCount > 0 ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800 cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/40' : 'bg-gray-50 dark:bg-zinc-800/50 text-gray-400 dark:text-gray-500 border-gray-100 dark:border-zinc-700/50'}`}
+                            >
+                                Handmade: {isLoading ? '-' : pendingHandmadeCount}
+                            </div>
+                            <div 
+                                onClick={() => pendingFactoryCount > 0 && navigate('/packing/trans-in-factory-entry')} 
+                                className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-colors ${pendingFactoryCount > 0 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/40' : 'bg-gray-50 dark:bg-zinc-800/50 text-gray-400 dark:text-gray-500 border-gray-100 dark:border-zinc-700/50'}`}
+                            >
+                                Factory: {isLoading ? '-' : pendingFactoryCount}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -577,7 +603,6 @@ export default function PackingDashboard() {
                                                 </div>
                                                 <div className="text-right whitespace-nowrap">
                                                     <span className={`font-black text-lg ${isPurple ? 'text-purple-600 dark:text-purple-400' : 'text-[#0f766e] dark:text-teal-400'}`}>
-                                                        {/* Changed to totalBulkStockKg to fix NaN */}
                                                         {(Number(item.totalBulkStockKg) || 0).toFixed(2)}
                                                     </span>
                                                     <span className="text-gray-400 text-xs font-bold ml-1">kg</span>

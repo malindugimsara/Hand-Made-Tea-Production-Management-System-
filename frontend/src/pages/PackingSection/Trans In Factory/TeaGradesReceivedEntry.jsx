@@ -2,6 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
 import { PlusCircle, Trash2, ListChecks, Save, Package, ShoppingCart, Calendar, Weight, Tag, X, FileText, CheckCircle2, AlertCircle, ArrowRightCircle, RefreshCw } from "lucide-react"; 
 import { useNavigate } from 'react-router-dom';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const getTeaColor = (grade) => {
     const p = grade.toLowerCase();
@@ -12,7 +23,6 @@ const getTeaColor = (grade) => {
     if (p.includes('premium')) return 'bg-[#f472b6] text-white border-pink-500'; 
     if (p.includes('awrudu')) return 'bg-[#c084fc] text-white border-purple-500'; 
     if (p.includes('green')) return 'bg-[#4ade80] text-green-900 border-green-600'; 
-    if (p.includes('local sale (auto)')) return 'bg-[#fed7aa] text-orange-900 border-orange-500'; 
     if (p.includes('local sale (auto)')) return 'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-700'; 
     return 'bg-white dark:bg-zinc-800 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-zinc-700'; 
 };
@@ -23,18 +33,22 @@ const TEA_TYPES = [
     "Awurudu Special", "Local Sale (Auto)"
 ];
 
+// Helper function to remove "Local Sale", "(Auto)" and extra hyphens from the name
+const getCleanTeaName = (grade, teaType) => {
+    let name = teaType && teaType.trim() !== "" ? teaType : grade;
+    return name.replace(/Local Sale/gi, '').replace(/\(Auto\)/gi, '').replace(/-/g, '').trim() || grade;
+};
+
 export default function TeaGradesReceivedEntry() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const navigate = useNavigate();
     
-    // --- States for Factory Pending Transfers ---
     const [factoryTransfers, setFactoryTransfers] = useState([]);
     const [isFetchingPending, setIsFetchingPending] = useState(true);
     const [selectedTransfer, setSelectedTransfer] = useState(null);
     const [receivedWeight, setReceivedWeight] = useState("");
     const [acceptingId, setAcceptingId] = useState(null);
 
-    // --- States for Manual Entry ---
     const [showSpinner, setShowSpinner] = useState(false);
     const [pendingRecords, setPendingRecords] = useState([]);
     const [formData, setFormData] = useState({
@@ -45,7 +59,8 @@ export default function TeaGradesReceivedEntry() {
     const [openDropdownId, setOpenDropdownId] = useState(null);
     const dropdownRefs = useRef({}); 
 
-    // Fetch Pending Transfers on Mount
+    const [transferToRemove, setTransferToRemove] = useState(null);
+
     useEffect(() => {
         fetchPendingTransfers();
     }, []);
@@ -73,8 +88,45 @@ export default function TeaGradesReceivedEntry() {
 
     const handleSelectTransfer = (transfer) => {
         setSelectedTransfer(transfer);
-        // Pre-fill actual received amount with what factory sent
         setReceivedWeight(transfer.sentQtyKg);
+    };
+
+    const confirmRejectTransfer = async () => {
+        if (!transferToRemove) return;
+
+        const toastId = toast.loading("Removing transfer...");
+        try {
+            const token = localStorage.getItem('token');
+            const username = localStorage.getItem('username') || "Packing Officer";
+
+            // Database එකේ Reject කරලා Status එක update කරනවා
+            const res = await fetch(`${BACKEND_URL}/api/tea-received/reject`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({ transferId: transferToRemove, username })
+            });
+
+            if (!res.ok) throw new Error("Failed to reject transfer");
+
+            toast.success("Transfer removed successfully!", { id: toastId });
+            
+            // Queue එකෙන් අයින් කරනවා
+            setFactoryTransfers(prev => prev.filter(t => t._id !== transferToRemove));
+            
+            // අයින් කරපු එකම දකුණු පැත්තේ Form එකේ තේරිලා තියෙනවා නම් ඒකත් clear කරනවා
+            if (selectedTransfer && selectedTransfer._id === transferToRemove) {
+                setSelectedTransfer(null);
+                setReceivedWeight("");
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("Error removing transfer.", { id: toastId });
+        } finally {
+            setTransferToRemove(null); // Process එක ඉවර උනාම state එක clear කරනවා
+        }
     };
 
     const handleAcceptTransfer = async (e) => {
@@ -91,6 +143,9 @@ export default function TeaGradesReceivedEntry() {
         try {
             const token = localStorage.getItem('token');
             const username = localStorage.getItem('username') || "Packing Officer";
+            
+            // 🌟 අලුත්: පිරිසිදු කරපු නම කෙලින්ම backend එකට යැවීම 🌟
+            const cleanName = getCleanTeaName(selectedTransfer.grade, selectedTransfer.teaType);
 
             const res = await fetch(`${BACKEND_URL}/api/tea-received/accept`, {
                 method: 'POST',
@@ -101,7 +156,8 @@ export default function TeaGradesReceivedEntry() {
                 body: JSON.stringify({
                     transferId: selectedTransfer._id,
                     receivedQtyKg: Number(receivedWeight),
-                    username: username
+                    username: username,
+                    cleanProductName: cleanName // Send explicit clean name
                 })
             });
 
@@ -109,7 +165,6 @@ export default function TeaGradesReceivedEntry() {
 
             toast.success("Stock received and updated successfully!", { id: toastId });
             
-            // Remove the accepted item from UI & reset selection
             setFactoryTransfers(prev => prev.filter(t => t._id !== selectedTransfer._id));
             setSelectedTransfer(null);
             setReceivedWeight("");
@@ -122,7 +177,6 @@ export default function TeaGradesReceivedEntry() {
         }
     };
 
-    // --- Dropdown Click Outside Handler ---
     useEffect(() => {
         const handleClickOutside = (event) => {
             let isOutside = true;
@@ -137,7 +191,6 @@ export default function TeaGradesReceivedEntry() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // --- Manual Entry Functions ---
     const handleAddItemRow = () => setItemsList([...itemsList, { id: Date.now(), grade: '', qtyKg: '' }]);
     const handleRemoveItemRow = (idToRemove) => {
         if (itemsList.length === 1) return; 
@@ -147,7 +200,10 @@ export default function TeaGradesReceivedEntry() {
         if (field === 'qtyKg' && value !== '' && (Number(value) < 0 || value.includes('-'))) return;
         setItemsList(itemsList.map(row => row.id === id ? { ...row, [field]: value } : row));
     };
-    const handleInputChange = (e) => setFormData(prev => ({ ...prev, [name]: e.target.value }));
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
     const totalQtyKg = itemsList.reduce((sum, row) => sum + (Number(row.qtyKg) || 0), 0);
 
     const handleAddToList = (e) => {
@@ -205,17 +261,6 @@ export default function TeaGradesReceivedEntry() {
         }
     };
 
-    // Summary calculations for Manual queue
-    const productSummaryMap = {};
-    pendingRecords.forEach(record => {
-        record.items.forEach(item => {
-            if (!productSummaryMap[item.grade]) productSummaryMap[item.grade] = 0;
-            productSummaryMap[item.grade] += Number(item.qtyKg) || 0;
-        });
-    });
-    const summaryArray = Object.entries(productSummaryMap).sort((a, b) => b[1] - a[1]);
-    const grandPendingQty = summaryArray.reduce((sum, [_, qty]) => sum + qty, 0);
-
     return (
         <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
             
@@ -235,9 +280,6 @@ export default function TeaGradesReceivedEntry() {
                 </button>
             </div>
 
-            {/* ========================================================================= */}
-            {/* 🌟 NEW LAYOUT: PENDING TRANSFERS (LEFT) & VERIFICATION FORM (RIGHT) 🌟 */}
-            {/* ========================================================================= */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
                 
                 {/* --- LEFT SIDE: PENDING LIST --- */}
@@ -259,28 +301,63 @@ export default function TeaGradesReceivedEntry() {
                             {factoryTransfers.map((transfer) => (
                                 <div 
                                     key={transfer._id} 
-                                    onClick={() => handleSelectTransfer(transfer)}
-                                    className={`p-4 rounded-xl border-2 transition-all cursor-pointer shadow-sm ${
+                                    className={`p-4 rounded-xl border-2 transition-all shadow-sm ${
                                         selectedTransfer?._id === transfer._id 
                                         ? 'border-[#0f766e] dark:border-teal-500 bg-[#f0fdfa] dark:bg-teal-900/20' 
-                                        : 'border-transparent bg-white dark:bg-zinc-900 hover:border-teal-200 dark:hover:border-zinc-600'
+                                        : 'border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900'
                                     }`}
                                 >
-                                    <div className="flex justify-between items-center mt-2">
+                                    <div className="flex justify-between items-center mt-1">
                                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded border shadow-sm ${getTeaColor(transfer.grade)}`}>
-                                            {transfer.grade === 'Local Sale (Auto)' ? 'Local Sale' : transfer.grade}
+                                            {getCleanTeaName(transfer.grade, transfer.teaType)}
                                         </span>
                                         <span className="text-xs font-black text-gray-600 dark:text-gray-300">{transfer.sentQtyKg} Kg</span>
                                     </div>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mb-3">
-                                        <Calendar size={12}/> Sent: {new Date(transfer.date).toISOString().split('T')[0]}
+                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1 mb-2 mt-2 font-medium">
+                                        <Calendar size={12}/> Sent: {new Date(transfer.date).toISOString().split('T')[0]} | Ref: {transfer.transferNo}
                                     </p>
                                     
-                                    <div className="flex justify-between items-center mt-2">
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border shadow-sm ${getTeaColor(transfer.grade)}`}>
-                                            {transfer.grade}
-                                        </span>
-                                        <span className="text-xs font-black text-gray-600 dark:text-gray-300">{transfer.sentQtyKg} Kg</span>
+                                    {/* 🌟 අලුත්: Accept & Remove Buttons (With Confirmation Dialog) 🌟 */}
+                                    <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <button 
+                                                    onClick={() => setTransferToRemove(transfer._id)}
+                                                    className="flex-1 py-2 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/40 dark:text-red-400 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                                                >
+                                                    <X size={14} /> Remove
+                                                </button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-[90vw]">
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle className="text-xl font-bold dark:text-gray-100">Remove Transfer</AlertDialogTitle>
+                                                    <AlertDialogDescription className="dark:text-gray-400">
+                                                        Are you sure you want to remove this stock transfer? It will be marked as rejected and permanently removed from your queue.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel 
+                                                        onClick={() => setTransferToRemove(null)} 
+                                                        className="dark:bg-zinc-800 dark:text-gray-200 dark:hover:bg-zinc-700 rounded-xl"
+                                                    >
+                                                        Cancel
+                                                    </AlertDialogCancel>
+                                                    <AlertDialogAction 
+                                                        onClick={confirmRejectTransfer} 
+                                                        className="bg-red-600 text-white hover:bg-red-700 dark:hover:bg-red-800 rounded-xl"
+                                                    >
+                                                        Yes, Remove
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+
+                                        <button 
+                                            onClick={() => handleSelectTransfer(transfer)}
+                                            className="flex-1 py-2 bg-[#0f766e]/10 hover:bg-[#0f766e]/20 text-[#0f766e] dark:bg-teal-900/20 dark:hover:bg-teal-900/40 dark:text-teal-400 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors border border-[#0f766e]/20 dark:border-teal-800"
+                                        >
+                                            <CheckCircle2 size={14} /> Review
+                                        </button>
                                     </div>
                                 </div>
                             ))}
@@ -294,7 +371,7 @@ export default function TeaGradesReceivedEntry() {
                         <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center text-gray-400 dark:text-gray-500 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm p-8">
                             <ListChecks size={64} className="mb-6 opacity-20" />
                             <h3 className="text-xl font-bold text-gray-600 dark:text-gray-300">Select a transfer to verify</h3>
-                            <p className="text-sm mt-2 max-w-md">Click on an incoming stock ticket on the left to review the weights and accept it into the Packing inventory.</p>
+                            <p className="text-sm mt-2 max-w-md">Click "Review" on an incoming stock ticket on the left to review the weights and accept it into the Packing inventory.</p>
                         </div>
                     ) : (
                         <form onSubmit={handleAcceptTransfer} className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-lg border border-teal-100 dark:border-zinc-800 flex flex-col transition-colors duration-300 h-full">
@@ -323,7 +400,7 @@ export default function TeaGradesReceivedEntry() {
                                         <tr className="hover:bg-white/50 dark:hover:bg-zinc-800/50 transition-colors">
                                             <td className="px-4 py-6 align-middle">
                                                 <span className={`font-bold border px-3 py-1.5 rounded shadow-sm text-sm ${getTeaColor(selectedTransfer.grade)}`}>
-                                                    {selectedTransfer.grade}
+                                                    {getCleanTeaName(selectedTransfer.grade, selectedTransfer.teaType)}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-6 text-center align-middle font-bold text-gray-600 dark:text-gray-300 text-2xl">
@@ -377,16 +454,14 @@ export default function TeaGradesReceivedEntry() {
                 </div>
             </div>
 
-            {/* ========================================================================= */}
-            {/* 🌟 MANUAL ENTRY SECTION (Fallback) 🌟 */}
-            {/* ========================================================================= */}
+            {/* --- MANUAL ENTRY --- */}
+            {/* ... Your Existing Manual Entry code ... */}
             <div className="pt-8 border-t border-gray-200 dark:border-zinc-800">
                 <h3 className="text-xl font-bold text-gray-500 dark:text-gray-400 mb-6 flex items-center gap-2">
                     <FileText size={20} /> Manual Entry (Other Receipts)
                 </h3>
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
                     
-                    {/* --- LEFT SIDE: DATA ENTRY FORM --- */}
                     <div className="lg:col-span-3">
                         <form onSubmit={handleAddToList} className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-lg border border-gray-100 dark:border-zinc-800 transition-colors duration-300">
                             
@@ -399,7 +474,7 @@ export default function TeaGradesReceivedEntry() {
                                         type="date" 
                                         name="date" 
                                         value={formData.date} 
-                                        onChange={(e) => setFormData(prev => ({...prev, date: e.target.value}))} 
+                                        onChange={handleInputChange} 
                                         required 
                                         className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                                     />
@@ -416,7 +491,7 @@ export default function TeaGradesReceivedEntry() {
                                             type="text" 
                                             name="transactionNo" 
                                             value={formData.transactionNo} 
-                                            onChange={(e) => setFormData(prev => ({...prev, transactionNo: e.target.value}))} 
+                                            onChange={handleInputChange} 
                                             placeholder="000851"
                                             required 
                                             className="flex-1 block w-full min-w-0 p-3 rounded-none rounded-r-md border border-gray-300 dark:border-zinc-700 focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
@@ -527,7 +602,6 @@ export default function TeaGradesReceivedEntry() {
                         </form>
                     </div>
 
-                    {/* --- RIGHT SIDE: MANUAL PENDING LIST --- */}
                     <div className="lg:col-span-2 flex flex-col gap-6">
                         <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-lg border border-gray-100 dark:border-zinc-800 flex flex-col max-h-[60vh] transition-colors duration-300">
                             <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-zinc-800 pb-4">
@@ -601,7 +675,6 @@ export default function TeaGradesReceivedEntry() {
                     </div>
                 </div>
             </div>
-
         </div>
     );
 }

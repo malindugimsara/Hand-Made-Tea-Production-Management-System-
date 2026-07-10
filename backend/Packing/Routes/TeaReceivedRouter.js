@@ -5,7 +5,8 @@ import {
     createTeaReceivedRecord, // 🌟 Manual Entry Function එක import කරන්න
     getTeaReceivedRecords,
     deleteTeaReceivedRecord,
-    updateTeaReceivedRecord
+    updateTeaReceivedRecord,
+    rejectTransfer
 } from '../controllers/TeaReceivedController.js'; 
 
 const teaReceivedRouter = express.Router();
@@ -33,5 +34,7 @@ teaReceivedRouter.route('/')
 teaReceivedRouter.route('/:id')
     .delete(deleteTeaReceivedRecord)
     .put(updateTeaReceivedRecord); 
+
+teaReceivedRouter.post('/reject', rejectTransfer);
 
 export default teaReceivedRouter;
