@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
 import { Bell, AlertTriangle, Layers, Calendar, Filter, CheckCircle, Info, TrendingUp, Sparkles, X, Droplet, PackagePlus, Box, Truck, ArrowRightCircle } from 'lucide-react';
@@ -38,6 +38,10 @@ export default function PackingDashboard() {
     // Pending Transfers State (Handmade & Factory)
     const [pendingHandmadeCount, setPendingHandmadeCount] = useState(0); 
     const [pendingFactoryCount, setPendingFactoryCount] = useState(0); 
+
+    // --- NEW: Refs to track previous counts for notifications ---
+    const prevHandmadeCount = useRef(0);
+    const prevFactoryCount = useRef(0);
 
     // Dates Setup
     const todayDateObj = new Date();
@@ -104,7 +108,50 @@ export default function PackingDashboard() {
         };
 
         fetchDashboardData();
+        
+        // Optional: Auto-refresh data every 60 seconds so the officer gets live updates
+        const intervalId = setInterval(fetchDashboardData, 60000);
+        return () => clearInterval(intervalId);
     }, [BACKEND_URL, todayStr]);
+
+    // --- NEW: Notification Effect ---
+    useEffect(() => {
+        // Only run this if we are not in the initial loading state
+        if (!isLoading) {
+            const hasNewHandmade = pendingHandmadeCount > prevHandmadeCount.current;
+            const hasNewFactory = pendingFactoryCount > prevFactoryCount.current;
+
+            if (hasNewHandmade || hasNewFactory) {
+                const source = hasNewHandmade && hasNewFactory ? "Handmade & Factory" : hasNewHandmade ? "Handmade" : "Factory";
+                const notificationMsg = `New pending transfer(s) arrived from ${source}!`;
+                
+                // 1. Toast Notification
+                toast(notificationMsg, { 
+                    icon: '📦',
+                    style: {
+                        borderRadius: '10px',
+                        background: '#115e59', // Teal color matching your theme
+                        color: '#fff',
+                        fontWeight: 'bold'
+                    },
+                    duration: 5000,
+                });
+
+                // 2. Browser Push Notification
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification('New Packing Transfer', {
+                        body: notificationMsg,
+                        icon: '/favicon.ico' 
+                    });
+                }
+            }
+        }
+
+        // Update refs for the next render cycle
+        prevHandmadeCount.current = pendingHandmadeCount;
+        prevFactoryCount.current = pendingFactoryCount;
+        
+    }, [pendingHandmadeCount, pendingFactoryCount, isLoading]);
 
     // Process Data efficiently using useMemo
     const dashboardData = useMemo(() => {
