@@ -7,7 +7,7 @@ import { HandmadeRoutes } from './pages/HandmadeRoutes';
 import { PackingRoutes } from './pages/PackingRoutes';
 import FactoryRouter from './pages/FactoryRouter';
 
-const PUBLIC_VAPID_KEY = "oyage_public_key_eka_methana_danna";
+const PUBLIC_VAPID_KEY = import.meta.env.VITE_PUBLIC_VAPID_KEY;
 
 function urlBase64ToUint8Array(base64String) {
   // ... (Kalin thibba code ekama)
@@ -44,29 +44,29 @@ export default function App() {
     if ('serviceWorker' in navigator) {
       try {
         const register = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-        
+
         const subscription = await register.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
         });
 
-        await fetch('http://localhost:3000/api/notifications/subscribe', {
+        await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/notifications/subscribe`, {
           method: 'POST',
           body: JSON.stringify(subscription),
           headers: { 'content-type': 'application/json' }
         });
-        
-        toast.success("Notifications Enable Kara Gaththa!");
-        
+
+        toast.success("Notifications Enabled Successfully!");
+
         // 3. Success unata passe button eka hide karanna
         setShowNotificationBtn(false);
 
       } catch (error) {
         console.error('Subscription error:', error);
-        toast.error("Notifications Enable Kirimata Apahasui.");
+        toast.error("Cannot subscribe to notifications");
       }
     } else {
-      toast.error("Oyage browser eka Web Push notifications support karanne naha.");
+      toast.error("Service Worker not supported in this browser.");
     }
   };
 
@@ -77,7 +77,7 @@ export default function App() {
 
       {/* 4. State eka true nam vitharak button eka pennanna */}
       {showNotificationBtn && (
-        <button 
+        <button
           onClick={subscribeToNotifications}
           style={{
             position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999,

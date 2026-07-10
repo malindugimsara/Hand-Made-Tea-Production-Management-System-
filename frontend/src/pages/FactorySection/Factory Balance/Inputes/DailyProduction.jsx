@@ -29,7 +29,7 @@ export default function DailyProduction() {
 
   useEffect(() => {
     if (formData.date) {
-      const selectedDateMonth = formData.date.substring(0, 7); // උදා: '2024-04'
+      const selectedDateMonth = formData.date.substring(0, 7); // '2024-04'
       if (selectedDateMonth !== selectedMonth) {
         setSelectedMonth(selectedDateMonth);
       }
