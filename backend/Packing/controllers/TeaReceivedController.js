@@ -49,14 +49,20 @@ export const acceptTransfer = async (req, res) => {
         const randomNum = Math.floor(1000 + Math.random() * 9000);
         const newTransactionNo = `PACK/TI/${year}${month}${day}-${randomNum}`;
 
-        // 1. Tea Received Record එක හැදීම (පිරිසිදු කළ නමත් සමඟ)
+        // 1. Tea Received (Trans In) Record එක හැදීම
         const newTeaReceived = new TeaReceived({
             date: d, 
             transactionNo: newTransactionNo,
+            
+            sentQtyKg: pendingRecord.sentQtyKg, // 👈 මේ පේළිය අනිවාර්යයෙන් අලුතින් දාන්න
             totalQtyKg: finalQty,
+            
+            factoryUsername: pendingRecord.factoryUsername, 
+            acceptedBy: username, 
+
             receivedItems: [{
-                grade: finalCleanName, 
-                teaType: finalCleanName, // 🌟 මෙතනට පිරිසිදු කරපු නම කෙලින්ම save වේ 🌟
+                grade: cleanProductName,   
+                teaType: cleanProductName, 
                 qtyKg: finalQty,
             }]
         });
@@ -258,19 +264,19 @@ export const updateTeaReceivedRecord = async (req, res) => {
 };
 
 // ==========================================
-// 6. CREATE MANUAL TEA RECEIVED RECORD (Updated)
+// 6. CREATE MANUAL TEA RECEIVED RECORD
 // ==========================================
 export const createTeaReceivedRecord = async (req, res) => {
     try {
-        const { date, transactionNo, totalQtyKg, receivedItems } = req.body;
+        const { date, transactionNo, totalQtyKg, receivedItems, username } = req.body;
         
-        // receivedItems වල teaType ඇතුලත් කර එවන බැවින් එය එලෙසම DB එකට යයි
         const newTeaReceived = new TeaReceived({
             date,
             transactionNo,
             totalQtyKg,
             receivedItems, 
-            isManual: true
+            isManual: true, // මේක Manual entry එකක් බව පෙන්වන්න
+            acceptedBy: username || "Packing Staff" 
         });
 
         // Stock Update Logic
@@ -280,20 +286,23 @@ export const createTeaReceivedRecord = async (req, res) => {
 
             let stock = await PackingStock.findOne({ productName: productName });
             if (stock) {
-                let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Manual');
+                // 🌟 වෙනස: 'Manual' වෙනුවට 'Factory' ලෙස Stock එක Update කිරීම 🌟
+                let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Factory');
                 if (sourceObj) {
                     sourceObj.quantityKg += incomingQty;
                     sourceObj.transInAmount += incomingQty;
                 } else {
-                    stock.stockBySource.push({ sourceName: 'Manual', quantityKg: incomingQty, transInAmount: incomingQty, issueAmount: 0 });
+                    stock.stockBySource.push({ sourceName: 'Factory', quantityKg: incomingQty, transInAmount: incomingQty, issueAmount: 0 });
                 }
                 stock.totalBulkStockKg += incomingQty;
                 await stock.save();
             } else {
                 const newStock = new PackingStock({
                     productName: productName,
-                    stockBySource: [{ sourceName: 'Manual', quantityKg: incomingQty, transInAmount: incomingQty, issueAmount: 0 }],
-                    totalBulkStockKg: incomingQty
+                    // 🌟 වෙනස: 'Manual' වෙනුවට 'Factory' ලෙස Stock එක සෑදීම 🌟
+                    stockBySource: [{ sourceName: 'Factory', quantityKg: incomingQty, transInAmount: incomingQty, issueAmount: 0 }],
+                    totalBulkStockKg: incomingQty,
+                    packedItems: []
                 });
                 await newStock.save();
             }
@@ -303,6 +312,20 @@ export const createTeaReceivedRecord = async (req, res) => {
         res.status(201).json(newTeaReceived);
 
     } catch (error) {
+        console.error("Manual Save Error:", error);
         res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// ==========================================
+// 🌟 අලුත්: GET REJECTED TRANSFERS 🌟
+// ==========================================
+export const getRejectedTransfers = async (req, res) => {
+    try {
+        const rejectedTransfers = await PendingTransfer.find({ status: "Rejected" }).sort({ updatedAt: -1 });
+        res.status(200).json(rejectedTransfers);
+    } catch (error) {
+        console.error('Error fetching rejected transfers:', error);
+        res.status(500).json({ message: "Server error fetching rejected transfers" });
     }
 };

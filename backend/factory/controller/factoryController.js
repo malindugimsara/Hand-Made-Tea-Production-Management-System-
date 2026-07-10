@@ -2,7 +2,7 @@ import FactoryLog from "../models/FactoryLog.js";
 import PendingTransfer from "../../Packing/models/PendingTransfer.js";
 import TeaReceived from "../../Packing/models/TeaReceivedModel.js"; 
 
-// 1. GET FACTORY LOGS (UPDATED WITH AGE OF STOCK LOGIC)
+// 1. GET FACTORY LOGS
 export const getFactoryLogsByMonth = async (req, res) => {
   try {
     const { month, startDate, endDate } = req.query;
@@ -98,8 +98,6 @@ export const getFactoryLogsByMonth = async (req, res) => {
         };
     });
 
-    // ========================================================
-
     res.status(200).json({ bfFromLastMonth, records: finalRecords });
   } catch (error) {
     console.error("Error fetching factory logs:", error);
@@ -107,19 +105,18 @@ export const getFactoryLogsByMonth = async (req, res) => {
   }
 };
 
-// 2. SAVE OR UPDATE DAILY FACTORY LOG (UPDATED WITH NEW FIELDS)
+// 2. SAVE OR UPDATE DAILY FACTORY LOG 
 export const saveDailyFactoryLog = async (req, res) => {
   try {
-    // 🌟 Added new fields to destructuring from req.body
     const { 
       date, 
       greenLeafToday, 
       dispatch, 
       localSaleAndGratis, 
       returnAmount, 
-      invoiceNo,           // NEW
-      dispatchTeaType,     // NEW
-      localSaleTeaType,    // NEW
+      invoiceNo, 
+      dispatchTeaType, 
+      localSaleTeaType, 
       username, 
       isExplicitEdit 
     } = req.body;
@@ -168,19 +165,16 @@ export const saveDailyFactoryLog = async (req, res) => {
 
     const existingRecord = await FactoryLog.findOne({ date: targetDate });
     
-    // 🌟 Added new fields to the update document
     let updateFields = {
       greenLeaf: { today: glToday },
       madeTea: { today: Number(madeTeaToday.toFixed(2)) }, 
       
-      // Dispatch Fields
       dispatch: Number(dispatch) || 0,
-      invoiceNo: invoiceNo || "",              // NEW
-      dispatchTeaType: dispatchTeaType || "",  // NEW
+      invoiceNo: invoiceNo || "",              
+      dispatchTeaType: dispatchTeaType || "",  
       
-      // Local Sale Fields
       localSaleAndGratis: Number(localSaleAndGratis) || 0,
-      localSaleTeaType: localSaleTeaType || "", // NEW
+      localSaleTeaType: localSaleTeaType || "", 
       
       totalOut: totalOut,
       returnAmount: retAmount,
@@ -207,39 +201,60 @@ export const saveDailyFactoryLog = async (req, res) => {
     );
 
     // ==========================================
-    // 🌟 PACKING AUTOMATION (Trans Out to Pending)
+    // 🌟 PACKING AUTOMATION (Only Local Sales to Pending) 🌟
     // ==========================================
-    if (updateFields.localSaleAndGratis > 0) {
-      const existingPending = await PendingTransfer.findOne({
-        date: targetDate,
-        grade: "Local Sale (Auto)",
-        status: "Pending" 
-      });
+    
+    const d = new Date(targetDate);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
 
-      if (existingPending) {
-        existingPending.sentQtyKg = updateFields.localSaleAndGratis;
-        // Optionally pass Tea Type to packing if they need it later
-        // existingPending.notes = `Type: ${updateFields.localSaleTeaType}`; 
-        await existingPending.save();
-      } else {
-        const autoTransNo = `FACT/TO/${Date.now().toString().slice(-6)}`;
+    // Automation Helper Function (Only for Local Sale)
+    const syncPendingTransfer = async (typePrefix, qty, teaType) => {
+        const regex = new RegExp(`FACT/TO/${year}${month}${day}-${typePrefix}`);
         
-        const newPendingTransfer = new PendingTransfer({
-          date: targetDate,
-          transferNo: autoTransNo,
-          grade: `Local Sale - ${updateFields.localSaleTeaType || 'General'}`,          
-          sentQtyKg: updateFields.localSaleAndGratis,
-          factoryUsername: updateFields.editedBy
-        });
-        await newPendingTransfer.save();
-      }
-    } else {
-      await PendingTransfer.findOneAndDelete({
-        date: targetDate,
-        grade: "Local Sale (Auto)",
-        status: "Pending"
-      });
-    }
+        if (qty > 0 && teaType) {
+            const existingPending = await PendingTransfer.findOne({
+                date: targetDate,
+                transferNo: { $regex: regex },
+                status: "Pending" 
+            });
+
+            if (existingPending) {
+                // Update existing
+                existingPending.sentQtyKg = qty;
+                existingPending.grade = teaType;   // Pure Grade (e.g. BOPF)
+                existingPending.teaType = teaType; // Pure Grade
+                existingPending.factoryUsername = updateFields.editedBy; // Login Name
+                await existingPending.save();
+            } else {
+                // Create New
+                const randomNum = Math.floor(100 + Math.random() * 900); // 3 digit random
+                const autoTransNo = `FACT/TO/${year}${month}${day}-${typePrefix}-${randomNum}`;
+                
+                const newPendingTransfer = new PendingTransfer({
+                    date: targetDate,
+                    transferNo: autoTransNo,
+                    grade: teaType,   // Pure Grade
+                    teaType: teaType, // Pure Grade
+                    sentQtyKg: qty,
+                    factoryUsername: updateFields.editedBy // Login Name goes here
+                });
+                await newPendingTransfer.save();
+            }
+        } else {
+            // Delete if quantity is made 0
+            await PendingTransfer.findOneAndDelete({
+                date: targetDate,
+                transferNo: { $regex: regex },
+                status: "Pending"
+            });
+        }
+    };
+
+    // 🌟 මෙතනින් Dispatch යවන එක අයින් කළා. Local Sale විතරක් යවනවා. 🌟
+    await syncPendingTransfer('LOC', updateFields.localSaleAndGratis, updateFields.localSaleTeaType);
+    
     // ==========================================
 
     res.status(200).json({
@@ -252,7 +267,7 @@ export const saveDailyFactoryLog = async (req, res) => {
   }
 };
 
-// 3. DELETE FACTORY LOG (Unchanged)
+// 3. DELETE FACTORY LOG
 export const deleteFactoryLog = async (req, res) => {
   try {
     const { id } = req.params;
@@ -262,9 +277,11 @@ export const deleteFactoryLog = async (req, res) => {
       return res.status(404).json({ message: "Record not found." });
     }
 
-    await TeaReceived.findOneAndDelete({
-        date: new Date(log.date).toISOString().split('T')[0], 
-        "receivedItems.grade": "Local Sale (Auto)"
+    // අදාල දවසට අදාලව යවපු Pending Transfers ටිකත් මකා දමන්න
+    await PendingTransfer.deleteMany({
+        date: log.date,
+        transferNo: { $regex: /FACT\/TO\// },
+        status: "Pending"
     });
 
     await FactoryLog.findByIdAndDelete(id);
