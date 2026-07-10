@@ -15,14 +15,15 @@ export const getPendingTransfers = async (req, res) => {
     }
 };
 
+
 // ==========================================
-// 2. ACCEPT TRANSFER & AUTO STOCK UPDATE (Manual Create වෙනුවට)
+// 2. ACCEPT TRANSFER (With Cleaned Name Fix)
 // ==========================================
 export const acceptTransfer = async (req, res) => {
     try {
-        const { transferId, receivedQtyKg, username } = req.body;
+        // Frontend එකෙන් එවන cleanProductName එක ලබා ගැනීම
+        const { transferId, receivedQtyKg, username, cleanProductName } = req.body;
 
-        // 1. Pending Record එක හොයාගන්නවා
         const pendingRecord = await PendingTransfer.findById(transferId);
         
         if (!pendingRecord || pendingRecord.status !== "Pending") {
@@ -34,24 +35,37 @@ export const acceptTransfer = async (req, res) => {
             return res.status(400).json({ message: "Received quantity must be greater than 0" });
         }
 
-        // 2. Tea Received (Trans In) Record එක Auto හදනවා
+        // පිරිසිදු කළ නම (Frontend එකෙන් එව්වේ නැත්නම් Backend එකෙන්ම සුද්ද කරගනී)
+        let rawName = pendingRecord.teaType && pendingRecord.teaType.trim() !== "" 
+                      ? pendingRecord.teaType 
+                      : pendingRecord.grade;
+        
+        const finalCleanName = cleanProductName || rawName.replace(/Local Sale/gi, '').replace(/\(Auto\)/gi, '').replace(/-/g, '').trim() || rawName;
+
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+        const newTransactionNo = `PACK/TI/${year}${month}${day}-${randomNum}`;
+
+        // 1. Tea Received Record එක හැදීම (පිරිසිදු කළ නමත් සමඟ)
         const newTeaReceived = new TeaReceived({
-            date: new Date(), 
-            transactionNo: `PACK/TI/${pendingRecord.transferNo}`,
+            date: d, 
+            transactionNo: newTransactionNo,
             totalQtyKg: finalQty,
             receivedItems: [{
-                grade: pendingRecord.grade,
+                grade: finalCleanName, 
+                teaType: finalCleanName, // 🌟 මෙතනට පිරිසිදු කරපු නම කෙලින්ම save වේ 🌟
                 qtyKg: finalQty,
             }]
         });
 
-        // 3. 👇 AUTOMATED INVENTORY ADDITION LOGIC (Packing Stock Update) 👇
-        const productName = pendingRecord.grade;
-        let stock = await PackingStock.findOne({ productName: productName });
+        // 2. STOCK UPDATE LOGIC
+        let stock = await PackingStock.findOne({ productName: finalCleanName });
 
         if (stock) {
             let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Factory');
-            
             if (sourceObj) {
                 sourceObj.quantityKg += finalQty;
                 sourceObj.transInAmount = (sourceObj.transInAmount || 0) + finalQty;
@@ -63,12 +77,11 @@ export const acceptTransfer = async (req, res) => {
                     issueAmount: 0 
                 });
             }
-            
             stock.totalBulkStockKg += finalQty;
             await stock.save();
         } else {
             const newStock = new PackingStock({
-                productName: productName,
+                productName: finalCleanName, 
                 stockBySource: [{ 
                     sourceName: 'Factory', 
                     quantityKg: finalQty,
@@ -80,15 +93,13 @@ export const acceptTransfer = async (req, res) => {
             });
             await newStock.save();
         }
-        // 👆 END OF AUTOMATED INVENTORY ADDITION 👆
 
         await newTeaReceived.save();
 
-        // 4. Pending Record එකේ Status එක Accepted කියලා වෙනස් කරනවා
+        // 3. Pending Record එක Update කිරීම
         pendingRecord.status = "Accepted";
         pendingRecord.acceptedBy = username || "Packing Officer";
-        pendingRecord.acceptedDate = new Date();
-        // Packing officer කිරපු බර (අවශ්‍යනම් Pending table එකෙත් save කරගන්න පුළුවන් වෙනස බලාගන්න)
+        pendingRecord.acceptedDate = d;
         pendingRecord.receivedQtyKg = finalQty; 
         await pendingRecord.save();
 
@@ -97,6 +108,33 @@ export const acceptTransfer = async (req, res) => {
     } catch (error) {
         console.error('Error accepting transfer:', error);
         res.status(500).json({ message: 'Server error failed to accept transfer', error: error.message });
+    }
+};
+
+// ==========================================
+// 🌟 අලුත්: REJECT TRANSFER FUNCTION 🌟
+// ==========================================
+export const rejectTransfer = async (req, res) => {
+    try {
+        const { transferId, username } = req.body;
+        
+        const pendingRecord = await PendingTransfer.findById(transferId);
+        
+        if (!pendingRecord) {
+            return res.status(404).json({ message: "Transfer record not found." });
+        }
+
+        // Record එක Rejected විදිහට Mark කරනවා. (Delete කරන්නේ නැහැ history එක තියාගන්න)
+        pendingRecord.status = "Rejected";
+        pendingRecord.acceptedBy = username || "Packing Officer";
+        pendingRecord.acceptedDate = new Date();
+        
+        await pendingRecord.save();
+
+        res.status(200).json({ message: "Transfer rejected successfully" });
+    } catch (error) {
+        console.error('Error rejecting transfer:', error);
+        res.status(500).json({ message: 'Server error failed to reject transfer', error: error.message });
     }
 };
 
@@ -168,172 +206,103 @@ export const updateTeaReceivedRecord = async (req, res) => {
         const { date, transactionNo, totalQtyKg, receivedItems, updatedBy } = req.body;
         const record = await TeaReceived.findById(req.params.id);
 
-        if (!record) {
-            return res.status(404).json({ message: 'Record not found' });
-        }
+        if (!record) return res.status(404).json({ message: 'Record not found' });
 
-        // 👇 AUTOMATED STOCK UPDATE LOGIC 👇
-        // 1. අලුත් Items වල Quantity වෙනස ගණනය කිරීම
-        for (const newItem of receivedItems) {
-            const productName = newItem.grade || newItem.product || newItem.productName;
-            const newQty = Number(newItem.qtyKg || newItem.weight || newItem.receivedQtyKg || 0);
-
-            const oldItem = record.receivedItems.find(i => (i.grade || i.product || i.productName) === productName);
-            const oldQty = oldItem ? Number(oldItem.qtyKg || oldItem.weight || oldItem.receivedQtyKg || 0) : 0;
-
-            const difference = newQty - oldQty; 
-
-            if (difference !== 0) {
-                let stock = await PackingStock.findOne({ productName: productName });
-
-                if (stock) {
-                    let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Factory');
-                    if (sourceObj) {
-                        sourceObj.quantityKg += difference;
-                        sourceObj.transInAmount += difference;
-                        
-                        if(sourceObj.quantityKg < 0) sourceObj.quantityKg = 0;
-                        if(sourceObj.transInAmount < 0) sourceObj.transInAmount = 0;
-                    } else {
-                        stock.stockBySource.push({
-                            sourceName: 'Factory',
-                            quantityKg: difference > 0 ? difference : 0,
-                            transInAmount: difference > 0 ? difference : 0,
-                            issueAmount: 0
-                        });
-                    }
-                    stock.totalBulkStockKg += difference;
-                    if(stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
-                    
-                    await stock.save();
-                } else if (difference > 0) {
-                    const newStock = new PackingStock({
-                        productName: productName,
-                        stockBySource: [{
-                            sourceName: 'Factory',
-                            quantityKg: difference,
-                            transInAmount: difference,
-                            issueAmount: 0
-                        }],
-                        totalBulkStockKg: difference,
-                        packedItems: []
-                    });
-                    await newStock.save();
-                }
-            }
-        }
-
-        // 2. Edit කරද්දී පරණ Item එකක් සම්පූර්ණයෙන්ම Delete කරලා නම් ඒක Stock එකෙන් අඩු කිරීම
+        // Stock Reversal Logic (Old items)
         for (const oldItem of record.receivedItems) {
-            const productName = oldItem.grade || oldItem.product || oldItem.productName;
-            const isStillPresent = receivedItems.find(i => (i.grade || i.product || i.productName) === productName);
-            
-            if (!isStillPresent) {
-                const oldQty = Number(oldItem.qtyKg || oldItem.weight || oldItem.receivedQtyKg || 0);
-                
-                let stock = await PackingStock.findOne({ productName: productName });
-                if (stock) {
-                    let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Factory');
-                    if (sourceObj) {
-                        sourceObj.quantityKg -= oldQty;
-                        sourceObj.transInAmount -= oldQty;
-                        
-                        if(sourceObj.quantityKg < 0) sourceObj.quantityKg = 0;
-                        if(sourceObj.transInAmount < 0) sourceObj.transInAmount = 0;
-                    }
-                    stock.totalBulkStockKg -= oldQty;
-                    if(stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
-                    
-                    await stock.save();
+            const productName = oldItem.grade;
+            const oldQty = Number(oldItem.qtyKg || 0);
+            let stock = await PackingStock.findOne({ productName: productName });
+            if (stock) {
+                let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Factory');
+                if (sourceObj) {
+                    sourceObj.quantityKg -= oldQty;
+                    sourceObj.transInAmount -= oldQty;
                 }
+                stock.totalBulkStockKg -= oldQty;
+                await stock.save();
             }
         }
-        // 👆 END OF AUTOMATED STOCK UPDATE LOGIC 👆
+
+        // Add New items and update Stock
+        for (const newItem of receivedItems) {
+            const productName = newItem.grade;
+            const newQty = Number(newItem.qtyKg || 0);
+            
+            let stock = await PackingStock.findOne({ productName: productName });
+            if (stock) {
+                let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Factory');
+                if (sourceObj) {
+                    sourceObj.quantityKg += newQty;
+                    sourceObj.transInAmount += newQty;
+                } else {
+                    stock.stockBySource.push({ sourceName: 'Factory', quantityKg: newQty, transInAmount: newQty, issueAmount: 0 });
+                }
+                stock.totalBulkStockKg += newQty;
+                await stock.save();
+            }
+        }
 
         record.date = date;
         record.transactionNo = transactionNo;
         record.totalQtyKg = totalQtyKg;
-        record.receivedItems = receivedItems;
+        record.receivedItems = receivedItems; // මෙහිදී Frontend එකෙන් teaType එකත් සමගම එවන නිසා එය නිරායාසයෙන්ම save වේ
         if (updatedBy) record.updatedBy = updatedBy;
 
-        const updatedRecord = await record.save();
-        res.status(200).json(updatedRecord);
+        await record.save();
+        res.status(200).json(record);
 
     } catch (error) {
-        console.error('Error updating tea received record:', error);
-        res.status(500).json({ message: 'Server error failed to update record', error: error.message });
+        res.status(500).json({ message: 'Error updating record', error: error.message });
     }
 };
 
 // ==========================================
-// 6. CREATE MANUAL TEA RECEIVED RECORD
+// 6. CREATE MANUAL TEA RECEIVED RECORD (Updated)
 // ==========================================
 export const createTeaReceivedRecord = async (req, res) => {
     try {
         const { date, transactionNo, totalQtyKg, receivedItems } = req.body;
-
-        if (!receivedItems || receivedItems.length === 0) {
-            return res.status(400).json({ message: 'No received items provided' });
-        }
-
-        // 1. New Record එක හදනවා
+        
+        // receivedItems වල teaType ඇතුලත් කර එවන බැවින් එය එලෙසම DB එකට යයි
         const newTeaReceived = new TeaReceived({
             date,
             transactionNo,
             totalQtyKg,
-            receivedItems,
-            isManual: true // මෙය manual එකක් බව හඳුනාගැනීමට
+            receivedItems, 
+            isManual: true
         });
 
-        // 2. 👇 AUTOMATED INVENTORY ADDITION LOGIC 👇
+        // Stock Update Logic
         for (const item of receivedItems) {
-            const productName = item.grade || item.product || item.productName;
-            const incomingQty = Number(item.qtyKg || item.weight || item.receivedQtyKg || 0);
-
-            if (incomingQty <= 0) continue; 
+            const productName = item.grade;
+            const incomingQty = Number(item.qtyKg || 0);
 
             let stock = await PackingStock.findOne({ productName: productName });
-
             if (stock) {
-                // Manual entry සඳහා වෙනම 'Manual' හෝ 'Other' කියලා source එකක් ගන්නවා
                 let sourceObj = stock.stockBySource.find(s => s.sourceName === 'Manual');
-                
                 if (sourceObj) {
                     sourceObj.quantityKg += incomingQty;
-                    sourceObj.transInAmount = (sourceObj.transInAmount || 0) + incomingQty;
+                    sourceObj.transInAmount += incomingQty;
                 } else {
-                    stock.stockBySource.push({ 
-                        sourceName: 'Factory', 
-                        quantityKg: incomingQty,
-                        transInAmount: incomingQty, 
-                        issueAmount: 0 
-                    });
+                    stock.stockBySource.push({ sourceName: 'Manual', quantityKg: incomingQty, transInAmount: incomingQty, issueAmount: 0 });
                 }
-                
                 stock.totalBulkStockKg += incomingQty;
                 await stock.save();
             } else {
                 const newStock = new PackingStock({
                     productName: productName,
-                    stockBySource: [{ 
-                        sourceName: 'Factory', 
-                        quantityKg: incomingQty,
-                        transInAmount: incomingQty, 
-                        issueAmount: 0
-                    }],
-                    totalBulkStockKg: incomingQty,
-                    packedItems: []
+                    stockBySource: [{ sourceName: 'Manual', quantityKg: incomingQty, transInAmount: incomingQty, issueAmount: 0 }],
+                    totalBulkStockKg: incomingQty
                 });
                 await newStock.save();
             }
         }
-        // 👆 END OF AUTOMATED INVENTORY ADDITION 👆
 
-        const savedRecord = await newTeaReceived.save();
-        res.status(201).json(savedRecord);
+        await newTeaReceived.save();
+        res.status(201).json(newTeaReceived);
 
     } catch (error) {
-        console.error('Error saving manual tea received record:', error);
-        res.status(500).json({ message: 'Server error failed to save manual record', error: error.message });
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
