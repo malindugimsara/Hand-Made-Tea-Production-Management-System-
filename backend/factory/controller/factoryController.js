@@ -106,6 +106,7 @@ export const getFactoryLogsByMonth = async (req, res) => {
 };
 
 // 2. SAVE OR UPDATE DAILY FACTORY LOG 
+// 2. SAVE OR UPDATE DAILY FACTORY LOG 
 export const saveDailyFactoryLog = async (req, res) => {
   try {
     const { 
@@ -125,6 +126,9 @@ export const saveDailyFactoryLog = async (req, res) => {
 
     const targetDate = new Date(date);
     targetDate.setUTCHours(0, 0, 0, 0);
+
+    // 🌟 අලුත්: User ගේ නම අනිවාර්යයෙන්ම ලබා ගැනීම 🌟
+    const currentUser = username || req.user?.username || "Factory Admin";
 
     const glToday = Number(greenLeafToday) || 0;
 
@@ -187,11 +191,11 @@ export const saveDailyFactoryLog = async (req, res) => {
       if (isExplicitEdit) {
         updateFields.isEdited = true;
         updateFields.lastUpdatedDate = new Date();
-        updateFields.editedBy = username || req.user?.username || "Unknown User";
+        updateFields.editedBy = currentUser; // 👈 currentUser භාවිතය
       }
     } else {
       updateFields.isEdited = false;
-      updateFields.editedBy = username || req.user?.username || "System User";
+      updateFields.editedBy = currentUser; // 👈 currentUser භාවිතය
     }
 
     const updatedLog = await FactoryLog.findOneAndUpdate(
@@ -223,9 +227,9 @@ export const saveDailyFactoryLog = async (req, res) => {
             if (existingPending) {
                 // Update existing
                 existingPending.sentQtyKg = qty;
-                existingPending.grade = teaType;   // Pure Grade (e.g. BOPF)
-                existingPending.teaType = teaType; // Pure Grade
-                existingPending.factoryUsername = updateFields.editedBy; // Login Name
+                existingPending.grade = teaType;   
+                existingPending.teaType = teaType; 
+                existingPending.factoryUsername = currentUser; // 🌟 අනිවාර්යයෙන්ම නම Save වීම 🌟
                 await existingPending.save();
             } else {
                 // Create New
@@ -235,10 +239,10 @@ export const saveDailyFactoryLog = async (req, res) => {
                 const newPendingTransfer = new PendingTransfer({
                     date: targetDate,
                     transferNo: autoTransNo,
-                    grade: teaType,   // Pure Grade
-                    teaType: teaType, // Pure Grade
+                    grade: teaType,   
+                    teaType: teaType, 
                     sentQtyKg: qty,
-                    factoryUsername: updateFields.editedBy // Login Name goes here
+                    factoryUsername: currentUser // 🌟 අනිවාර්යයෙන්ම නම Save වීම 🌟
                 });
                 await newPendingTransfer.save();
             }
@@ -252,7 +256,7 @@ export const saveDailyFactoryLog = async (req, res) => {
         }
     };
 
-    // 🌟 මෙතනින් Dispatch යවන එක අයින් කළා. Local Sale විතරක් යවනවා. 🌟
+    // Packing එකට Local Sale එක යැවීම
     await syncPendingTransfer('LOC', updateFields.localSaleAndGratis, updateFields.localSaleTeaType);
     
     // ==========================================
