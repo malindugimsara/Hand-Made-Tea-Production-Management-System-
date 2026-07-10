@@ -87,7 +87,7 @@ const DATA = {
       title: 'Summary Reports',
       icon: LineChart,
       items: [
-        { title: 'Factory View', url: '/factory/view', roles: ['Admin', 'Factory Officer', 'Viewer'] },
+        { title: 'Factory Log View', url: '/factory/view', roles: ['Admin', 'Factory Officer', 'Viewer'] },
         { title: 'Dispatch Records', url: '/factory/dispatchrecords', roles: ['Admin', 'Factory Officer', 'Viewer'] },
         { title: 'Labour Output List', url: '/factory/labouroutputlist', roles: ['Admin', 'Factory Officer', 'Viewer'] },
       ],

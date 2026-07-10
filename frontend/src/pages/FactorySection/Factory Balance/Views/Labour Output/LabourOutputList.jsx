@@ -139,9 +139,15 @@ const LabourOutputTable = () => {
     const getCleanTableData = () => {
         return groupedData.map((group) => {
             const { date, entries, packingSummary } = group;
-            const sections = entries.map(item => item.section).join(', ');
+            
+            // Format PDF output to multi-line strings
+            const sections = entries.map(item => item.section).join('\n');
             const totalWorkers = entries.reduce((sum, item) => sum + (item.noOfLabours || 0), 0);
+            const workersStr = entries.map(item => item.noOfLabours || 0).join('\n') + (entries.length > 1 ? `\n---\n${totalWorkers}` : '');
+            
             const totalOtHours = entries.reduce((sum, item) => sum + (item.otHours || 0), 0);
+            const otHoursStr = entries.map(item => (item.otHours || 0).toFixed(2)).join('\n') + (entries.length > 1 ? `\n---\n${totalOtHours.toFixed(2)}` : '');
+            
             const totalBags = Number((packingSummary?.totalBags ?? entries.reduce((sum, item) => sum + (Number(item.noOfBags || 0)), 0)) || 0);
             const totalKgs = Number((packingSummary?.totalKgs ?? entries.reduce((sum, item) => sum + (Number(item.totalKgs || 0)), 0)) || 0);
             const avgLabourOutput = entries.reduce((sum, item) => sum + (item.labourOutput || 0), 0) / entries.length;
@@ -149,8 +155,8 @@ const LabourOutputTable = () => {
             return [
                 date,
                 sections,
-                totalWorkers.toString(),
-                totalOtHours.toFixed(2),
+                workersStr,
+                otHoursStr,
                 totalBags.toString(),
                 totalKgs.toFixed(2),
                 avgLabourOutput.toFixed(2)
@@ -170,7 +176,7 @@ const LabourOutputTable = () => {
         // Generate dynamic rows mimicking the UI grouping
         const dataRows = groupedData.map(group => {
             const { date, entries } = group;
-            const sections = entries.map(item => item.section).join(', ');
+            const sections = entries.map(item => item.section).join('\n');
             const totalWorkers = entries.reduce((sum, item) => sum + (item.noOfLabours || 0), 0);
             const totalOtHours = entries.reduce((sum, item) => sum + (item.otHours || 0), 0);
             const totalBags = Number((group?.packingSummary?.totalBags ?? entries.reduce((sum, item) => sum + (Number(item.noOfBags || 0)), 0)) || 0);
@@ -218,6 +224,8 @@ const LabourOutputTable = () => {
 
         const centerAlign = { horizontal: "center", vertical: "center", wrapText: true };
         const leftAlign = { horizontal: "left", vertical: "center", wrapText: true };
+        const topAlign = { horizontal: "center", vertical: "top", wrapText: true };
+        const topLeftAlign = { horizontal: "left", vertical: "top", wrapText: true };
 
         const titleStyle = { font: { bold: true, sz: 16, color: { rgb: "1B6A31" } } };
         const subtitleStyle = { font: { italic: true, sz: 10, color: { rgb: "64748B" } } };
@@ -229,14 +237,14 @@ const LabourOutputTable = () => {
             border: borderAll
         };
 
-        const bodyEven = { alignment: centerAlign, border: borderAll };
-        const bodyOdd = { fill: { fgColor: { rgb: "F9FAFB" } }, alignment: centerAlign, border: borderAll };
-        const bodyLeftEven = { alignment: leftAlign, border: borderAll };
-        const bodyLeftOdd = { fill: { fgColor: { rgb: "F9FAFB" } }, alignment: leftAlign, border: borderAll };
+        const bodyEven = { alignment: topAlign, border: borderAll };
+        const bodyOdd = { fill: { fgColor: { rgb: "F9FAFB" } }, alignment: topAlign, border: borderAll };
+        const bodyLeftEven = { alignment: topLeftAlign, border: borderAll };
+        const bodyLeftOdd = { fill: { fgColor: { rgb: "F9FAFB" } }, alignment: topLeftAlign, border: borderAll };
 
         // Highlight for Avg Output (matches the blue block in your UI)
-        const highlightEven = { font: { bold: true, color: { rgb: "2563EB" } }, fill: { fgColor: { rgb: "EFF6FF" } }, alignment: centerAlign, border: borderAll };
-        const highlightOdd = { font: { bold: true, color: { rgb: "2563EB" } }, fill: { fgColor: { rgb: "DBEAFE" } }, alignment: centerAlign, border: borderAll };
+        const highlightEven = { font: { bold: true, color: { rgb: "2563EB" } }, fill: { fgColor: { rgb: "EFF6FF" } }, alignment: topAlign, border: borderAll };
+        const highlightOdd = { font: { bold: true, color: { rgb: "2563EB" } }, fill: { fgColor: { rgb: "DBEAFE" } }, alignment: topAlign, border: borderAll };
 
         const range = XLSX.utils.decode_range(worksheet['!ref']);
         for (let R = range.s.r; R <= range.e.r; ++R) {
@@ -269,7 +277,7 @@ const LabourOutputTable = () => {
         // Set specific column widths
         worksheet['!cols'] = [
             { wch: 15 }, // DATE
-            { wch: 45 }, // SECTIONS (Wide for lists)
+            { wch: 30 }, // SECTIONS (Wide for lists)
             { wch: 20 }, // TOTAL WORKERS
             { wch: 20 }, // TOTAL O/T HOURS
             { wch: 15 }, // NO OF BAGS
@@ -309,7 +317,6 @@ const LabourOutputTable = () => {
                         <RefreshCcw size={18} className={isLoading ? "animate-spin" : ""} /> Refresh
                     </button>
 
-                    {/* NEW: Export to Excel Button bound to exportToExcel() */}
                     <button
                         onClick={exportToExcel}
                         className="px-4 py-2 h-[42px] bg-white dark:bg-gray-800 text-[#1B6A31] dark:text-green-400 border border-[#1B6A31] dark:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all"
@@ -339,8 +346,8 @@ const LabourOutputTable = () => {
                         autoTableOptions={{
                             theme: "grid",
                             headStyles: {
-                                fillColor: [27, 106, 49], // Replaced gray with Dark Green
-                                textColor: [255, 255, 255], // White text
+                                fillColor: [27, 106, 49], 
+                                textColor: [255, 255, 255], 
                                 lineColor: [209, 213, 219],
                                 lineWidth: 0.1,
                                 fontStyle: "bold",
@@ -425,8 +432,8 @@ const LabourOutputTable = () => {
                             <tr className="bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-bold uppercase text-xs tracking-wider border-b border-gray-300 dark:border-gray-700 transition-colors">
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700">Date</th>
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700">Sections</th>
-                                <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">Total Workers</th>
-                                <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">Total O/T Hours</th>
+                                <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">Workers / Section</th>
+                                <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">O/T Hours / Section</th>
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">No of Bags</th>
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">Total Kgs</th>
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">Avg Labour Output</th>
@@ -468,7 +475,7 @@ const LabourOutputTable = () => {
 
                             {!isLoading && !error && groupedData.map((group) => {
                                 const { date, entries, packingSummary } = group;
-                                const sections = entries.map(item => item.section).join(', ');
+                                
                                 const totalWorkers = entries.reduce((sum, item) => sum + (item.noOfLabours || 0), 0);
                                 const totalOtHours = entries.reduce((sum, item) => sum + (item.otHours || 0), 0);
                                 const totalBags = Number((packingSummary?.totalBags ?? entries.reduce((sum, item) => sum + (Number(item.noOfBags || 0)), 0)) || 0);
@@ -477,30 +484,54 @@ const LabourOutputTable = () => {
 
                                 return (
                                     <tr key={date} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
-                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 font-semibold text-gray-700 dark:text-gray-300">
+                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 font-semibold text-gray-700 dark:text-gray-300 align-top">
                                             {date}
                                         </td>
-                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
-                                            {sections}
+                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 align-top">
+                                            <div className="flex flex-col gap-1">
+                                                {entries.map((item, idx) => (
+                                                    <span key={idx}>{item.section}</span>
+                                                ))}
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right font-medium text-gray-900 dark:text-gray-200">
-                                            {totalWorkers}
+                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right font-medium text-gray-900 dark:text-gray-200 align-top">
+                                            <div className="flex flex-col gap-1">
+                                                {entries.map((item, idx) => (
+                                                    <span key={idx}>{item.noOfLabours || 0}</span>
+                                                ))}
+                                                {/* Optional line to show the overall total at the bottom of the cell if there are multiple sections */}
+                                                {entries.length > 1 && (
+                                                    <span className="mt-1 pt-1 border-t border-gray-300 dark:border-gray-600 font-bold text-gray-900 dark:text-white">
+                                                        {totalWorkers}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right text-gray-600 dark:text-gray-400">
-                                            {totalOtHours.toFixed(2)}
+                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right text-gray-600 dark:text-gray-400 align-top">
+                                            <div className="flex flex-col gap-1">
+                                                {entries.map((item, idx) => (
+                                                    <span key={idx}>{(item.otHours || 0).toFixed(2)}</span>
+                                                ))}
+                                                {/* Optional line to show the overall total at the bottom of the cell if there are multiple sections */}
+                                                {entries.length > 1 && (
+                                                    <span className="mt-1 pt-1 border-t border-gray-300 dark:border-gray-600 font-bold text-gray-900 dark:text-white">
+                                                        {totalOtHours.toFixed(2)}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right text-gray-600 dark:text-gray-400">
+                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right text-gray-600 dark:text-gray-400 align-top">
                                             {totalBags}
                                         </td>
-                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right text-gray-600 dark:text-gray-400">
+                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right text-gray-600 dark:text-gray-400 align-top">
                                             {totalKgs.toFixed(2)}
                                         </td>
-                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right font-bold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
+                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right font-bold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10 align-top">
                                             {labourOutputValue.toFixed(2)}
                                         </td>
 
                                         {/* Actions Cell */}
-                                        <td className="px-3 py-3 text-center">
+                                        <td className="px-3 py-3 text-center align-top">
                                             <div className="flex items-center justify-center gap-1">
                                                 <button
                                                     onClick={() => handleEditClick(group)}
