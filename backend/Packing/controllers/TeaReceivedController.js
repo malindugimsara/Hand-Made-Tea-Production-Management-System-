@@ -26,9 +26,14 @@ export const acceptTransfer = async (req, res) => {
 
         const pendingRecord = await PendingTransfer.findById(transferId);
         
+        // 1. Pending Record එක තියෙනවද කියලා මුලින්ම චෙක් කරනවා
         if (!pendingRecord || pendingRecord.status !== "Pending") {
             return res.status(400).json({ message: "Transfer record not found or already processed." });
         }
+
+        // 🌟 2. Console log එක දාන්න ඕනේ මෙතනටයි 🌟
+        console.log("Pending Record's Factory Username:", pendingRecord.factoryUsername);
+        console.log("Accepted By Username from Frontend:", username);
 
         const finalQty = Number(receivedQtyKg);
         if (finalQty <= 0) {
@@ -54,15 +59,16 @@ export const acceptTransfer = async (req, res) => {
             date: d, 
             transactionNo: newTransactionNo,
             
-            sentQtyKg: pendingRecord.sentQtyKg, // 👈 මේ පේළිය අනිවාර්යයෙන් අලුතින් දාන්න
+            sentQtyKg: pendingRecord.sentQtyKg,
             totalQtyKg: finalQty,
             
             factoryUsername: pendingRecord.factoryUsername, 
             acceptedBy: username, 
 
             receivedItems: [{
-                grade: cleanProductName,   
-                teaType: cleanProductName, 
+                // 🌟 3. මෙතන 'cleanProductName' වෙනුවට 'finalCleanName' විය යුතුයි 🌟
+                grade: finalCleanName,   
+                teaType: finalCleanName, 
                 qtyKg: finalQty,
             }]
         });
