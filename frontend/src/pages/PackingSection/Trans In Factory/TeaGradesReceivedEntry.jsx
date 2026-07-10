@@ -234,19 +234,32 @@ export default function TeaGradesReceivedEntry() {
 
         try {
             const token = localStorage.getItem('token');
+            const username = localStorage.getItem('username') || "Packing Staff";
+
             const promises = pendingRecords.map(record => {
                 const payload = {
                     date: record.date,
                     transactionNo: `HO/TO/${record.transactionNo}`,
                     totalQtyKg: record.totalQtyKg,
-                    receivedItems: record.items.map(item => ({ grade: item.grade, qtyKg: Number(item.qtyKg) }))
+                    
+                    // 🌟 මෙතන තමයි වෙනස: teaType එක අනිවාර්යයෙන් යැවිය යුතුයි 🌟
+                    receivedItems: record.items.map(item => ({ 
+                        grade: item.grade, 
+                        teaType: item.grade, 
+                        qtyKg: Number(item.qtyKg) 
+                    })),
+                    username: username 
                 };
+                
                 return fetch(`${BACKEND_URL}/api/tea-received/manual`, { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify(payload)
                 }).then(async (res) => {
-                    if (!res.ok) throw new Error('Failed');
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.message || 'Failed');
+                    }
                     return res.json();
                 });
             });
@@ -255,7 +268,8 @@ export default function TeaGradesReceivedEntry() {
             toast.success("All manual records saved successfully!", { id: toastId });
             setPendingRecords([]);
         } catch (error) {
-            toast.error("Error saving manual records. Please check.", { id: toastId });
+            console.error(error);
+            toast.error("Error saving manual records. Please check the terminal.", { id: toastId });
         } finally {
             setShowSpinner(false);
         }
