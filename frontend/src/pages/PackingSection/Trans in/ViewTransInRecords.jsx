@@ -337,6 +337,14 @@ export default function ViewTransInRecords() {
                                                                     <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-1">
                                                                         <Calendar size={12} /> Received: {new Date(record.dateReceived).toISOString().split('T')[0]}
                                                                     </div>
+                                                                    
+                                                                    {/* --- Added Remarks Section --- */}
+                                                                    {record.remarks && (
+                                                                        <div className="mt-2.5 text-[11px] text-gray-600 dark:text-gray-400 whitespace-normal break-words max-w-[180px] leading-relaxed bg-amber-50/50 dark:bg-amber-900/10 p-1.5 rounded-md border border-amber-100 dark:border-amber-900/30">
+                                                                            <span className="font-bold text-amber-700 dark:text-amber-500 block mb-0.5">Remark:</span>
+                                                                            <span className="italic">{record.remarks}</span>
+                                                                        </div>
+                                                                    )}
                                                                 </td>
                                                             )}
                                                             
