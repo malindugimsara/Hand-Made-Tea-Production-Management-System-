@@ -146,6 +146,7 @@ export default function DispatchRecordsView() {
       r.localSaleTeaType || "-",
       formatVal(r.localSaleAndGratis || 0),
       formatVal(r.totalOut || 0),
+      r.returnTeaType || "-",       // 👈 NEW: Return Tea Type
       formatVal(r.returnAmount || 0),
     ]);
 
@@ -156,6 +157,7 @@ export default function DispatchRecordsView() {
         "-",
         totalLocalSale > 0 ? totalLocalSale.toFixed(2) : "-",
         totalOut > 0 ? totalOut.toFixed(2) : "-",
+        "-",                        // 👈 NEW: Empty column for total return tea type
         totalReturns > 0 ? totalReturns.toFixed(2) : "-",
       ]);
     }
@@ -173,6 +175,7 @@ export default function DispatchRecordsView() {
       r.localSaleTeaType || "-",
       Number((r.localSaleAndGratis || 0).toFixed(2)),
       Number((r.totalOut || 0).toFixed(2)),
+      r.returnTeaType || "-",       // 👈 NEW
       Number((r.returnAmount || 0).toFixed(2)),
     ]);
 
@@ -183,23 +186,24 @@ export default function DispatchRecordsView() {
         "-",
         Number(totalLocalSale.toFixed(2)),
         Number(totalOut.toFixed(2)),
+        "-",                        // 👈 NEW
         Number(totalReturns.toFixed(2)),
       ]);
     }
 
     const tableData = [
-      [`DISPATCH & SALES REPORT: ${periodText}`, "", "", "", "", "", "", ""],
-      [`Generated on ${new Date().toLocaleString()}`, "", "", "", "", "", "", ""],
-      ["", "", "", "", "", "", "", ""],
-      ["DATE", "INVOICE NO", "DISPATCH TEA TYPE", "DISPATCH QTY (KG)", "LOCAL SALE TEA TYPE", "LOCAL SALE QTY (KG)", "TOTAL OUT (KG)", "RETURNS (KG)"],
+      [`DISPATCH & SALES REPORT: ${periodText}`, "", "", "", "", "", "", "", ""],
+      [`Generated on ${new Date().toLocaleString()}`, "", "", "", "", "", "", "", ""],
+      ["", "", "", "", "", "", "", "", ""],
+      ["DATE", "INVOICE NO", "DISPATCH TEA TYPE", "DISPATCH QTY (KG)", "LOCAL SALE TEA TYPE", "LOCAL SALE QTY (KG)", "TOTAL OUT (KG)", "RETURN TEA TYPE", "RETURNS (KG)"],
       ...dataRows,
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet(tableData);
 
     worksheet["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }, // 👈 Updated to c: 8 (9 columns)
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } }, // 👈 Updated to c: 8 (9 columns)
     ];
 
     const borderAll = {
@@ -252,7 +256,7 @@ export default function DispatchRecordsView() {
 
     worksheet["!cols"] = [
       { wch: 14 }, { wch: 18 }, { wch: 20 }, { wch: 18 }, 
-      { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 15 }
+      { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 15 } // 👈 Extra width added
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -296,7 +300,8 @@ export default function DispatchRecordsView() {
             subtitle={`Period: ${getPeriodText()}`}
             data={getCleanTableData()}                                          
             headers={[
-              ["DATE", "INVOICE NO", "DISPATCH\nTEA TYPE", "DISPATCH\n(KG)", "LOCAL SALE\nTEA TYPE", "LOCAL SALE\n(KG)", "TOTAL OUT\n(KG)", "RETURNS\n(KG)"]
+              // 👈 PDF headers update කර ඇත
+              ["DATE", "INVOICE NO", "DISPATCH\nTEA TYPE", "DISPATCH\n(KG)", "LOCAL SALE\nTEA TYPE", "LOCAL SALE\n(KG)", "TOTAL OUT\n(KG)", "RETURN\nTEA TYPE", "RETURNS\n(KG)"]
             ]}
             uniqueCode={`DSP-${getPeriodText().replace(/ /g, "")}`}
             fileName={`Dispatch_Report_${getPeriodText().replace(/ /g, "_")}.pdf`}
@@ -309,7 +314,7 @@ export default function DispatchRecordsView() {
                 3: { halign: 'right' },
                 5: { halign: 'right' },
                 6: { halign: 'right' },
-                7: { halign: 'right' },
+                8: { halign: 'right' }, // 👈 Return (kg) is now index 8
               }
             }}
           />
@@ -428,9 +433,11 @@ export default function DispatchRecordsView() {
                   <th className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 align-middle">Local Type</th>
                   <th className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 align-middle text-orange-800 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20">Local Sale (kg)</th>
                   <th className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 align-middle font-black bg-gray-200 dark:bg-gray-800">Total Out (kg)</th>
+                  
+                  {/* 👈 NEW RETURN TEA TYPE HEADER */}
+                  <th className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 align-middle">Return Type</th>
                   <th className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 align-middle text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20">Return (kg)</th>
                   
-                  {/* NEW ACTION COLUMN */}
                   <th className="px-4 py-4 align-middle text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800/80 w-24">Action</th>
                 </tr>
               </thead>
@@ -473,12 +480,19 @@ export default function DispatchRecordsView() {
                         <td className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 font-black text-gray-800 dark:text-gray-200 bg-gray-100/50 dark:bg-gray-800/50">
                           {(record.totalOut || 0).toFixed(2)}
                         </td>
+
+                        {/* 👈 NEW RETURN TEA TYPE CELL */}
+                        <td className="px-4 py-4 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
+                           {record.returnTeaType ? (
+                            <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md text-xs border border-gray-200 dark:border-gray-600">{record.returnTeaType}</span>
+                          ) : "-"}
+                        </td>
                         
                         <td className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 text-red-600 dark:text-red-400 font-medium">
                           {(record.returnAmount || 0) === 0 ? "-" : record.returnAmount.toFixed(2)}
                         </td>
 
-                        {/* NEW ACTION CELL */}
+                        {/* ACTION CELL */}
                         <td className="px-3 py-3 text-center">
                           <div className="flex items-center justify-center gap-1">
                             <button
@@ -507,6 +521,9 @@ export default function DispatchRecordsView() {
                       <td className="px-4 py-4 border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                         {totalOut > 0 ? totalOut.toFixed(2) : "-"}
                       </td>
+                      {/* 👈 NEW EMPTY CELL FOR RETURN TYPE TOTAL */}
+                      <td className="border-r border-gray-300 dark:border-gray-600"></td>
+
                       <td className="px-4 py-4 border-r border-gray-300 dark:border-gray-600 text-red-700 dark:text-red-300">
                          {totalReturns > 0 ? totalReturns.toFixed(2) : "-"}
                       </td>
@@ -515,7 +532,7 @@ export default function DispatchRecordsView() {
                   </>
                 ) : (
                   <tr>
-                    <td colSpan="9" className="p-16 text-center">
+                    <td colSpan="10" className="p-16 text-center">
                       <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
                         <AlertCircle size={40} className="mb-3 opacity-20" />
                         <p className="text-lg font-medium">No dispatch records found for {getPeriodText()}</p>

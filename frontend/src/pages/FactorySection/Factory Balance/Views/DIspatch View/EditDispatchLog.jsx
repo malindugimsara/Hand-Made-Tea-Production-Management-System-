@@ -24,7 +24,8 @@ export default function EditDispatchLog() {
         localSaleTeaType: record?.localSaleTeaType || '',
         localSaleAndGratis: record?.localSaleAndGratis || record?.localSales || '',
         
-        // Return Field
+        // Return Fields (Updated with Return Tea Type)
+        returnTeaType: record?.returnTeaType || '',
         returnAmount: record?.returnAmount || '',
 
         // HIDDEN FIELD: We MUST send the existing Green Leaf back to the backend, 
@@ -71,6 +72,8 @@ export default function EditDispatchLog() {
                 localSaleTeaType: formData.localSaleTeaType,
                 localSaleAndGratis: Number(formData.localSaleAndGratis) || 0,
                 
+                // 👈 Updated Return Data
+                returnTeaType: formData.returnTeaType,
                 returnAmount: Number(formData.returnAmount) || 0,
                 
                 username: loggedInUser,
@@ -227,19 +230,33 @@ export default function EditDispatchLog() {
                     </div>
                 </div>
 
-                {/* 3. RETURNS */}
+                {/* 3. RETURNS SECTION */}
                 <div className="mb-8 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 rounded-xl p-5 transition-colors">
                     <h3 className="text-lg font-bold text-blue-700 dark:text-blue-400 mb-4 flex items-center gap-2 border-b border-blue-200/50 dark:border-blue-800/50 pb-3">
                         <RefreshCcw size={20} /> Returns
                     </h3>
-                    <div className="w-full sm:w-1/2">
-                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Return Amount (kg)</label>
-                        <input
-                            type="number" step="0.01" min="0" name="returnAmount"
-                            value={formData.returnAmount} onChange={handleInputChange}
-                            onWheel={(e) => e.target.blur()}
-                            placeholder="0.00 kg" className={inputStyles}
-                        />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* 👈 Added Return Tea Type */}
+                        <div>
+                            <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
+                            <div className="relative">
+                                <Tag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    type="text" name="returnTeaType"
+                                    value={formData.returnTeaType} onChange={handleInputChange}
+                                    placeholder="E.g. BOPF" className={`${inputStyles} pl-10`}
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Return Amount (kg)</label>
+                            <input
+                                type="number" step="0.01" min="0" name="returnAmount"
+                                value={formData.returnAmount} onChange={handleInputChange}
+                                onWheel={(e) => e.target.blur()}
+                                placeholder="0.00 kg" className={inputStyles}
+                            />
+                        </div>
                     </div>
                 </div>
 

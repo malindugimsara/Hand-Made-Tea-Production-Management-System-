@@ -130,6 +130,7 @@ export default function DispatchAndReturn() {
     dispatch: '', // Total Gross Weight
     localSaleTeaType: '',
     localSaleAndGratis: '', // Total qty (kg)
+    returnTeaType: '', // Added return tea type
     returnAmount: '',
   });
 
@@ -216,7 +217,8 @@ export default function DispatchAndReturn() {
       dispatchTeaType: '',
       dispatch: '', 
       localSaleTeaType: '',
-      localSaleAndGratis: '', 
+      localSaleAndGratis: '',
+      returnTeaType: '', // Reset return tea type
       returnAmount: '' 
     });
   };
@@ -244,6 +246,7 @@ export default function DispatchAndReturn() {
           invoiceNo: record.invoiceNo,
           dispatchTeaType: record.dispatchTeaType,
           localSaleTeaType: record.localSaleTeaType,
+          returnTeaType: record.returnTeaType, // Added return tea type to payload
           username: username
         };
 
@@ -313,7 +316,6 @@ export default function DispatchAndReturn() {
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
-                    {/* 🌟 New Custom Dropdown component added here */}
                     <TeaTypeAutocomplete
                       name="dispatchTeaType"
                       value={formData.dispatchTeaType}
@@ -343,7 +345,6 @@ export default function DispatchAndReturn() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
-                    {/* 🌟 New Custom Dropdown component added here */}
                     <TeaTypeAutocomplete
                       name="localSaleTeaType"
                       value={formData.localSaleTeaType}
@@ -372,16 +373,28 @@ export default function DispatchAndReturn() {
 
               {/* 3. RETURNS SECTION */}
               <div className="bg-gray-50/50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 rounded-2xl p-5 shadow-sm mb-6 transition-colors">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-3">
                   <div className="p-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"><RefreshCcw size={18}/></div> Returns
                 </h3>
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Return Amount (kg)</label>
-                  <input 
-                    type="number" step="0.01" min="0" name="returnAmount" 
-                    value={formData.returnAmount} onChange={handleInputChange} 
-                    onWheel={(e) => e.target.blur()} placeholder="0.00" className={inputStyles} 
-                  />
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
+                    <TeaTypeAutocomplete
+                      name="returnTeaType"
+                      value={formData.returnTeaType}
+                      onChange={handleInputChange}
+                      placeholder="E.g. BOPF, Pekoe"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Return Amount (kg)</label>
+                    <input 
+                      type="number" step="0.01" min="0" name="returnAmount" 
+                      value={formData.returnAmount} onChange={handleInputChange} 
+                      onWheel={(e) => e.target.blur()} placeholder="0.00" className={inputStyles} 
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -461,8 +474,15 @@ export default function DispatchAndReturn() {
                           </div>
                           
                           {item.returnAmount && Number(item.returnAmount) > 0 && (
-                            <div className="bg-blue-50/50 dark:bg-blue-900/20 p-2 rounded-lg border border-blue-100 dark:border-blue-800/50 flex justify-between px-3 text-xs font-bold text-blue-800 dark:text-blue-400 transition-colors">
-                              <span>Returns:</span><span>{item.returnAmount} kg</span>
+                            <div className="bg-blue-50/50 dark:bg-blue-900/20 p-2 rounded-lg border border-blue-100 dark:border-blue-800/50 flex flex-col px-3 text-xs font-bold text-blue-800 dark:text-blue-400 transition-colors">
+                              <div className="flex justify-between items-center w-full">
+                                <span>Returns:</span><span>{item.returnAmount} kg</span>
+                              </div>
+                              {item.returnTeaType && (
+                                <div className="text-[10px] text-blue-600/70 dark:text-blue-300/70 font-normal mt-0.5">
+                                  Type: {item.returnTeaType}
+                                </div>
+                              )}
                             </div>
                           )}
 

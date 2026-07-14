@@ -106,7 +106,6 @@ export const getFactoryLogsByMonth = async (req, res) => {
 };
 
 // 2. SAVE OR UPDATE DAILY FACTORY LOG 
-// 2. SAVE OR UPDATE DAILY FACTORY LOG 
 export const saveDailyFactoryLog = async (req, res) => {
   try {
     const { 
@@ -115,6 +114,7 @@ export const saveDailyFactoryLog = async (req, res) => {
       dispatch, 
       localSaleAndGratis, 
       returnAmount, 
+      returnTeaType,      // 👈 අලුතින් එකතු කළ Field එක
       invoiceNo, 
       dispatchTeaType, 
       localSaleTeaType, 
@@ -181,7 +181,9 @@ export const saveDailyFactoryLog = async (req, res) => {
       localSaleTeaType: localSaleTeaType || "", 
       
       totalOut: totalOut,
+      
       returnAmount: retAmount,
+      returnTeaType: returnTeaType || "",      // 👈 අලුතින් Database එකට Save කරන තැන
       
       bfBalance: Number(previousBalance.toFixed(2)),
       factoryBalance: Number(currentBalance.toFixed(2)),
@@ -191,11 +193,11 @@ export const saveDailyFactoryLog = async (req, res) => {
       if (isExplicitEdit) {
         updateFields.isEdited = true;
         updateFields.lastUpdatedDate = new Date();
-        updateFields.editedBy = currentUser; // 👈 currentUser භාවිතය
+        updateFields.editedBy = currentUser; 
       }
     } else {
       updateFields.isEdited = false;
-      updateFields.editedBy = currentUser; // 👈 currentUser භාවිතය
+      updateFields.editedBy = currentUser; 
     }
 
     const updatedLog = await FactoryLog.findOneAndUpdate(
@@ -229,20 +231,20 @@ export const saveDailyFactoryLog = async (req, res) => {
                 existingPending.sentQtyKg = qty;
                 existingPending.grade = teaType;   
                 existingPending.teaType = teaType; 
-                existingPending.factoryUsername = currentUser; // 🌟 අනිවාර්යයෙන්ම නම Save වීම 🌟
+                existingPending.factoryUsername = currentUser; 
                 await existingPending.save();
             } else {
                 // Create New
                 const randomNum = Math.floor(100 + Math.random() * 900); // 3 digit random
                 const autoTransNo = `FACT/TO/${year}${month}${day}-${typePrefix}-${randomNum}`;
                 
-                const newPendingTransfer = new PendingTransfer({
+                const newPendingTransfer = new({
                     date: targetDate,
                     transferNo: autoTransNo,
                     grade: teaType,   
                     teaType: teaType, 
                     sentQtyKg: qty,
-                    factoryUsername: currentUser // 🌟 අනිවාර්යයෙන්ම නම Save වීම 🌟
+                    factoryUsername: currentUser 
                 });
                 await newPendingTransfer.save();
             }
