@@ -90,6 +90,7 @@ const DATA = {
         { title: 'Factory Log View', url: '/factory/view', roles: ['Admin', 'Factory Officer', 'Viewer'] },
         { title: 'Dispatch Records', url: '/factory/dispatchrecords', roles: ['Admin', 'Factory Officer', 'Viewer'] },
         { title: 'Labour Output List', url: '/factory/labouroutputlist', roles: ['Admin', 'Factory Officer', 'Viewer'] },
+        { title: 'Packing Summary', url: '/factory/packingsummary', roles: ['Admin', 'Factory Officer', 'Viewer'] }
       ],
     },
   ],
@@ -179,6 +180,7 @@ export default function FactoryDashboardLayout() {
       case '/factory/dispatchandreturn': return 'Dispatch And Return';
       case '/factory/labouroutput': return 'Labour Output';
       case '/factory/factorypacking': return 'Factory Packing';
+      case '/factory/packingsummary': return 'Packing Summary';
       case '/factory/view': return 'Factory View';
       case '/factory/labouroutputlist': return 'Labour Output List';
       default: return null;

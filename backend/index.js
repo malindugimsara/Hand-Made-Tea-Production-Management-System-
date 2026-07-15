@@ -33,7 +33,7 @@ import restoreTeaStockRouter from './Packing/Routes/restoreTeaStockrouter.js';
 import factoryrouter from './factory/router/factoryRoutes.js';
 import StockAdjustmentRouter from './Packing/Routes/stockAdjustmentRoutes.js';
 import labourOutputRouter from './factory/router/labourOutputRoutes.js';
-
+import factoryPackRoutes from './factory/router/factoryPackRoutes.js';
 
 dotenv.config();
 const app = express();
@@ -92,6 +92,7 @@ app.use('/api/factory-balance', factoryrouter);
 app.use('/api/factory-logs', factoryrouter);
 app.use('/api/labour-output', labourOutputRouter);
 app.use('/api/stock-adjustment', StockAdjustmentRouter);
+app.use('/api/factory-packs', factoryPackRoutes);
 
 // --- Push Notification Subscribe Route (Aluthin) ---
 app.post('/api/notifications/subscribe', (req, res) => {
