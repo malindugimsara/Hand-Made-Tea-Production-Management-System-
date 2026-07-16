@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { 
-    Filter, RefreshCcw, FileSpreadsheet, AlertCircle, FileText,
-    Users, CalendarDays, TrendingUp, History
+    Filter, RefreshCcw, FileSpreadsheet, AlertCircle,
+    CalendarDays, TrendingUp, History
 } from "lucide-react";
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -31,12 +31,11 @@ const LabourOutputTable = () => {
     // Date Helpers
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
-    
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    
     const currentMonthStr = today.toISOString().slice(0, 7);
+
+    // Calculate last month string reliably
+    const lastMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const lastMonthStr = new Date(lastMonthDate.getTime() - lastMonthDate.getTimezoneOffset() * 60000).toISOString().slice(0, 7);
 
     // --- State ---
     const [rawRecords, setRawRecords] = useState([]);
@@ -114,47 +113,64 @@ const LabourOutputTable = () => {
             return acc;
         }, {});
 
-        // 2. Format into array and attach packing summaries
-        const allGroups = Object.entries(grouped).map(([date, entries]) => ({
-            date,
-            entries,
-            packingSummary: getPackingSummaryForDate(date)
-        }));
+        // 2. Format into array and pre-calculate base metrics
+        let allGroups = Object.entries(grouped).map(([date, entries]) => {
+            const groupWorkers = entries.reduce((sum, e) => sum + (e.noOfLabours || 0), 0);
+            const dailyAvgOutput = entries.length > 0 
+                ? entries.reduce((sum, e) => sum + (e.labourOutput || 0), 0) / entries.length 
+                : 0;
 
-        // 3. Initialize Stat Trackers for the specific cards
-        let todayWorkers = 0, todayTotalOutput = 0, todaySectionCount = 0;
-        let yesterdayWorkers = 0, yesterdayTotalOutput = 0, yesterdaySectionCount = 0;
-        let monthWorkers = 0, monthTotalOutput = 0, monthSectionCount = 0;
+            return {
+                date,
+                entries,
+                packingSummary: getPackingSummaryForDate(date),
+                dailyWorkers: groupWorkers,
+                dailyAvgOutput: dailyAvgOutput
+            };
+        });
 
-        // 4. Calculate Stats
+        // 3. Calculate "To Date" averages for EACH ROW
+        // (Sum of all daily averages from the 1st of that month up to that row's date, divided by days)
+        allGroups = allGroups.map(group => {
+            const monthPrefix = group.date.slice(0, 7);
+            
+            // Find all dates in the same month that are less than or equal to this row's date
+            const mtdGroups = allGroups.filter(g => g.date.startsWith(monthPrefix) && g.date <= group.date);
+            
+            const toDateSumAvg = mtdGroups.reduce((sum, g) => sum + g.dailyAvgOutput, 0);
+            const toDateAvgOutput = mtdGroups.length > 0 ? (toDateSumAvg / mtdGroups.length) : 0;
+
+            return { ...group, toDateAvgOutput };
+        });
+
+        // 4. Calculate Stats for the Top Cards
+        let todayWorkers = 0, todayAvg = 0;
+        let toDateWorkers = 0, toDateSumAvg = 0, toDateCount = 0;
+        let lastMonthWorkers = 0, lastMonthSumAvg = 0, lastMonthCount = 0;
+
         allGroups.forEach(group => {
-            const groupWorkers = group.entries.reduce((sum, e) => sum + (e.noOfLabours || 0), 0);
-            const groupOutputSum = group.entries.reduce((sum, e) => sum + (e.labourOutput || 0), 0);
-            const groupSections = group.entries.length;
-
             // Today
             if (group.date === todayStr) {
-                todayWorkers += groupWorkers;
-                todayTotalOutput += groupOutputSum;
-                todaySectionCount += groupSections;
+                todayWorkers += group.dailyWorkers;
+                todayAvg = group.dailyAvgOutput;
             }
             
-            // Yesterday
-            if (group.date === yesterdayStr) {
-                yesterdayWorkers += groupWorkers;
-                yesterdayTotalOutput += groupOutputSum;
-                yesterdaySectionCount += groupSections;
+            // To Date (Current Month up to today)
+            if (group.date.startsWith(currentMonthStr) && group.date <= todayStr) {
+                toDateWorkers += group.dailyWorkers;
+                toDateSumAvg += group.dailyAvgOutput;
+                toDateCount += 1;
             }
 
-            // Current Month
-            if (group.date.startsWith(currentMonthStr)) {
-                monthWorkers += groupWorkers;
-                monthTotalOutput += groupOutputSum;
-                monthSectionCount += groupSections;
+            // Last Month
+            if (group.date.startsWith(lastMonthStr)) {
+                lastMonthWorkers += group.dailyWorkers;
+                lastMonthSumAvg += group.dailyAvgOutput;
+                lastMonthCount += 1;
             }
         });
 
-        // 5. Filter Data for UI Table
+        // 5. Filter Data for UI Table based on User Selection
         let filtered = allGroups;
         if (filterMonth) {
             filtered = filtered.filter(g => g.date.startsWith(filterMonth));
@@ -170,19 +186,19 @@ const LabourOutputTable = () => {
             stats: {
                 today: { 
                     workers: todayWorkers, 
-                    avgOutput: todaySectionCount ? (todayTotalOutput / todaySectionCount) : 0 
+                    avgOutput: todayAvg
                 },
-                yesterday: { 
-                    workers: yesterdayWorkers, 
-                    avgOutput: yesterdaySectionCount ? (yesterdayTotalOutput / yesterdaySectionCount) : 0 
+                toDate: { 
+                    workers: toDateWorkers, 
+                    avgOutput: toDateCount ? (toDateSumAvg / toDateCount) : 0 
                 },
-                currentMonth: { 
-                    workers: monthWorkers, 
-                    avgOutput: monthSectionCount ? (monthTotalOutput / monthSectionCount) : 0 
+                lastMonth: { 
+                    workers: lastMonthWorkers, 
+                    avgOutput: lastMonthCount ? (lastMonthSumAvg / lastMonthCount) : 0 
                 }
             }
         };
-    }, [rawRecords, filterMonth, fromDate, toDate, getPackingSummaryForDate, todayStr, yesterdayStr, currentMonthStr]);
+    }, [rawRecords, filterMonth, fromDate, toDate, getPackingSummaryForDate, todayStr, currentMonthStr, lastMonthStr]);
 
 
     // --- Actions ---
@@ -211,7 +227,7 @@ const LabourOutputTable = () => {
     // --- PDF Export Structuring ---
     const getCleanTableData = () => {
         return filteredGroups.map((group) => {
-            const { date, entries, packingSummary } = group;
+            const { date, entries, packingSummary, dailyAvgOutput, toDateAvgOutput } = group;
             const sections = entries.map(item => item.section).join('\n');
             const totalWorkers = entries.reduce((sum, item) => sum + (item.noOfLabours || 0), 0);
             const workersStr = entries.map(item => item.noOfLabours || 0).join('\n') + (entries.length > 1 ? `\n---\n${totalWorkers}` : '');
@@ -219,37 +235,36 @@ const LabourOutputTable = () => {
             const otHoursStr = entries.map(item => (item.otHours || 0).toFixed(2)).join('\n') + (entries.length > 1 ? `\n---\n${totalOtHours.toFixed(2)}` : '');
             const totalBags = Number((packingSummary?.totalBags ?? entries.reduce((sum, item) => sum + (Number(item.noOfBags || 0)), 0)) || 0);
             const totalKgs = Number((packingSummary?.totalKgs ?? entries.reduce((sum, item) => sum + (Number(item.totalKgs || 0)), 0)) || 0);
-            const avgLabourOutput = entries.reduce((sum, item) => sum + (item.labourOutput || 0), 0) / entries.length;
 
-            return [ date, sections, workersStr, otHoursStr, totalBags.toString(), totalKgs.toFixed(2), avgLabourOutput.toFixed(2) ];
+            return [ date, sections, workersStr, otHoursStr, totalBags.toString(), totalKgs.toFixed(2), dailyAvgOutput.toFixed(2), toDateAvgOutput.toFixed(2) ];
         });
     };
 
-    // --- Excel Export (Preserved from your code) ---
+    // --- Excel Export ---
     const exportToExcel = () => {
         if (filteredGroups.length === 0) return toast.error("No data to export.");
         
         const dataRows = filteredGroups.map(group => {
-            const { date, entries } = group;
+            const { date, entries, dailyAvgOutput, toDateAvgOutput } = group;
             const sections = entries.map(item => item.section).join('\n');
             const totalWorkers = entries.reduce((sum, item) => sum + (item.noOfLabours || 0), 0);
             const totalOtHours = entries.reduce((sum, item) => sum + (item.otHours || 0), 0);
             const totalBags = Number((group?.packingSummary?.totalBags ?? entries.reduce((sum, item) => sum + (Number(item.noOfBags || 0)), 0)) || 0);
             const totalKgs = Number((group?.packingSummary?.totalKgs ?? entries.reduce((sum, item) => sum + (Number(item.totalKgs || 0)), 0)) || 0);
-            const avgLabourOutput = entries.length > 0 ? entries.reduce((sum, item) => sum + (item.labourOutput || 0), 0) / entries.length : 0;
 
-            return [ date, sections, Number(totalWorkers), Number(totalOtHours.toFixed(2)), Number(totalBags), Number(totalKgs.toFixed(2)), Number(avgLabourOutput.toFixed(2)) ];
+            return [ date, sections, Number(totalWorkers), Number(totalOtHours.toFixed(2)), Number(totalBags), Number(totalKgs.toFixed(2)), Number(dailyAvgOutput.toFixed(2)), Number(toDateAvgOutput.toFixed(2)) ];
         });
 
         const tableData = [
             [`LABOUR OUTPUT REPORT`], [`Period: ${getPeriodText()}`], [`Generated on ${new Date().toLocaleString()}`], [""],
-            ["DATE", "SECTIONS", "TOTAL WORKERS", "TOTAL O/T HOURS", "NO OF BAGS", "TOTAL KGS", "AVG LABOUR OUTPUT"],
+            ["DATE", "SECTIONS", "TOTAL WORKERS", "TOTAL O/T HOURS", "NO OF BAGS", "TOTAL KGS", "DAILY AVG OUTPUT", "TO-DATE AVG OUTPUT"],
             ...dataRows
         ];
 
         const worksheet = XLSX.utils.aoa_to_sheet(tableData);
+        // Extend merge range to cover the new column (col 0 to 7)
         worksheet['!merges'] = [
-            { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } }, { s: { r: 2, c: 0 }, e: { r: 2, c: 6 } },
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } }, { s: { r: 2, c: 0 }, e: { r: 2, c: 7 } },
         ];
 
         const borderAll = { top: { style: "thin", color: { rgb: "CBD5E1" } }, bottom: { style: "thin", color: { rgb: "CBD5E1" } }, left: { style: "thin", color: { rgb: "CBD5E1" } }, right: { style: "thin", color: { rgb: "CBD5E1" } } };
@@ -275,7 +290,7 @@ const LabourOutputTable = () => {
                 }
             }
         }
-        worksheet['!cols'] = [{ wch: 15 }, { wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 25 }];
+        worksheet['!cols'] = [{ wch: 15 }, { wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }];
         
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Labour Output");
@@ -311,7 +326,7 @@ const LabourOutputTable = () => {
                             { content: "Date", styles: { halign: "left" } }, { content: "Sections", styles: { halign: "left" } },
                             { content: "Total Workers", styles: { halign: "right" } }, { content: "O/T Hours", styles: { halign: "right" } },
                             { content: "No of Bags", styles: { halign: "right" } }, { content: "Total Kgs", styles: { halign: "right" } },
-                            { content: "Avg Output", styles: { halign: "right" } }
+                            { content: "Daily Avg", styles: { halign: "right" } }, { content: "To-Date Avg", styles: { halign: "right" } }
                         ]]}
                         uniqueCode={`LOR-${getPeriodText().replace(/ /g, "")}`}
                         fileName={`Labour_Output_${getPeriodText().replace(/ /g, "_")}.pdf`}
@@ -354,22 +369,9 @@ const LabourOutputTable = () => {
                 </div>
             </div>
 
-            {/* UPDATED SUMMARY CARDS (Yesterday, Today, Monthly Average) */}
+            {/* SUMMARY CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 
-                {/* YESTERDAY CARD */}
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm flex items-center gap-4">
-                    <div className="p-3 bg-amber-50 dark:bg-amber-900/30 rounded-lg text-amber-600 dark:text-amber-400">
-                        <History size={28} />
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Yesterday</h3>
-                        <div className="text-xl font-black text-amber-700 dark:text-amber-400">
-                            Avg: {stats.yesterday.avgOutput.toFixed(1)} <span className="text-gray-300 dark:text-gray-600 mx-1">|</span> Workers: {stats.yesterday.workers}
-                        </div>
-                    </div>
-                </div>
-
                 {/* TODAY CARD */}
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm flex items-center gap-4">
                     <div className="p-3 bg-teal-50 dark:bg-teal-900/30 rounded-lg text-teal-600 dark:text-teal-400">
@@ -383,15 +385,28 @@ const LabourOutputTable = () => {
                     </div>
                 </div>
 
-                {/* MONTHLY AVERAGE CARD */}
+                {/* TO DATE CARD */}
                 <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm flex items-center gap-4">
                     <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400">
                         <TrendingUp size={28} />
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Monthly Average</h3>
+                        <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">To Date Average</h3>
                         <div className="text-xl font-black text-blue-700 dark:text-blue-400">
-                            Avg: {stats.currentMonth.avgOutput.toFixed(1)} <span className="text-gray-300 dark:text-gray-600 mx-1">|</span> Workers: {stats.currentMonth.workers}
+                            Avg: {stats.toDate.avgOutput.toFixed(1)} <span className="text-gray-300 dark:text-gray-600 mx-1">|</span> Workers: {stats.toDate.workers}
+                        </div>
+                    </div>
+                </div>
+                
+                {/* LAST MONTH CARD */}
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm flex items-center gap-4">
+                    <div className="p-3 bg-amber-50 dark:bg-amber-900/30 rounded-lg text-amber-600 dark:text-amber-400">
+                        <History size={28} />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Last Month Average</h3>
+                        <div className="text-xl font-black text-amber-700 dark:text-amber-400">
+                            Avg: {stats.lastMonth.avgOutput.toFixed(1)} <span className="text-gray-300 dark:text-gray-600 mx-1">|</span> Workers: {stats.lastMonth.workers}
                         </div>
                     </div>
                 </div>
@@ -410,14 +425,15 @@ const LabourOutputTable = () => {
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">O/T Hours / Section</th>
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">No of Bags</th>
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">Total Kgs</th>
-                                <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right text-blue-800 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20">Avg Labour Output</th>
+                                <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right text-blue-800 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20">Daily Avg Output</th>
+                                <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right text-indigo-800 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20">To-Date Avg Output</th>
                                 <th className="px-4 py-4 text-center w-24">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700 transition-colors">
                             {isLoading && (
                                 <tr>
-                                    <td colSpan="8" className="p-16 text-center text-gray-500 dark:text-gray-400">
+                                    <td colSpan="9" className="p-16 text-center text-gray-500 dark:text-gray-400">
                                         <div className="flex flex-col items-center justify-center">
                                             <div className="w-8 h-8 border-4 border-[#8CC63F] border-t-[#1B6A31] dark:border-green-600 dark:border-t-green-400 rounded-full animate-spin mb-4"></div>
                                             <p className="font-medium">Loading labour output...</p>
@@ -428,7 +444,7 @@ const LabourOutputTable = () => {
 
                             {!isLoading && filteredGroups.length === 0 && (
                                 <tr>
-                                    <td colSpan="8" className="p-16 text-center">
+                                    <td colSpan="9" className="p-16 text-center">
                                         <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
                                             <AlertCircle size={40} className="mb-3 opacity-20" />
                                             <p className="text-lg font-medium text-gray-500 dark:text-gray-400">
@@ -440,12 +456,11 @@ const LabourOutputTable = () => {
                             )}
 
                             {!isLoading && filteredGroups.map((group) => {
-                                const { date, entries, packingSummary } = group;
+                                const { date, entries, packingSummary, dailyAvgOutput, toDateAvgOutput } = group;
                                 const totalWorkers = entries.reduce((sum, item) => sum + (item.noOfLabours || 0), 0);
                                 const totalOtHours = entries.reduce((sum, item) => sum + (item.otHours || 0), 0);
                                 const totalBags = Number((packingSummary?.totalBags ?? entries.reduce((sum, item) => sum + (Number(item.noOfBags || 0)), 0)) || 0);
                                 const totalKgs = Number((packingSummary?.totalKgs ?? entries.reduce((sum, item) => sum + (Number(item.totalKgs || 0)), 0)) || 0);
-                                const labourOutputValue = entries.length > 0 ? (entries.reduce((sum, item) => sum + (item.labourOutput || 0), 0) / entries.length) : 0;
 
                                 return (
                                     <tr key={date} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
@@ -471,8 +486,12 @@ const LabourOutputTable = () => {
                                         </td>
                                         <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right text-gray-600 dark:text-gray-400 align-top font-semibold">{totalBags}</td>
                                         <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right text-gray-600 dark:text-gray-400 align-top font-semibold">{totalKgs.toFixed(2)}</td>
+                                        
                                         <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right font-bold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10 align-top">
-                                            {labourOutputValue.toFixed(2)}
+                                            {dailyAvgOutput.toFixed(2)}
+                                        </td>
+                                        <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-right font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/30 dark:bg-indigo-900/10 align-top">
+                                            {toDateAvgOutput.toFixed(2)}
                                         </td>
                                         
                                         <td className="px-3 py-3 text-center align-top">
