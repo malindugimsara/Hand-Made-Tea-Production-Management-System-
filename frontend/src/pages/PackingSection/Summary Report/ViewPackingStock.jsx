@@ -103,37 +103,39 @@ export default function ViewPackingStock() {
                 stockData.forEach(product => {
                     const updatedAtDate = product.updatedAt ? new Date(product.updatedAt).toISOString().split('T')[0] : '';
                     
-                    // 1. Calculate Total TransIn & Issue from all sources
-                    let totalTransIn = product.transInAmount || 0;
-                    let totalIssue = product.issueAmount || 0;
+                    let totalTransIn = 0;
+                    let totalIssue = 0;
                     let sources = new Set();
 
-                    if (product.source) sources.add(product.source);
-
+                    // BUG FIX: Prevent Double Counting TransIn and Issue Amount
                     if (product.stockBySource && product.stockBySource.length > 0) {
                         product.stockBySource.forEach(src => {
-                            totalTransIn += (src.transInAmount || 0);
-                            totalIssue += (src.issueAmount || 0);
+                            totalTransIn += (Number(src.transInAmount) || 0);
+                            totalIssue += (Number(src.issueAmount) || 0);
                             if (src.sourceName) sources.add(src.sourceName);
                         });
+                    } else {
+                        // Only use root totals if no sources exist to avoid double counting
+                        totalTransIn = Number(product.transInAmount) || 0;
+                        totalIssue = Number(product.issueAmount) || 0;
+                        if (product.source) sources.add(product.source);
                     }
 
                     const sourceText = sources.size > 1 ? "Multiple Sources" : (Array.from(sources)[0] || "Unknown");
-                    const currentStock = product.totalBulkStockKg || product.bulkStockKg || 0;
+                    const currentStock = Number(product.totalBulkStockKg) || Number(product.bulkStockKg) || 0;
 
-                    // 2. Calculate Manual Adjustments
-                    // Current Stock = (TransIn - Issue) + Adjustments
-                    // Therefore: Adjustments = Current Stock - (TransIn - Issue)
+                    // 2. Calculate Manual Adjustments (Exposes Database Corrections & Bugs)
                     const manualAdjustments = currentStock - (totalTransIn - totalIssue);
 
-                    if (currentStock > 0 || totalTransIn > 0 || totalIssue > 0 || manualAdjustments !== 0) {
+                    // 👇 මෙතැන තමයි වෙනස් කළේ: current stock එක 0 ට වඩා වැඩිනම් විතරක් ප්‍රධාන ලිස්ට් එකට දානවා. නැත්නම් 0 ලිස්ට් එකට යවනවා
+                    if (currentStock > 0) {
                         flatData.push({
                             id: product._id,
                             productName: product.productName,
                             source: sourceText,
                             transInAmount: totalTransIn,
                             issueAmount: totalIssue,
-                            adjustments: manualAdjustments, // අලුතින් ගණනය කරපු අගය
+                            adjustments: manualAdjustments,
                             currentStock: currentStock,
                             totalOverallQtyKg: currentStock,
                             updatedAtDate: updatedAtDate
@@ -187,14 +189,14 @@ export default function ViewPackingStock() {
     };
 
     // =========================================================================
-    // --- FILTERING LOGIC (HIDDEN 0 STOCKS) ---
+    // --- FILTERING LOGIC ---
     // =========================================================================
 
     const filteredTeaStocks = flattenedStocks.filter(stock => {
         const pName = stock.productName || '';
         const matchesSearch = !searchQuery || pName.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesSource = !sourceFilter || stock.source === sourceFilter;
-        const hasStock = Number(stock.currentStock) > 0;
+        const matchesSource = !sourceFilter || stock.source === sourceFilter || (stock.source === 'Multiple Sources' && !sourceFilter);
+        const hasStock = Number(stock.currentStock) > 0; // 👇 මෙතැනත් 0 වුණොත් filter එකෙන් අයින් වෙන්න හැදුවා
         return matchesSearch && matchesSource && hasStock;
     });
 
@@ -236,7 +238,6 @@ export default function ViewPackingStock() {
     const filteredZeroFlavorStocks = zeroFlavorStocks.filter(rm => !searchQuery || rm.materialName?.toLowerCase().includes(searchQuery.toLowerCase()));
     const filteredZeroPackingStocks = zeroPackingStocks.filter(rm => !searchQuery || rm.materialName?.toLowerCase().includes(searchQuery.toLowerCase()));
 
-
     // --- NEW TOTALS CALCULATION ---
     const totalTransIn = filteredTeaStocks.reduce((sum, stock) => sum + (Number(stock.transInAmount) || 0), 0);
     const totalIssue = filteredTeaStocks.reduce((sum, stock) => sum + (Number(stock.issueAmount) || 0), 0);
@@ -258,9 +259,10 @@ export default function ViewPackingStock() {
     const getSourceBadgeClass = (source) => {
         if (!source) return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
         const s = source.toLowerCase();
-        if (s === 'handmade') return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
-        if (s === 'factory') return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
-        if (s === 'other') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+        if (s.includes('handmade')) return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
+        if (s.includes('factory')) return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
+        if (s.includes('multiple')) return 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300';
+        if (s.includes('other')) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
         return 'bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-gray-300';
     };
 
@@ -559,7 +561,7 @@ export default function ViewPackingStock() {
                                                 );
                                             })
                                         ) : (
-                                            <tr><td colSpan="5" className="p-16 text-center text-gray-400">No tea records found</td></tr>
+                                            <tr><td colSpan="6" className="p-16 text-center text-gray-400">No tea records found</td></tr>
                                         )}
                                     </tbody>
                                 </table>
@@ -584,7 +586,7 @@ export default function ViewPackingStock() {
                                     </thead>
                                     <tbody>
                                         {summaryArray.length > 0 ? summaryArray.map((product, idx) => {
-                                            const totalQty = Number(product.totalOverallQtyKg) || Number(product.totalBulkStockKg) || 0;
+                                            const totalQty = Number(product.totalBulkStockKg) || Number(product.bulkStockKg) || 0;
                                             return (
                                                 <tr key={idx} className="border-b border-gray-300 dark:border-zinc-500">
                                                     <td className={`px-3 py-2 font-semibold border-r border-gray-300 dark:border-zinc-500 ${getTeaColor(product.productName)}`}>{product.productName || 'Unknown'}</td>

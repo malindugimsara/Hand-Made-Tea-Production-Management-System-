@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useNavigate } from 'react-router-dom';
 
-
 // Exact Colors for Tea
 const getTeaColor = (product) => {
     const p = product.toLowerCase();
@@ -75,7 +74,6 @@ export default function ViewLocalSaleRecords() {
 
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer';
-    // Add this new line right below them:
     const isAdmin = userRole.toLowerCase() === 'admin';
 
     // --- FILTER STATES ---
@@ -146,26 +144,21 @@ export default function ViewLocalSaleRecords() {
             setLoading(false);
         }
     };
+
     const filteredRecords = records.reduce((acc, record) => {
-        // 1. Date සහ Month filters චෙක් කිරීම
         const monthMatch = !filterMonth || record.date.startsWith(filterMonth);
         const dateMatch = (!startDate || record.date >= startDate) && (!endDate || record.date <= endDate);
         
         if (!monthMatch || !dateMatch) return acc;
 
-        // 2. Product filter එකක් දීලා තියෙනවා නම්, ඒකට ගැලපෙන items විතරක් වෙන් කිරීම
         let matchedItems = record.itemsArray;
         if (productFilter) {
-            // exact match (===) භාවිතා කරන නිසා 'BOPF' සෙවුමකට 'BOPF SP' අහුවෙන්නේ නැත.
             matchedItems = record.itemsArray.filter(
                 item => item.product.toLowerCase() === productFilter.toLowerCase()
             );
         }
 
-        // 3. ගැලපෙන items තියෙනවා නම් විතරක් ඒ දවස පෙන්නන්න එකතු කිරීම
         if (matchedItems.length > 0) {
-            // Filter වුන items වලට අදාලව Daily Items සහ Daily Gross අලුතෙන් එකතු කිරීම 
-            // (එවිට පල්ලෙහා තියෙන Grand Total එකත් නිවැරදිව හැදේවි)
             const filteredTotalBoxes = matchedItems.reduce((sum, item) => sum + (Number(item.numberOfBoxes) || 0), 0);
             const filteredTotalQtyKg = matchedItems.reduce((sum, item) => sum + (Number(item.totalQtyKg) || 0), 0);
 
@@ -251,14 +244,11 @@ export default function ViewLocalSaleRecords() {
         pdfSortedRecords.forEach(record => {
             const baseDate = new Date(record.date).toISOString().split('T')[0];
             const pdfDateCell = record.isEdited ? `${baseDate}\n(Edited by ${record.editedBy} on ${record.lastUpdatedDate})` : baseDate;
-
-            // මේ record එකේ items කීයක් තියෙනවද කියලා ගණන් කිරීම (RowSpan එක සඳහා)
             const itemsCount = record.itemsArray.length;
 
             record.itemsArray.forEach((item, index) => {
                 const isFirst = index === 0;
 
-                // Combine raw materials for PDF
                 const rmNames = [];
                 const rmQtys = [];
 
@@ -280,67 +270,51 @@ export default function ViewLocalSaleRecords() {
                 const rmNameCellText = rmNames.length > 0 ? rmNames.join('\n') : "-";
                 const rmQtyCellText = rmQtys.length > 0 ? rmQtys.join('\n') : "-";
 
-                // දශම 3ක් දක්වා රවුම් කර, අගට ඇති බිංදු ඉවත් කිරීම
                 const packSizeStr = parseFloat(Number(item.packSizeKg).toFixed(3)).toString();
                 const totalQtyStr = parseFloat(Number(item.totalQtyKg || 0).toFixed(3)).toString();
-                const baseTeaQtyStr = item.baseTeaQtyKg ? parseFloat(Number(item.baseTeaQtyKg).toFixed(3)).toString() : "-";
-                const recordTotalQtyStr = parseFloat(Number(record.totalQtyKg).toFixed(3)).toString();
 
-                // Cell Objects (valign: 'top' සමඟින්)
-                const productCell = { 
-                    content: item.product, 
-                    styles: { ...getPdfTeaColor(item.product), fontStyle: 'bold', halign: 'center', valign: 'top' } 
-                };
-                const typeCell = { content: item.type || "-", styles: { halign: 'center', valign: 'top' } };
+                const productCell = { content: item.product, styles: { ...getPdfTeaColor(item.product), fontStyle: 'bold', halign: 'center', valign: 'top' } };
                 const packSizeCell = { content: `${packSizeStr} kg`, styles: { halign: 'right', valign: 'top' } };
                 const noOfBoxesCell = { content: item.numberOfBoxes.toString(), styles: { halign: 'center', valign: 'top' } };
                 const totalQtyCellObj = { content: `${totalQtyStr} kg`, styles: { halign: 'right', valign: 'top' } };
                 const rmNameObjCell = { content: rmNameCellText, styles: { halign: 'left', valign: 'top' } };
                 const rmQtyObjCell = { content: rmQtyCellText, styles: { halign: 'right', valign: 'top' } };
-                const baseTeaQtyCell = { content: baseTeaQtyStr !== "-" ? `${baseTeaQtyStr} kg` : "-", styles: { halign: 'right', valign: 'top' } };
 
                 if (isFirst) {
-                    // පළමු අයිතමයේදී අවශ්‍ය තීරුවලට rowSpan ලබා දීම
                     tableRows.push([
                         { content: pdfDateCell, rowSpan: itemsCount, styles: { valign: 'top', halign: 'center' } },
                         productCell,
-                        typeCell,
                         packSizeCell,
                         noOfBoxesCell,
                         totalQtyCellObj,
                         rmNameObjCell,
-                        rmQtyObjCell,
-                        baseTeaQtyCell,
-                        { content: record.totalBoxes.toString(), rowSpan: itemsCount, styles: { valign: 'top', halign: 'center', fontStyle: 'bold' } },
-                        { content: `${recordTotalQtyStr} kg`, rowSpan: itemsCount, styles: { valign: 'top', halign: 'right', fontStyle: 'bold', textColor: [15, 118, 110] } }
+                        rmQtyObjCell
                     ]);
                 } else {
-                    // ඉතිරි අයිතම සඳහා RowSpan වූ Columns 3 (Date, Record Boxes, Record Qty) මඟහැර යැවීම
                     tableRows.push([
                         productCell,
-                        typeCell,
                         packSizeCell,
                         noOfBoxesCell,
                         totalQtyCellObj,
                         rmNameObjCell,
-                        rmQtyObjCell,
-                        baseTeaQtyCell
+                        rmQtyObjCell
                     ]);
                 }
             });
         });
 
-        // Grand Total එකත් දශම 3කට රවුම් කර බිංදු ඉවත් කිරීම
         const grandTotalQtyStr = parseFloat(Number(grandTotalQty).toFixed(3)).toString();
 
         tableRows.push([
-            { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' }, colSpan: 9 },
+            { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' }, colSpan: 3 },
             { content: grandTotalBoxes.toString(), styles: { fontStyle: 'bold', halign: 'center' } },
-            { content: `${grandTotalQtyStr} kg`, styles: { fontStyle: 'bold', halign: 'right', textColor: [15, 118, 110] } } 
+            { content: `${grandTotalQtyStr} kg`, styles: { fontStyle: 'bold', halign: 'right', textColor: [15, 118, 110] } },
+            "", ""
         ]);
 
         return tableRows;
     };
+
     const getMonthName = (yyyymm) => {
         const date = new Date(`${yyyymm}-01`);
         return date
@@ -364,11 +338,11 @@ export default function ViewLocalSaleRecords() {
                     <PDFDownloader 
                         title="Local Sale Issue Records"
                         subtitle={`Filters -> Month: ${filterMonth || 'All'} | Date: ${startDate || 'All'} to ${endDate || 'All'} | Product: ${productFilter || 'All'}`}
-                        headers={["Date", "Product", "Type", "Pack Size", "Items", "Gross Qty", "RM Name", "RM Qty", "Base Qty", "Daily Items", "Daily Gross"]}
+                        headers={["Date", "Product", "Pack Size", "Items", "Gross Qty", "RM Name", "RM Qty"]}
                         data={getPdfData()}
                         uniqueCode={uniqueCode}
                         fileName={`Local_Sale_Records_${new Date().toISOString().split('T')[0]}.pdf`}
-                        orientation="landscape" 
+                        orientation="portrait" 
                         disabled={loading || filteredRecords.length === 0}
                     />
                     <button onClick={fetchRecords} disabled={loading} className={`px-4 py-2.5 bg-white dark:bg-zinc-900 text-[#0f766e] dark:text-teal-400 border border-[#0d9488] dark:border-teal-800 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-50 dark:hover:bg-zinc-800'}`}>
@@ -449,19 +423,13 @@ export default function ViewLocalSaleRecords() {
                                 <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-500">
                                     <th className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-500 align-bottom min-w-[120px]"><Calendar size={14} className="inline mr-1"/> Date</th>
                                     <th className="px-4 py-3 font-bold text-green-600 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 align-bottom min-w-[160px]"><Tag size={14} className="inline mr-1"/> Product</th>
-                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Box size={14} className="inline mr-1"/> Type</th>
-                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> Pack (Kg)</th>
-                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Package size={14} className="inline mr-1"/> Items</th>
+                                    <th className="px-2 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> Pack Size (Kg)</th>
+                                    <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Package size={14} className="inline mr-1"/> # Items</th>
                                     <th className="px-4 py-3 font-bold text-green-700 dark:text-green-500 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center"><Weight size={14} className="inline mr-1"/> Gross Qty (Kg)</th>
                                     
-                                    {/* --- COMBINED RAW MATERIAL COLUMNS --- */}
                                     <th className="px-4 py-3 font-bold text-green-700 dark:text-amber-500 border-r border-gray-200 dark:border-zinc-600 bg-yellow-50 dark:bg-yellow-950/20 text-center"><Layers size={14} className="inline mr-1"/> RM Name</th>
                                     <th className="px-4 py-3 font-bold text-green-700 dark:text-amber-500 border-r border-gray-200 dark:border-zinc-600 bg-yellow-50 dark:bg-yellow-950/20 text-center"><Droplet size={14} className="inline mr-1"/> RM (QTY)</th>
                                     
-                                    <th className="px-4 py-3 font-bold text-teal-700 dark:text-teal-500 border-r border-gray-200 dark:border-zinc-600 bg-teal-50 dark:bg-teal-950/20 text-center"><Leaf size={14} className="inline mr-1"/> Base (Kg)</th>
-                                    
-                                    <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Items</th>
-                                    <th className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Gross (Kg)</th>
                                     {!isViewer && <th className="px-4 py-3 font-semibold align-bottom text-center bg-gray-50 dark:bg-zinc-950/50">Action</th>}
                                 </tr>
                             </thead>
@@ -470,7 +438,6 @@ export default function ViewLocalSaleRecords() {
                                     recordsWithSpan.map((record) => (
                                         <tr key={record._id} className="hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors group">
                                             
-                                            {/* Date Column එක Merge කිරීම */}
                                             {record.isFirstOfDate && (
                                                 <td rowSpan={record.dateRowSpan} className="px-4 py-4 border-r border-b border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
                                                     <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
@@ -482,7 +449,6 @@ export default function ViewLocalSaleRecords() {
                                                     )}
                                                 </td>
                                             )}
-                                            {/* 👆 Date Column එක 👆 */}
 
                                             <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px">
                                                 <div className="flex flex-col w-full h-full">
@@ -492,20 +458,6 @@ export default function ViewLocalSaleRecords() {
                                                         return (
                                                             <div key={i} className={`flex flex-col justify-center px-4 py-3 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0 ${getTeaColor(t.product)}`} style={{ minHeight: hasAnyRm ? `${(rmCount * 20) + 24}px` : '48px' }}>
                                                                 {t.product}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </td>
-                                            
-                                            <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                <div className="flex flex-col w-full h-full">
-                                                    {record.itemsArray.map((t, i) => {
-                                                        const rmCount = (t.rawMaterialName ? 1 : 0) + (t.packingMaterials ? t.packingMaterials.length : 0);
-                                                        const hasAnyRm = rmCount > 0;
-                                                        return (
-                                                            <div key={i} className="flex flex-col justify-center items-center px-3 py-3 text-gray-600 dark:text-gray-300 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0" style={{ minHeight: hasAnyRm ? `${(rmCount * 20) + 24}px` : '48px' }}>
-                                                                {t.type || '-'}
                                                             </div>
                                                         );
                                                     })}
@@ -554,7 +506,6 @@ export default function ViewLocalSaleRecords() {
                                                 </div>
                                             </td>
 
-                                            {/* --- COMBINED COLUMN: RM NAME --- */}
                                             <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
                                                 <div className="flex flex-col w-full h-full">
                                                     {record.itemsArray.map((t, i) => {
@@ -587,7 +538,6 @@ export default function ViewLocalSaleRecords() {
                                                 </div>
                                             </td>
 
-                                            {/* --- COMBINED COLUMN: RM QTY --- */}
                                             <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
                                                 <div className="flex flex-col w-full h-full">
                                                     {record.itemsArray.map((t, i) => {
@@ -617,28 +567,6 @@ export default function ViewLocalSaleRecords() {
                                                     })}
                                                 </div>
                                             </td>
-
-                                            <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                <div className="flex flex-col w-full h-full">
-                                                    {record.itemsArray.map((t, i) => {
-                                                        const rmCount = (t.rawMaterialName ? 1 : 0) + (t.packingMaterials ? t.packingMaterials.length : 0);
-                                                        const hasAnyRm = rmCount > 0;
-                                                        return (
-                                                            <div key={i} className="flex flex-col justify-center items-center px-3 py-3 text-teal-700 dark:text-teal-500 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0" style={{ minHeight: hasAnyRm ? `${(rmCount * 20) + 24}px` : '48px' }}>
-                                                                {t.baseTeaQtyKg ? Number(t.baseTeaQtyKg).toFixed(3) : '-'}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </td>
-
-                                            <td className="px-3 py-4 text-center border-r border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 align-top">
-                                                <span className="font-bold text-gray-700 dark:text-gray-300 text-lg">{record.totalBoxes}</span>
-                                            </td>
-
-                                            <td className="px-3 py-4 text-center border-r border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 align-top">
-                                                <span className="font-bold text-green-700 dark:text-green-400 text-lg">{record.totalQtyKg?.toFixed(3)}</span>
-                                            </td>
                                             
                                             {!isViewer && (
                                                 <td className="px-3 py-4 text-center align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
@@ -665,16 +593,16 @@ export default function ViewLocalSaleRecords() {
                                         </tr>
                                     ))
                                 ) : (
-                                    <tr><td colSpan={isViewer ? "11" : "12"} className="p-16 text-center text-gray-400"><p>No records found</p></td></tr>
+                                    <tr><td colSpan={isViewer ? "7" : "8"} className="p-16 text-center text-gray-400"><p>No records found</p></td></tr>
                                 )}
                             </tbody>
                             {filteredRecords.length > 0 && (
                                 <tfoot className="bg-gray-100/90 dark:bg-zinc-900/90 border-t-2 border-gray-200 dark:border-zinc-700">
                                     <tr>
-                                        <td colSpan="9" className="px-4 py-4 text-right font-bold tracking-wider uppercase border-r border-gray-200 dark:border-zinc-800">MONTHLY TOTAL</td>
+                                        <td colSpan="3" className="px-4 py-4 text-right font-bold tracking-wider uppercase border-r border-gray-200 dark:border-zinc-800">MONTHLY TOTAL</td>
                                         <td className="px-3 py-4 text-center font-black text-xl border-r border-gray-200 dark:border-zinc-800">{grandTotalBoxes}</td>
                                         <td className="px-3 py-4 text-center font-black text-[#0f766e] dark:text-teal-500 text-xl border-r border-gray-200 dark:border-zinc-800">{grandTotalQty.toFixed(3)} kg</td>
-                                        {!isViewer && <td></td>}
+                                        <td colSpan={isViewer ? "2" : "3"} className="border-r border-gray-200 dark:border-zinc-800"></td>
                                     </tr>
                                 </tfoot>
                             )}
