@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
-import { PlusCircle, Save, ShoppingCart, Calendar, Weight, Tag, X, ArrowLeft, Package, Calculator, Layers, Trash2, Box, AlertTriangle, ArrowRight, Droplet } from "lucide-react"; 
+import { PlusCircle, Save, ShoppingCart, Calendar, Weight, Tag, X, ArrowLeft, Package, Calculator, Layers, Trash2, AlertTriangle, ArrowRight } from "lucide-react"; 
 import { useNavigate, useLocation } from 'react-router-dom';
 
 // --- LOGIC: BASE TEA MAPPING ---
 const getBaseTeaGrade = (productName) => {
     if (!productName) return "";
     const p = productName.toLowerCase().trim();
+
+    if (p === "pitigala tea bags") return "Black Tea T/B";
+    if (p === "green tea bag (25)") return "Green Tea T/B";
+    if (p === "awurudu special") return "BOPF SP";
+    if (p === "labour drinking tea") return "BOPF";
 
     const bopf = ["lemongrass - bopf", "cinnamon tea - bopf", "ginger tea - bopf", "masala tea - bopf", "pineapple tea", "mix fruit", "peach", "strawberry", "jasmin - bopf", "mango tea", "carmel", "honey", "earl grey", "lime", "soursop - bopf", "cardamom", "gift pack", "guide issue-bopf"];
     const bopfSp = ["english breakfast", "cinnamon tea - bopf sp", "ginger tea - bopf sp", "masala tea - bopf sp", "vanilla", "mint - bopf sp", "moringa - bopf sp", "curry leaves - bopf sp", "gotukola - bopf sp", "heen bovitiya - bopf sp", "black t/b", "english afternoon"];
@@ -38,7 +43,6 @@ const getBaseTeaGrade = (productName) => {
     return productName; 
 };
 
-// Exact Colors based on your image
 const getTeaColor = (product) => {
     const p = product.toLowerCase();
     if (p === 'bopf') return 'bg-[#fde047] text-yellow-900 border-yellow-500'; 
@@ -64,18 +68,11 @@ const getMaterialColor = (material) => {
     return 'bg-gray-100 dark:bg-zinc-800/80 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700';
 };
 
-// Combined tea types
 const TEA_TYPES = [
     "BOPF", "BOPF SP", "OPA", "OP 1", "OP", "Pekoe", "BOP", "FBOP", 
     "FF SP", "FF EX SP", "Dust", "Dust 1", "Premium", "Green tea", 
     "Green tea bag (25)", "New edition", "Pitigala tea bags", 
-    "Pitigala tea 400g",
-    "Awurudu Special", "Labour drinking tea"
-];
-
-const PACKAGING_TYPES = [
-    "E/L Pack", "Pack", "Box", "Chest box", "Cloth bag", 
-    "Paper can", "Wooden box", "Wooden cylinder", "Tin"
+    "Pitigala tea 400g", "Awurudu Special", "Labour drinking tea"
 ];
 
 const getPackSizes = (product) => {
@@ -96,36 +93,27 @@ export default function EditLocalRecord() {
     const navigate = useNavigate();
     const location = useLocation();
 
-    // --- ROLE BASED ACCESS CONTROL ---
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
 
-    const username = localStorage.getItem('username') || '';
-
-    // Get passed record data
     const recordData = location.state?.recordData;
 
     const [isSaving, setIsSaving] = useState(false);
     
-    // --- STOCKS STATES FOR WARNINGS ---
     const [availableTeaStock, setAvailableTeaStock] = useState([]);
     const [availablePackingStock, setAvailablePackingStock] = useState([]); 
 
     const [formData, setFormData] = useState({ date: '' });
     const [itemsList, setItemsList] = useState([]);
 
-    // --- Dropdown States ---
     const [openDropdownId, setOpenDropdownId] = useState(null);
     const dropdownRefs = useRef({}); 
 
-    // Handle outside click for the custom dropdown
     useEffect(() => {
         const handleClickOutside = (event) => {
             let isOutside = true;
             Object.values(dropdownRefs.current).forEach(ref => {
-                if (ref && ref.contains(event.target)) {
-                    isOutside = false;
-                }
+                if (ref && ref.contains(event.target)) isOutside = false;
             });
             if (isOutside) setOpenDropdownId(null);
         };
@@ -133,7 +121,6 @@ export default function EditLocalRecord() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Fetch Stocks for Validation
     useEffect(() => {
         const fetchStocks = async () => {
             try {
@@ -148,19 +135,11 @@ export default function EditLocalRecord() {
                     const data = await teaRes.json();
                     const factoryAndOtherData = [];
                     data.forEach(product => {
-                        let validStock = 0;
-                        if (product.stockBySource && product.stockBySource.length > 0) {
-                            const factoryStock = product.stockBySource.find(s => s.sourceName === 'Factory')?.quantityKg || 0;
-                            const otherStock = product.stockBySource.find(s => s.sourceName === 'Other')?.quantityKg || 0;
-                            validStock = factoryStock + otherStock;
-                        } else {
-                            if (product.source === 'Factory' || product.source === 'Other') {
-                                validStock = Number(product.bulkStockKg) || 0;
-                            }
-                        }
+                        // 👇 FIX: Use exactly the same fetching logic as LocalRecordEntry
+                        const validStock = Number(product.totalBulkStockKg) || Number(product.bulkStockKg) || 0;
                         if (validStock > 0) {
                             factoryAndOtherData.push({
-                                productName: product.productName,
+                                productName: product.productName || product.name,
                                 bulkStockKg: validStock 
                             });
                         }
@@ -171,7 +150,6 @@ export default function EditLocalRecord() {
                 if (rmRes.ok) {
                     const rmData = await rmRes.json();
                     const allRawMaterials = Array.isArray(rmData.data || rmData) ? (rmData.data || rmData) : [];
-                    
                     const packingOnly = allRawMaterials.filter(rm => (rm.category || '').toLowerCase() !== 'flavor');
                     setAvailablePackingStock(packingOnly);
                 }
@@ -182,7 +160,6 @@ export default function EditLocalRecord() {
         fetchStocks();
     }, [BACKEND_URL]);
 
-    // Initial Data Population
     useEffect(() => {
         if (isViewer) {
             toast.error("Access Denied. Viewers cannot edit records.");
@@ -213,10 +190,49 @@ export default function EditLocalRecord() {
         }
     }, [recordData, navigate, isViewer]);
 
+    // 👇 Calculate "True" Available Tea Stock accurately rounding to 3 decimals
+    const getTrueAvailableTeaStock = (baseGrade) => {
+        if (!baseGrade) return 0;
+        
+        const stockData = availableTeaStock.find(s => s.productName?.toLowerCase() === baseGrade.toLowerCase());
+        const currentDbStock = stockData ? Number(stockData.bulkStockKg) : 0;
+
+        let previouslyIssuedQty = 0;
+        if (recordData && recordData.salesItems) {
+            recordData.salesItems.forEach(oldItem => {
+                if (getBaseTeaGrade(oldItem.product).toLowerCase() === baseGrade.toLowerCase()) {
+                    previouslyIssuedQty += (Number(oldItem.baseTeaQtyKg) || Number(oldItem.totalQtyKg) || 0);
+                }
+            });
+        }
+        return Number((currentDbStock + previouslyIssuedQty).toFixed(3));
+    };
+
+    // 👇 Calculate "True" Available Packing Stock accurately rounding to 3 decimals
+    const getTrueAvailablePackingStock = (pmName) => {
+        if (!pmName) return 0;
+
+        const pmStockData = availablePackingStock.find(s => s.materialName?.toLowerCase() === pmName.toLowerCase());
+        const currentDbStock = pmStockData ? Number(pmStockData.totalQuantity) : 0;
+
+        let previouslyIssuedQty = 0;
+        if (recordData && recordData.salesItems) {
+            recordData.salesItems.forEach(oldItem => {
+                if (oldItem.packingMaterials) {
+                    oldItem.packingMaterials.forEach(oldPm => {
+                        if (oldPm.name?.toLowerCase() === pmName.toLowerCase()) {
+                            previouslyIssuedQty += (Number(oldPm.qty) || 0);
+                        }
+                    });
+                }
+            });
+        }
+        return Number((currentDbStock + previouslyIssuedQty).toFixed(3));
+    };
+
     const totalAvailableTeaCapacity = availableTeaStock.reduce((sum, item) => sum + (item.bulkStockKg || 0), 0);
     const totalAvailablePackingCapacity = availablePackingStock.reduce((sum, item) => sum + (item.totalQuantity || 0), 0);
 
-    // --- DYNAMIC FIELD HANDLERS ---
     const handleAddItemRow = () => {
         setItemsList([...itemsList, { id: Date.now(), product: '', packSizeKg: '', numberOfBoxes: '', packingMaterials: [] }]);
     };
@@ -228,9 +244,7 @@ export default function EditLocalRecord() {
 
     const handleAddPackingMaterial = (rowId) => {
         setItemsList(itemsList.map(row => {
-            if (row.id === rowId) {
-                return { ...row, packingMaterials: [...(row.packingMaterials || []), { name: '', qty: '' }] };
-            }
+            if (row.id === rowId) return { ...row, packingMaterials: [...(row.packingMaterials || []), { name: '', qty: '' }] };
             return row;
         }));
     };
@@ -264,7 +278,6 @@ export default function EditLocalRecord() {
         setItemsList(itemsList.map(row => {
             if (row.id === id) {
                 let newRow = { ...row, [field]: value };
-                
                 if (field === 'product') {
                     const availableSizes = getPackSizes(value);
                     if (availableSizes && !availableSizes.includes(row.packSizeKg)) {
@@ -294,11 +307,10 @@ export default function EditLocalRecord() {
 
         const hasEmptyItem = itemsList.some(row => !row.product || row.packSizeKg === '' || row.numberOfBoxes === '');
         if (hasEmptyItem) {
-            toast.error("Please fill out all Product, Type, Pack Size, and Box details completely!");
+            toast.error("Please fill out all Product, Pack Size, and Box details completely!");
             return;
         }
 
-        // Warning Logic Calculation
         let stockWarning = false;
         let packingStockWarning = false;
 
@@ -307,8 +319,8 @@ export default function EditLocalRecord() {
         
         itemsList.forEach(item => {
             const total = Number(item.packSizeKg) * Number(item.numberOfBoxes);
-            
             const baseGrade = getBaseTeaGrade(item.product);
+            
             if (!requestedByBaseGrade[baseGrade]) requestedByBaseGrade[baseGrade] = 0;
             requestedByBaseGrade[baseGrade] += total; 
 
@@ -322,41 +334,28 @@ export default function EditLocalRecord() {
             }
         });
 
+        // 👇 Compare using 3 decimal places to avoid JavaScript floating point bugs
         for (const [baseGrade, requestedQty] of Object.entries(requestedByBaseGrade)) {
-            const stockData = availableTeaStock.find(s => s.productName === baseGrade);
-            const available = stockData ? stockData.bulkStockKg : 0;
-            
-            let previousQty = 0;
-            recordData.salesItems.forEach(oldItem => {
-                if(getBaseTeaGrade(oldItem.product) === baseGrade){
-                    previousQty += (Number(oldItem.baseTeaQtyKg) || Number(oldItem.totalQtyKg) || 0);
-                }
-            });
-
-            if (requestedQty > (available + previousQty)) stockWarning = true;
+            const trueAvailable = getTrueAvailableTeaStock(baseGrade);
+            if (Number(requestedQty.toFixed(3)) > trueAvailable) stockWarning = true;
         }
 
         for (const [pmName, requestedQty] of Object.entries(requestedPacking)) {
-            const pmStockData = availablePackingStock.find(s => s.materialName === pmName);
-            const available = pmStockData ? pmStockData.totalQuantity : 0;
-            
-            let previousQty = 0;
-            recordData.salesItems.forEach(oldItem => {
-                if(oldItem.packingMaterials) {
-                    const foundOldPM = oldItem.packingMaterials.find(pm => pm.name === pmName);
-                    if(foundOldPM) previousQty += (Number(foundOldPM.qty) || 0);
-                }
-            });
-
-            if (requestedQty > (available + previousQty)) packingStockWarning = true;
+            const trueAvailable = getTrueAvailablePackingStock(pmName);
+            if (Number(requestedQty.toFixed(3)) > trueAvailable) packingStockWarning = true;
         }
 
-        if (stockWarning && !window.confirm("You are issuing MORE tea stock than what is currently available in Factory & Other bulk stock. Proceed anyway?")) return;
-        if (packingStockWarning && !window.confirm("You are issuing MORE packing materials than currently available in stock. Proceed anyway?")) return;
+        if (stockWarning) {
+            toast.error("Cannot Update! Insufficient tea stock available.");
+            return;
+        }
+        if (packingStockWarning) {
+            toast.error("Cannot Update! Insufficient packing materials available.");
+            return;
+        }
 
         setIsSaving(true);
         const toastId = toast.loading("Updating record...");
-
         const currentUsername = localStorage.getItem('username') || 'Unknown';
 
         const payload = {
@@ -365,7 +364,6 @@ export default function EditLocalRecord() {
             totalQtyKg: totalQtyKg,
             salesItems: itemsList.map(item => {
                 const total = Number(item.packSizeKg) * Number(item.numberOfBoxes);
-                
                 return {
                     product: item.product,
                     packSizeKg: Number(item.packSizeKg),
@@ -392,17 +390,18 @@ export default function EditLocalRecord() {
 
             if (response.ok) {
                 toast.success("Record updated successfully!", { id: toastId });
-                setTimeout(() => navigate(-1), 100);
+                setTimeout(() => navigate(-1), 1000);
             } else {
+                const errorData = await response.json().catch(() => ({}));
                 if (response.status === 403) throw new Error('Access Denied');
-                throw new Error('Failed to update record');
+                throw new Error(errorData.message || 'Failed to update record');
             }
         } catch (error) {
             console.error(error);
             if (error.message === 'Access Denied') {
                 toast.error("Access Denied. You do not have permission to edit records.", { id: toastId });
             } else {
-                toast.error("Error updating record. Please try again.", { id: toastId });
+                toast.error(error.message, { id: toastId });
             }
         } finally {
             setIsSaving(false);
@@ -418,7 +417,6 @@ export default function EditLocalRecord() {
                 </h2>
                 <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Update previously issued local product sales details</p>
                 
-                {/* --- DATE & EDITOR NAME BADGE --- */}
                 <div className="mt-4 flex flex-col items-center justify-center gap-2">
                     <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white dark:bg-zinc-800 rounded-full border border-teal-100 dark:border-teal-900/50 shadow-sm transition-colors">
                         <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">Record Date:</span>
@@ -434,10 +432,7 @@ export default function EditLocalRecord() {
                 </div>
             </div>
             
-            {/* --- AVAILABLE STOCKS (2 COLUMN GRID) --- */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                
-                {/* 1. TEA STOCK CONTAINER */}
                 <div className="rounded-2xl shadow-sm border border-teal-200 dark:border-teal-900 overflow-hidden bg-white dark:bg-zinc-900 flex flex-col h-full">
                     <div className="bg-[#2f7466] px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
@@ -471,7 +466,6 @@ export default function EditLocalRecord() {
                     </div>
                 </div>
 
-                {/* 2. PACKING MATERIALS STOCK CONTAINER */}
                 <div className="rounded-2xl shadow-sm border border-amber-200 dark:border-amber-900 overflow-hidden bg-white dark:bg-zinc-900 flex flex-col h-full">
                     <div className="bg-amber-600 dark:bg-amber-700 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
@@ -546,8 +540,8 @@ export default function EditLocalRecord() {
                             {itemsList.map((row) => {
                                 const availableSizes = getPackSizes(row.product);
                                 const baseGrade = getBaseTeaGrade(row.product);
-                                const stockData = availableTeaStock.find(s => s.productName === baseGrade);
-                                const availableForProduct = stockData ? stockData.bulkStockKg : 0;
+                                
+                                const trueAvailableForProduct = getTrueAvailableTeaStock(baseGrade);
                                 
                                 const totalIssuedForBaseGradeSoFar = itemsList.reduce((sum, currentItem) => {
                                     if (getBaseTeaGrade(currentItem.product) === baseGrade) {
@@ -557,8 +551,10 @@ export default function EditLocalRecord() {
                                 }, 0);
 
                                 const issuedNum = (Number(row.packSizeKg) * Number(row.numberOfBoxes)) || 0;
-                                const isOverCapacity = row.product && totalIssuedForBaseGradeSoFar > availableForProduct;
-                                const remaining = Math.max(0, availableForProduct - totalIssuedForBaseGradeSoFar);
+                                
+                                // 👇 Floating point UI capacity check
+                                const isOverCapacity = row.product && Number(totalIssuedForBaseGradeSoFar.toFixed(3)) > trueAvailableForProduct;
+                                const remaining = Math.max(0, trueAvailableForProduct - totalIssuedForBaseGradeSoFar);
 
                                 return (
                                     <div key={row.id} className={`relative bg-white dark:bg-zinc-950 p-4 rounded-xl border transition-colors shadow-sm ${isOverCapacity ? 'border-amber-400 dark:border-amber-500/50 bg-amber-50/30 dark:bg-amber-900/10' : 'border-teal-100 dark:border-teal-900/40'}`}>
@@ -575,7 +571,6 @@ export default function EditLocalRecord() {
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                             
-                                            {/* Custom Product Autocomplete Input */}
                                             <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`product-${row.id}`] = el}>
                                                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
                                                     <Tag size={12} className={isOverCapacity ? "text-amber-500" : "text-[#0d9488] dark:text-teal-400"}/> Product
@@ -590,7 +585,6 @@ export default function EditLocalRecord() {
                                                     className={`w-full p-2.5 h-[42px] border rounded-md text-sm focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none transition-colors ${row.product ? getTeaColor(row.product) : 'bg-white dark:bg-zinc-950 dark:text-gray-100'} ${isOverCapacity ? 'border-amber-300' : 'border-teal-200 dark:border-teal-800/50'}`}
                                                 />
                                                 
-                                                {/* Dropdown Menu */}
                                                 {openDropdownId === `product-${row.id}` && (
                                                     <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar z-20">
                                                         {TEA_TYPES
@@ -612,9 +606,6 @@ export default function EditLocalRecord() {
                                                 )}
                                             </div>
 
-                                            
-
-                                            {/* Dynamic Pack Size Input */}
                                             <div className="lg:col-span-1 relative" ref={el => dropdownRefs.current[`size-${row.id}`] = el}>
                                                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase whitespace-nowrap">Pack (Kg)</label>
                                                 <input 
@@ -645,7 +636,6 @@ export default function EditLocalRecord() {
                                                 )}
                                             </div>
 
-                                            {/* Number of Boxes Input */}
                                             <div className="lg:col-span-1">
                                                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase whitespace-nowrap">No. of Items</label>
                                                 <input 
@@ -657,13 +647,12 @@ export default function EditLocalRecord() {
                                                 />
                                             </div>
 
-                                            {/* Auto-Calculated Total Qty */}
                                             <div className="lg:col-span-1">
                                                 <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase flex items-center justify-between gap-1">
                                                     <span>Qty (Kg) <Weight size={12} className={isOverCapacity ? "text-amber-500 inline" : "text-[#0d9488] dark:text-teal-400 inline"}/></span>
                                                     {row.product && (
                                                         <span className="text-[10px] font-bold text-gray-400" title={`Base Grade: ${baseGrade}`}>
-                                                            Avail: <span className="text-gray-700 dark:text-gray-300">{availableForProduct.toFixed(2)}</span>
+                                                            Avail: <span className="text-gray-700 dark:text-gray-300">{trueAvailableForProduct.toFixed(2)}</span>
                                                         </span>
                                                     )}
                                                 </label>
@@ -675,12 +664,11 @@ export default function EditLocalRecord() {
                                             </div>
                                         </div>
 
-                                        {/* Stock Warning Messages */}
                                         <div className="mt-2 h-4">
                                             {row.product && (
                                                 isOverCapacity ? (
                                                     <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-500 justify-end">
-                                                        <AlertTriangle size={12} /> Exceeds '{baseGrade}' bulk stock by {(totalIssuedForBaseGradeSoFar - availableForProduct).toFixed(2)} kg!
+                                                        <AlertTriangle size={12} /> Exceeds '{baseGrade}' bulk stock by {(totalIssuedForBaseGradeSoFar - trueAvailableForProduct).toFixed(2)} kg!
                                                     </div>
                                                 ) : issuedNum > 0 ? (
                                                     <div className="flex items-center gap-1 text-[10px] font-bold text-teal-600 dark:text-teal-400 justify-end">
@@ -690,7 +678,6 @@ export default function EditLocalRecord() {
                                             )}
                                         </div>
 
-                                        {/* --- PACKING MATERIALS SUB-SECTION --- */}
                                         <div className="pt-4 mt-3 border-t border-gray-100 dark:border-zinc-800/50">
                                             <div className="flex justify-between items-center mb-3">
                                                 <label className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase flex items-center gap-1">
@@ -702,9 +689,8 @@ export default function EditLocalRecord() {
                                             </div>
 
                                             {row.packingMaterials && row.packingMaterials.map((pm, pmIdx) => {
-                                                const pmStockData = availablePackingStock.find(s => s.materialName === pm.name);
-                                                const availablePM = pmStockData ? pmStockData.totalQuantity : 0;
-                                                const isPMOverCapacity = pm.name && Number(pm.qty) > availablePM;
+                                                const trueAvailablePM = getTrueAvailablePackingStock(pm.name);
+                                                const isPMOverCapacity = pm.name && Number(pm.qty) > trueAvailablePM;
 
                                                 return (
                                                     <div key={pmIdx} className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-3 items-end bg-gray-50 dark:bg-zinc-900/50 p-3 rounded-lg border border-gray-100 dark:border-zinc-800 relative">

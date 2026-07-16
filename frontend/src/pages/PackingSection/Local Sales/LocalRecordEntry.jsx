@@ -426,7 +426,7 @@ export default function LocalRecordEntry() {
     let stockWarning = false;
     let packingStockWarning = false;
     const requestedPacking = {};
-    const requestedByBaseGrade = {}; // 👇 Group tea usage by base grade
+    const requestedByBaseGrade = {}; 
 
     pendingRecords.forEach((record) => {
       record.items.forEach((item) => {
@@ -467,21 +467,14 @@ export default function LocalRecordEntry() {
       if (requestedQty > available) packingStockWarning = true;
     }
 
+    // 👇 මෙතනින් තමයි bypass කරන එක block කරලා තියෙන්නේ 👇
     if (stockWarning) {
-      if (
-        !window.confirm(
-          "You are issuing MORE tea stock than available in the Factory & Other bulk stock. Do you want to proceed anyway?",
-        )
-      )
-        return;
+        toast.error("Cannot save! You are issuing MORE tea stock than what is available.");
+        return; 
     }
     if (packingStockWarning) {
-      if (
-        !window.confirm(
-          "You are issuing MORE packing materials than currently available in stock. Do you want to proceed anyway?",
-        )
-      )
-        return;
+        toast.error("Cannot save! You are issuing MORE packing materials than available.");
+        return; 
     }
 
     setShowSpinner(true);
@@ -500,8 +493,7 @@ export default function LocalRecordEntry() {
               packSizeKg: Number(item.packSizeKg),
               numberOfBoxes: Number(item.numberOfBoxes),
               totalQtyKg: Number(item.calculatedQtyKg),
-              // 👇 මේ field එක එකතු කරන්න
-              baseTeaQtyKg: Number(item.baseTeaQtyKg || (Number(item.calculatedQtyKg) - Number(item.rawMaterialQtyKg))),
+              baseTeaQtyKg: Number(item.calculatedQtyKg), // Fix for NaN issue
               rawMaterialName: item.rawMaterialName || "",
               rawMaterialQtyKg: Number(item.rawMaterialQtyKg || 0),
               packingMaterials: item.packingMaterials || [],
@@ -517,8 +509,10 @@ export default function LocalRecordEntry() {
           body: JSON.stringify(payload),
         }).then(async (res) => {
           if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
             if (res.status === 403) throw new Error("Access Denied");
-            throw new Error("Failed");
+            // Backend එකෙන් එවන error message එක අල්ලගැනීම
+            throw new Error(errorData.message || "Failed"); 
           }
           return res.json();
         });
@@ -534,14 +528,10 @@ export default function LocalRecordEntry() {
     } catch (error) {
       console.error(error);
       if (error.message === "Access Denied") {
-        toast.error(
-          "Access Denied. You do not have permission to add records.",
-          { id: toastId },
-        );
+        toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
       } else {
-        toast.error("Error saving some records. Please check.", {
-          id: toastId,
-        });
+        // Backend එකෙන් එන නිවැරදි හේතුව පෙන්වීම
+        toast.error(error.message !== "Failed" ? error.message : "Error saving records. Please check stock.", { id: toastId });
       }
     } finally {
       setShowSpinner(false);

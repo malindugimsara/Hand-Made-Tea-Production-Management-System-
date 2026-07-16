@@ -2,14 +2,14 @@ import TeaCenterIssue from '../models/TeaCenterIssueModel.js';
 import PackingStock from '../models/PackingStock.js'; 
 import RawMaterialStock from '../models/RawMaterialStock.js'; 
 
-// --- NEW LOGIC: BASE TEA MAPPING (Must match frontend) ---
+// --- UPDATED LOGIC: BASE TEA MAPPING (Consistent with LocalSale) ---
 const getBaseTeaGrade = (productName) => {
     if (!productName) return "";
     const p = productName.toLowerCase().trim();
 
     const bopf = ["lemongrass - bopf", "cinnamon tea - bopf", "ginger tea - bopf", "masala tea - bopf", "pineapple tea", "mix fruit", "peach", "strawberry", "jasmin - bopf", "mango tea", "carmel", "honey", "earl grey", "lime", "soursop - bopf", "cardamom", "gift pack", "guide issue-bopf"];
-    const bopfSp = ["english breakfast", "cinnamon tea - bopf sp", "ginger tea - bopf sp", "masala tea - bopf sp", "vanilla", "mint - bopf sp", "moringa - bopf sp", "curry leaves - bopf sp", "gotukola - bopf sp", "heen bovitiya - bopf sp", "black t/b", "english afternoon"];
-    const greenTea = ["lemongrass - green tea", "g/t lemangrass", "mint - green tea", "soursop - green tea", "moringa - green tea", "curry leaves - green tea", "heen bovitiya - green tea", "gotukola - green tea", "jasmin - green tea", "green tea t/b"];
+    const bopfSp = ["english breakfast", "cinnamon tea - bopf sp", "ginger tea - bopf sp", "masala tea - bopf sp", "vanilla", "mint - bopf sp", "moringa - bopf sp", "curry leaves - bopf sp", "gotukola - bopf sp", "heen bovitiya - bopf sp", "black t/b", "english afternoon", "awurudu special"];
+    const greenTea = ["lemongrass - green tea", "g/t lemangrass", "mint - green tea", "soursop - green tea", "moringa - green tea", "curry leaves - green tea", "heen bovitiya - green tea", "gotukola - green tea", "jasmin - green tea", "green tea t/b", "green tea"];
     const pekoe = ["pekoe", "rose tea"];
     const ff = ["ceylon premium - ff"];
     const op = ["op", "hibiscus"];
@@ -22,10 +22,15 @@ const getBaseTeaGrade = (productName) => {
         "purple pack": "Purple Tea", "slim beauty": "Slim Beauty", "slim beauty can": "Slim Beauty", "vita glow": "Vita Glow",
         "silver green": "Silver Green", "premium": "Premium", "ceylon premium": "FF", "black pepper": "Black Pepper",
         "black pepar": "Black Pepper", "cinnamon stick": "Cinnamon Stick", "turmeric": "Turmeric", "silver tips": "Silver Tips",
-        "golden tips": "Golden Tips", "flower": "Flower", "chakra": "Chakra", "green tea": "Green Tea"
+        "golden tips": "Golden Tips", "flower": "Flower", "chakra": "Chakra", 
+        "dust": "Dust", "dust 1": "Dust 1"
     };
 
+    if (p === "pitigala tea bags") return "Black Tea T/B";
+    if (p === "green tea bag (25)") return "Green Tea T/B";
     if (p.includes("labour")) return "BOPF";
+    if (p.includes("awurudu special")) return "BOPF SP";
+
     if (bopf.includes(p)) return "BOPF";
     if (bopfSp.includes(p)) return "BOPF SP";
     if (greenTea.includes(p)) return "Green Tea";
@@ -45,103 +50,99 @@ export const createTeaCenterIssue = async (req, res) => {
     try {
         const { date, totalBoxes, totalQtyKg, issueItems } = req.body;
 
-        if (!issueItems || issueItems.length === 0) {
-            return res.status(400).json({ message: 'No issue items provided' });
+        if (!date || !issueItems || issueItems.length === 0) {
+            return res.status(400).json({ message: 'Date and at least one issue item are required.' });
         }
 
-        const newIssue = new TeaCenterIssue({
-            date,
-            totalBoxes,
-            totalQtyKg,
-            issueItems,
-        });
+        // ====================================================================
+        // 1. AGGREGATE QUANTITIES (එකම ජාතියේ ඒවා එකට එකතු කිරීම)
+        // ====================================================================
+        const requiredTea = {};
+        const requiredRM = {};
 
-        // 👇 AUTOMATED INVENTORY DEDUCTION LOGIC 👇
         for (const item of issueItems) {
-            // ==========================================
-            // 1. DEDUCT FROM TEA STOCK (PackingStock)
-            // ==========================================
-            let remainingToDeduct = Number(item.baseTeaQtyKg) || Number(item.totalQtyKg);
-            const baseGradeName = getBaseTeaGrade(item.product);
-            const stock = await PackingStock.findOne({ productName: baseGradeName });
+            const baseGrade = getBaseTeaGrade(item.product);
+            const teaQty = Number(item.baseTeaQtyKg) || Number(item.totalQtyKg) || 0;
+            requiredTea[baseGrade] = (requiredTea[baseGrade] || 0) + teaQty;
 
+            if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
+                const rmName = item.rawMaterialName.toLowerCase().trim();
+                requiredRM[rmName] = (requiredRM[rmName] || 0) + Number(item.rawMaterialQtyKg);
+            }
+            if (item.packingMaterials && item.packingMaterials.length > 0) {
+                for (const pm of item.packingMaterials) {
+                    if (pm.name && Number(pm.qty) > 0) {
+                        const pmName = pm.name.toLowerCase().trim();
+                        requiredRM[pmName] = (requiredRM[pmName] || 0) + Number(pm.qty);
+                    }
+                }
+            }
+        }
+
+        // ====================================================================
+        // 2. PRE-VALIDATION: CHECK IF ENOUGH STOCK IS AVAILABLE 
+        // ====================================================================
+        for (const [grade, requestedQty] of Object.entries(requiredTea)) {
+            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${grade}$`, "i") } });
+            const available = stock ? stock.totalBulkStockKg || 0 : 0;
+            if (requestedQty > available) {
+                return res.status(400).json({ message: `Insufficient stock for Tea Grade: ${grade}. Available: ${available.toFixed(2)} kg, Requested: ${requestedQty.toFixed(2)} kg` });
+            }
+        }
+
+        for (const [name, requestedQty] of Object.entries(requiredRM)) {
+            const stock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${name}$`, "i") } });
+            const available = stock ? stock.totalQuantity || 0 : 0;
+            if (requestedQty > available) {
+                return res.status(400).json({ message: `Insufficient stock for Material: ${name}. Available: ${available.toFixed(2)}, Requested: ${requestedQty.toFixed(2)}` });
+            }
+        }
+
+        const newIssue = new TeaCenterIssue({ date, totalBoxes, totalQtyKg, issueItems });
+
+        // ====================================================================
+        // 3. DEDUCT STOCK USING AGGREGATED AMOUNTS
+        // ====================================================================
+        
+        // Deduct Tea Stock
+        for (const [grade, totalRequestedQty] of Object.entries(requiredTea)) {
+            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${grade}$`, "i") } });
             if (stock) {
+                let remainingToDeduct = totalRequestedQty;
                 const originalDeductAmount = remainingToDeduct;
 
                 if (stock.stockBySource && stock.stockBySource.length > 0) {
                     for (let source of stock.stockBySource) {
-                        if (remainingToDeduct <= 0) break; 
-                        
-                        let amountDeductedFromThisSource = 0;
+                        if (remainingToDeduct <= 0) break;
+                        let deducted = 0;
                         if (source.quantityKg >= remainingToDeduct) {
-                            amountDeductedFromThisSource = remainingToDeduct;
+                            deducted = remainingToDeduct;
                             source.quantityKg -= remainingToDeduct;
                             remainingToDeduct = 0;
                         } else {
-                            amountDeductedFromThisSource = source.quantityKg;
+                            deducted = source.quantityKg;
                             remainingToDeduct -= source.quantityKg;
                             source.quantityKg = 0;
                         }
-
-                        // TEA ISSUE AMOUNT Update
-                        source.issueAmount = (source.issueAmount || 0) + amountDeductedFromThisSource;
+                        source.issueAmount = (source.issueAmount || 0) + deducted;
                     }
                 }
-
-                const successfullyDeducted = originalDeductAmount - remainingToDeduct;
-                stock.totalBulkStockKg -= successfullyDeducted;
+                stock.totalBulkStockKg -= (originalDeductAmount - remainingToDeduct);
                 if (stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
-
                 await stock.save();
-
-                if (remainingToDeduct > 0) {
-                    console.warn(`Warning: Issued ${item.totalQtyKg}kg of ${item.product} (Base: ${baseGradeName}) but bulk stock was short by ${remainingToDeduct}kg.`);
-                }
-            } else {
-                console.warn(`Warning: Base product ${baseGradeName} not found in inventory.`);
-            }
-
-            // ==========================================
-            // 2. DEDUCT FROM RAW MATERIAL STOCK (FLAVORS)
-            // ==========================================
-            if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
-                const rmDeductAmount = Number(item.rawMaterialQtyKg);
-                
-                const rmStock = await RawMaterialStock.findOne({ materialName: item.rawMaterialName });
-
-                if (rmStock) {
-                    rmStock.totalQuantity -= rmDeductAmount;
-                    rmStock.issueAmount = (rmStock.issueAmount || 0) + rmDeductAmount;
-
-                    if (rmStock.totalQuantity < 0) rmStock.totalQuantity = 0; 
-                    await rmStock.save();
-                } else {
-                    console.warn(`Warning: Raw Material ${item.rawMaterialName} not found in stock.`);
-                }
-            }
-
-            // ==========================================
-            // 3. DEDUCT FROM PACKING MATERIALS (Boxes, Pouches, Labels)
-            // ==========================================
-            if (item.packingMaterials && item.packingMaterials.length > 0) {
-                for (const pm of item.packingMaterials) {
-                    if (pm.name && Number(pm.qty) > 0) {
-                        const pmStock = await RawMaterialStock.findOne({ materialName: pm.name });
-                        
-                        if (pmStock) {
-                            pmStock.totalQuantity -= Number(pm.qty);
-                            pmStock.issueAmount = (pmStock.issueAmount || 0) + Number(pm.qty);
-                            
-                            if (pmStock.totalQuantity < 0) pmStock.totalQuantity = 0;
-                            await pmStock.save();
-                        } else {
-                            console.warn(`Warning: Packing Material ${pm.name} not found in stock.`);
-                        }
-                    }
-                }
             }
         }
-        // 👆 END OF AUTOMATED INVENTORY DEDUCTION 👆
+
+        // Deduct Raw/Packing Materials
+        for (const [name, totalRequestedQty] of Object.entries(requiredRM)) {
+            const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${name}$`, "i") } });
+            if (rmStock) {
+                rmStock.totalQuantity -= totalRequestedQty;
+                rmStock.issueAmount = (rmStock.issueAmount || 0) + totalRequestedQty;
+                if (rmStock.totalQuantity < 0) rmStock.totalQuantity = 0;
+                await rmStock.save();
+            }
+        }
 
         const savedIssue = await newIssue.save();
         res.status(201).json(savedIssue);
@@ -171,23 +172,169 @@ export const getTeaCenterIssues = async (req, res) => {
 export const updateTeaCenterIssue = async (req, res) => {
     try {
         const { date, totalBoxes, totalQtyKg, issueItems, updatedBy, editorName } = req.body;
+        const issueRecord = await TeaCenterIssue.findById(req.params.id);
 
-        const issue = await TeaCenterIssue.findById(req.params.id);
-
-        if (!issue) {
+        if (!issueRecord) {
             return res.status(404).json({ message: 'Record not found' });
         }
 
-        issue.date = date;
-        issue.totalBoxes = totalBoxes;
-        issue.totalQtyKg = totalQtyKg;
-        issue.issueItems = issueItems;
+        // ====================================================================
+        // 1. Calculate Old Quantities (පරණ රෙකෝඩ් එකේ ගණන්)
+        // ====================================================================
+        const oldTea = {};
+        const oldRM = {};
 
-        if (updatedBy) issue.updatedBy = updatedBy;
-        if (editorName) issue.editorName = editorName;
+        for (const item of issueRecord.issueItems) {
+            const baseGrade = getBaseTeaGrade(item.product);
+            const teaQty = Number(item.baseTeaQtyKg) || Number(item.totalQtyKg) || 0;
+            oldTea[baseGrade] = (oldTea[baseGrade] || 0) + teaQty;
 
-        const updatedIssue = await issue.save();
-        res.status(200).json(updatedIssue);
+            if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
+                const rmName = item.rawMaterialName.toLowerCase().trim();
+                oldRM[rmName] = (oldRM[rmName] || 0) + Number(item.rawMaterialQtyKg);
+            }
+            if (item.packingMaterials && item.packingMaterials.length > 0) {
+                for (const pm of item.packingMaterials) {
+                    if (pm.name && Number(pm.qty) > 0) {
+                        const pmName = pm.name.toLowerCase().trim();
+                        oldRM[pmName] = (oldRM[pmName] || 0) + Number(pm.qty);
+                    }
+                }
+            }
+        }
+
+        // ====================================================================
+        // 2. Calculate New Requested Quantities (අලුතින් යවන ගණන්)
+        // ====================================================================
+        const requiredTea = {};
+        const requiredRM = {};
+
+        if (issueItems) {
+            for (const item of issueItems) {
+                const baseGrade = getBaseTeaGrade(item.product);
+                const teaQty = Number(item.baseTeaQtyKg) || Number(item.totalQtyKg) || 0;
+                requiredTea[baseGrade] = (requiredTea[baseGrade] || 0) + teaQty;
+
+                if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
+                    const rmName = item.rawMaterialName.toLowerCase().trim();
+                    requiredRM[rmName] = (requiredRM[rmName] || 0) + Number(item.rawMaterialQtyKg);
+                }
+                if (item.packingMaterials && item.packingMaterials.length > 0) {
+                    for (const pm of item.packingMaterials) {
+                        if (pm.name && Number(pm.qty) > 0) {
+                            const pmName = pm.name.toLowerCase().trim();
+                            requiredRM[pmName] = (requiredRM[pmName] || 0) + Number(pm.qty);
+                        }
+                    }
+                }
+            }
+        }
+
+        // ====================================================================
+        // 3. Pre-Validation
+        // ====================================================================
+        for (const [grade, requestedQty] of Object.entries(requiredTea)) {
+            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${grade}$`, "i") } });
+            const currentAvailable = stock ? stock.totalBulkStockKg || 0 : 0;
+            const willBeReturned = oldTea[grade] || 0;
+            const totalAvailableForUpdate = currentAvailable + willBeReturned;
+
+            if (requestedQty > totalAvailableForUpdate) {
+                return res.status(400).json({ message: `Insufficient stock for Tea Grade: ${grade}. Available to use: ${totalAvailableForUpdate.toFixed(2)} kg, Requested: ${requestedQty.toFixed(2)} kg` });
+            }
+        }
+
+        for (const [name, requestedQty] of Object.entries(requiredRM)) {
+            const stock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${name}$`, "i") } });
+            const currentAvailable = stock ? stock.totalQuantity || 0 : 0;
+            const willBeReturned = oldRM[name] || 0;
+            const totalAvailableForUpdate = currentAvailable + willBeReturned;
+
+            if (requestedQty > totalAvailableForUpdate) {
+                return res.status(400).json({ message: `Insufficient stock for Material: ${name}. Available to use: ${totalAvailableForUpdate.toFixed(2)}, Requested: ${requestedQty.toFixed(2)}` });
+            }
+        }
+
+        // ====================================================================
+        // 4. REVERSE OLD STOCK 
+        // ====================================================================
+        for (const [grade, amountToReturn] of Object.entries(oldTea)) {
+            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${grade}$`, "i") } });
+            if (stock) {
+                if (stock.stockBySource && stock.stockBySource.length > 0) {
+                    let targetSource = stock.stockBySource.find((s) => s.sourceName === "Factory") || stock.stockBySource[0];
+                    targetSource.quantityKg += amountToReturn;
+                    targetSource.issueAmount -= amountToReturn;
+                    if (targetSource.issueAmount < 0) targetSource.issueAmount = 0;
+                }
+                stock.totalBulkStockKg += amountToReturn;
+                await stock.save();
+            }
+        }
+
+        for (const [name, amountToReturn] of Object.entries(oldRM)) {
+            const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${name}$`, "i") } });
+            if (rmStock) {
+                rmStock.totalQuantity += amountToReturn;
+                rmStock.issueAmount -= amountToReturn;
+                if (rmStock.issueAmount < 0) rmStock.issueAmount = 0;
+                await rmStock.save();
+            }
+        }
+
+        // ====================================================================
+        // 5. DEDUCT NEW STOCK
+        // ====================================================================
+        for (const [grade, totalRequestedQty] of Object.entries(requiredTea)) {
+            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${grade}$`, "i") } });
+            if (stock) {
+                let remainingToDeduct = totalRequestedQty;
+                const originalDeductAmount = remainingToDeduct;
+
+                if (stock.stockBySource && stock.stockBySource.length > 0) {
+                    for (let source of stock.stockBySource) {
+                        if (remainingToDeduct <= 0) break;
+                        let deducted = 0;
+                        if (source.quantityKg >= remainingToDeduct) {
+                            deducted = remainingToDeduct;
+                            source.quantityKg -= remainingToDeduct;
+                            remainingToDeduct = 0;
+                        } else {
+                            deducted = source.quantityKg;
+                            remainingToDeduct -= source.quantityKg;
+                            source.quantityKg = 0;
+                        }
+                        source.issueAmount = (source.issueAmount || 0) + deducted;
+                    }
+                }
+                stock.totalBulkStockKg -= (originalDeductAmount - remainingToDeduct);
+                if (stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
+                await stock.save();
+            }
+        }
+
+        for (const [name, totalRequestedQty] of Object.entries(requiredRM)) {
+            const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${name}$`, "i") } });
+            if (rmStock) {
+                rmStock.totalQuantity -= totalRequestedQty;
+                rmStock.issueAmount = (rmStock.issueAmount || 0) + totalRequestedQty;
+                if (rmStock.totalQuantity < 0) rmStock.totalQuantity = 0;
+                await rmStock.save();
+            }
+        }
+
+        // ====================================================================
+        // 6. FINALLY UPDATE THE RECORD DETAILS
+        // ====================================================================
+        if (date) issueRecord.date = date;
+        if (totalBoxes !== undefined) issueRecord.totalBoxes = totalBoxes;
+        if (totalQtyKg !== undefined) issueRecord.totalQtyKg = totalQtyKg;
+        if (issueItems) issueRecord.issueItems = issueItems;
+        if (updatedBy) issueRecord.updatedBy = updatedBy;
+        else if (editorName) issueRecord.updatedBy = editorName;
+
+        await issueRecord.save();
+        res.status(200).json({ message: "Record updated successfully.", record: issueRecord });
 
     } catch (error) {
         console.error('Error updating tea center issue:', error);
@@ -200,68 +347,63 @@ export const updateTeaCenterIssue = async (req, res) => {
 // @access  Private
 export const deleteTeaCenterIssue = async (req, res) => {
     try {
-        const issue = await TeaCenterIssue.findById(req.params.id);
+        const issueRecord = await TeaCenterIssue.findById(req.params.id);
 
-        if (!issue) {
+        if (!issueRecord) {
             return res.status(404).json({ message: 'Record not found' });
         }
 
-        // 👇 AUTOMATED STOCK REVERSAL LOGIC 👇
-        for (const item of issue.issueItems) {
-            
-            // 1. REVERSE TEA STOCK
-            let amountToReturn = Number(item.baseTeaQtyKg) || Number(item.totalQtyKg);
-            const baseGradeName = getBaseTeaGrade(item.product);
-            const stock = await PackingStock.findOne({ productName: baseGradeName });
+        // 1. Aggregate what needs to be returned first
+        const oldTea = {};
+        const oldRM = {};
 
-            if (stock) {
-                if (stock.stockBySource && stock.stockBySource.length > 0) {
-                    let targetSource = stock.stockBySource.find(s => s.sourceName === 'Factory') || stock.stockBySource[0];
-                    targetSource.quantityKg += amountToReturn;
-                    
-                    targetSource.issueAmount -= amountToReturn;
-                    if(targetSource.issueAmount < 0) targetSource.issueAmount = 0;
-                }
-                
-                stock.totalBulkStockKg += amountToReturn;
-                await stock.save();
-            }
+        for (const item of issueRecord.issueItems) {
+            const baseGrade = getBaseTeaGrade(item.product);
+            const teaQty = Number(item.baseTeaQtyKg) || Number(item.totalQtyKg) || 0;
+            oldTea[baseGrade] = (oldTea[baseGrade] || 0) + teaQty;
 
-            // 2. REVERSE RAW MATERIAL STOCK (FLAVORS)
             if (item.rawMaterialName && Number(item.rawMaterialQtyKg) > 0) {
-                const rmReturnAmount = Number(item.rawMaterialQtyKg);
-                const rmStock = await RawMaterialStock.findOne({ materialName: item.rawMaterialName });
-
-                if (rmStock) {
-                    rmStock.totalQuantity += rmReturnAmount;
-                    rmStock.issueAmount -= rmReturnAmount;
-                    if (rmStock.issueAmount < 0) rmStock.issueAmount = 0;
-
-                    await rmStock.save();
-                }
+                const rmName = item.rawMaterialName.toLowerCase().trim();
+                oldRM[rmName] = (oldRM[rmName] || 0) + Number(item.rawMaterialQtyKg);
             }
-
-            // 3. REVERSE PACKING MATERIALS (Boxes, Pouches, Labels)
             if (item.packingMaterials && item.packingMaterials.length > 0) {
                 for (const pm of item.packingMaterials) {
                     if (pm.name && Number(pm.qty) > 0) {
-                        const pmStock = await RawMaterialStock.findOne({ materialName: pm.name });
-                        
-                        if (pmStock) {
-                            pmStock.totalQuantity += Number(pm.qty);
-                            pmStock.issueAmount -= Number(pm.qty);
-                            
-                            if (pmStock.issueAmount < 0) pmStock.issueAmount = 0;
-                            await pmStock.save();
-                        }
+                        const pmName = pm.name.toLowerCase().trim();
+                        oldRM[pmName] = (oldRM[pmName] || 0) + Number(pm.qty);
                     }
                 }
             }
         }
-        // 👆 END OF AUTOMATED STOCK REVERSAL 👆
 
-        await issue.deleteOne();
-        res.status(200).json({ message: 'Record deleted successfully' });
+        // 2. REVERSE TEA STOCK
+        for (const [grade, amountToReturn] of Object.entries(oldTea)) {
+            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${grade}$`, "i") } });
+            if (stock) {
+                if (stock.stockBySource && stock.stockBySource.length > 0) {
+                    let targetSource = stock.stockBySource.find((s) => s.sourceName === "Factory") || stock.stockBySource[0];
+                    targetSource.quantityKg += amountToReturn;
+                    targetSource.issueAmount -= amountToReturn;
+                    if (targetSource.issueAmount < 0) targetSource.issueAmount = 0;
+                }
+                stock.totalBulkStockKg += amountToReturn;
+                await stock.save();
+            }
+        }
+
+        // 3. REVERSE RAW/PACKING MATERIAL STOCK
+        for (const [name, amountToReturn] of Object.entries(oldRM)) {
+            const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${name}$`, "i") } });
+            if (rmStock) {
+                rmStock.totalQuantity += amountToReturn;
+                rmStock.issueAmount -= amountToReturn;
+                if (rmStock.issueAmount < 0) rmStock.issueAmount = 0;
+                await rmStock.save();
+            }
+        }
+
+        await issueRecord.deleteOne();
+        res.status(200).json({ message: 'Record deleted and stock reversed successfully' });
 
     } catch (error) {
         console.error('Error deleting tea center issue:', error);
