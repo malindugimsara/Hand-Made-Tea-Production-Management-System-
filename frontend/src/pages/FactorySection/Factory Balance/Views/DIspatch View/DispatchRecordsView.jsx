@@ -26,19 +26,20 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 export default function DispatchRecordsView() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const location = useLocation();
-  const navigate = useNavigate(); // Navigate Hook
+  const navigate = useNavigate();
 
   const currentMonthStr = new Date().toISOString().slice(0, 7);
 
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [recordToDelete, setRecordToDelete] = useState(null); // Delete State
+  
+  // Delete State
+  const [recordToDelete, setRecordToDelete] = useState(null);
 
   // Dark Mode State
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -118,18 +119,46 @@ export default function DispatchRecordsView() {
 
   // --- ACTIONS: EDIT & DELETE ---
   const handleEditClick = (record) => {
-    // Navigate to the newly created Edit Dispatch Log page
     navigate("/factory/dispatch/edit", { state: { recordData: record } });
   };
 
-  
-  // ------------------------------
+  const handleDeleteClick = (record) => {
+    setRecordToDelete(record);
+  };
+
+  const confirmDelete = async () => {
+    if (!recordToDelete) return;
+    const toastId = toast.loading("Deleting record...");
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${BACKEND_URL}/api/factory-logs/${recordToDelete._id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete record");
+      }
+
+      toast.success("Record deleted successfully", { id: toastId });
+      setRecords(records.filter((r) => r._id !== recordToDelete._id));
+    } catch (error) {
+      console.error("Delete Error:", error);
+      toast.error(error.message || "An error occurred while deleting.", { id: toastId });
+    } finally {
+      setRecordToDelete(null);
+    }
+  };
 
   // Calculations for Summary
   const totalDispatch = records.reduce((sum, r) => sum + (r.dispatch || 0), 0);
   const totalLocalSale = records.reduce((sum, r) => sum + (r.localSaleAndGratis || 0), 0);
   const totalReturns = records.reduce((sum, r) => sum + (r.returnAmount || 0), 0);
   const totalOut = totalDispatch + totalLocalSale;
+
+  // Helpers for Array formatting (For PDF & Excel)
+  const getArrayInfo = (arr, key) => (arr && arr.length > 0) ? arr.map(i => i[key] || "-").join("\n") : "-";
 
   const getCleanTableData = () => {
     const formatVal = (val) => {
@@ -140,13 +169,13 @@ export default function DispatchRecordsView() {
 
     const tableRows = records.map((r) => [
       r.date ? r.date.split("T")[0] : "-",
-      r.invoiceNo || "-",
-      r.dispatchTeaType || "-",
+      getArrayInfo(r.dispatches, 'invoiceNo'),
+      getArrayInfo(r.dispatches, 'teaType'),
       formatVal(r.dispatch || 0),
-      r.localSaleTeaType || "-",
+      getArrayInfo(r.localSales, 'teaType'),
       formatVal(r.localSaleAndGratis || 0),
       formatVal(r.totalOut || 0),
-      r.returnTeaType || "-",       // 👈 NEW: Return Tea Type
+      getArrayInfo(r.returns, 'teaType'), 
       formatVal(r.returnAmount || 0),
     ]);
 
@@ -157,7 +186,7 @@ export default function DispatchRecordsView() {
         "-",
         totalLocalSale > 0 ? totalLocalSale.toFixed(2) : "-",
         totalOut > 0 ? totalOut.toFixed(2) : "-",
-        "-",                        // 👈 NEW: Empty column for total return tea type
+        "-",                        
         totalReturns > 0 ? totalReturns.toFixed(2) : "-",
       ]);
     }
@@ -169,13 +198,13 @@ export default function DispatchRecordsView() {
     const periodText = getPeriodText();
     const dataRows = records.map((r) => [
       r.date ? r.date.split("T")[0] : "-",
-      r.invoiceNo || "-",
-      r.dispatchTeaType || "-",
+      getArrayInfo(r.dispatches, 'invoiceNo').replace(/\n/g, ", "),
+      getArrayInfo(r.dispatches, 'teaType').replace(/\n/g, ", "),
       Number((r.dispatch || 0).toFixed(2)),
-      r.localSaleTeaType || "-",
+      getArrayInfo(r.localSales, 'teaType').replace(/\n/g, ", "),
       Number((r.localSaleAndGratis || 0).toFixed(2)),
       Number((r.totalOut || 0).toFixed(2)),
-      r.returnTeaType || "-",       // 👈 NEW
+      getArrayInfo(r.returns, 'teaType').replace(/\n/g, ", "),
       Number((r.returnAmount || 0).toFixed(2)),
     ]);
 
@@ -186,7 +215,7 @@ export default function DispatchRecordsView() {
         "-",
         Number(totalLocalSale.toFixed(2)),
         Number(totalOut.toFixed(2)),
-        "-",                        // 👈 NEW
+        "-", 
         Number(totalReturns.toFixed(2)),
       ]);
     }
@@ -195,15 +224,15 @@ export default function DispatchRecordsView() {
       [`DISPATCH & SALES REPORT: ${periodText}`, "", "", "", "", "", "", "", ""],
       [`Generated on ${new Date().toLocaleString()}`, "", "", "", "", "", "", "", ""],
       ["", "", "", "", "", "", "", "", ""],
-      ["DATE", "INVOICE NO", "DISPATCH TEA TYPE", "DISPATCH QTY (KG)", "LOCAL SALE TEA TYPE", "LOCAL SALE QTY (KG)", "TOTAL OUT (KG)", "RETURN TEA TYPE", "RETURNS (KG)"],
+      ["DATE", "INVOICE NOs", "DISPATCH TEA TYPEs", "DISPATCH QTY (KG)", "LOCAL SALE TEA TYPEs", "LOCAL SALE QTY (KG)", "TOTAL OUT (KG)", "RETURN TEA TYPEs", "RETURNS (KG)"],
       ...dataRows,
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet(tableData);
 
     worksheet["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }, // 👈 Updated to c: 8 (9 columns)
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } }, // 👈 Updated to c: 8 (9 columns)
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }, 
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } }, 
     ];
 
     const borderAll = {
@@ -255,8 +284,8 @@ export default function DispatchRecordsView() {
     }
 
     worksheet["!cols"] = [
-      { wch: 14 }, { wch: 18 }, { wch: 20 }, { wch: 18 }, 
-      { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 15 } // 👈 Extra width added
+      { wch: 14 }, { wch: 22 }, { wch: 20 }, { wch: 18 }, 
+      { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 20 }, { wch: 15 } 
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -300,8 +329,7 @@ export default function DispatchRecordsView() {
             subtitle={`Period: ${getPeriodText()}`}
             data={getCleanTableData()}                                          
             headers={[
-              // 👈 PDF headers update කර ඇත
-              ["DATE", "INVOICE NO", "DISPATCH\nTEA TYPE", "DISPATCH\n(KG)", "LOCAL SALE\nTEA TYPE", "LOCAL SALE\n(KG)", "TOTAL OUT\n(KG)", "RETURN\nTEA TYPE", "RETURNS\n(KG)"]
+              ["DATE", "INVOICE NOs", "DISPATCH\nTEA TYPEs", "DISPATCH\n(KG)", "LOCAL SALE\nTEA TYPEs", "LOCAL SALE\n(KG)", "TOTAL OUT\n(KG)", "RETURN\nTEA TYPEs", "RETURNS\n(KG)"]
             ]}
             uniqueCode={`DSP-${getPeriodText().replace(/ /g, "")}`}
             fileName={`Dispatch_Report_${getPeriodText().replace(/ /g, "_")}.pdf`}
@@ -314,7 +342,7 @@ export default function DispatchRecordsView() {
                 3: { halign: 'right' },
                 5: { halign: 'right' },
                 6: { halign: 'right' },
-                8: { halign: 'right' }, // 👈 Return (kg) is now index 8
+                8: { halign: 'right' }, 
               }
             }}
           />
@@ -434,7 +462,6 @@ export default function DispatchRecordsView() {
                   <th className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 align-middle text-orange-800 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20">Local Sale (kg)</th>
                   <th className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 align-middle font-black bg-gray-200 dark:bg-gray-800">Total Out (kg)</th>
                   
-                  {/* 👈 NEW RETURN TEA TYPE HEADER */}
                   <th className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 align-middle">Return Type</th>
                   <th className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 align-middle text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20">Return (kg)</th>
                   
@@ -445,55 +472,114 @@ export default function DispatchRecordsView() {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {records.length > 0 ? (
                   <>
-                    {records.map((record) => (
+                    {records.map((record) => {
+                      const dispatches = record.dispatches || [];
+                      const localSales = record.localSales || [];
+                      const returns = record.returns || [];
+
+                      return (
                       <tr key={record._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                        <td className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 font-semibold bg-gray-50 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300">
+                        <td className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 font-semibold bg-gray-50 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300 align-top">
                           {record.date ? record.date.split("T")[0] : "-"}
                         </td>
                         
-                        <td className="px-4 py-4 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
-                          {record.invoiceNo ? (
-                            <div className="flex items-center justify-center gap-1"><FileText size={14} className="text-gray-400"/> {record.invoiceNo}</div>
+                        {/* INVOICE NOS */}
+                        <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 align-top">
+                          {dispatches.length > 0 ? dispatches.map((d, i) => (
+                            <div key={i} className="py-1 flex items-center justify-center gap-1 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                               <FileText size={14} className="text-gray-400"/> {d.invoiceNo || "-"}
+                            </div>
+                          )) : "-"}
+                        </td>
+                        
+                        {/* DISPATCH TYPES */}
+                        <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 align-top">
+                          {dispatches.length > 0 ? dispatches.map((d, i) => (
+                            <div key={i} className="py-1 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                               {d.teaType ? <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-md text-[11px] border border-gray-200 dark:border-gray-600">{d.teaType}</span> : "-"}
+                            </div>
+                          )) : "-"}
+                        </td>
+                        
+                        {/* DISPATCH KG */}
+                        <td className="px-4 py-2 border-r border-gray-300 dark:border-gray-700 font-bold text-teal-800 dark:text-teal-300 bg-teal-50/30 dark:bg-teal-900/10 align-top">
+                          {dispatches.length > 0 ? (
+                            <div className="flex flex-col h-full">
+                              {dispatches.map((d, i) => (
+                                <div key={i} className="py-1 border-b border-teal-100 dark:border-teal-900/30 font-medium text-sm text-teal-700 dark:text-teal-400 last:border-0">
+                                  {d.weight ? d.weight.toFixed(2) : "-"}
+                                </div>
+                              ))}
+                              {dispatches.length > 1 && (
+                                <div className="mt-2 pt-1 border-t-2 border-teal-200 dark:border-teal-800 font-black">
+                                  {record.dispatch.toFixed(2)}
+                                </div>
+                              )}
+                            </div>
                           ) : "-"}
                         </td>
                         
-                        <td className="px-4 py-4 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
-                          {record.dispatchTeaType ? (
-                            <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md text-xs border border-gray-200 dark:border-gray-600">{record.dispatchTeaType}</span>
+                        {/* LOCAL TYPES */}
+                        <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 align-top">
+                           {localSales.length > 0 ? localSales.map((l, i) => (
+                             <div key={i} className="py-1 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                               {l.teaType ? <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-md text-[11px] border border-gray-200 dark:border-gray-600">{l.teaType}</span> : "-"}
+                             </div>
+                           )) : "-"}
+                        </td>
+                        
+                        {/* LOCAL KG */}
+                        <td className="px-4 py-2 border-r border-gray-300 dark:border-gray-700 font-bold text-orange-800 dark:text-orange-300 bg-orange-50/30 dark:bg-orange-900/10 align-top">
+                          {localSales.length > 0 ? (
+                            <div className="flex flex-col h-full">
+                              {localSales.map((l, i) => (
+                                <div key={i} className="py-1 border-b border-orange-100 dark:border-orange-900/30 font-medium text-sm text-orange-700 dark:text-orange-400 last:border-0">
+                                  {l.weight ? l.weight.toFixed(2) : "-"}
+                                </div>
+                              ))}
+                              {localSales.length > 1 && (
+                                <div className="mt-2 pt-1 border-t-2 border-orange-200 dark:border-orange-800 font-black">
+                                  {record.localSaleAndGratis.toFixed(2)}
+                                </div>
+                              )}
+                            </div>
                           ) : "-"}
-                        </td>
-                        
-                        <td className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 font-bold text-teal-800 dark:text-teal-300 bg-teal-50/30 dark:bg-teal-900/10">
-                          {(record.dispatch || 0) === 0 ? "-" : record.dispatch.toFixed(2)}
-                        </td>
-                        
-                        <td className="px-4 py-4 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
-                           {record.localSaleTeaType ? (
-                            <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md text-xs border border-gray-200 dark:border-gray-600">{record.localSaleTeaType}</span>
-                          ) : "-"}
-                        </td>
-                        
-                        <td className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 font-bold text-orange-800 dark:text-orange-300 bg-orange-50/30 dark:bg-orange-900/10">
-                          {(record.localSaleAndGratis || 0) === 0 ? "-" : record.localSaleAndGratis.toFixed(2)}
                         </td>
 
-                        <td className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 font-black text-gray-800 dark:text-gray-200 bg-gray-100/50 dark:bg-gray-800/50">
+                        {/* TOTAL OUT */}
+                        <td className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 font-black text-gray-800 dark:text-gray-200 bg-gray-100/50 dark:bg-gray-800/50 align-top">
                           {(record.totalOut || 0).toFixed(2)}
                         </td>
-
-                        {/* 👈 NEW RETURN TEA TYPE CELL */}
-                        <td className="px-4 py-4 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
-                           {record.returnTeaType ? (
-                            <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md text-xs border border-gray-200 dark:border-gray-600">{record.returnTeaType}</span>
-                          ) : "-"}
-                        </td>
                         
-                        <td className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 text-red-600 dark:text-red-400 font-medium">
-                          {(record.returnAmount || 0) === 0 ? "-" : record.returnAmount.toFixed(2)}
+                        {/* RETURN TYPES */}
+                        <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 align-top">
+                           {returns.length > 0 ? returns.map((rItem, i) => (
+                             <div key={i} className="py-1 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                               {rItem.teaType ? <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-md text-[11px] border border-gray-200 dark:border-gray-600">{rItem.teaType}</span> : "-"}
+                             </div>
+                           )) : "-"}
+                        </td>
+
+                        {/* RETURN KG */}
+                        <td className="px-4 py-2 border-r border-gray-300 dark:border-gray-700 text-red-600 dark:text-red-400 font-medium align-top bg-red-50/30 dark:bg-red-900/10">
+                           {returns.length > 0 ? (
+                            <div className="flex flex-col h-full">
+                              {returns.map((rItem, i) => (
+                                <div key={i} className="py-1 border-b border-red-100 dark:border-red-900/30 font-medium text-sm text-red-600 dark:text-red-400 last:border-0">
+                                  {rItem.amount ? rItem.amount.toFixed(2) : "-"}
+                                </div>
+                              ))}
+                              {returns.length > 1 && (
+                                <div className="mt-2 pt-1 border-t-2 border-red-200 dark:border-red-800 font-black">
+                                  {record.returnAmount.toFixed(2)}
+                                </div>
+                              )}
+                            </div>
+                          ) : "-"}
                         </td>
 
                         {/* ACTION CELL */}
-                        <td className="px-3 py-3 text-center">
+                        <td className="px-3 py-4 text-center align-middle">
                           <div className="flex items-center justify-center gap-1">
                             <button
                               onClick={() => handleEditClick(record)}
@@ -502,10 +588,18 @@ export default function DispatchRecordsView() {
                             >
                               <MdOutlineEdit size={20} />
                             </button>
+                            <button
+                              onClick={() => handleDeleteClick(record)}
+                              className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all"
+                              title="Delete Record"
+                            >
+                              <MdOutlineDeleteOutline size={20} />
+                            </button>
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      )
+                    })}
 
                     <tr className="bg-gray-200 dark:bg-gray-700 font-black border-t-2 border-gray-300 dark:border-gray-600">
                       <td colSpan="3" className="px-4 py-4 border-r border-gray-300 dark:border-gray-600 text-right text-gray-700 dark:text-gray-300 uppercase">
@@ -521,9 +615,7 @@ export default function DispatchRecordsView() {
                       <td className="px-4 py-4 border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                         {totalOut > 0 ? totalOut.toFixed(2) : "-"}
                       </td>
-                      {/* 👈 NEW EMPTY CELL FOR RETURN TYPE TOTAL */}
                       <td className="border-r border-gray-300 dark:border-gray-600"></td>
-
                       <td className="px-4 py-4 border-r border-gray-300 dark:border-gray-600 text-red-700 dark:text-red-300">
                          {totalReturns > 0 ? totalReturns.toFixed(2) : "-"}
                       </td>
@@ -545,6 +637,34 @@ export default function DispatchRecordsView() {
           </div>
         )}
       </div>
+
+      {/* DELETE CONFIRMATION DIALOG */}
+      <AlertDialog open={!!recordToDelete} onOpenChange={(open) => !open && setRecordToDelete(null)}>
+        <AlertDialogContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900 dark:text-gray-100">Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
+              This action cannot be undone. This will permanently delete the dispatch record for{" "}
+              <span className="font-bold text-gray-700 dark:text-gray-300">
+                {recordToDelete?.date ? recordToDelete.date.split("T")[0] : ""}
+              </span>{" "}
+              and remove any associated pending transfers from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 border-none">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete} 
+              className="bg-red-600 hover:bg-red-700 text-white transition-colors"
+            >
+              Delete Record
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }

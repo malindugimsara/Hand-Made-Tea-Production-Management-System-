@@ -106,20 +106,12 @@ export const getFactoryLogsByMonth = async (req, res) => {
 };
 
 // 2. SAVE OR UPDATE DAILY FACTORY LOG 
+// 2. SAVE OR UPDATE DAILY FACTORY LOG 
 export const saveDailyFactoryLog = async (req, res) => {
   try {
     const { 
-      date, 
-      greenLeafToday, 
-      dispatch, 
-      localSaleAndGratis, 
-      returnAmount, 
-      returnTeaType,      // 👈 අලුතින් එකතු කළ Field එක
-      invoiceNo, 
-      dispatchTeaType, 
-      localSaleTeaType, 
-      username, 
-      isExplicitEdit 
+      date, greenLeafToday, dispatches = [], localSales = [], returns = [], 
+      username, isExplicitEdit 
     } = req.body;
 
     if (!date) return res.status(400).json({ message: "Date is required." });
@@ -127,9 +119,7 @@ export const saveDailyFactoryLog = async (req, res) => {
     const targetDate = new Date(date);
     targetDate.setUTCHours(0, 0, 0, 0);
 
-    // 🌟 අලුත්: User ගේ නම අනිවාර්යයෙන්ම ලබා ගැනීම 🌟
     const currentUser = username || req.user?.username || "Factory Admin";
-
     const glToday = Number(greenLeafToday) || 0;
 
     const selectedMonthNumber = targetDate.getMonth() + 1; 
@@ -137,68 +127,39 @@ export const saveDailyFactoryLog = async (req, res) => {
     const conversionRate = monthsWith21Percent.includes(selectedMonthNumber) ? 0.21 : 0.215;
     const madeTeaToday = glToday * conversionRate;
 
-    const totalOut = (Number(dispatch) || 0) + (Number(localSaleAndGratis) || 0);
-    const retAmount = Number(returnAmount) || 0;
+    // --- Arrays වලින් Totals ගණනය කිරීම ---
+    const totalDispatch = dispatches.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+    const totalLocalSale = localSales.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+    const totalReturnAmount = returns.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
+    const totalOut = totalDispatch + totalLocalSale;
+
+    // Balance Calculation
     const aggrResult = await FactoryLog.aggregate([
       { $match: { date: { $lt: targetDate } } },
-      {
-        $group: {
-          _id: null,
-          totalMadeTea: { $sum: { $ifNull: ["$madeTea.today", 0] } },
-          totalDispatch: { $sum: { $ifNull: ["$dispatch", 0] } },
-          totalLocal: { $sum: { $ifNull: ["$localSaleAndGratis", 0] } },
-          totalReturn: { $sum: { $ifNull: ["$returnAmount", 0] } },
-        },
-      },
+      { $group: { _id: null, totalMT: { $sum: "$madeTea.today" }, totalD: { $sum: "$dispatch" }, totalL: { $sum: "$localSaleAndGratis" }, totalR: { $sum: "$returnAmount" } } },
     ]);
 
-    let previousBalance = 0;
-    if (aggrResult.length > 0) {
-      const r = aggrResult[0];
-      previousBalance = r.totalMadeTea - (r.totalDispatch + r.totalLocal) + r.totalReturn;
-    }
+    let previousBalance = aggrResult.length > 0 ? (aggrResult[0].totalMT - (aggrResult[0].totalD + aggrResult[0].totalL) + aggrResult[0].totalR) : 0;
+    const currentBalance = previousBalance + madeTeaToday - totalOut + totalReturnAmount;
 
-    const currentBalance = previousBalance + madeTeaToday - totalOut + retAmount;
-
-    if (currentBalance < 0) {
-      return res.status(400).json({
-        message: `Cannot save record for ${date}. Total Out exceeds the available Factory Balance.`,
-      });
-    }
+    if (currentBalance < 0) return res.status(400).json({ message: `Total Out exceeds available Factory Balance.` });
 
     const existingRecord = await FactoryLog.findOne({ date: targetDate });
     
     let updateFields = {
       greenLeaf: { today: glToday },
       madeTea: { today: Number(madeTeaToday.toFixed(2)) }, 
-      
-      dispatch: Number(dispatch) || 0,
-      invoiceNo: invoiceNo || "",              
-      dispatchTeaType: dispatchTeaType || "",  
-      
-      localSaleAndGratis: Number(localSaleAndGratis) || 0,
-      localSaleTeaType: localSaleTeaType || "", 
-      
-      totalOut: totalOut,
-      
-      returnAmount: retAmount,
-      returnTeaType: returnTeaType || "",      // 👈 අලුතින් Database එකට Save කරන තැන
-      
+      dispatches, dispatch: totalDispatch,
+      localSales, localSaleAndGratis: totalLocalSale,
+      returns, returnAmount: totalReturnAmount,
+      totalOut,
       bfBalance: Number(previousBalance.toFixed(2)),
       factoryBalance: Number(currentBalance.toFixed(2)),
+      isEdited: !!isExplicitEdit,
+      lastUpdatedDate: isExplicitEdit ? new Date() : undefined,
+      editedBy: currentUser 
     };
-
-    if (existingRecord) {
-      if (isExplicitEdit) {
-        updateFields.isEdited = true;
-        updateFields.lastUpdatedDate = new Date();
-        updateFields.editedBy = currentUser; 
-      }
-    } else {
-      updateFields.isEdited = false;
-      updateFields.editedBy = currentUser; 
-    }
 
     const updatedLog = await FactoryLog.findOneAndUpdate(
       { date: targetDate },
@@ -207,66 +168,34 @@ export const saveDailyFactoryLog = async (req, res) => {
     );
 
     // ==========================================
-    // 🌟 PACKING AUTOMATION (Only Local Sales to Pending) 🌟
+    // 🌟 PACKING AUTOMATION (Local Sales to Pending) 🌟
     // ==========================================
-    
     const d = new Date(targetDate);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-
-    // Automation Helper Function (Only for Local Sale)
-    const syncPendingTransfer = async (typePrefix, qty, teaType) => {
-        const regex = new RegExp(`FACT/TO/${year}${month}${day}-${typePrefix}`);
-        
-        if (qty > 0 && teaType) {
-            const existingPending = await PendingTransfer.findOne({
-                date: targetDate,
-                transferNo: { $regex: regex },
-                status: "Pending" 
-            });
-
-            if (existingPending) {
-                // Update existing
-                existingPending.sentQtyKg = qty;
-                existingPending.grade = teaType;   
-                existingPending.teaType = teaType; 
-                existingPending.factoryUsername = currentUser; 
-                await existingPending.save();
-            } else {
-                // Create New
-                const randomNum = Math.floor(100 + Math.random() * 900); // 3 digit random
-                const autoTransNo = `FACT/TO/${year}${month}${day}-${typePrefix}-${randomNum}`;
-                
-                const newPendingTransfer = new({
-                    date: targetDate,
-                    transferNo: autoTransNo,
-                    grade: teaType,   
-                    teaType: teaType, 
-                    sentQtyKg: qty,
-                    factoryUsername: currentUser 
-                });
-                await newPendingTransfer.save();
-            }
-        } else {
-            // Delete if quantity is made 0
-            await PendingTransfer.findOneAndDelete({
-                date: targetDate,
-                transferNo: { $regex: regex },
-                status: "Pending"
-            });
-        }
-    };
-
-    // Packing එකට Local Sale එක යැවීම
-    await syncPendingTransfer('LOC', updateFields.localSaleAndGratis, updateFields.localSaleTeaType);
+    const dateStr = d.toISOString().slice(0, 10).replace(/-/g, '');
     
-    // ==========================================
-
-    res.status(200).json({
-      message: "Daily factory log saved successfully.",
-      data: updatedLog,
+    // මකා දැමීම
+    await PendingTransfer.deleteMany({
+      date: targetDate,
+      transferNo: { $regex: /FACT\/TO\// },
+      status: "Pending"
     });
+
+    // නැවත එකතු කිරීම (ලූපයක් භාවිතා කරමින්)
+    for (const [index, sale] of localSales.entries()) {
+      if (sale.weight > 0 && sale.teaType) {
+        const randomNum = Math.floor(100 + Math.random() * 900);
+        await new PendingTransfer({
+            date: targetDate,
+            transferNo: `FACT/TO/${dateStr}-LOC-${randomNum}-${index}`,
+            grade: sale.teaType,   
+            teaType: sale.teaType, 
+            sentQtyKg: sale.weight,
+            factoryUsername: currentUser 
+        }).save();
+      }
+    }
+
+    res.status(200).json({ message: "Daily factory log saved successfully.", data: updatedLog });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error saving daily factory log." });
