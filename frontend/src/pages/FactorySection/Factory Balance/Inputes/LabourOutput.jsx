@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Save, Users, Clock, Activity, Plus, Trash2, Calculator, Calendar } from 'lucide-react';
+import { Save, Users, Clock, Activity, Plus, Trash2, Calculator, Calendar, Eraser } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function LabourOutput() {
@@ -23,11 +23,20 @@ export default function LabourOutput() {
         otHours: '',
     });
 
-    const [pendingRecords, setPendingRecords] = useState([]);
+    // Initialize the queue from local storage if it exists
+    const [pendingRecords, setPendingRecords] = useState(() => {
+        const savedQueue = localStorage.getItem('labourOutputQueue');
+        return savedQueue ? JSON.parse(savedQueue) : [];
+    });
 
     const [madeTeaToday, setMadeTeaToday] = useState(0);
     const [isLoadingTea, setIsLoadingTea] = useState(false);
     const [isSavingAll, setIsSavingAll] = useState(false);
+
+    // Sync pending records to local storage whenever they change
+    useEffect(() => {
+        localStorage.setItem('labourOutputQueue', JSON.stringify(pendingRecords));
+    }, [pendingRecords]);
 
     useEffect(() => {
         if (isDarkMode) {
@@ -98,7 +107,7 @@ export default function LabourOutput() {
 
         const isDuplicate = pendingRecords.some(r => r.section === formData.section);
         if (isDuplicate) {
-            toast.error(`${formData.section} section is already in the list!`);
+            toast.error(`${formData.section} section is already in the queue!`);
             return;
         }
 
@@ -119,6 +128,12 @@ export default function LabourOutput() {
         setPendingRecords(pendingRecords.filter((_, index) => index !== indexToRemove));
     };
 
+    const handleClearQueue = () => {
+        setPendingRecords([]);
+        localStorage.removeItem('labourOutputQueue');
+        toast.success("Temporary queue cleared.");
+    };
+
     // --- Live Calculations ---
     const currentLabours = Number(formData.noOfLabours) || 0;
     const currentOtHours = Number(formData.otHours) || 0;
@@ -137,11 +152,11 @@ export default function LabourOutput() {
     // --- Bulk Save Handler ---
     const handleSaveAll = async () => {
         if (pendingRecords.length === 0) {
-            toast.error("Please add at least one section to the list.");
+            toast.error("Please add at least one section to the queue.");
             return;
         }
         setIsSavingAll(true);
-        const toastId = toast.loading(`Saving ${pendingRecords.length} labour records...`);
+        const toastId = toast.loading(`Saving ${pendingRecords.length} queued records...`);
 
         try {
             const token = localStorage.getItem('token');
@@ -155,7 +170,7 @@ export default function LabourOutput() {
 
                 return {
                     date: recordDate,
-                    madeTea: madeTeaToday, // Added to prevent Mongoose validation error
+                    madeTea: madeTeaToday,
                     section: record.section,
                     noOfLabours: record.noOfLabours,
                     otHours: record.otHours,
@@ -173,13 +188,16 @@ export default function LabourOutput() {
 
             if (!res.ok) throw new Error("Failed to save records to the database.");
 
-            toast.success("All labour records saved successfully!", { id: toastId });
-            setPendingRecords([]); 
+            toast.success("All queued records saved successfully!", { id: toastId });
+            
+            // Clear state and local storage on success
+            setPendingRecords([]);
+            localStorage.removeItem('labourOutputQueue');
             
             // --- REDIRECT HAPPENS HERE ---
             setTimeout(() => {
                 navigate("/factory/labouroutputlist");
-            }, 600); // Tiny delay so the user sees the success message
+            }, 600);
 
         } catch (error) {
             toast.error(error.message || "Error saving records.", { id: toastId });
@@ -304,9 +322,15 @@ export default function LabourOutput() {
                                 {pendingRecords.length > 0 && (
                                     <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
                                         <div className="flex items-center justify-between mb-3">
-                                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Added to list ({pendingRecords.length})</span>
+                                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Temporary Queue ({pendingRecords.length})</span>
+                                            <button 
+                                                onClick={handleClearQueue}
+                                                className="text-[10px] font-bold text-red-500 hover:text-red-700 uppercase tracking-widest flex items-center gap-1 transition-colors"
+                                            >
+                                                <Eraser size={12} /> Clear Queue
+                                            </button>
                                         </div>
-                                        <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2">
+                                        <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
                                             {pendingRecords.map((item, index) => (
                                                 <div key={index} className="flex items-center justify-between bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
                                                     <div className="grid grid-cols-3 w-full gap-4 items-center">
