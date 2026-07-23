@@ -18,12 +18,10 @@ const TeaTypeAutocomplete = ({ name, value, onChange, placeholder }) => {
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const wrapperRef = useRef(null);
 
-  // Filter options based on what the user types
   const filteredOptions = teaTypeOptions.filter(opt =>
     opt.toLowerCase().includes((value || '').toLowerCase())
   );
 
-  // Close dropdown if clicked outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -47,7 +45,7 @@ const TeaTypeAutocomplete = ({ name, value, onChange, placeholder }) => {
       e.preventDefault();
       setHighlightedIndex(prev => (prev > 0 ? prev - 1 : 0));
     } else if (e.key === "Enter") {
-      e.preventDefault(); // Prevent form submission
+      e.preventDefault();
       if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
         onChange({ target: { name, value: filteredOptions[highlightedIndex] } });
         setIsOpen(false);
@@ -75,7 +73,6 @@ const TeaTypeAutocomplete = ({ name, value, onChange, placeholder }) => {
         className={`${inputStyles} pl-10 relative z-0`}
         autoComplete="off"
       />
-      {/* Dropdown Menu */}
       {isOpen && filteredOptions.length > 0 && (
         <ul className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl max-h-56 overflow-y-auto custom-scrollbar overflow-hidden">
           {filteredOptions.map((opt, index) => (
@@ -87,7 +84,7 @@ const TeaTypeAutocomplete = ({ name, value, onChange, placeholder }) => {
                   : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
               }`}
               onMouseDown={(e) => {
-                e.preventDefault(); // Prevents input from losing focus
+                e.preventDefault();
                 onChange({ target: { name, value: opt } });
                 setIsOpen(false);
               }}
@@ -123,16 +120,15 @@ export default function DispatchAndReturn() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  const [formData, setFormData] = useState({
+  // Array-based initial state for multiple entries
+  const initialFormState = {
     date: new Date().toISOString().split('T')[0],
-    invoiceNo: '',
-    dispatchTeaType: '',
-    dispatch: '', // Total Gross Weight
-    localSaleTeaType: '',
-    localSaleAndGratis: '', // Total qty (kg)
-    returnTeaType: '', // Added return tea type
-    returnAmount: '',
-  });
+    dispatches: [{ invoiceNo: '', teaType: '', weight: '' }],
+    localSales: [{ teaType: '', weight: '' }],
+    returns: [{ teaType: '', amount: '' }], // Added teaType to returns array based on your update
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
 
   useEffect(() => {
     if (formData.date) {
@@ -147,8 +143,12 @@ export default function DispatchAndReturn() {
   const userRole = localStorage.getItem('userRole') || '';
   const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
 
-  // Calculate Total Out based on Dispatch weight + Local Sale weight
-  const calculatedTotalOut = (Number(formData.dispatch) || 0) + (Number(formData.localSaleAndGratis) || 0);
+  // Calculate Totals dynamically from arrays
+  const totalDispatch = formData.dispatches.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+  const totalLocalSale = formData.localSales.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+  const totalReturn = formData.returns.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  
+  const calculatedTotalOut = totalDispatch + totalLocalSale;
 
   // Dark Mode Toggle Effect
   useEffect(() => {
@@ -181,9 +181,20 @@ export default function DispatchAndReturn() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMonth]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+  // --- Dynamic Array Handlers ---
+  const handleArrayChange = (category, index, field, value) => {
+    const updatedArray = [...formData[category]];
+    updatedArray[index][field] = value;
+    setFormData({ ...formData, [category]: updatedArray });
+  };
+
+  const addArrayItem = (category, defaultObj) => {
+    setFormData({ ...formData, [category]: [...formData[category], defaultObj] });
+  };
+
+  const removeArrayItem = (category, index) => {
+    const updatedArray = formData[category].filter((_, i) => i !== index);
+    setFormData({ ...formData, [category]: updatedArray });
   };
 
   const handleAddToList = (e) => {
@@ -204,6 +215,9 @@ export default function DispatchAndReturn() {
     const newRecord = {
       ...formData,
       calculatedTotalOut,
+      totalDispatch,
+      totalLocalSale,
+      totalReturn,
       greenLeafToday: existingRecord ? (existingRecord.greenLeaf?.today || existingRecord.greenLeafToday || 0) : 0,    
     };
 
@@ -212,14 +226,8 @@ export default function DispatchAndReturn() {
     
     // Reset Form (except date)
     setFormData({ 
-      ...formData, 
-      invoiceNo: '',
-      dispatchTeaType: '',
-      dispatch: '', 
-      localSaleTeaType: '',
-      localSaleAndGratis: '',
-      returnTeaType: '', // Reset return tea type
-      returnAmount: '' 
+      ...initialFormState,
+      date: formData.date
     });
   };
 
@@ -240,13 +248,9 @@ export default function DispatchAndReturn() {
         const payload = {
           date: record.date,
           greenLeafToday: Number(record.greenLeafToday) || 0,
-          dispatch: Number(record.dispatch) || 0,
-          localSaleAndGratis: Number(record.localSaleAndGratis) || 0,
-          returnAmount: Number(record.returnAmount) || 0,
-          invoiceNo: record.invoiceNo,
-          dispatchTeaType: record.dispatchTeaType,
-          localSaleTeaType: record.localSaleTeaType,
-          returnTeaType: record.returnTeaType, // Added return tea type to payload
+          dispatches: record.dispatches.filter(d => d.weight || d.invoiceNo), 
+          localSales: record.localSales.filter(l => l.weight || l.teaType),
+          returns: record.returns.filter(r => r.amount || r.teaType),
           username: username
         };
 
@@ -294,45 +298,75 @@ export default function DispatchAndReturn() {
               <div className="mb-6 pb-6 border-b border-gray-100 dark:border-gray-700">
                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Record Date</label>
                 <input 
-                  type="date" name="date" value={formData.date} onChange={handleInputChange} required 
+                  type="date" name="date" value={formData.date} 
+                  onChange={(e) => setFormData({...formData, date: e.target.value})} required 
                   className={inputStyles}
                 />
               </div>
 
               {/* 1. DISPATCH SECTION */}
               <div className="bg-gray-50/50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 rounded-2xl p-5 shadow-sm mb-6 transition-colors">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-[#0f766e] dark:text-teal-400 border-b border-gray-200 dark:border-gray-700 pb-3">
-                  <div className="p-1.5 rounded-lg bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300"><Truck size={18}/></div>
-                  Dispatch Details
+                <h3 className="text-lg font-bold mb-4 flex items-center justify-between text-[#0f766e] dark:text-teal-400 border-b border-gray-200 dark:border-gray-700 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300"><Truck size={18}/></div>
+                    Dispatch Details
+                  </div>
                 </h3>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Invoice No.</label>
-                    <input 
-                      type="text" name="invoiceNo" value={formData.invoiceNo} onChange={handleInputChange} 
-                      placeholder="Enter Invoice Number" className={inputStyles} 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
-                    <TeaTypeAutocomplete
-                      name="dispatchTeaType"
-                      value={formData.dispatchTeaType}
-                      onChange={handleInputChange}
-                      placeholder="E.g. BOPF, Pekoe"
-                    />
-                  </div>
-                </div>
+                {formData.dispatches.map((dispatchItem, index) => (
+                  <div key={index} className="relative mb-5 pb-5 border-b border-gray-200 dark:border-gray-700/60 border-dashed last:border-0 last:mb-0 last:pb-0">
+                    
+                    {formData.dispatches.length > 1 && (
+                      <button 
+                        type="button" 
+                        onClick={() => removeArrayItem('dispatches', index)}
+                        className="absolute -top-1 right-0 text-red-400 hover:text-red-600 dark:hover:text-red-400 p-1 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 shadow-sm z-10 transition-colors"
+                        title="Remove dispatch"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
 
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Total Gross Weight (kg)</label>
-                  <input 
-                    type="number" step="0.01" min="0" name="dispatch" 
-                    value={formData.dispatch} onChange={handleInputChange} 
-                    onWheel={(e) => e.target.blur()} placeholder="0.00 kg" className={inputStyles} 
-                  />
-                </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 mt-2">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Invoice No.</label>
+                        <input 
+                          type="text" 
+                          value={dispatchItem.invoiceNo} 
+                          onChange={(e) => handleArrayChange('dispatches', index, 'invoiceNo', e.target.value)} 
+                          placeholder="Enter Invoice Number" className={inputStyles} 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
+                        <TeaTypeAutocomplete
+                          name={`dispatchTeaType-${index}`}
+                          value={dispatchItem.teaType}
+                          onChange={(e) => handleArrayChange('dispatches', index, 'teaType', e.target.value)}
+                          placeholder="E.g. BOPF, Pekoe"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Total Gross Weight (kg)</label>
+                      <input 
+                        type="number" step="0.01" min="0" 
+                        value={dispatchItem.weight} 
+                        onChange={(e) => handleArrayChange('dispatches', index, 'weight', e.target.value)} 
+                        onWheel={(e) => e.target.blur()} placeholder="0.00 kg" className={inputStyles} 
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                <button 
+                  type="button" 
+                  onClick={() => addArrayItem('dispatches', { invoiceNo: '', teaType: '', weight: '' })}
+                  className="mt-2 w-full py-2.5 rounded-xl border-2 border-dashed border-teal-200 dark:border-teal-800/50 text-teal-600 dark:text-teal-400 font-bold flex items-center justify-center gap-2 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors text-sm"
+                >
+                  <PlusCircle size={16} /> Add New Dispatch
+                </button>
               </div>
 
               {/* 2. LOCAL SALES SECTION */}
@@ -342,30 +376,54 @@ export default function DispatchAndReturn() {
                   Local Sales Details
                 </h3>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
-                    <TeaTypeAutocomplete
-                      name="localSaleTeaType"
-                      value={formData.localSaleTeaType}
-                      onChange={handleInputChange}
-                      placeholder="E.g. Dust, Fannings"
-                    />
+                {formData.localSales.map((saleItem, index) => (
+                   <div key={index} className="relative mb-5 pb-5 border-b border-gray-200 dark:border-gray-700/60 border-dashed last:border-0 last:mb-0 last:pb-0">
+                    
+                    {formData.localSales.length > 1 && (
+                      <button 
+                        type="button" 
+                        onClick={() => removeArrayItem('localSales', index)}
+                        className="absolute -top-1 right-0 text-red-400 hover:text-red-600 dark:hover:text-red-400 p-1 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 shadow-sm z-10 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
+                        <TeaTypeAutocomplete
+                          name={`localSaleTeaType-${index}`}
+                          value={saleItem.teaType}
+                          onChange={(e) => handleArrayChange('localSales', index, 'teaType', e.target.value)}
+                          placeholder="E.g. Dust, Fannings"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Total Qty (kg)</label>
+                        <input 
+                          type="number" step="0.01" min="0" 
+                          value={saleItem.weight} 
+                          onChange={(e) => handleArrayChange('localSales', index, 'weight', e.target.value)} 
+                          onWheel={(e) => e.target.blur()} placeholder="0.00 kg" className={inputStyles} 
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Total Qty (kg)</label>
-                    <input 
-                      type="number" step="0.01" min="0" name="localSaleAndGratis" 
-                      value={formData.localSaleAndGratis} onChange={handleInputChange} 
-                      onWheel={(e) => e.target.blur()} placeholder="0.00 kg" className={inputStyles} 
-                    />
-                  </div>
-                </div>
+                ))}
+
+                <button 
+                  type="button" 
+                  onClick={() => addArrayItem('localSales', { teaType: '', weight: '' })}
+                  className="mt-2 w-full py-2.5 rounded-xl border-2 border-dashed border-orange-200 dark:border-orange-800/40 text-orange-600 dark:text-orange-400 font-bold flex items-center justify-center gap-2 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors text-sm"
+                >
+                  <PlusCircle size={16} /> Add New Local Sale
+                </button>
               </div>
 
               {/* TOTAL OUT SUMMARY */}
               <div className="mb-6 p-4 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Total Out (Dispatch + Local Sales)</label>
+                <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Total Out (All Dispatches + Local Sales)</label>
                 <div className="w-full text-xl flex items-center font-black text-gray-800 dark:text-gray-200 transition-colors">
                   {calculatedTotalOut > 0 ? calculatedTotalOut.toFixed(2) : '0.00'} <span className="text-sm text-gray-500 ml-1">kg</span>
                 </div>
@@ -374,28 +432,53 @@ export default function DispatchAndReturn() {
               {/* 3. RETURNS SECTION */}
               <div className="bg-gray-50/50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 rounded-2xl p-5 shadow-sm mb-6 transition-colors">
                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-3">
-                  <div className="p-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"><RefreshCcw size={18}/></div> Returns
+                  <div className="p-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"><RefreshCcw size={18}/></div> 
+                  Returns
                 </h3>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
-                    <TeaTypeAutocomplete
-                      name="returnTeaType"
-                      value={formData.returnTeaType}
-                      onChange={handleInputChange}
-                      placeholder="E.g. BOPF, Pekoe"
-                    />
+                {formData.returns.map((returnItem, index) => (
+                  <div key={index} className="relative mb-5 pb-5 border-b border-gray-200 dark:border-gray-700/60 border-dashed last:border-0 last:mb-0 last:pb-0">
+                    
+                    {formData.returns.length > 1 && (
+                      <button 
+                        type="button" 
+                        onClick={() => removeArrayItem('returns', index)}
+                        className="absolute -top-1 right-0 text-red-400 hover:text-red-600 dark:hover:text-red-400 p-1 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 shadow-sm z-10 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
+                        <TeaTypeAutocomplete
+                          name={`returnTeaType-${index}`}
+                          value={returnItem.teaType}
+                          onChange={(e) => handleArrayChange('returns', index, 'teaType', e.target.value)}
+                          placeholder="E.g. BOPF, Pekoe"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Return Amount (kg)</label>
+                        <input 
+                          type="number" step="0.01" min="0" 
+                          value={returnItem.amount} 
+                          onChange={(e) => handleArrayChange('returns', index, 'amount', e.target.value)} 
+                          onWheel={(e) => e.target.blur()} placeholder="0.00" className={inputStyles} 
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Return Amount (kg)</label>
-                    <input 
-                      type="number" step="0.01" min="0" name="returnAmount" 
-                      value={formData.returnAmount} onChange={handleInputChange} 
-                      onWheel={(e) => e.target.blur()} placeholder="0.00" className={inputStyles} 
-                    />
-                  </div>
-                </div>
+                ))}
+
+                <button 
+                  type="button" 
+                  onClick={() => addArrayItem('returns', { teaType: '', amount: '' })}
+                  className="mt-2 w-full py-2.5 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-sm"
+                >
+                  <PlusCircle size={16} /> Add New Return
+                </button>
               </div>
 
               <button 
@@ -436,7 +519,7 @@ export default function DispatchAndReturn() {
                         
                         <button 
                           onClick={() => handleRemoveFromList(index)} 
-                          className="absolute top-3 right-3 text-gray-400 hover:text-red-500 bg-white dark:bg-gray-700 p-1.5 rounded-md border border-gray-100 dark:border-gray-600 transition-colors"
+                          className="absolute top-3 right-3 text-gray-400 hover:text-red-500 bg-white dark:bg-gray-700 p-1.5 rounded-md border border-gray-100 dark:border-gray-600 transition-colors z-10"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -445,44 +528,57 @@ export default function DispatchAndReturn() {
                           <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase">{item.date}</span>
                           
                           <div className="text-xs font-medium text-gray-600 dark:text-gray-300 space-y-2 mb-1">
-                            {/* Dispatch Summary Line */}
-                            <div className="flex flex-col bg-teal-50/50 dark:bg-teal-900/10 p-2 rounded-lg border border-teal-100 dark:border-teal-800/30">
-                              <div className="flex justify-between items-center text-[#0f766e] dark:text-teal-400 mb-1">
-                                <span className="font-bold flex items-center gap-1"><Truck size={12}/> Dispatch</span>
-                                <span className="font-black">{item.dispatch || '0'} kg</span>
-                              </div>
-                              <div className="text-[10px] text-gray-500 dark:text-gray-400 flex gap-2">
-                                {item.invoiceNo && <span>Inv: {item.invoiceNo}</span>}
-                                {item.dispatchTeaType && <span>Type: {item.dispatchTeaType}</span>}
-                              </div>
-                            </div>
                             
-                            {/* Local Sale Summary Line */}
-                            <div className="flex flex-col bg-orange-50/50 dark:bg-orange-900/10 p-2 rounded-lg border border-orange-100 dark:border-orange-800/30">
-                              <div className="flex justify-between items-center text-[#b45309] dark:text-orange-400 mb-1">
-                                <span className="font-bold flex items-center gap-1"><Store size={12}/> Local Sales</span>
-                                <span className="font-black">{item.localSaleAndGratis || '0'} kg</span>
+                            {/* Dispatch Summaries */}
+                            {item.totalDispatch > 0 && (
+                              <div className="flex flex-col bg-teal-50/50 dark:bg-teal-900/10 p-2 rounded-lg border border-teal-100 dark:border-teal-800/30">
+                                <div className="flex justify-between items-center text-[#0f766e] dark:text-teal-400 mb-1 border-b border-teal-200/50 dark:border-teal-800/50 pb-1">
+                                  <span className="font-bold flex items-center gap-1"><Truck size={12}/> Dispatches</span>
+                                  <span className="font-black">{item.totalDispatch.toFixed(2)} kg</span>
+                                </div>
+                                {item.dispatches.map((d, i) => (d.weight || d.invoiceNo) && (
+                                  <div key={i} className="text-[10px] text-gray-500 dark:text-gray-400 flex justify-between pt-1">
+                                    <span>{d.invoiceNo ? `Inv: ${d.invoiceNo}` : 'No Inv'} {d.teaType && `(${d.teaType})`}</span>
+                                    <span className="font-semibold">{d.weight || '0'} kg</span>
+                                  </div>
+                                ))}
                               </div>
-                              <div className="text-[10px] text-gray-500 dark:text-gray-400">
-                                {item.localSaleTeaType && <span>Type: {item.localSaleTeaType}</span>}
+                            )}
+                            
+                            {/* Local Sale Summaries */}
+                            {item.totalLocalSale > 0 && (
+                              <div className="flex flex-col bg-orange-50/50 dark:bg-orange-900/10 p-2 rounded-lg border border-orange-100 dark:border-orange-800/30">
+                                <div className="flex justify-between items-center text-[#b45309] dark:text-orange-400 mb-1 border-b border-orange-200/50 dark:border-orange-800/50 pb-1">
+                                  <span className="font-bold flex items-center gap-1"><Store size={12}/> Local Sales</span>
+                                  <span className="font-black">{item.totalLocalSale.toFixed(2)} kg</span>
+                                </div>
+                                {item.localSales.map((l, i) => (l.weight || l.teaType) && (
+                                  <div key={i} className="text-[10px] text-gray-500 dark:text-gray-400 flex justify-between pt-1">
+                                    <span>{l.teaType ? `Type: ${l.teaType}` : 'Unspecified'}</span>
+                                    <span className="font-semibold">{l.weight || '0'} kg</span>
+                                  </div>
+                                ))}
                               </div>
-                            </div>
+                            )}
                           </div>
                           
-                          <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-lg border border-gray-200 dark:border-gray-600 flex justify-between px-3 text-xs font-bold text-gray-800 dark:text-gray-200 transition-colors">
+                          <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-lg border border-gray-200 dark:border-gray-600 flex justify-between px-3 text-xs font-bold text-gray-800 dark:text-gray-200 transition-colors mt-1">
                             <span>Total Out:</span><span>{item.calculatedTotalOut.toFixed(2)} kg</span>
                           </div>
                           
-                          {item.returnAmount && Number(item.returnAmount) > 0 && (
-                            <div className="bg-blue-50/50 dark:bg-blue-900/20 p-2 rounded-lg border border-blue-100 dark:border-blue-800/50 flex flex-col px-3 text-xs font-bold text-blue-800 dark:text-blue-400 transition-colors">
-                              <div className="flex justify-between items-center w-full">
-                                <span>Returns:</span><span>{item.returnAmount} kg</span>
-                              </div>
-                              {item.returnTeaType && (
-                                <div className="text-[10px] text-blue-600/70 dark:text-blue-300/70 font-normal mt-0.5">
-                                  Type: {item.returnTeaType}
+                          {/* Returns Summary */}
+                          {item.totalReturn > 0 && (
+                            <div className="flex flex-col bg-blue-50/50 dark:bg-blue-900/20 p-2 rounded-lg border border-blue-100 dark:border-blue-800/50">
+                                <div className="flex justify-between items-center text-blue-800 dark:text-blue-400 mb-1 border-b border-blue-200/50 dark:border-blue-800/50 pb-1 px-1">
+                                  <span className="font-bold text-xs">Total Returns</span>
+                                  <span className="font-black text-xs">{item.totalReturn.toFixed(2)} kg</span>
                                 </div>
-                              )}
+                                {item.returns.map((r, i) => (r.amount || r.teaType) && (
+                                  <div key={i} className="text-[10px] text-blue-600/70 dark:text-blue-300/70 flex justify-between pt-1 px-1">
+                                    <span>{r.teaType ? `Type: ${r.teaType}` : 'Unspecified'}</span>
+                                    <span className="font-semibold">{r.amount || '0'} kg</span>
+                                  </div>
+                                ))}
                             </div>
                           )}
 
