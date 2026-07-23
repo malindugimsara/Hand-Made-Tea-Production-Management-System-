@@ -1,8 +1,8 @@
 import FactoryLog from "../models/FactoryLog.js";
 import PendingTransfer from "../../Packing/models/PendingTransfer.js";
 import TeaReceived from "../../Packing/models/TeaReceivedModel.js"; 
-
-// 1. GET FACTORY LOGS
+import webpush from 'web-push';
+import Subscription from '../../Packing/models/SubscriptionModel.js';// 1. GET FACTORY LOGS
 export const getFactoryLogsByMonth = async (req, res) => {
   try {
     const { month, startDate, endDate } = req.query;
@@ -238,7 +238,8 @@ export const saveDailyFactoryLog = async (req, res) => {
                 const randomNum = Math.floor(100 + Math.random() * 900); // 3 digit random
                 const autoTransNo = `FACT/TO/${year}${month}${day}-${typePrefix}-${randomNum}`;
                 
-                const newPendingTransfer = new({
+                // 🌟 (නිවැරදි කළ තැන: new PendingTransfer ලෙස දැමීම)
+                const newPendingTransfer = new PendingTransfer({
                     date: targetDate,
                     transferNo: autoTransNo,
                     grade: teaType,   
@@ -247,6 +248,30 @@ export const saveDailyFactoryLog = async (req, res) => {
                     factoryUsername: currentUser 
                 });
                 await newPendingTransfer.save();
+
+                // ========================================================
+                // 🌟 PUSH NOTIFICATION CODE (Packing අංශයට මැසේජ් එක යැවීම) 🌟
+                // ========================================================
+                try {
+                    const subscriptions = await Subscription.find({ section: "Packing" }); 
+                    
+                    const payload = JSON.stringify({
+                        title: '🏭 New Factory Transfer',
+                        message: `A new transfer of ${qty}kg (${teaType}) arrived from Factory!`,
+                        url: '/packing/trans-in-factory-entry'
+                    });
+
+                    subscriptions.forEach(sub => {
+                        webpush.sendNotification(sub, payload).catch(err => {
+                            if (err.statusCode === 410) {
+                                 Subscription.deleteOne({ endpoint: sub.endpoint }).exec();
+                            }
+                        });
+                    });
+                } catch (pushErr) {
+                    console.error("Error sending push notification:", pushErr);
+                }
+                // ========================================================
             }
         } else {
             // Delete if quantity is made 0
