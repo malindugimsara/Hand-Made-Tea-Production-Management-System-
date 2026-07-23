@@ -11,7 +11,7 @@ self.addEventListener('push', function(event) {
       badge: '/favicon.ico',
       vibrate: [200, 100, 200],
       data: {
-        url: data.url || 'http://localhost:5173/' // Notification එක click කරාම යන්න ඕනේ URL එක
+        url: data.url || 'https://unifiedmanagementsystemathukoralagroup.vercel.app/' // Notification එක click කරාම යන්න ඕනේ URL එක
       }
     };
 
