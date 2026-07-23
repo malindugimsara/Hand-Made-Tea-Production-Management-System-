@@ -1,8 +1,8 @@
 import FactoryLog from "../models/FactoryLog.js";
 import PendingTransfer from "../../Packing/models/PendingTransfer.js";
 import TeaReceived from "../../Packing/models/TeaReceivedModel.js"; 
-
-// 1. GET FACTORY LOGS
+import webpush from 'web-push';
+import Subscription from '../../Packing/models/SubscriptionModel.js';// 1. GET FACTORY LOGS
 export const getFactoryLogsByMonth = async (req, res) => {
   try {
     const { month, startDate, endDate } = req.query;
@@ -171,7 +171,80 @@ export const saveDailyFactoryLog = async (req, res) => {
     // 🌟 PACKING AUTOMATION (Local Sales to Pending) 🌟
     // ==========================================
     const d = new Date(targetDate);
-    const dateStr = d.toISOString().slice(0, 10).replace(/-/g, '');
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+
+    // Automation Helper Function (Only for Local Sale)
+    const syncPendingTransfer = async (typePrefix, qty, teaType) => {
+        const regex = new RegExp(`FACT/TO/${year}${month}${day}-${typePrefix}`);
+        
+        if (qty > 0 && teaType) {
+            const existingPending = await PendingTransfer.findOne({
+                date: targetDate,
+                transferNo: { $regex: regex },
+                status: "Pending" 
+            });
+
+            if (existingPending) {
+                // Update existing
+                existingPending.sentQtyKg = qty;
+                existingPending.grade = teaType;   
+                existingPending.teaType = teaType; 
+                existingPending.factoryUsername = currentUser; 
+                await existingPending.save();
+            } else {
+                // Create New
+                const randomNum = Math.floor(100 + Math.random() * 900); // 3 digit random
+                const autoTransNo = `FACT/TO/${year}${month}${day}-${typePrefix}-${randomNum}`;
+                
+                // 🌟 (නිවැරදි කළ තැන: new PendingTransfer ලෙස දැමීම)
+                const newPendingTransfer = new PendingTransfer({
+                    date: targetDate,
+                    transferNo: autoTransNo,
+                    grade: teaType,   
+                    teaType: teaType, 
+                    sentQtyKg: qty,
+                    factoryUsername: currentUser 
+                });
+                await newPendingTransfer.save();
+
+                // ========================================================
+                // 🌟 PUSH NOTIFICATION CODE (Packing අංශයට මැසේජ් එක යැවීම) 🌟
+                // ========================================================
+                try {
+                    const subscriptions = await Subscription.find({ section: "Packing" }); 
+                    
+                    const payload = JSON.stringify({
+                        title: '🏭 New Factory Transfer',
+                        message: `A new transfer of ${qty}kg (${teaType}) arrived from Factory!`,
+                        url: '/packing/trans-in-factory-entry'
+                    });
+
+                    subscriptions.forEach(sub => {
+                        webpush.sendNotification(sub, payload).catch(err => {
+                            if (err.statusCode === 410) {
+                                 Subscription.deleteOne({ endpoint: sub.endpoint }).exec();
+                            }
+                        });
+                    });
+                } catch (pushErr) {
+                    console.error("Error sending push notification:", pushErr);
+                }
+                // ========================================================
+            }
+        } else {
+            // Delete if quantity is made 0
+            await PendingTransfer.findOneAndDelete({
+                date: targetDate,
+                transferNo: { $regex: regex },
+                status: "Pending"
+            });
+        }
+    };
+
+    // Packing එකට Local Sale එක යැවීම
+    await syncPendingTransfer('LOC', updateFields.localSaleAndGratis, updateFields.localSaleTeaType);
     
     // මකා දැමීම
     await PendingTransfer.deleteMany({

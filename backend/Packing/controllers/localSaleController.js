@@ -61,6 +61,7 @@ const getBaseTeaGrade = (productName) => {
   };
 
   if (p === "pitigala tea bags") return "Black Tea T/B";
+  if (p === "pitigala tea 400g") return "BOPF SP";
   if (p === "green tea bag (25)") return "Green Tea T/B";
   if (p.includes("labour")) return "BOPF";
   if (p.includes("awurudu special")) return "BOPF SP";

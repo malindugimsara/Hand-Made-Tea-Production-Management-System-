@@ -135,15 +135,7 @@ export default function PackingDashboard() {
                         fontWeight: 'bold'
                     },
                     duration: 5000,
-                });
-
-                // 2. Browser Push Notification
-                if ('Notification' in window && Notification.permission === 'granted') {
-                    new Notification('New Packing Transfer', {
-                        body: notificationMsg,
-                        icon: '/favicon.ico' 
-                    });
-                }
+                })
             }
         }
 

@@ -124,6 +124,7 @@ export const getBaseTeaGrade = (productName) => {
   if (p === "labour drinking tea") return "BOPF";
   if (p === "pitigala tea bags") return "Black Tea T/B";
   if (p === "green tea bag (25)") return "Green Tea T/B";
+  if (p === "pitigala tea 400g") return "BOPF SP";
   
   return productName;
 };
