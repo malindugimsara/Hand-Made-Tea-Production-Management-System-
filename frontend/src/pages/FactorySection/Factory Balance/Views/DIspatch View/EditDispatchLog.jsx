@@ -1,7 +1,101 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { Truck, Store, RefreshCcw, ArrowLeft, Info, AlertTriangle, Tag, FileText, Save } from 'lucide-react';
+import { Truck, Store, RefreshCcw, ArrowLeft, Info, AlertTriangle, Tag, Save, PlusCircle, Trash2 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+
+// --- Shared Input Styles ---
+const inputStyles = "w-full p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg font-semibold text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:outline-none transition-all";
+
+// --- Tea Type Predefined Options & Autocomplete ---
+const teaTypeOptions = [
+  "BOPF", "BOPF SP", "OPA", "OP 1", "OP", "Pekoe", "BOP",
+  "FBOP", "FF SP", "FF EX SP", "Dust", "Dust 1", "Premium"
+];
+
+const TeaTypeAutocomplete = ({ name, value, onChange, placeholder }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const wrapperRef = useRef(null);
+
+  const filteredOptions = teaTypeOptions.filter(opt =>
+    opt.toLowerCase().includes((value || '').toLowerCase())
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleKeyDown = (e) => {
+    if (!isOpen) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") setIsOpen(true);
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex(prev => (prev < filteredOptions.length - 1 ? prev + 1 : prev));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex(prev => (prev > 0 ? prev - 1 : 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
+        onChange({ target: { name, value: filteredOptions[highlightedIndex] } });
+        setIsOpen(false);
+      }
+    } else if (e.key === "Escape") {
+      setIsOpen(false);
+    }
+  };
+
+  return (
+    <div className="relative" ref={wrapperRef}>
+      <Tag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+      <input
+        type="text"
+        name={name}
+        value={value}
+        onChange={(e) => {
+          onChange(e);
+          setIsOpen(true);
+          setHighlightedIndex(-1);
+        }}
+        onFocus={() => setIsOpen(true)}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        className={`${inputStyles} pl-10 relative z-0`}
+        autoComplete="off"
+      />
+      {isOpen && filteredOptions.length > 0 && (
+        <ul className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl max-h-56 overflow-y-auto custom-scrollbar overflow-hidden">
+          {filteredOptions.map((opt, index) => (
+            <li
+              key={opt}
+              className={`px-4 py-2.5 cursor-pointer text-sm font-bold transition-colors ${
+                highlightedIndex === index
+                  ? "bg-teal-50 dark:bg-teal-900/40 text-teal-700 dark:text-teal-400"
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              }`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange({ target: { name, value: opt } });
+                setIsOpen(false);
+              }}
+              onMouseEnter={() => setHighlightedIndex(index)}
+            >
+              {opt}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
 
 export default function EditDispatchLog() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -11,25 +105,16 @@ export default function EditDispatchLog() {
     // 1. Grab the record safely right away
     const record = location.state?.recordData || null;
 
-    // 2. Initialize the state using the passed record
+    // 2. Initialize the state using the passed record (mapping to arrays)
     const [formData, setFormData] = useState({
         date: record?.date ? new Date(record.date).toISOString().split('T')[0] : '',
         
-        // Dispatch Fields
-        invoiceNo: record?.invoiceNo || '',
-        dispatchTeaType: record?.dispatchTeaType || '',
-        dispatch: record?.dispatch || '',
-        
-        // Local Sale Fields
-        localSaleTeaType: record?.localSaleTeaType || '',
-        localSaleAndGratis: record?.localSaleAndGratis || record?.localSales || '',
-        
-        // Return Fields (Updated with Return Tea Type)
-        returnTeaType: record?.returnTeaType || '',
-        returnAmount: record?.returnAmount || '',
+        // Convert existing DB arrays OR fallback to a single empty row if none exist
+        dispatches: record?.dispatches?.length > 0 ? record.dispatches : [{ invoiceNo: '', teaType: '', weight: '' }],
+        localSales: record?.localSales?.length > 0 ? record.localSales : [{ teaType: '', weight: '' }],
+        returns: record?.returns?.length > 0 ? record.returns : [{ teaType: '', amount: '' }],
 
-        // HIDDEN FIELD: We MUST send the existing Green Leaf back to the backend, 
-        // otherwise the backend will overwrite it to 0 during the update.
+        // HIDDEN FIELD: We MUST send the existing Green Leaf back to the backend
         greenLeafToday: record?.greenLeaf?.today || record?.greenLeafToday || 0,
     });
 
@@ -42,13 +127,26 @@ export default function EditDispatchLog() {
         }
     }, [record, navigate]);
 
-    // Real-time calculation for Total Out
-    const calculatedTotalOut = (Number(formData.dispatch) || 0) + (Number(formData.localSaleAndGratis) || 0);
-
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setFormData({ ...formData, [name]: value });
+    // --- Dynamic Array Handlers ---
+    const handleArrayChange = (category, index, field, value) => {
+      const updatedArray = [...formData[category]];
+      updatedArray[index][field] = value;
+      setFormData({ ...formData, [category]: updatedArray });
     };
+
+    const addArrayItem = (category, defaultObj) => {
+      setFormData({ ...formData, [category]: [...formData[category], defaultObj] });
+    };
+
+    const removeArrayItem = (category, index) => {
+      const updatedArray = formData[category].filter((_, i) => i !== index);
+      setFormData({ ...formData, [category]: updatedArray });
+    };
+
+    // Real-time calculation for Total Out
+    const totalDispatch = formData.dispatches.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+    const totalLocalSale = formData.localSales.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+    const calculatedTotalOut = totalDispatch + totalLocalSale;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -64,17 +162,10 @@ export default function EditDispatchLog() {
                 // Keep the original green leaf value unchanged
                 greenLeafToday: Number(formData.greenLeafToday) || 0,
                 
-                // Updated Dispatch & Sales Data
-                invoiceNo: formData.invoiceNo,
-                dispatchTeaType: formData.dispatchTeaType,
-                dispatch: Number(formData.dispatch) || 0,
-                
-                localSaleTeaType: formData.localSaleTeaType,
-                localSaleAndGratis: Number(formData.localSaleAndGratis) || 0,
-                
-                // 👈 Updated Return Data
-                returnTeaType: formData.returnTeaType,
-                returnAmount: Number(formData.returnAmount) || 0,
+                // Updated Array Data (Filtered to remove empty rows)
+                dispatches: formData.dispatches.filter(d => d.weight || d.invoiceNo), 
+                localSales: formData.localSales.filter(l => l.weight || l.teaType),
+                returns: formData.returns.filter(r => r.amount || r.teaType),
                 
                 username: loggedInUser,
                 isExplicitEdit: true
@@ -113,8 +204,6 @@ export default function EditDispatchLog() {
             </div>
         );
     }
-
-    const inputStyles = "w-full p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg font-semibold text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-teal-500/30 focus:outline-none transition-all";
 
     return (
         <div className="p-6 md:p-8 max-w-3xl mx-auto font-sans bg-[#f3faf7] dark:bg-gray-950 min-h-screen transition-colors duration-300">
@@ -161,36 +250,60 @@ export default function EditDispatchLog() {
                     <h3 className="text-lg font-bold text-teal-700 dark:text-teal-400 mb-4 flex items-center gap-2 border-b border-teal-200/50 dark:border-teal-800/50 pb-3">
                         <Truck size={20} /> Dispatch Details
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Invoice No.</label>
-                            <input
-                                type="text" name="invoiceNo"
-                                value={formData.invoiceNo} onChange={handleInputChange}
-                                placeholder="E.g. INV-1002" className={inputStyles}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
-                            <div className="relative">
-                                <Tag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    
+                    {formData.dispatches.map((dispatchItem, index) => (
+                        <div key={index} className="relative mb-5 pb-5 border-b border-teal-200/50 dark:border-teal-800/50 border-dashed last:border-0 last:mb-0 last:pb-0">
+                            
+                            {formData.dispatches.length > 1 && (
+                            <button 
+                                type="button" 
+                                onClick={() => removeArrayItem('dispatches', index)}
+                                className="absolute -top-1 right-0 text-red-400 hover:text-red-600 dark:hover:text-red-400 p-1 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 shadow-sm z-10 transition-colors"
+                            >
+                                <Trash2 size={14} />
+                            </button>
+                            )}
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 mt-2">
+                                <div>
+                                    <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Invoice No.</label>
+                                    <input
+                                        type="text" 
+                                        value={dispatchItem.invoiceNo} 
+                                        onChange={(e) => handleArrayChange('dispatches', index, 'invoiceNo', e.target.value)}
+                                        placeholder="E.g. INV-1002" className={inputStyles}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
+                                    <TeaTypeAutocomplete
+                                        name={`dispatchTeaType-${index}`}
+                                        value={dispatchItem.teaType}
+                                        onChange={(e) => handleArrayChange('dispatches', index, 'teaType', e.target.value)}
+                                        placeholder="E.g. BOPF"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Dispatch Quantity (kg)</label>
                                 <input
-                                    type="text" name="dispatchTeaType"
-                                    value={formData.dispatchTeaType} onChange={handleInputChange}
-                                    placeholder="E.g. BOPF" className={`${inputStyles} pl-10`}
+                                    type="number" step="0.01" min="0" 
+                                    value={dispatchItem.weight} 
+                                    onChange={(e) => handleArrayChange('dispatches', index, 'weight', e.target.value)}
+                                    onWheel={(e) => e.target.blur()}
+                                    placeholder="0.00 kg" className={inputStyles}
                                 />
                             </div>
                         </div>
-                    </div>
-                    <div>
-                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Dispatch Quantity (kg)</label>
-                        <input
-                            type="number" step="0.01" min="0" name="dispatch"
-                            value={formData.dispatch} onChange={handleInputChange}
-                            onWheel={(e) => e.target.blur()}
-                            placeholder="0.00 kg" className={inputStyles}
-                        />
-                    </div>
+                    ))}
+
+                    <button 
+                        type="button" 
+                        onClick={() => addArrayItem('dispatches', { invoiceNo: '', teaType: '', weight: '' })}
+                        className="mt-2 w-full py-2.5 rounded-xl border-2 border-dashed border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-400 font-bold flex items-center justify-center gap-2 hover:bg-teal-100/50 dark:hover:bg-teal-900/40 transition-colors text-sm"
+                    >
+                        <PlusCircle size={16} /> Add New Dispatch
+                    </button>
                 </div>
 
                 {/* 2. LOCAL SALES SECTION */}
@@ -198,28 +311,51 @@ export default function EditDispatchLog() {
                     <h3 className="text-lg font-bold text-orange-700 dark:text-orange-400 mb-4 flex items-center gap-2 border-b border-orange-200/50 dark:border-orange-800/50 pb-3">
                         <Store size={20} /> Local Sales Details
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
-                            <div className="relative">
-                                <Tag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                <input
-                                    type="text" name="localSaleTeaType"
-                                    value={formData.localSaleTeaType} onChange={handleInputChange}
-                                    placeholder="E.g. Dust" className={`${inputStyles} pl-10`}
-                                />
+                    
+                    {formData.localSales.map((saleItem, index) => (
+                        <div key={index} className="relative mb-5 pb-5 border-b border-orange-200/50 dark:border-orange-800/50 border-dashed last:border-0 last:mb-0 last:pb-0">
+                            
+                            {formData.localSales.length > 1 && (
+                            <button 
+                                type="button" 
+                                onClick={() => removeArrayItem('localSales', index)}
+                                className="absolute -top-1 right-0 text-red-400 hover:text-red-600 dark:hover:text-red-400 p-1 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 shadow-sm z-10 transition-colors"
+                            >
+                                <Trash2 size={14} />
+                            </button>
+                            )}
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                                <div>
+                                    <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
+                                    <TeaTypeAutocomplete
+                                        name={`localSaleTeaType-${index}`}
+                                        value={saleItem.teaType}
+                                        onChange={(e) => handleArrayChange('localSales', index, 'teaType', e.target.value)}
+                                        placeholder="E.g. Dust"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Total Qty (kg)</label>
+                                    <input
+                                        type="number" step="0.01" min="0" 
+                                        value={saleItem.weight} 
+                                        onChange={(e) => handleArrayChange('localSales', index, 'weight', e.target.value)}
+                                        onWheel={(e) => e.target.blur()}
+                                        placeholder="0.00 kg" className={inputStyles}
+                                    />
+                                </div>
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Total Qty (kg)</label>
-                            <input
-                                type="number" step="0.01" min="0" name="localSaleAndGratis"
-                                value={formData.localSaleAndGratis} onChange={handleInputChange}
-                                onWheel={(e) => e.target.blur()}
-                                placeholder="0.00 kg" className={inputStyles}
-                            />
-                        </div>
-                    </div>
+                    ))}
+                    
+                    <button 
+                        type="button" 
+                        onClick={() => addArrayItem('localSales', { teaType: '', weight: '' })}
+                        className="mt-2 w-full py-2.5 rounded-xl border-2 border-dashed border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400 font-bold flex items-center justify-center gap-2 hover:bg-orange-100/50 dark:hover:bg-orange-900/40 transition-colors text-sm"
+                    >
+                        <PlusCircle size={16} /> Add New Local Sale
+                    </button>
                 </div>
 
                 {/* TOTAL OUT SUMMARY */}
@@ -230,34 +366,56 @@ export default function EditDispatchLog() {
                     </div>
                 </div>
 
-                {/* 3. RETURNS SECTION */}
+                {/* 3. RETURNS */}
                 <div className="mb-8 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 rounded-xl p-5 transition-colors">
                     <h3 className="text-lg font-bold text-blue-700 dark:text-blue-400 mb-4 flex items-center gap-2 border-b border-blue-200/50 dark:border-blue-800/50 pb-3">
                         <RefreshCcw size={20} /> Returns
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {/* 👈 Added Return Tea Type */}
-                        <div>
-                            <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
-                            <div className="relative">
-                                <Tag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                <input
-                                    type="text" name="returnTeaType"
-                                    value={formData.returnTeaType} onChange={handleInputChange}
-                                    placeholder="E.g. BOPF" className={`${inputStyles} pl-10`}
-                                />
+                    
+                    {formData.returns.map((returnItem, index) => (
+                        <div key={index} className="relative mb-5 pb-5 border-b border-blue-200/50 dark:border-blue-800/50 border-dashed last:border-0 last:mb-0 last:pb-0">
+                            
+                            {formData.returns.length > 1 && (
+                            <button 
+                                type="button" 
+                                onClick={() => removeArrayItem('returns', index)}
+                                className="absolute -top-1 right-0 text-red-400 hover:text-red-600 dark:hover:text-red-400 p-1 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 shadow-sm z-10 transition-colors"
+                            >
+                                <Trash2 size={14} />
+                            </button>
+                            )}
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                                <div>
+                                    <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
+                                    <TeaTypeAutocomplete
+                                        name={`returnTeaType-${index}`}
+                                        value={returnItem.teaType}
+                                        onChange={(e) => handleArrayChange('returns', index, 'teaType', e.target.value)}
+                                        placeholder="E.g. BOPF, Pekoe"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Return Amount (kg)</label>
+                                    <input
+                                        type="number" step="0.01" min="0" 
+                                        value={returnItem.amount} 
+                                        onChange={(e) => handleArrayChange('returns', index, 'amount', e.target.value)}
+                                        onWheel={(e) => e.target.blur()}
+                                        placeholder="0.00 kg" className={inputStyles}
+                                    />
+                                </div>
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Return Amount (kg)</label>
-                            <input
-                                type="number" step="0.01" min="0" name="returnAmount"
-                                value={formData.returnAmount} onChange={handleInputChange}
-                                onWheel={(e) => e.target.blur()}
-                                placeholder="0.00 kg" className={inputStyles}
-                            />
-                        </div>
-                    </div>
+                    ))}
+                    
+                    <button 
+                        type="button" 
+                        onClick={() => addArrayItem('returns', { teaType: '', amount: '' })}
+                        className="mt-2 w-full py-2.5 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 font-bold flex items-center justify-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-sm"
+                    >
+                        <PlusCircle size={16} /> Add New Return
+                    </button>
                 </div>
 
                 {/* SUBMIT BUTTON */}
