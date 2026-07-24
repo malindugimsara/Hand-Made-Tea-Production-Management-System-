@@ -281,6 +281,8 @@ export const saveDailyFactoryLog = async (req, res) => {
     });
 
     // නැවත එකතු කිරීම (ලූපයක් භාවිතා කරමින්)
+    const dateStr = `${year}${month}${day}`; // 👈 Define it here using your existing variables
+
     for (const [index, sale] of localSales.entries()) {
       if (sale.weight > 0 && sale.teaType) {
         const randomNum = Math.floor(100 + Math.random() * 900);
@@ -294,7 +296,7 @@ export const saveDailyFactoryLog = async (req, res) => {
         }).save();
       }
     }
-
+    
     res.status(200).json({ message: "Daily factory log saved successfully.", data: updatedLog });
   } catch (error) {
     console.error(error);
