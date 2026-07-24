@@ -3,7 +3,7 @@ import bodyParser from 'body-parser';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import webpush from 'web-push'; // --- Web Push Import
+import webpush from 'web-push'; 
 
 import greenLeafRouter from './router/greenLeafRouter.js';
 import productionRouter from './router/productionRouter.js';
@@ -35,6 +35,8 @@ import StockAdjustmentRouter from './Packing/Routes/stockAdjustmentRoutes.js';
 import labourOutputRouter from './factory/router/labourOutputRoutes.js';
 import factoryPackRoutes from './factory/router/factoryPackRoutes.js';
 
+import Subscription from './Packing/models/SubscriptionModel.js';
+
 dotenv.config();
 const app = express();
 
@@ -58,6 +60,37 @@ mongoose.connect(process.env.MONGO_URL).then(() => {
 }).catch((err) => {
     console.error("MongoDB connection error:", err);
 });
+
+
+app.post('/api/notifications/subscribe', async (req, res) => {
+    try {
+        const subscription = req.body;
+
+        // අලුත් Subscription එකක් විදියට Database එකේ Save කරනවා
+        // (endpoint එක කලින් තියෙනවද බලලා නැත්නම් විතරක් සේව් කරන්න upsert පාවිච්චි කරනවා)
+        await Subscription.findOneAndUpdate(
+            { endpoint: subscription.endpoint }, // මේකෙන් බලනවා කලින් මේ user සේව් වෙලාද කියලා
+            subscription,
+            { upsert: true, new: true }
+        );
+
+        res.status(201).json({ message: "Subscription saved successfully." });
+
+        // (ඔප්ෂනල්) Welcome Notification එකක් යවන්න
+        const payload = JSON.stringify({ 
+            title: 'Notifications Enabled ✅', 
+            body: 'You will now receive alerts for new transfers.' 
+        });
+
+        webpush.sendNotification(subscription, payload)
+            .catch(err => console.error('Notification sending error:', err));
+
+    } catch (error) {
+        console.error("Error saving subscription:", error);
+        res.status(500).json({ error: "Failed to save subscription" });
+    }
+});
+
 
 // Routes
 // Notice: We removed app.use(authjwt) from here!
@@ -93,26 +126,6 @@ app.use('/api/factory-logs', factoryrouter);
 app.use('/api/labour-output', labourOutputRouter);
 app.use('/api/stock-adjustment', StockAdjustmentRouter);
 app.use('/api/factory-packs', factoryPackRoutes);
-
-// --- Push Notification Subscribe Route (Aluthin) ---
-app.post('/api/notifications/subscribe', (req, res) => {
-  const subscription = req.body;
-  
-  // NOTE: Methanadi thamai oyage user ge database record ekata me 'subscription' object eka save karanna oni. 
-  // (e.g., User.findByIdAndUpdate(userId, { pushSubscription: subscription }))
-
-  res.status(201).json({ message: "Subscription received successfully." });
-
-  // App eka open karalama test karala balanna welcome notification ekak
-  const payload = JSON.stringify({ 
-    title: 'Unified Management System', 
-    body: 'Welcome to the Athukorala Group! You will now receive notifications.' 
-  });
-
-  webpush.sendNotification(subscription, payload)
-    .catch(err => console.error('Notification sending error:', err));
-});
-// ----------------------------------------------------
 
 app.listen(3000, () => {
   console.log('Server is running on port 3000');
