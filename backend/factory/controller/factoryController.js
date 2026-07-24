@@ -213,25 +213,47 @@ export const saveDailyFactoryLog = async (req, res) => {
                 // ========================================================
                 // 🌟 PUSH NOTIFICATION CODE (Packing අංශයට මැසේජ් එක යැවීම) 🌟
                 // ========================================================
-                // try {
-                //     const subscriptions = await Subscription.find({ section: "Packing" }); 
-                    
-                //     const payload = JSON.stringify({
-                //         title: '🏭 New Factory Transfer',
-                //         message: `A new transfer of ${qty}kg (${teaType}) arrived from Factory!`,
-                //         url: '/packing/trans-in-factory-entry'
-                //     });
+                try {
+                  const subscriptions = await Subscription.find({ section: "Packing" });
 
-                //     subscriptions.forEach(sub => {
-                //         webpush.sendNotification(sub, payload).catch(err => {
-                //             if (err.statusCode === 410) {
-                //                  Subscription.deleteOne({ endpoint: sub.endpoint }).exec();
-                //             }
-                //         });
-                //     });
-                // } catch (pushErr) {
-                //     console.error("Error sending push notification:", pushErr);
-                // }
+                  const payload = JSON.stringify({
+                      title: '🏭 New Factory Transfer',
+                      message: `A new transfer of ${qty}kg (${teaType}) arrived from Factory!`,
+                      url: '/packing/trans-in-factory-entry'
+                  });
+
+
+                  await Promise.all(
+                      subscriptions.map(async (sub) => {
+                          try {
+                              await webpush.sendNotification(sub, payload);
+                          } 
+                          catch(err) {
+
+                              console.error(
+                                  "Push failed:",
+                                  err.statusCode,
+                                  err.message
+                              );
+
+                              if(err.statusCode === 410){
+                                  await Subscription.deleteOne({
+                                      endpoint: sub.endpoint
+                                  });
+                              }
+                          }
+                      })
+                  );
+
+
+              } catch(pushErr){
+
+                  console.error(
+                    "Notification error:",
+                    pushErr
+                  );
+
+              }
             }
         } else {
             // Delete if quantity is made 0
@@ -244,8 +266,13 @@ export const saveDailyFactoryLog = async (req, res) => {
     };
 
     // Packing එකට Local Sale එක යැවීම
-    await syncPendingTransfer('LOC', updateFields.localSaleAndGratis, updateFields.localSaleTeaType);
-    
+    await syncPendingTransfer(
+      'LOC',
+      updateFields.localSaleAndGratis,
+      updateFields.localSaleTeaType
+    ).catch(err=>{
+      console.error(err);
+    });    
     // මකා දැමීම
     await PendingTransfer.deleteMany({
       date: targetDate,
