@@ -3,6 +3,7 @@ import PendingTransfer from "../../Packing/models/PendingTransfer.js";
 import TeaReceived from "../../Packing/models/TeaReceivedModel.js"; 
 import webpush from 'web-push';
 import Subscription from '../../Packing/models/SubscriptionModel.js';// 1. GET FACTORY LOGS
+
 export const getFactoryLogsByMonth = async (req, res) => {
   try {
     const { month, startDate, endDate } = req.query;
@@ -212,26 +213,25 @@ export const saveDailyFactoryLog = async (req, res) => {
                 // ========================================================
                 // 🌟 PUSH NOTIFICATION CODE (Packing අංශයට මැසේජ් එක යැවීම) 🌟
                 // ========================================================
-                try {
-                    const subscriptions = await Subscription.find({ section: "Packing" }); 
+                // try {
+                //     const subscriptions = await Subscription.find({ section: "Packing" }); 
                     
-                    const payload = JSON.stringify({
-                        title: '🏭 New Factory Transfer',
-                        message: `A new transfer of ${qty}kg (${teaType}) arrived from Factory!`,
-                        url: '/packing/trans-in-factory-entry'
-                    });
+                //     const payload = JSON.stringify({
+                //         title: '🏭 New Factory Transfer',
+                //         message: `A new transfer of ${qty}kg (${teaType}) arrived from Factory!`,
+                //         url: '/packing/trans-in-factory-entry'
+                //     });
 
-                    subscriptions.forEach(sub => {
-                        webpush.sendNotification(sub, payload).catch(err => {
-                            if (err.statusCode === 410) {
-                                 Subscription.deleteOne({ endpoint: sub.endpoint }).exec();
-                            }
-                        });
-                    });
-                } catch (pushErr) {
-                    console.error("Error sending push notification:", pushErr);
-                }
-                // ========================================================
+                //     subscriptions.forEach(sub => {
+                //         webpush.sendNotification(sub, payload).catch(err => {
+                //             if (err.statusCode === 410) {
+                //                  Subscription.deleteOne({ endpoint: sub.endpoint }).exec();
+                //             }
+                //         });
+                //     });
+                // } catch (pushErr) {
+                //     console.error("Error sending push notification:", pushErr);
+                // }
             }
         } else {
             // Delete if quantity is made 0
