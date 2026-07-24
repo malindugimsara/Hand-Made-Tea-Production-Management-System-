@@ -1,5 +1,45 @@
 import StockTransfer from '../models/StockTransfer.js';
 import {Production} from '../models/Production.js'; // <-- Changed to your Production model
+import webpush from 'web-push';
+import Subscription from '../Packing/models/SubscriptionModel.js'; // 👈 ඔයාගේ Subscription model එක තියෙන path එක හරියටම දෙන්න
+
+// @desc    Create a new stock transfer (Handmade -> Packing)
+// @route   POST /api/handmade/transfers
+// export const createHandmadeTransfer = async (req, res) => {
+//     try {
+//         const { items, remarks } = req.body;
+
+//         if (!items || items.length === 0) {
+//             return res.status(400).json({ message: 'At least one item is required.' });
+//         }
+
+//         const currentUserName = req.user?.name || req.user?.username || 'Handmade Officer';
+
+//         // Generate Transfer ID (e.g., TR-20260423-XXXX)
+//         const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, '');
+//         const randomNum = Math.floor(1000 + Math.random() * 9000);
+//         const transferId = `TR-${dateStr}-${randomNum}`;
+
+//         const newTransfer = new StockTransfer({
+//             transferId,
+//             items: items.map(item => ({
+//                 product: item.product,
+//                 issuedQtyKg: Number(item.issuedQtyKg)
+//             })),
+//             issuedBy: currentUserName,
+//             source: 'Handmade', 
+//             remarks,
+//             status: 'PENDING'
+//         });
+
+//         const savedTransfer = await newTransfer.save();
+//         res.status(201).json(savedTransfer);
+
+//     } catch (error) {
+//         console.error('Error creating handmade transfer:', error);
+//         res.status(500).json({ message: 'Server error while sending stock.' });
+//     }
+// };
 
 // @desc    Create a new stock transfer (Handmade -> Packing)
 // @route   POST /api/handmade/transfers
@@ -31,6 +71,32 @@ export const createHandmadeTransfer = async (req, res) => {
         });
 
         const savedTransfer = await newTransfer.save();
+
+        // ========================================================
+        // 🌟 PUSH NOTIFICATION CODE (Packing අංශයට මැසේජ් එක යැවීම) 🌟
+        // ========================================================
+        try {
+            const subscriptions = await Subscription.find({ section: "Packing" }); 
+            
+            // යවන සම්පූර්ණ ප්‍රමාණය (Total Qty) එකතු කරගැනීම
+            const totalQty = items.reduce((sum, item) => sum + Number(item.issuedQtyKg), 0);
+
+            const payload = JSON.stringify({
+                title: '📦 New Handmade Transfer',
+                message: `A new transfer of ${totalQty}kg arrived from Handmade! (${transferId})`,
+                url: '/packing/trans-in-entry' // 👈 Packing එකේ Handmade Trans In Page එකට අදාල URL එක මෙතනට දෙන්න
+            });
+
+            subscriptions.forEach(sub => {
+                webpush.sendNotification(sub, payload).catch(err => {
+                    if (err.statusCode === 410) {
+                         Subscription.deleteOne({ endpoint: sub.endpoint }).exec();
+                    }
+                });
+            });
+        } catch (pushErr) {
+            console.error("Error sending push notification:", pushErr);
+        }
         res.status(201).json(savedTransfer);
 
     } catch (error) {
