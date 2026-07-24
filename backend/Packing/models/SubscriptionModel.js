@@ -8,6 +8,7 @@ const subscriptionSchema = new mongoose.Schema({
     p256dh: { type: String, required: true },
     auth: { type: String, required: true }
   },
+  role: { type: String },
   // මොන අංශයේ කෙනාද කියලා දැනගන්න (Packing/Factory)
   section: { type: String, default: "Packing" } 
 }, { timestamps: true });

@@ -107,7 +107,6 @@ export const getFactoryLogsByMonth = async (req, res) => {
 };
 
 // 2. SAVE OR UPDATE DAILY FACTORY LOG 
-// 2. SAVE OR UPDATE DAILY FACTORY LOG 
 export const saveDailyFactoryLog = async (req, res) => {
   try {
     const { 
@@ -175,117 +174,21 @@ export const saveDailyFactoryLog = async (req, res) => {
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
 
-    // Automation Helper Function (Only for Local Sale)
-    const syncPendingTransfer = async (typePrefix, qty, teaType) => {
-        const regex = new RegExp(`FACT/TO/${year}${month}${day}-${typePrefix}`);
-        
-        if (qty > 0 && teaType) {
-            const existingPending = await PendingTransfer.findOne({
-                date: targetDate,
-                transferNo: { $regex: regex },
-                status: "Pending" 
-            });
-
-            if (existingPending) {
-                // Update existing
-                existingPending.sentQtyKg = qty;
-                existingPending.grade = teaType;   
-                existingPending.teaType = teaType; 
-                existingPending.factoryUsername = currentUser; 
-                await existingPending.save();
-            } else {
-                // Create New
-                const randomNum = Math.floor(100 + Math.random() * 900); // 3 digit random
-                const autoTransNo = `FACT/TO/${year}${month}${day}-${typePrefix}-${randomNum}`;
-                
-                // 🌟 (නිවැරදි කළ තැන: new PendingTransfer ලෙස දැමීම)
-                const newPendingTransfer = new PendingTransfer({
-                    date: targetDate,
-                    transferNo: autoTransNo,
-                    grade: teaType,   
-                    teaType: teaType, 
-                    sentQtyKg: qty,
-                    factoryUsername: currentUser 
-                });
-                await newPendingTransfer.save();
-
-                // ========================================================
-                // 🌟 PUSH NOTIFICATION CODE (Packing අංශයට මැසේජ් එක යැවීම) 🌟
-                // ========================================================
-                try {
-                  const subscriptions = await Subscription.find({ section: "Packing" });
-
-                  const payload = JSON.stringify({
-                      title: '🏭 New Factory Transfer',
-                      message: `A new transfer of ${qty}kg (${teaType}) arrived from Factory!`,
-                      url: '/packing/trans-in-factory-entry'
-                  });
-
-
-                  await Promise.all(
-                      subscriptions.map(async (sub) => {
-                          try {
-                              await webpush.sendNotification(sub, payload);
-                          } 
-                          catch(err) {
-
-                              console.error(
-                                  "Push failed:",
-                                  err.statusCode,
-                                  err.message
-                              );
-
-                              if(err.statusCode === 410){
-                                  await Subscription.deleteOne({
-                                      endpoint: sub.endpoint
-                                  });
-                              }
-                          }
-                      })
-                  );
-
-
-              } catch(pushErr){
-
-                  console.error(
-                    "Notification error:",
-                    pushErr
-                  );
-
-              }
-            }
-        } else {
-            // Delete if quantity is made 0
-            await PendingTransfer.findOneAndDelete({
-                date: targetDate,
-                transferNo: { $regex: regex },
-                status: "Pending"
-            });
-        }
-    };
-
-    // Packing එකට Local Sale එක යැවීම
-    await syncPendingTransfer(
-      'LOC',
-      updateFields.localSaleAndGratis,
-      updateFields.localSaleTeaType
-    ).catch(err=>{
-      console.error(err);
-    });    
-    // මකා දැමීම
+    // 1. කලින් යවපු ඒ දවසට අදාල Pending Transfers ඔක්කොම මකා දමන්න (අලුත් කරද්දී පරණ ඒවා අයින් වෙන්න)
     await PendingTransfer.deleteMany({
       date: targetDate,
       transferNo: { $regex: /FACT\/TO\// },
       status: "Pending"
     });
 
-    // නැවත එකතු කිරීම (ලූපයක් භාවිතා කරමින්)
-    const dateStr = `${year}${month}${day}`; // 👈 Define it here using your existing variables
-
+    // 2. අලුතින් Local Sales ලූපය හරහා Pending Transfers හැදීම සහ Notification යැවීම
     for (const [index, sale] of localSales.entries()) {
       if (sale.weight > 0 && sale.teaType) {
         const randomNum = Math.floor(100 + Math.random() * 900);
+        
+        // Database එකට Save කිරීම
         await new PendingTransfer({
             date: targetDate,
             transferNo: `FACT/TO/${dateStr}-LOC-${randomNum}-${index}`,
@@ -294,6 +197,36 @@ export const saveDailyFactoryLog = async (req, res) => {
             sentQtyKg: sale.weight,
             factoryUsername: currentUser 
         }).save();
+
+        // ========================================================
+        // 🌟 PUSH NOTIFICATION CODE (Packing අංශයට යැවීම) 🌟
+        // ========================================================
+        try {
+            // 'Packing Officer' අයට විතරක් යැවීමට ෆිල්ටර් කිරීම
+            const subscriptions = await Subscription.find({ 
+                role: "Packing Officer" // 👈 ඔයාගේ සිස්ටම් එකේ Role එකේ නම හරියටම මෙතනට දෙන්න
+            });
+            const payload = JSON.stringify({
+                title: '🏭 New Factory Transfer',
+                message: `A new transfer of ${sale.weight}kg (${sale.teaType}) arrived from Factory!`,
+                url: '/packing/trans-in-factory-entry'
+            });
+
+            await Promise.all(
+                subscriptions.map(async (sub) => {
+                    try {
+                        await webpush.sendNotification(sub, payload);
+                    } catch(err) {
+                        if (err.statusCode === 410) {
+                            await Subscription.deleteOne({ endpoint: sub.endpoint });
+                        }
+                    }
+                })
+            );
+        } catch(pushErr) {
+            console.error("Notification error:", pushErr);
+        }
+        // ========================================================
       }
     }
     

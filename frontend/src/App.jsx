@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; // <-- useState, useEffect import karanna
+import React, { useState, useEffect } from 'react'; 
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
@@ -10,7 +10,6 @@ import FactoryRouter from './pages/FactoryRouter';
 const PUBLIC_VAPID_KEY = import.meta.env.VITE_PUBLIC_VAPID_KEY;
 
 function urlBase64ToUint8Array(base64String) {
-  // ... (Kalin thibba code ekama)
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);
@@ -27,13 +26,10 @@ const ProtectedRoute = () => {
 };
 
 export default function App() {
-  // 1. Button eka pennanawada nadda kiyala control karanna state ekak
   const [showNotificationBtn, setShowNotificationBtn] = useState(false);
 
-  // 2. App eka load weddi permission eka check kireema
   useEffect(() => {
     if ('Notification' in window) {
-      // Permission eka 'default' nam vitharak button eka pennanna (Kalin allow/block karala natham)
       if (Notification.permission === 'default') {
         setShowNotificationBtn(true);
       }
@@ -50,15 +46,23 @@ export default function App() {
           applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
         });
 
+        // 🌟 අලුත් වෙනස 1: LocalStorage එකෙන් ලොග් වෙලා ඉන්න කෙනාගේ Role එක ගැනීම 
+        const userRole = localStorage.getItem('userRole') || 'Unknown';
+
+        // 🌟 අලුත් වෙනස 2: Subscription එකට Role එකයි Section එකයි එකතු කිරීම
+        const payload = {
+          ...subscription.toJSON(), // Subscription විස්තර ටික දිගහැරීම
+          role: userRole,           // User ගේ Role එක (උදා: "Packing Officer")
+          section: "Packing"        // අදාල අංශය 
+        };
+
         await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/notifications/subscribe`, {
           method: 'POST',
-          body: JSON.stringify(subscription),
+          body: JSON.stringify(payload), // 🌟 අලුත් වෙනස 3: කලින් යැව්ව subscription වෙනුවට අලුත් payload එක යැවීම
           headers: { 'content-type': 'application/json' }
         });
 
         toast.success("Notifications Enabled Successfully!");
-
-        // 3. Success unata passe button eka hide karanna
         setShowNotificationBtn(false);
 
       } catch (error) {
@@ -75,7 +79,6 @@ export default function App() {
       <Toaster position="top-center" />
       <Analytics />
 
-      {/* 4. State eka true nam vitharak button eka pennanna */}
       {showNotificationBtn && (
         <button
           onClick={subscribeToNotifications}
