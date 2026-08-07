@@ -245,12 +245,40 @@ export default function DispatchAndReturn() {
       const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
       for (const record of pendingRecords) {
+        
+        // 🚨 UPDATE PAYLOAD: Format arrays correctly and include Totals
         const payload = {
           date: record.date,
           greenLeafToday: Number(record.greenLeafToday) || 0,
-          dispatches: record.dispatches.filter(d => d.weight || d.invoiceNo), 
-          localSales: record.localSales.filter(l => l.weight || l.teaType),
-          returns: record.returns.filter(r => r.amount || r.teaType),
+          
+          // 1. Send the Total values required by your schema
+          dispatch: Number(record.totalDispatch) || 0,
+          localSaleAndGratis: Number(record.totalLocalSale) || 0,
+          returnAmount: Number(record.totalReturn) || 0,
+
+          // 2. Map arrays to make sure 'weight' and 'amount' are strictly Numbers
+          dispatches: record.dispatches
+            .filter(d => d.weight || d.invoiceNo)
+            .map(d => ({
+              invoiceNo: d.invoiceNo,
+              teaType: d.teaType,
+              weight: Number(d.weight) || 0
+            })),
+            
+          localSales: record.localSales
+            .filter(l => l.weight || l.teaType)
+            .map(l => ({
+              teaType: l.teaType,
+              weight: Number(l.weight) || 0
+            })),
+            
+          returns: record.returns
+            .filter(r => r.amount || r.teaType)
+            .map(r => ({
+              teaType: r.teaType,
+              amount: Number(r.amount) || 0
+            })),
+            
           username: username
         };
 
