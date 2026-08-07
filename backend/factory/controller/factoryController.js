@@ -110,7 +110,7 @@ export const getFactoryLogsByMonth = async (req, res) => {
 export const saveDailyFactoryLog = async (req, res) => {
   try {
     const { 
-      date, greenLeafToday, dispatches = [], localSales = [], returns = [], 
+      date, greenLeafToday, dispatches, localSales, returns, 
       username, isExplicitEdit 
     } = req.body;
 
@@ -120,7 +120,16 @@ export const saveDailyFactoryLog = async (req, res) => {
     targetDate.setUTCHours(0, 0, 0, 0);
 
     const currentUser = username || req.user?.username || "Factory Admin";
-    const glToday = Number(greenLeafToday) || 0;
+    
+    // 1. Get existing record first to preserve arrays if they are not sent in req.body
+    const existingRecord = await FactoryLog.findOne({ date: targetDate });
+
+    // Use provided arrays, or fallback to existing arrays, or default to empty array
+    const finalDispatches = dispatches !== undefined ? dispatches : (existingRecord?.dispatches || []);
+    const finalLocalSales = localSales !== undefined ? localSales : (existingRecord?.localSales || []);
+    const finalReturns = returns !== undefined ? returns : (existingRecord?.returns || []);
+
+    const glToday = Number(greenLeafToday) || (existingRecord?.greenLeaf?.today || 0);
 
     const selectedMonthNumber = targetDate.getMonth() + 1; 
     const monthsWith21Percent = [4, 5, 6, 9, 10, 11, 12];
@@ -128,9 +137,9 @@ export const saveDailyFactoryLog = async (req, res) => {
     const madeTeaToday = glToday * conversionRate;
 
     // --- Arrays වලින් Totals ගණනය කිරීම ---
-    const totalDispatch = dispatches.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
-    const totalLocalSale = localSales.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
-    const totalReturnAmount = returns.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const totalDispatch = finalDispatches.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+    const totalLocalSale = finalLocalSales.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+    const totalReturnAmount = finalReturns.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
     const totalOut = totalDispatch + totalLocalSale;
 
@@ -145,14 +154,12 @@ export const saveDailyFactoryLog = async (req, res) => {
 
     if (currentBalance < 0) return res.status(400).json({ message: `Total Out exceeds available Factory Balance.` });
 
-    const existingRecord = await FactoryLog.findOne({ date: targetDate });
-    
     let updateFields = {
       greenLeaf: { today: glToday },
       madeTea: { today: Number(madeTeaToday.toFixed(2)) }, 
-      dispatches, dispatch: totalDispatch,
-      localSales, localSaleAndGratis: totalLocalSale,
-      returns, returnAmount: totalReturnAmount,
+      dispatches: finalDispatches, dispatch: totalDispatch,
+      localSales: finalLocalSales, localSaleAndGratis: totalLocalSale,
+      returns: finalReturns, returnAmount: totalReturnAmount,
       totalOut,
       bfBalance: Number(previousBalance.toFixed(2)),
       factoryBalance: Number(currentBalance.toFixed(2)),
@@ -176,19 +183,16 @@ export const saveDailyFactoryLog = async (req, res) => {
     const day = String(d.getDate()).padStart(2, '0');
     const dateStr = `${year}${month}${day}`;
 
-    // 1. කලින් යවපු ඒ දවසට අදාල Pending Transfers ඔක්කොම මකා දමන්න (අලුත් කරද්දී පරණ ඒවා අයින් වෙන්න)
     await PendingTransfer.deleteMany({
       date: targetDate,
       transferNo: { $regex: /FACT\/TO\// },
       status: "Pending"
     });
 
-    // 2. අලුතින් Local Sales ලූපය හරහා Pending Transfers හැදීම සහ Notification යැවීම
-    for (const [index, sale] of localSales.entries()) {
+    for (const [index, sale] of finalLocalSales.entries()) {
       if (sale.weight > 0 && sale.teaType) {
         const randomNum = Math.floor(100 + Math.random() * 900);
         
-        // Database එකට Save කිරීම
         await new PendingTransfer({
             date: targetDate,
             transferNo: `FACT/TO/${dateStr}-LOC-${randomNum}-${index}`,
@@ -199,12 +203,11 @@ export const saveDailyFactoryLog = async (req, res) => {
         }).save();
 
         // ========================================================
-        // 🌟 PUSH NOTIFICATION CODE (Packing අංශයට යැවීම) 🌟
+        // 🌟 PUSH NOTIFICATION CODE
         // ========================================================
         try {
-            // 'Packing Officer' අයට විතරක් යැවීමට ෆිල්ටර් කිරීම
             const subscriptions = await Subscription.find({ 
-                role: "Packing Officer" // 👈 ඔයාගේ සිස්ටම් එකේ Role එකේ නම හරියටම මෙතනට දෙන්න
+                role: "Packing Officer" 
             });
             const payload = JSON.stringify({
                 title: '🏭 New Factory Transfer',
@@ -226,7 +229,6 @@ export const saveDailyFactoryLog = async (req, res) => {
         } catch(pushErr) {
             console.error("Notification error:", pushErr);
         }
-        // ========================================================
       }
     }
     
@@ -237,25 +239,70 @@ export const saveDailyFactoryLog = async (req, res) => {
   }
 };
 
-// 3. DELETE FACTORY LOG
+// 3. DELETE FACTORY LOG (Supports both Full Delete & Dispatch Only Clear)
 export const deleteFactoryLog = async (req, res) => {
   try {
     const { id } = req.params;
+    const { clearDispatchOnly } = req.query; // අලුතින් එකතු කළ parameter එක
 
     const log = await FactoryLog.findById(id);
     if (!log) {
       return res.status(404).json({ message: "Record not found." });
     }
 
-    // අදාල දවසට අදාලව යවපු Pending Transfers ටිකත් මකා දමන්න
+    // Pending Transfers මකා දැමීම (අවස්ථා දෙකටම පොදුයි)
     await PendingTransfer.deleteMany({
         date: log.date,
         transferNo: { $regex: /FACT\/TO\// },
         status: "Pending"
     });
 
-    await FactoryLog.findByIdAndDelete(id);
-    res.status(200).json({ message: "Record deleted successfully." });
+    if (clearDispatchOnly === 'true') {
+        
+        // ==========================================
+        // 🟢 DISPATCH පමනක් මකා දැමීම (Green Leaf ඉතුරු වේ)
+        // ==========================================
+        log.dispatches = [];
+        log.dispatch = 0;
+        
+        log.localSales = [];
+        log.localSaleAndGratis = 0;
+        
+        log.returns = [];
+        log.returnAmount = 0;
+        
+        log.totalOut = 0;
+
+        // අලුතින් Factory Balance එක ගණනය කිරීම
+        const aggrResult = await FactoryLog.aggregate([
+          { $match: { date: { $lt: log.date } } },
+          { $group: { 
+              _id: null, 
+              totalMT: { $sum: "$madeTea.today" }, 
+              totalD: { $sum: "$dispatch" }, 
+              totalL: { $sum: "$localSaleAndGratis" }, 
+              totalR: { $sum: "$returnAmount" } 
+          } },
+        ]);
+        
+        let previousBalance = aggrResult.length > 0 
+            ? (aggrResult[0].totalMT - (aggrResult[0].totalD + aggrResult[0].totalL) + aggrResult[0].totalR) 
+            : 0;
+        
+        log.bfBalance = Number(previousBalance.toFixed(2));
+        log.factoryBalance = Number((previousBalance + log.madeTea.today).toFixed(2));
+
+        await log.save();
+        return res.status(200).json({ message: "Dispatch data cleared successfully." });
+        
+    } else {
+        // ==========================================
+        // 🔴 සම්පූර්ණ රෙකෝඩ් එකම මකා දැමීම (Factory View සඳහා)
+        // ==========================================
+        await FactoryLog.findByIdAndDelete(id);
+        return res.status(200).json({ message: "Record completely deleted." });
+    }
+    
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error deleting factory log." });
