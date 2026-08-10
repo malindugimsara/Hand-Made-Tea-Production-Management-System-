@@ -37,7 +37,13 @@ export const saveIssueTypeSummaries = async (req, res) => {
 // දත්ත ලබාගැනීමට (View Page එක සඳහා)
 export const getIssueTypeSummaries = async (req, res) => {
     try {
-        const summaries = await IssueTypeSummary.find().sort({ date: -1 });
+        const { date } = req.query; // Extract date from the request query
+        
+        // If a date is provided, filter by it. Otherwise, fetch all.
+        const query = date ? { date } : {}; 
+
+        const summaries = await IssueTypeSummary.find(query).sort({ date: -1 });
+        
         res.status(200).json({ success: true, data: summaries });
     } catch (error) {
         console.error("Fetch Error:", error);
