@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { Calendar, Package, RefreshCw } from 'lucide-react';
 
 const teaCategories = [
@@ -58,7 +58,6 @@ export default function DailySummaryTableView() {
 
   return (
     <div className="p-4 sm:p-8 max-w-full mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
-      <Toaster position="top-right" />
       
       {/* Header Section */}
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800">
