@@ -78,7 +78,7 @@ const DATA = {
       icon: Store,
       items: [
         { title: 'Enter Daily Summary', url: '/localsale/dailysummary', roles: ['Admin', 'Local Sale'] },
-        { title: 'Daily Summary View', url: '/localsale/viewdailysummary', roles: ['Admin', 'Local Sale'] },
+        // { title: 'Daily Summary View', url: '/localsale/viewdailysummary', roles: ['Admin', 'Local Sale'] },
       ],
     },
     {
