@@ -128,10 +128,11 @@ export default function DispatchRecordsView() {
 
   const confirmDelete = async () => {
     if (!recordToDelete) return;
-    const toastId = toast.loading("Deleting record...");
+    const toastId = toast.loading("Clearing dispatch data...");
     try {
+      // මේක යවන්න ඕනේ URL එක:
       const token = localStorage.getItem("token");
-      const response = await fetch(`${BACKEND_URL}/api/factory-logs/${recordToDelete._id}`, {
+      const response = await fetch(`${BACKEND_URL}/api/factory-logs/${recordToDelete._id}?clearDispatchOnly=true`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -141,7 +142,7 @@ export default function DispatchRecordsView() {
         throw new Error(errorData.message || "Failed to delete record");
       }
 
-      toast.success("Record deleted successfully", { id: toastId });
+      toast.success("Dispatch data cleared successfully!", { id: toastId });
       setRecords(records.filter((r) => r._id !== recordToDelete._id));
     } catch (error) {
       console.error("Delete Error:", error);

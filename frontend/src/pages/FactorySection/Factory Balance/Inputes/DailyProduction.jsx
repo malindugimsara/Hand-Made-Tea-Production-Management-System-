@@ -109,6 +109,11 @@ export default function DailyProduction() {
       dispatch: existingRecord ? existingRecord.dispatch : 0,
       localSaleAndGratis: existingRecord ? existingRecord.localSaleAndGratis : 0,
       returnAmount: existingRecord ? existingRecord.returnAmount : 0,
+      
+      // ✅ ADD THESE THREE LINES: Preserve existing dispatch data
+      dispatches: existingRecord?.dispatches || [],
+      localSales: existingRecord?.localSales || [],
+      returns: existingRecord?.returns || [],
     };
 
     setPendingRecords([...pendingRecords, newRecord]);
@@ -136,6 +141,12 @@ export default function DailyProduction() {
           dispatch: Number(record.dispatch) || 0,
           localSaleAndGratis: Number(record.localSaleAndGratis) || 0,
           returnAmount: Number(record.returnAmount) || 0,
+          
+          // ✅ ADD THESE THREE LINES: Send the preserved data back to the DB
+          dispatches: record.dispatches,
+          localSales: record.localSales,
+          returns: record.returns,
+          
           username: username
         };
 

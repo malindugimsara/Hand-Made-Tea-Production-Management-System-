@@ -107,11 +107,10 @@ export const getFactoryLogsByMonth = async (req, res) => {
 };
 
 // 2. SAVE OR UPDATE DAILY FACTORY LOG 
-// 2. SAVE OR UPDATE DAILY FACTORY LOG 
 export const saveDailyFactoryLog = async (req, res) => {
   try {
     const { 
-      date, greenLeafToday, dispatches = [], localSales = [], returns = [], 
+      date, greenLeafToday, dispatches, localSales, returns, 
       username, isExplicitEdit 
     } = req.body;
 
@@ -121,7 +120,16 @@ export const saveDailyFactoryLog = async (req, res) => {
     targetDate.setUTCHours(0, 0, 0, 0);
 
     const currentUser = username || req.user?.username || "Factory Admin";
-    const glToday = Number(greenLeafToday) || 0;
+    
+    // 1. Get existing record first to preserve arrays if they are not sent in req.body
+    const existingRecord = await FactoryLog.findOne({ date: targetDate });
+
+    // Use provided arrays, or fallback to existing arrays, or default to empty array
+    const finalDispatches = dispatches !== undefined ? dispatches : (existingRecord?.dispatches || []);
+    const finalLocalSales = localSales !== undefined ? localSales : (existingRecord?.localSales || []);
+    const finalReturns = returns !== undefined ? returns : (existingRecord?.returns || []);
+
+    const glToday = Number(greenLeafToday) || (existingRecord?.greenLeaf?.today || 0);
 
     const selectedMonthNumber = targetDate.getMonth() + 1; 
     const monthsWith21Percent = [4, 5, 6, 9, 10, 11, 12];
@@ -129,9 +137,9 @@ export const saveDailyFactoryLog = async (req, res) => {
     const madeTeaToday = glToday * conversionRate;
 
     // --- Arrays වලින් Totals ගණනය කිරීම ---
-    const totalDispatch = dispatches.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
-    const totalLocalSale = localSales.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
-    const totalReturnAmount = returns.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const totalDispatch = finalDispatches.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+    const totalLocalSale = finalLocalSales.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+    const totalReturnAmount = finalReturns.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
     const totalOut = totalDispatch + totalLocalSale;
 
@@ -146,14 +154,12 @@ export const saveDailyFactoryLog = async (req, res) => {
 
     if (currentBalance < 0) return res.status(400).json({ message: `Total Out exceeds available Factory Balance.` });
 
-    const existingRecord = await FactoryLog.findOne({ date: targetDate });
-    
     let updateFields = {
       greenLeaf: { today: glToday },
       madeTea: { today: Number(madeTeaToday.toFixed(2)) }, 
-      dispatches, dispatch: totalDispatch,
-      localSales, localSaleAndGratis: totalLocalSale,
-      returns, returnAmount: totalReturnAmount,
+      dispatches: finalDispatches, dispatch: totalDispatch,
+      localSales: finalLocalSales, localSaleAndGratis: totalLocalSale,
+      returns: finalReturns, returnAmount: totalReturnAmount,
       totalOut,
       bfBalance: Number(previousBalance.toFixed(2)),
       factoryBalance: Number(currentBalance.toFixed(2)),
@@ -175,117 +181,18 @@ export const saveDailyFactoryLog = async (req, res) => {
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
 
-    // Automation Helper Function (Only for Local Sale)
-    const syncPendingTransfer = async (typePrefix, qty, teaType) => {
-        const regex = new RegExp(`FACT/TO/${year}${month}${day}-${typePrefix}`);
-        
-        if (qty > 0 && teaType) {
-            const existingPending = await PendingTransfer.findOne({
-                date: targetDate,
-                transferNo: { $regex: regex },
-                status: "Pending" 
-            });
-
-            if (existingPending) {
-                // Update existing
-                existingPending.sentQtyKg = qty;
-                existingPending.grade = teaType;   
-                existingPending.teaType = teaType; 
-                existingPending.factoryUsername = currentUser; 
-                await existingPending.save();
-            } else {
-                // Create New
-                const randomNum = Math.floor(100 + Math.random() * 900); // 3 digit random
-                const autoTransNo = `FACT/TO/${year}${month}${day}-${typePrefix}-${randomNum}`;
-                
-                // 🌟 (නිවැරදි කළ තැන: new PendingTransfer ලෙස දැමීම)
-                const newPendingTransfer = new PendingTransfer({
-                    date: targetDate,
-                    transferNo: autoTransNo,
-                    grade: teaType,   
-                    teaType: teaType, 
-                    sentQtyKg: qty,
-                    factoryUsername: currentUser 
-                });
-                await newPendingTransfer.save();
-
-                // ========================================================
-                // 🌟 PUSH NOTIFICATION CODE (Packing අංශයට මැසේජ් එක යැවීම) 🌟
-                // ========================================================
-                try {
-                  const subscriptions = await Subscription.find({ section: "Packing" });
-
-                  const payload = JSON.stringify({
-                      title: '🏭 New Factory Transfer',
-                      message: `A new transfer of ${qty}kg (${teaType}) arrived from Factory!`,
-                      url: '/packing/trans-in-factory-entry'
-                  });
-
-
-                  await Promise.all(
-                      subscriptions.map(async (sub) => {
-                          try {
-                              await webpush.sendNotification(sub, payload);
-                          } 
-                          catch(err) {
-
-                              console.error(
-                                  "Push failed:",
-                                  err.statusCode,
-                                  err.message
-                              );
-
-                              if(err.statusCode === 410){
-                                  await Subscription.deleteOne({
-                                      endpoint: sub.endpoint
-                                  });
-                              }
-                          }
-                      })
-                  );
-
-
-              } catch(pushErr){
-
-                  console.error(
-                    "Notification error:",
-                    pushErr
-                  );
-
-              }
-            }
-        } else {
-            // Delete if quantity is made 0
-            await PendingTransfer.findOneAndDelete({
-                date: targetDate,
-                transferNo: { $regex: regex },
-                status: "Pending"
-            });
-        }
-    };
-
-    // Packing එකට Local Sale එක යැවීම
-    await syncPendingTransfer(
-      'LOC',
-      updateFields.localSaleAndGratis,
-      updateFields.localSaleTeaType
-    ).catch(err=>{
-      console.error(err);
-    });    
-    // මකා දැමීම
     await PendingTransfer.deleteMany({
       date: targetDate,
       transferNo: { $regex: /FACT\/TO\// },
       status: "Pending"
     });
 
-    // නැවත එකතු කිරීම (ලූපයක් භාවිතා කරමින්)
-    const dateStr = `${year}${month}${day}`; // 👈 Define it here using your existing variables
-
-    for (const [index, sale] of localSales.entries()) {
+    for (const [index, sale] of finalLocalSales.entries()) {
       if (sale.weight > 0 && sale.teaType) {
         const randomNum = Math.floor(100 + Math.random() * 900);
+        
         await new PendingTransfer({
             date: targetDate,
             transferNo: `FACT/TO/${dateStr}-LOC-${randomNum}-${index}`,
@@ -294,6 +201,34 @@ export const saveDailyFactoryLog = async (req, res) => {
             sentQtyKg: sale.weight,
             factoryUsername: currentUser 
         }).save();
+
+        // ========================================================
+        // 🌟 PUSH NOTIFICATION CODE
+        // ========================================================
+        try {
+            const subscriptions = await Subscription.find({ 
+                role: "Packing Officer" 
+            });
+            const payload = JSON.stringify({
+                title: '🏭 New Factory Transfer',
+                message: `A new transfer of ${sale.weight}kg (${sale.teaType}) arrived from Factory!`,
+                url: '/packing/trans-in-factory-entry'
+            });
+
+            await Promise.all(
+                subscriptions.map(async (sub) => {
+                    try {
+                        await webpush.sendNotification(sub, payload);
+                    } catch(err) {
+                        if (err.statusCode === 410) {
+                            await Subscription.deleteOne({ endpoint: sub.endpoint });
+                        }
+                    }
+                })
+            );
+        } catch(pushErr) {
+            console.error("Notification error:", pushErr);
+        }
       }
     }
     
@@ -304,25 +239,70 @@ export const saveDailyFactoryLog = async (req, res) => {
   }
 };
 
-// 3. DELETE FACTORY LOG
+// 3. DELETE FACTORY LOG (Supports both Full Delete & Dispatch Only Clear)
 export const deleteFactoryLog = async (req, res) => {
   try {
     const { id } = req.params;
+    const { clearDispatchOnly } = req.query; // අලුතින් එකතු කළ parameter එක
 
     const log = await FactoryLog.findById(id);
     if (!log) {
       return res.status(404).json({ message: "Record not found." });
     }
 
-    // අදාල දවසට අදාලව යවපු Pending Transfers ටිකත් මකා දමන්න
+    // Pending Transfers මකා දැමීම (අවස්ථා දෙකටම පොදුයි)
     await PendingTransfer.deleteMany({
         date: log.date,
         transferNo: { $regex: /FACT\/TO\// },
         status: "Pending"
     });
 
-    await FactoryLog.findByIdAndDelete(id);
-    res.status(200).json({ message: "Record deleted successfully." });
+    if (clearDispatchOnly === 'true') {
+        
+        // ==========================================
+        // 🟢 DISPATCH පමනක් මකා දැමීම (Green Leaf ඉතුරු වේ)
+        // ==========================================
+        log.dispatches = [];
+        log.dispatch = 0;
+        
+        log.localSales = [];
+        log.localSaleAndGratis = 0;
+        
+        log.returns = [];
+        log.returnAmount = 0;
+        
+        log.totalOut = 0;
+
+        // අලුතින් Factory Balance එක ගණනය කිරීම
+        const aggrResult = await FactoryLog.aggregate([
+          { $match: { date: { $lt: log.date } } },
+          { $group: { 
+              _id: null, 
+              totalMT: { $sum: "$madeTea.today" }, 
+              totalD: { $sum: "$dispatch" }, 
+              totalL: { $sum: "$localSaleAndGratis" }, 
+              totalR: { $sum: "$returnAmount" } 
+          } },
+        ]);
+        
+        let previousBalance = aggrResult.length > 0 
+            ? (aggrResult[0].totalMT - (aggrResult[0].totalD + aggrResult[0].totalL) + aggrResult[0].totalR) 
+            : 0;
+        
+        log.bfBalance = Number(previousBalance.toFixed(2));
+        log.factoryBalance = Number((previousBalance + log.madeTea.today).toFixed(2));
+
+        await log.save();
+        return res.status(200).json({ message: "Dispatch data cleared successfully." });
+        
+    } else {
+        // ==========================================
+        // 🔴 සම්පූර්ණ රෙකෝඩ් එකම මකා දැමීම (Factory View සඳහා)
+        // ==========================================
+        await FactoryLog.findByIdAndDelete(id);
+        return res.status(200).json({ message: "Record completely deleted." });
+    }
+    
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error deleting factory log." });

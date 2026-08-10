@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Loader2, User, LockKeyhole, CheckCircle2, Eye, EyeOff, Leaf, Package, Factory, Settings, LayoutDashboard } from 'lucide-react';
+import { Loader2, User, LockKeyhole, CheckCircle2, Eye, EyeOff, Leaf, Package, Factory, Settings, LayoutDashboard, Store } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // ─────────────────────────────────────────────
-// THEMES  —  Three distinct visual identities (All Green/Nature Inspired)
+// THEMES  —  Four distinct visual identities
 // H/T Factory   → deep forest / olive green
 // Packing       → teal / cool emerald
-// Factory       → green & yellow mix / lime (NEW)
+// Factory       → lime / green & yellow mix
+// Local Sale    → vibrant green & bright yellow (UPDATED)
 // ─────────────────────────────────────────────
 const THEMES = {
   handmade: {
@@ -68,24 +69,49 @@ const THEMES = {
     particleColor: '#facc15', 
     particleType: 'gear',
   },
+  // ── NEW: LOCAL SALE THEME (Green & Bright Yellow) ──
+  localSale: {
+    pageBg: '#fefce8', // Very light yellow background
+    orb1: 'rgba(34, 197, 94, 0.22)', // Vibrant Green
+    orb2: 'rgba(234, 179, 8, 0.18)', // Bright Yellow
+    orb3: 'rgba(20, 184, 166, 0.15)', // Hint of Teal/Green
+    gridStroke: '#eab308', // Yellow grid
+    textPrimary: '#15803d', // Dark Green text
+    textSecondary: '#ca8a04', // Dark Yellow/Gold text
+    accent: '#22c55e', // Green accent
+    btnGradient: 'linear-gradient(135deg, #15803d 0%, #facc15 100%)', // Green to Yellow gradient
+    wipeGradient: 'linear-gradient(135deg, #14532d 0%, #16a34a 40%, #fef08a 100%)',
+    shimmer: 'rgba(234, 179, 8, 0.12)',
+    ringFocus: 'focus:ring-yellow-400/25',
+    badgeBorder: '#fef08a', // Yellow border
+    badgeBg: '#f0fdf4', // Very light green background for badge
+    badgeText: '#15803d', // Green text for badge
+    particleColor: '#facc15', // Yellow particles
+    particleType: 'store',
+  }
 };
 
-// ── Floating Tea Leaf ──
+// ── Floating Components ──
 const TeaLeaf = ({ left, top, delay, size, color }) => (
   <motion.svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="absolute pointer-events-none" style={{ left, top, color }} initial={{ opacity: 0, rotate: 0, y: 0, x: 0 }} animate={{ opacity: [0, 0.55, 0.55, 0], rotate: [0, 160, 320], y: [0, -90, -130], x: [0, 12, -8, 4] }} transition={{ duration: 7 + (delay % 3), delay, repeat: Infinity, ease: 'easeInOut' }}>
     <path d="M12 2C6 2 2 8 2 14c0 4 2 7 6 8 1-4 2-8 4-10-2 4-3 8-2 12 2 0 4-1 5-3 1-2 1-5 1-8 0 3 1 6 3 8 4-2 5-6 5-9C24 6 18 2 12 2z" fill="currentColor"/>
   </motion.svg>
 );
 
-// ── Floating Box (packing) ──
 const FloatingBox = ({ left, top, delay, color }) => (
   <motion.div className="absolute pointer-events-none rounded-sm border-2" style={{ left, top, width: 14, height: 14, borderColor: color }} initial={{ opacity: 0, scale: 0, rotate: 0 }} animate={{ opacity: [0, 0.45, 0.45, 0], scale: [0, 1, 1, 0], rotate: [0, 45, 90, 135], y: [0, -80, -110] }} transition={{ duration: 6 + (delay % 4), delay, repeat: Infinity, ease: 'easeInOut' }} />
 );
 
-// ── Floating Gear (factory) ──
 const FloatingGear = ({ left, top, delay, color, size }) => (
   <motion.div className="absolute pointer-events-none flex items-center justify-center" style={{ left, top, color }} initial={{ opacity: 0, rotate: 0, y: 0 }} animate={{ opacity: [0, 0.45, 0.45, 0], rotate: [0, 180, 360], y: [0, -70, -100] }} transition={{ duration: 8 + (delay % 4), delay, repeat: Infinity, ease: 'linear' }}>
     <Settings size={size} strokeWidth={1.5} />
+  </motion.div>
+);
+
+// ── Floating Store Icon for Local Sale ──
+const FloatingStore = ({ left, top, delay, color, size }) => (
+  <motion.div className="absolute pointer-events-none flex items-center justify-center" style={{ left, top, color }} initial={{ opacity: 0, y: 0, scale: 0.8 }} animate={{ opacity: [0, 0.4, 0.4, 0], y: [0, -60, -90], scale: [0.8, 1.1, 0.8] }} transition={{ duration: 7 + (delay % 4), delay, repeat: Infinity, ease: 'easeInOut' }}>
+    <Store size={size - 2} strokeWidth={2} />
   </motion.div>
 );
 
@@ -105,6 +131,7 @@ function ParticleField({ mode }) {
       {items.map(p => {
         if (t.particleType === 'leaf') return <TeaLeaf key={p.id} {...p} color={t.particleColor} />;
         if (t.particleType === 'box') return <FloatingBox key={p.id} {...p} color={t.particleColor} />;
+        if (t.particleType === 'store') return <FloatingStore key={p.id} {...p} color={t.particleColor} />;
         return <FloatingGear key={p.id} {...p} color={t.particleColor} />;
       })}
     </div>
@@ -132,13 +159,18 @@ function MorphingBlobs({ mode }) {
               <pattern id="pk-grid" x="0" y="0" width="36" height="36" patternUnits="userSpaceOnUse">
                 <circle cx="18" cy="18" r="1.5" fill={t.gridStroke} fillOpacity="0.07"/>
               </pattern>
+            ) : mode === 'localSale' ? (
+              <pattern id="ls-grid" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+                <circle cx="20" cy="20" r="1" fill={t.gridStroke} fillOpacity="0.1"/>
+                <circle cx="0" cy="0" r="1" fill={t.gridStroke} fillOpacity="0.1"/>
+              </pattern>
             ) : (
               <pattern id="fac-grid" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
                 <path d="M 40 0 L 0 40 0 0" fill="none" stroke={t.gridStroke} strokeWidth="0.5" strokeOpacity="0.05"/>
               </pattern>
             )}
           </defs>
-          <rect width="100%" height="100%" fill={`url(#${mode === 'handmade' ? 'hm-grid' : mode === 'packing' ? 'pk-grid' : 'fac-grid'})`}/>
+          <rect width="100%" height="100%" fill={`url(#${mode === 'handmade' ? 'hm-grid' : mode === 'packing' ? 'pk-grid' : mode === 'localSale' ? 'ls-grid' : 'fac-grid'})`}/>
         </motion.svg>
       </AnimatePresence>
     </div>
@@ -148,7 +180,7 @@ function MorphingBlobs({ mode }) {
 // ── Diagonal Wipe ──
 function WipeOverlay({ isWiping, direction }) {
   const wipe = direction ? THEMES[direction].wipeGradient : THEMES.handmade.wipeGradient;
-  const toRight = direction === 'packing' || direction === 'factory';
+  const toRight = direction === 'packing' || direction === 'factory' || direction === 'localSale';
 
   return (
     <AnimatePresence>
@@ -159,7 +191,7 @@ function WipeOverlay({ isWiping, direction }) {
           animate={{ clipPath: toRight ? 'polygon(0 0,110% 0,110% 100%,0 100%)' : 'polygon(-10% 0,100% 0,100% 100%,-10% 100%)' }}
           exit={{ clipPath: toRight ? 'polygon(110% 0,110% 0,110% 100%,110% 100%)' : 'polygon(-10% 0,-10% 0,-10% 100%,-10% 100%)' }}
           transition={{ duration:0.52, ease:[0.76,0,0.24,1] }}
-          className="fixed inset-0 z-[100] pointer-events-none" // <-- Changed to fixed for full screen coverage during scroll
+          className="fixed inset-0 z-[100] pointer-events-none"
           style={{ background: wipe }}
         />
       )}
@@ -178,20 +210,19 @@ export default function Login() {
   const [isLoading,  setIsLoading]  = useState(false);
   const [showPass,   setShowPass]   = useState(false);
   
-  // ── NEW STATES FOR SMART LOGIN ──
-  const [loginStep, setLoginStep] = useState('login'); // 'login' | 'select' | 'success'
+  const [loginStep, setLoginStep] = useState('login'); 
   const [allowedSystems, setAllowedSystems] = useState([]);
-  const [activeTab,  setActiveTab]  = useState('handmade'); // default theme base
+  const [activeTab,  setActiveTab]  = useState('handmade'); 
   const [isWiping,   setIsWiping]   = useState(false);
   const [pendingTab, setPendingTab] = useState(null);
 
   const t = THEMES[activeTab];
 
-  // System to Route map
   const routeMap = {
-    handmade: '/dashboard',
-    packing:  '/packing',
-    factory:  '/factory'
+    handmade:  '/dashboard',
+    packing:   '/packing',
+    factory:   '/factory',
+    localSale: '/localsale' 
   };
 
   const triggerThemeChange = (tab) => {
@@ -219,18 +250,19 @@ export default function Login() {
       try { data = text ? JSON.parse(text) : {}; } catch {}
 
       if (res.ok) {
-        // Determine allowed systems based on role
         const userRole = data.role ? data.role.toLowerCase() : '';
         let allowed = [];
 
         if (['admin', 'viewer', 'view'].includes(userRole)) {
-            allowed = ['handmade', 'packing', 'factory'];
+            allowed = ['handmade', 'packing', 'factory', 'localSale'];
         } else if (userRole === 'handmade officer') {
             allowed = ['handmade'];
         } else if (userRole === 'packing officer') {
             allowed = ['packing'];
         } else if (userRole === 'factory officer') {
             allowed = ['factory'];
+        } else if (userRole === 'local sale') {
+            allowed = ['localSale'];
         }
 
         if (allowed.length === 0) {
@@ -239,12 +271,10 @@ export default function Login() {
             return;
         }
 
-        // Save base details
         localStorage.setItem('token',    data.token);
         localStorage.setItem('userRole', data.role);
         localStorage.setItem('username', data.username);
 
-        // Smart Routing
         if (allowed.length === 1) {
             const target = allowed[0];
             triggerThemeChange(target);
@@ -277,14 +307,13 @@ export default function Login() {
   const getActiveSystemText = () => {
     if (activeTab === 'handmade') return 'H/T Factory';
     if (activeTab === 'packing') return 'Packing Section';
+    if (activeTab === 'localSale') return 'Local Sale';
     return 'Factory Section';
   };
 
   return (
-    // <-- REMOVED overflow-hidden, ADDED overflow-x-hidden for mobile scrolling -->
     <div className="w-full min-h-screen flex flex-col lg:flex-row relative overflow-x-hidden font-sans" style={{ backgroundColor: t.pageBg, transition:'background-color 0.7s ease' }}>
       
-      {/* BG Wrapper: Changed from absolute to fixed so it stays in place during scroll */}
       <AnimatePresence mode="wait">
         <motion.div key={activeTab + '-bg'} className="fixed inset-0 z-0" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }} transition={{ duration:0.65 }}>
           <MorphingBlobs mode={activeTab} />
@@ -315,10 +344,9 @@ export default function Login() {
             Unified Management System
           </p>
 
-          {/* ALL 3 SECTIONS PERMANENTLY VISIBLE AS INFO LABELS */}
-          <div className="mt-6 sm:mt-8 flex flex-wrap justify-center items-center gap-2 sm:gap-3 w-full max-w-[500px]">
+          {/* SECTION INFO LABELS */}
+          <div className="mt-6 sm:mt-8 flex flex-wrap justify-center items-center gap-2 sm:gap-3 w-full max-w-[600px]">
             
-            {/* Factory Label */}
             <motion.div
               initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay: 0.3 }}
               className="flex items-center justify-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border font-bold text-[11px] sm:text-sm backdrop-blur-md cursor-default select-none transition-colors duration-300"
@@ -327,7 +355,6 @@ export default function Login() {
               <Factory size={14} className="opacity-80" /> Main Factory 
             </motion.div>
 
-            {/* Handmade Label */}
             <motion.div
               initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay: 0.1 }}
               className="flex items-center justify-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border font-bold text-[11px] sm:text-sm backdrop-blur-md cursor-default select-none transition-colors duration-300"
@@ -336,7 +363,6 @@ export default function Login() {
               <Leaf size={14} className="opacity-80" /> H/T Factory 
             </motion.div>
             
-            {/* Packing Label */}
             <motion.div
               initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay: 0.2 }}
               className="flex items-center justify-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border font-bold text-[11px] sm:text-sm backdrop-blur-md cursor-default select-none transition-colors duration-300"
@@ -344,6 +370,16 @@ export default function Login() {
             >
               <Package size={14} className="opacity-80" /> Packing Section 
             </motion.div>
+
+            {/* ── NEW: Local Sale Label ── */}
+            <motion.div
+              initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay: 0.4 }}
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border font-bold text-[11px] sm:text-sm backdrop-blur-md cursor-default select-none transition-colors duration-300"
+              style={{ borderColor: THEMES.localSale.badgeBorder, backgroundColor: THEMES.localSale.badgeBg, color: THEMES.localSale.badgeText }}
+            >
+              <Store size={14} className="opacity-80" /> Local Sale 
+            </motion.div>
+
           </div>
         </div>
       </motion.div>
@@ -360,14 +396,12 @@ export default function Login() {
               transition={{ type:'spring', damping:20 }}
               className="w-full max-w-[480px] flex flex-col justify-center bg-white/70 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.08)] rounded-[2.5rem] p-6 sm:p-10 border border-white/80 relative overflow-hidden"
             >
-              {/* Top shimmer */}
               <motion.div
                 className="absolute inset-0 pointer-events-none rounded-[2.5rem]"
                 style={{ background:`radial-gradient(ellipse at 50% 0%,${t.shimmer} 0%,transparent 60%)` }}
                 initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ duration:0.8 }}
               />
 
-              {/* Loading overlay */}
               {isLoading && (
                 <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} className="absolute inset-0 bg-white/40 backdrop-blur-sm rounded-[2.5rem] flex flex-col items-center justify-center z-50">
                   <Loader2 className="w-10 h-10 animate-spin mb-2" style={{ color:t.textPrimary }} />
@@ -375,13 +409,11 @@ export default function Login() {
                 </motion.div>
               )}
 
-              {/* Heading */}
               <div className="text-center mb-8 relative z-10">
                 <h2 className="text-2xl font-extrabold text-gray-900">Welcome Back</h2>
                 <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
               </div>
 
-              {/* Form */}
               <form className="space-y-5 relative z-10" onSubmit={handleLogin}>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -412,7 +444,7 @@ export default function Login() {
             </motion.div>
           )}
 
-          {/* STEP 2: SELECT WORKSPACE (Shown only for Admin/Viewer) */}
+          {/* STEP 2: SELECT WORKSPACE */}
           {loginStep === 'select' && (
             <motion.div
               key="select-form"
@@ -442,6 +474,14 @@ export default function Login() {
                   <button onClick={() => handleSystemSelection('factory')} className="p-4 bg-white hover:bg-[#fefce8] border-2 border-gray-100 hover:border-[#65a30d] rounded-2xl flex items-center gap-4 transition-all duration-300 shadow-sm group">
                     <div className="p-3 bg-lime-50 rounded-xl group-hover:bg-[#65a30d] transition-colors"><Factory className="text-[#65a30d] group-hover:text-white" size={24} /></div>
                     <span className="font-bold text-gray-800 text-lg">Factory System</span>
+                  </button>
+                )}
+                
+                {/* ── NEW: Local Sale Option Button (Updated Colors) ── */}
+                {allowedSystems.includes('localSale') && (
+                  <button onClick={() => handleSystemSelection('localSale')} className="p-4 bg-white hover:bg-[#fefce8] border-2 border-gray-100 hover:border-[#eab308] rounded-2xl flex items-center gap-4 transition-all duration-300 shadow-sm group">
+                    <div className="p-3 bg-yellow-50 rounded-xl group-hover:bg-[#15803d] transition-colors"><Store className="text-[#15803d] group-hover:text-yellow-400" size={24} /></div>
+                    <span className="font-bold text-gray-800 text-lg">Local Sale</span>
                   </button>
                 )}
               </div>
