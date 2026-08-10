@@ -42,7 +42,7 @@ export default function IssueTypeSummaryEntry() {
   const handleInputChange = (categoryId, size, value) => {
     // Prevent negative values
     if (value !== '' && Number(value) < 0) return;
-    
+
     setFormData(prev => ({
       ...prev,
       [categoryId]: {
@@ -103,7 +103,7 @@ export default function IssueTypeSummaryEntry() {
 
     setPendingRecords([...pendingRecords, newRecord]);
     toast.success(`Record added to list!`);
-    
+
     // Reset form data after adding
     setFormData(getInitialState());
   };
@@ -136,7 +136,7 @@ export default function IssueTypeSummaryEntry() {
     };
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/summary/bulk-save`, {
+      const response = await fetch(`${BACKEND_URL}/api/issue-summary/bulk-save`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -162,7 +162,7 @@ export default function IssueTypeSummaryEntry() {
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">      
+    <div className="p-4 sm:p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
       {/* Header Section */}
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -172,30 +172,30 @@ export default function IssueTypeSummaryEntry() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        
+
         {/* --- LEFT SIDE: DATA ENTRY FORM --- */}
         <div className="lg:col-span-3">
           <form onSubmit={handleAddToList} className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-lg border border-green-100 dark:border-zinc-800 transition-colors duration-300">
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               {/* Date Input */}
               <div className="bg-yellow-50/50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800/50 p-4 rounded-xl">
                 <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-2">
-                  <Calendar size={16} className="text-yellow-600 dark:text-yellow-500"/> Select Date
+                  <Calendar size={16} className="text-yellow-600 dark:text-yellow-500" /> Select Date
                 </label>
-                <input 
-                  type="date" 
-                  value={date} 
-                  onChange={(e) => setDate(e.target.value)} 
-                  required 
-                  className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-yellow-400/50 outline-none bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-100 font-bold transition-colors" 
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                  className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-yellow-400/50 outline-none bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-100 font-bold transition-colors"
                 />
               </div>
 
               {/* Issue Type Dropdown (Required) */}
               <div className="bg-green-50/50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/50 p-4 rounded-xl">
                 <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-2">
-                  <Layers size={16} className="text-green-600 dark:text-green-500"/> Issue Type *
+                  <Layers size={16} className="text-green-600 dark:text-green-500" /> Issue Type *
                 </label>
                 <select
                   value={issueType}
@@ -222,7 +222,7 @@ export default function IssueTypeSummaryEntry() {
                     <div className="bg-gradient-to-r from-green-50 to-yellow-50 dark:from-zinc-900 dark:to-zinc-800 border-b border-gray-200 dark:border-zinc-800 px-4 py-3">
                       <h3 className="font-bold text-green-800 dark:text-green-400 text-sm text-center uppercase tracking-wider">{category.title}</h3>
                     </div>
-                    
+
                     <div className="p-4 space-y-3">
                       <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-gray-400 dark:text-gray-500 text-center uppercase tracking-wider mb-2">
                         <div className="col-span-8 text-left pl-2">Size / Type</div>
@@ -230,7 +230,7 @@ export default function IssueTypeSummaryEntry() {
                       </div>
 
                       {category.sizes.map((size) => {
-                        const isKg = size.includes('(KG)'); 
+                        const isKg = size.includes('(KG)');
 
                         return (
                           <div key={size} className="grid grid-cols-12 gap-2 items-center">
@@ -239,10 +239,10 @@ export default function IssueTypeSummaryEntry() {
                             </div>
                             <div className="col-span-4 relative">
                               <input
-                                type="number" 
-                                min="0" 
-                                step="any" 
-                                placeholder={isKg ? "0.00" : "0"} 
+                                type="number"
+                                min="0"
+                                step="any"
+                                placeholder={isKg ? "0.00" : "0"}
                                 value={formData[category.id][size].out}
                                 onChange={(e) => handleInputChange(category.id, size, e.target.value)}
                                 onWheel={(e) => e.target.blur()}
@@ -268,7 +268,7 @@ export default function IssueTypeSummaryEntry() {
         {/* --- RIGHT SIDE: PENDING LIST & SUMMARY --- */}
         <div className="lg:col-span-2 flex flex-col gap-6">
           <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-lg border border-green-100 dark:border-green-900/50 flex flex-col max-h-[85vh] transition-colors duration-300">
-            
+
             <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-zinc-800 pb-4">
               <div className="flex items-center gap-2">
                 <div className="p-2 bg-yellow-100 dark:bg-yellow-900/40 rounded-lg text-yellow-700 dark:text-yellow-400"><ListChecks size={20} /></div>
@@ -288,7 +288,7 @@ export default function IssueTypeSummaryEntry() {
                 <div className="space-y-4">
                   {pendingRecords.map((record, index) => (
                     <div key={record.id} className="p-4 border border-gray-200 dark:border-zinc-700 rounded-xl bg-gray-50 dark:bg-zinc-800/50 relative group hover:border-yellow-400 dark:hover:border-yellow-600/50 transition-colors shadow-sm">
-                      
+
                       <button onClick={() => handleRemoveFromList(index)} className="absolute top-3 right-3 text-gray-400 hover:text-red-500 bg-white dark:bg-zinc-900 p-1.5 rounded-md shadow-sm border border-gray-100 dark:border-zinc-700 transition-colors z-10" title="Remove Record">
                         <Trash2 size={16} />
                       </button>
@@ -296,13 +296,13 @@ export default function IssueTypeSummaryEntry() {
                       <div className="flex flex-col gap-2 pr-8">
                         <div className="flex flex-wrap items-center justify-between gap-1">
                           <span className="font-black text-gray-800 dark:text-gray-200 text-base flex items-center gap-1.5">
-                            <Calendar size={15} className="text-yellow-500"/> {record.date}
+                            <Calendar size={15} className="text-yellow-500" /> {record.date}
                           </span>
                           <span className="text-[10px] font-extrabold bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 px-2 py-0.5 rounded-md uppercase tracking-wider">
                             {record.issueType}
                           </span>
                         </div>
-                        
+
                         <div className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-gray-100 dark:border-zinc-700/50 mt-1">
                           <div className="space-y-2">
                             {record.items.map((item, idx) => (
@@ -331,18 +331,18 @@ export default function IssueTypeSummaryEntry() {
 
             {/* Save All Button */}
             <div className="mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800 space-y-3">
-              <button 
-                onClick={handleSaveAll} 
-                disabled={isSaving || pendingRecords.length === 0} 
+              <button
+                onClick={handleSaveAll}
+                disabled={isSaving || pendingRecords.length === 0}
                 className={`w-full py-4 rounded-xl text-white text-lg font-bold flex justify-center items-center gap-2 shadow-lg transition-all 
-                ${isSaving || pendingRecords.length === 0 
-                  ? 'bg-gray-400 dark:bg-zinc-700 cursor-not-allowed' 
-                  : 'bg-gradient-to-r from-green-600 to-green-500 hover:shadow-green-500/40 hover:-translate-y-1'}`}
+                ${isSaving || pendingRecords.length === 0
+                    ? 'bg-gray-400 dark:bg-zinc-700 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-green-600 to-green-500 hover:shadow-green-500/40 hover:-translate-y-1'}`}
               >
                 <Save size={20} /> {isSaving ? "Saving..." : `Save All Records`}
               </button>
             </div>
-            
+
           </div>
         </div>
       </div>

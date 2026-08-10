@@ -19,9 +19,9 @@ export default function IssueTypeSummaryView() {
  // Fetch and process data
   const fetchSummary = async () => {
     setIsLoading(true);
-    try { 
-      const response = await fetch(`${BACKEND_URL}/api/issue-summary?date=${date}`);
-      
+    try {
+      // Ensure this URL matches your actual Express route (e.g., /api/issue-summary)
+      const response = await fetch(`${BACKEND_URL}/api/issue-summary?date=${date}`);      
       const result = await response.json();
 
       if (!response.ok || !result.success) {

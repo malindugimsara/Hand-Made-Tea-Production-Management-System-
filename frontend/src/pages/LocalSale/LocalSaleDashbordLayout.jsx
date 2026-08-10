@@ -78,7 +78,7 @@ const DATA = {
       icon: Store,
       items: [
         { title: 'Enter Daily Summary', url: '/localsale/dailysummary', roles: ['Admin', 'Local Sale'] },
-        { title: 'Daily Summary View', url: '/localsale/viewdailysummary', roles: ['Admin', 'Local Sale'] },
+        // { title: 'Daily Summary View', url: '/localsale/viewdailysummary', roles: ['Admin', 'Local Sale'] },
       ],
     },
     {
@@ -87,6 +87,14 @@ const DATA = {
       items: [
         { title: 'Enter Issue Summary', url: '/localsale/issuesummary', roles: ['Admin', 'Local Sale'] },
         { title: 'Issue Summary View', url: '/localsale/issuesummaryview', roles: ['Admin', 'Local Sale'] },
+      ],
+    },
+    {
+      title: 'Monthly Summary',
+      icon: LineChart,
+      items: [
+        { title: 'Month End Summary View', url: '/localsale/monthlysummaryview', roles: ['Admin', 'Local Sale'] },
+        { title: 'Free Issue Summary', url: '/localsale/freeissuesummary', roles: ['Admin', 'Local Sale'] },
       ],
     },
     
