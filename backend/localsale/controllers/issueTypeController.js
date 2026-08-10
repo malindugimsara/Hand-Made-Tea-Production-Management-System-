@@ -1,4 +1,6 @@
+import mongoose from 'mongoose'; 
 import IssueTypeSummary from '../models/IssueTypeSummary.js';
+
 
 // Bulk Save හෝ Update කිරීම සඳහා
 export const saveIssueTypeSummaries = async (req, res) => {
@@ -34,13 +36,14 @@ export const saveIssueTypeSummaries = async (req, res) => {
     }
 };
 
-// දත්ත ලබාගැනීමට (View Page එක සඳහා)
 export const getIssueTypeSummaries = async (req, res) => {
     try {
-        const { date } = req.query; // Extract date from the request query
-        
-        // If a date is provided, filter by it. Otherwise, fetch all.
-        const query = date ? { date } : {}; 
+        // ADD THESE TWO LINES FOR DEBUGGING:
+        console.log("👀 I am reading from Database:", mongoose.connection.name);
+        console.log("📁 The exact Collection name is:", IssueTypeSummary.collection.collectionName);
+
+        const { date } = req.query; 
+        const query = date ? { date: date } : {}; 
 
         const summaries = await IssueTypeSummary.find(query).sort({ date: -1 });
         

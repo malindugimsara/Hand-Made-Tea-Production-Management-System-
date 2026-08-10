@@ -89,6 +89,13 @@ const DATA = {
         { title: 'Issue Summary View', url: '/localsale/issuesummaryview', roles: ['Admin', 'Local Sale'] },
       ],
     },
+    {
+      title: 'Monthly Summary',
+      icon: LineChart,
+      items: [
+        { title: 'Month End Summary View', url: '/localsale/monthlysummaryview', roles: ['Admin', 'Local Sale'] },
+      ],
+    },
     
   ],
 };
