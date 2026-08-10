@@ -36,6 +36,8 @@ import labourOutputRouter from './factory/router/labourOutputRoutes.js';
 import factoryPackRoutes from './factory/router/factoryPackRoutes.js';
 
 import Subscription from './Packing/models/SubscriptionModel.js';
+import dailySummaryRouter from './localsale/routes/dailySummaryRoutes.js';
+import issueTypeRouter from './localsale/routes/issueTypeRoutes.js';
 
 dotenv.config();
 const app = express();
@@ -126,6 +128,10 @@ app.use('/api/factory-logs', factoryrouter);
 app.use('/api/labour-output', labourOutputRouter);
 app.use('/api/stock-adjustment', StockAdjustmentRouter);
 app.use('/api/factory-packs', factoryPackRoutes);
+
+//Local Sale Section Routes
+app.use('/api/summary', dailySummaryRouter); // Daily Summary Routes
+app.use('/api/issue-summary', issueTypeRouter);
 
 app.listen(3000, () => {
   console.log('Server is running on port 3000');
