@@ -6,6 +6,7 @@ import ViewDailySummary from "./LocalSale/Daily Summary/ViewdailySummary";
 import IssueTypeSummaryEntry from "./LocalSale/Issue/IssueTypeSummaryEntry";
 import IssueTypeSummaryView from "./LocalSale/Issue/IssueTypeSummaryView";
 import MonthEndSummary from "./LocalSale/Monthly Summary/MonthEndSummary";
+import FreeIssueSummary from "./LocalSale/Monthly Summary/FreeIssueSummary";
 
 
 export default function   LocalSaleRouter() {
@@ -17,6 +18,7 @@ export default function   LocalSaleRouter() {
       <Route path="issuesummary" element={<IssueTypeSummaryEntry />} />
       <Route path="issuesummaryview" element={<IssueTypeSummaryView />} />
       <Route path="monthlysummaryview" element={<MonthEndSummary />} />
+      <Route path="freeissuesummary" element={<FreeIssueSummary />} />
 
 
     </Route>

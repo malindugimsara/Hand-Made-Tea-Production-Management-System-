@@ -94,6 +94,7 @@ const DATA = {
       icon: LineChart,
       items: [
         { title: 'Month End Summary View', url: '/localsale/monthlysummaryview', roles: ['Admin', 'Local Sale'] },
+        { title: 'Free Issue Summary', url: '/localsale/freeissuesummary', roles: ['Admin', 'Local Sale'] },
       ],
     },
     
