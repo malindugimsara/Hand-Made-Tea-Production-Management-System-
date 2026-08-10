@@ -25,8 +25,8 @@ export default function RawMaterialInEntry() {
     const [pendingRecords, setPendingRecords] = useState([]);
     const navigate = useNavigate();
 
-    // Type state (flavor | other)
-    const [entryType, setEntryType] = useState('flavor');
+    // 👇 මුලින්ම කිසිවක් auto-select නොවීමට හිස් String එකක් ('') ලබා දී ඇත
+    const [entryType, setEntryType] = useState('');
 
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
@@ -36,7 +36,7 @@ export default function RawMaterialInEntry() {
     });
 
     const [itemsList, setItemsList] = useState([
-        { id: Date.now(), materialName: '', quantity: '', unit: 'kg' } // Default unit set to kg for 'flavor'
+        { id: Date.now(), materialName: '', quantity: '', unit: '' } 
     ]);
 
     const [openDropdownId, setOpenDropdownId] = useState(null);
@@ -54,7 +54,6 @@ export default function RawMaterialInEntry() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Calculate Summary from pending records (Now includes Category)
     const summaryMap = {};
     pendingRecords.forEach(record => {
         record.items.forEach(item => {
@@ -63,7 +62,7 @@ export default function RawMaterialInEntry() {
                 summaryMap[key] = { 
                     materialName: item.materialName, 
                     unit: item.unit, 
-                    category: item.category, // Save category for summary
+                    category: item.category, 
                     qty: 0 
                 };
             }
@@ -75,11 +74,11 @@ export default function RawMaterialInEntry() {
     const handleTypeChange = (e) => {
         const val = e.target.value;
         setEntryType(val);
-        // Reset the items list when changing the type to avoid conflicts
         setItemsList([{ id: Date.now(), materialName: '', quantity: '', unit: val === 'flavor' ? 'kg' : 'pcs' }]);
     };
 
     const handleAddItemRow = () => {
+        if (!entryType) return; // Category එක තෝරා නැත්නම් row එකක් add වීම වළක්වයි
         setItemsList([...itemsList, { id: Date.now(), materialName: '', quantity: '', unit: entryType === 'flavor' ? 'kg' : 'pcs' }]);
     };
 
@@ -107,6 +106,12 @@ export default function RawMaterialInEntry() {
     const handleAddToList = (e) => {
         e.preventDefault();
 
+        // 👇 අනිවාර්යයෙන්ම Category එක තෝරා ඇති දැයි පරීක්ෂා කිරීම
+        if (!entryType) {
+            toast.error("Please select a Category (Spicy or Other Raw Materials) first!");
+            return;
+        }
+
         if (!formData.invoiceNo.trim() || !formData.supplierName.trim()) {
             toast.error("Please enter Invoice No and Supplier Name!");
             return;
@@ -120,14 +125,12 @@ export default function RawMaterialInEntry() {
 
         const newRecord = { 
             ...formData,
-            // 👇 Save the current entryType as category in each item
             items: itemsList.map(item => ({ ...item, category: entryType })) 
         };
 
         setPendingRecords([...pendingRecords, newRecord]);
         toast.success(`Record added to list!`);
         
-        // Reset items and invoice/remarks but keep date and supplier for faster bulk entry
         setItemsList([{ id: Date.now(), materialName: '', quantity: '', unit: entryType === 'flavor' ? 'kg' : 'pcs' }]);
         setFormData(prev => ({ ...prev, invoiceNo: '', remarks: '' })); 
     };
@@ -201,7 +204,6 @@ export default function RawMaterialInEntry() {
         }
     };
 
-    // Decide which list to use based on type
     const currentAutocompleteList = entryType === 'flavor' ? FLAVOR_NAMES : RAW_MATERIALS;
 
     return (
@@ -221,8 +223,10 @@ export default function RawMaterialInEntry() {
                     <form onSubmit={handleAddToList} className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-lg border border-[#99f6e4] dark:border-zinc-800 transition-colors duration-300">
                         
                         {/* --- ENTRY TYPE SELECTOR --- */}
-                        <div className="mb-8 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/50">
-                            <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider">Select Category</label>
+                        <div className={`mb-8 p-5 rounded-xl border ${!entryType ? 'border-amber-300 bg-amber-50 dark:border-amber-700/50 dark:bg-amber-900/10' : 'border-gray-200 bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900/50'}`}>
+                            <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider">
+                                Select Category <span className="text-red-500">*</span>
+                            </label>
                             <div className="flex flex-wrap gap-4">
                                 <label className={`flex items-center gap-2 px-5 py-3 rounded-lg border-2 cursor-pointer transition-all ${entryType === 'flavor' ? 'border-[#0d9488] bg-[#f0fdfa] dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 shadow-sm' : 'border-gray-200 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 text-gray-500 dark:text-gray-400'}`}>
                                     <input type="radio" name="entryType" value="flavor" checked={entryType === 'flavor'} onChange={handleTypeChange} className="hidden" />
@@ -235,6 +239,7 @@ export default function RawMaterialInEntry() {
                                     <span className="font-bold">Other Raw Materials</span>
                                 </label>
                             </div>
+                            {!entryType && <p className="text-xs font-bold text-amber-600 dark:text-amber-500 mt-3 flex items-center gap-1"><AlertTriangle size={14}/> Required: Please select a category before adding items.</p>}
                         </div>
 
                         <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -260,16 +265,17 @@ export default function RawMaterialInEntry() {
                             </div>
                         </div>
 
-                        <div className="mb-8 bg-[#f0fdfa] dark:bg-teal-950/20 border border-[#99f6e4] dark:border-teal-800/50 rounded-lg p-6 transition-colors duration-300">
+                        <div className={`mb-8 border rounded-lg p-6 transition-colors duration-300 ${!entryType ? 'bg-gray-50/50 dark:bg-zinc-900/30 border-gray-200 dark:border-zinc-800 opacity-60' : 'bg-[#f0fdfa] dark:bg-teal-950/20 border-[#99f6e4] dark:border-teal-800/50'}`}>
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="text-lg font-bold text-[#0f766e] dark:text-teal-500 flex items-center gap-2">
-                                    <Layers size={20} /> {entryType === 'flavor' ? 'Spicy Received' : 'Materials Received'}
+                                    <Layers size={20} /> 
+                                    {!entryType ? 'Items Received' : entryType === 'flavor' ? 'Spicy Received' : 'Materials Received'}
                                 </h3>
                             </div>
 
                             <div className="space-y-4">
                                 {itemsList.map((row) => (
-                                    <div key={row.id} className="relative bg-white dark:bg-zinc-950 p-4 rounded-xl border border-[#99f6e4] dark:border-teal-900/40 shadow-sm">
+                                    <div key={row.id} className={`relative bg-white dark:bg-zinc-950 p-4 rounded-xl border shadow-sm ${!entryType ? 'border-gray-200 dark:border-zinc-800' : 'border-[#99f6e4] dark:border-teal-900/40'}`}>
                                         {itemsList.length > 1 && (
                                             <button type="button" onClick={() => handleRemoveItemRow(row.id)} className="absolute -top-2 -right-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full p-1.5 transition-colors shadow-sm z-10">
                                                 <X size={14} />
@@ -280,16 +286,20 @@ export default function RawMaterialInEntry() {
                                             {/* Material Name */}
                                             <div className="md:col-span-2 relative" ref={el => dropdownRefs.current[`mat-${row.id}`] = el}>
                                                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
-                                                    {entryType === 'flavor' ? <Leaf size={12} className="text-[#0d9488]"/> : <Box size={12} className="text-[#0d9488]"/>} 
-                                                    {entryType === 'flavor' ? 'Spicy Name' : 'Material Name'}
+                                                    {entryType === 'flavor' ? <Leaf size={12} className="text-[#0d9488]"/> : entryType === 'other' ? <Box size={12} className="text-[#0d9488]"/> : <Package size={12} className="text-gray-400" />} 
+                                                    {!entryType ? 'Item Name' : entryType === 'flavor' ? 'Spicy Name' : 'Material Name'}
                                                 </label>
                                                 <input 
-                                                    type="text" placeholder="Type or Select..." value={row.materialName} 
+                                                    type="text" 
+                                                    placeholder={!entryType ? "Select category first..." : "Type or Select..."} 
+                                                    value={row.materialName} 
                                                     onChange={(e) => handleItemChange(row.id, 'materialName', e.target.value)}
-                                                    onFocus={() => setOpenDropdownId(`mat-${row.id}`)} required
-                                                    className="w-full p-2.5 border border-[#99f6e4] dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
+                                                    onFocus={() => { if(entryType) setOpenDropdownId(`mat-${row.id}`) }} 
+                                                    required
+                                                    disabled={!entryType}
+                                                    className={`w-full p-2.5 border rounded-md outline-none transition-colors ${!entryType ? 'bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 cursor-not-allowed text-gray-400' : 'border-[#99f6e4] dark:border-teal-800/50 focus:ring-2 focus:ring-[#2dd4bf]/50 bg-white dark:bg-zinc-950 dark:text-gray-100'}`}
                                                 />
-                                                {openDropdownId === `mat-${row.id}` && (
+                                                {openDropdownId === `mat-${row.id}` && entryType && (
                                                     <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
                                                         {currentAutocompleteList.filter(m => m.toLowerCase().includes(row.materialName.toLowerCase())).map((mat, idx) => (
                                                             <li key={idx} onMouseDown={(e) => e.preventDefault()} onClick={() => { handleItemChange(row.id, 'materialName', mat); setOpenDropdownId(null); }} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0">
@@ -303,17 +313,26 @@ export default function RawMaterialInEntry() {
                                             {/* Quantity */}
                                             <div className="md:col-span-2">
                                                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
-                                                    <Calculator size={12} className="text-[#0d9488]"/> Quantity
+                                                    <Calculator size={12} className={entryType ? "text-[#0d9488]" : "text-gray-400"}/> Quantity
                                                 </label>
-                                                <input type="number" step="any" min="0" value={row.quantity} onChange={(e) => handleItemChange(row.id, 'quantity', e.target.value)} onWheel={(e) => e.target.blur()} required placeholder={entryType === 'flavor' ? "e.g. 50" : "e.g. 5000"} className="w-full p-2.5 border border-[#99f6e4] dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
+                                                <input 
+                                                    type="number" step="any" min="0" value={row.quantity} 
+                                                    onChange={(e) => handleItemChange(row.id, 'quantity', e.target.value)} 
+                                                    onWheel={(e) => e.target.blur()} 
+                                                    required 
+                                                    disabled={!entryType}
+                                                    placeholder={!entryType ? "-" : entryType === 'flavor' ? "e.g. 50" : "e.g. 5000"} 
+                                                    className={`w-full p-2.5 border rounded-md outline-none transition-colors ${!entryType ? 'bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 cursor-not-allowed text-gray-400' : 'border-[#99f6e4] dark:border-teal-800/50 focus:ring-2 focus:ring-[#2dd4bf]/50 bg-white dark:bg-zinc-950 dark:text-gray-100'}`} 
+                                                />
                                             </div>
 
                                             {/* Unit */}
                                             <div className="md:col-span-1">
                                                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Unit</label>
                                                 
-                                                {entryType === 'flavor' ? (
-                                                    // Flavor is strictly locked to 'kg'
+                                                {!entryType ? (
+                                                    <input type="text" value="" placeholder="-" disabled className="w-full p-2.5 border border-gray-200 dark:border-zinc-700 rounded-md bg-gray-100 dark:bg-zinc-800 text-center cursor-not-allowed" />
+                                                ) : entryType === 'flavor' ? (
                                                     <input 
                                                         type="text" 
                                                         value="kg" 
@@ -321,12 +340,10 @@ export default function RawMaterialInEntry() {
                                                         className="w-full p-2.5 border border-[#99f6e4] dark:border-teal-800/50 rounded-md bg-teal-50 dark:bg-teal-900/30 text-[#0f766e] dark:text-teal-400 font-bold cursor-not-allowed transition-colors text-center" 
                                                     />
                                                 ) : (
-                                                    // Other allows selection
                                                     <select value={row.unit} onChange={(e) => handleItemChange(row.id, 'unit', e.target.value)} className="w-full p-2.5 border border-[#99f6e4] dark:border-teal-800/50 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors cursor-pointer">
                                                         {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                                                     </select>
                                                 )}
-                                                
                                             </div>
                                         </div>
                                     </div>
@@ -334,13 +351,13 @@ export default function RawMaterialInEntry() {
                             </div>
                             
                             <div className="flex justify-end w-full">
-                                <button type="button" onClick={handleAddItemRow} className="mt-4 text-sm font-bold bg-[#f0fdfa] hover:bg-[#99f6e4]/50 dark:bg-teal-900/40 text-[#0f766e] dark:text-teal-400 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors ml-auto border border-[#99f6e4] dark:border-transparent">
-                                    <PlusCircle size={16} /> {entryType === 'flavor' ? 'Add Another Spicy' : 'Add Another Material'}
+                                <button type="button" onClick={handleAddItemRow} disabled={!entryType} className={`mt-4 text-sm font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors ml-auto border ${!entryType ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-[#f0fdfa] hover:bg-[#99f6e4]/50 dark:bg-teal-900/40 text-[#0f766e] dark:text-teal-400 border-[#99f6e4] dark:border-transparent'}`}>
+                                    <PlusCircle size={16} /> {!entryType ? 'Add Item' : entryType === 'flavor' ? 'Add Another Spicy' : 'Add Another Material'}
                                 </button>
                             </div>
                         </div>
 
-                        <button type="submit" className="w-full py-4 rounded-xl text-[#0f766e] dark:text-teal-400 bg-[#f0fdfa] dark:bg-teal-900/30 border border-[#0d9488] dark:border-teal-700 font-bold flex justify-center items-center gap-2 hover:bg-[#ccfbf1] dark:hover:bg-teal-900/50 transition-all">
+                        <button type="submit" className="w-full py-4 rounded-xl text-[#0f766e] dark:text-teal-400 bg-[#f0fdfa] dark:bg-teal-900/30 border border-[#0d9488] dark:border-teal-700 font-bold flex justify-center items-center gap-2 hover:bg-[#ccfbf1] dark:hover:bg-teal-900/50 transition-all shadow-sm">
                             <PlusCircle size={20} /> Add Record to Pending List
                         </button>
                     </form>
@@ -385,7 +402,6 @@ export default function RawMaterialInEntry() {
                                                             <span className="font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
                                                                 {item.category === 'flavor' ? <Leaf size={12} className="text-emerald-500"/> : <Box size={12} className="text-blue-500"/>}
                                                                 {item.materialName}
-                                                                {/* 👇 CATEGORY BADGE 👇 */}
                                                                 <span className={`ml-1 text-[9px] uppercase px-1.5 py-0.5 rounded tracking-widest ${item.category === 'flavor' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'}`}>
                                                                     {item.category}
                                                                 </span>
@@ -430,7 +446,6 @@ export default function RawMaterialInEntry() {
                                                     {item.category === 'flavor' ? <Leaf size={12} className="text-emerald-500"/> : <Box size={12} className="text-blue-500"/>}
                                                     {item.materialName}
                                                 </td>
-                                                {/* 👇 CATEGORY BADGE IN SUMMARY 👇 */}
                                                 <td className="px-3 py-2 border-r border-gray-300 dark:border-zinc-700 text-right">
                                                     <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded tracking-widest ${item.category === 'flavor' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'}`}>
                                                         {item.category}

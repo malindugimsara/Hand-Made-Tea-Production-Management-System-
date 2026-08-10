@@ -9,7 +9,7 @@ const ISSUE_TYPES = [
 ];
 
 export default function IssueTypeSummaryView() {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [summaryData, setSummaryData] = useState([]);
@@ -19,9 +19,8 @@ export default function IssueTypeSummaryView() {
  // Fetch and process data
   const fetchSummary = async () => {
     setIsLoading(true);
-    try {
-      // Ensure this URL matches your actual Express route (e.g., /api/issue-summary)
-      const response = await fetch(`${BACKEND_URL}/api/summary?date=${date}`);
+    try { 
+      const response = await fetch(`${BACKEND_URL}/api/issue-summary?date=${date}`);
       
       const result = await response.json();
 
