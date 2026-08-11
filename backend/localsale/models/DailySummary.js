@@ -6,7 +6,9 @@ const itemSchema = new mongoose.Schema({
     categoryTitle: { type: String, required: true },
     size: { type: String, required: true },
     in: { type: Number, default: 0 },
-    out: { type: Number, default: 0 }
+    out: { type: Number, default: 0 },
+    lastEditedBy: { type: String, default: null },
+    lastEditedAt: { type: Date, default: null }
 });
 
 // Main Daily Summary Schema

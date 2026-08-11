@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Save, Calendar, PlusCircle, Trash2, ListChecks, Package, ArrowRight, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 const teaCategories = [
   { id: 'athukorala', title: 'Athukorala', sizes: ['400g', '200g', '100g'] },
@@ -14,7 +15,8 @@ const teaCategories = [
 ];
 
 export default function DailySummaryEntry() {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
+  const navigate = useNavigate();
 
   const getInitialState = () => {
     const initialState = {};
@@ -144,6 +146,10 @@ export default function DailySummaryEntry() {
 
       toast.success(data.message || "All daily records saved successfully!", { id: toastId });
       setPendingRecords([]); // Clear list on success
+
+      setTimeout(() => {
+        navigate("/localsale/viewdailysummary");
+      }, 1000);
 
     } catch (error) {
       console.error("Save Error:", error);
