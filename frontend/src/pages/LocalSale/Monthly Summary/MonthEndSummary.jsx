@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, FileSpreadsheet, RefreshCw, AlertCircle, FileText, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import PDFDownloader from '@/components/PDFDownloader';
+import PDFDownloader from '@/components/PDFDownloader'; 
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
@@ -22,7 +22,7 @@ export default function MonthEndSummary() {
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
     const [isLoading, setIsLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [hoveredCol, setHoveredCol] = useState(null); // State for Crosshair Col Highlighting
+    const [hoveredCol, setHoveredCol] = useState(null); 
 
     // States for raw data
     const [datesOfMonth, setDatesOfMonth] = useState([]);
@@ -55,7 +55,7 @@ export default function MonthEndSummary() {
     };
 
     const processReportData = (dailyRecords, issueRecords) => {
-        const activeDates = new Set(); // ONLY keep dates with data
+        const activeDates = new Set(); 
         const dailyMap = {};
         const issueMap = { free: {}, labour: {}, staff: {} };
 
@@ -95,7 +95,7 @@ export default function MonthEndSummary() {
             }
         });
 
-        // 3. Sort Dates Descending (like the image)
+        // 3. Sort Dates Descending
         const sortedDates = Array.from(activeDates)
             .filter(d => d.startsWith(month))
             .sort((a, b) => new Date(b) - new Date(a));
@@ -145,6 +145,15 @@ export default function MonthEndSummary() {
         const [y, m] = month.split('-');
         return new Date(y, m - 1).toLocaleString('default', { month: 'long' }).toUpperCase();
     };
+    
+    const formatShortDate = (dateStr) => {
+        if (!dateStr) return "";
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            return `${Number(parts[1])}/${parts[2]}`;
+        }
+        return dateStr;
+    };
 
     // Prepare flat columns for easy grid rendering & crosshair math
     const flatColumns = [];
@@ -163,8 +172,8 @@ export default function MonthEndSummary() {
             styles: { halign: 'center', valign: 'middle', fillColor: [234, 245, 236], textColor: [17, 24, 39] }
         }];
 
-        const row2 = [];
-        const row3 = [];
+        const row2 = []; 
+        const row3 = []; 
 
         teaCategories.forEach(cat => {
             row1.push({
@@ -184,18 +193,18 @@ export default function MonthEndSummary() {
             });
         });
 
-        return [row1, row2, row3];
+        return [row1, row2, row3]; 
     };
 
     const getPdfData = () => {
         const data = filteredDates.map(date => {
-            const row = [{ content: date, styles: { fontStyle: 'bold', fillColor: [255, 255, 255] } }];
+            const row = [{ content: formatShortDate(date), styles: { fontStyle: 'bold', fillColor: [255, 255, 255] } }];
             flatColumns.forEach(col => {
                 const val = dailyDataMap[date]?.[`${col.catId}_${col.size}`]?.[col.type];
                 const isOut = col.type === 'out';
-                row.push({
-                    content: (val && Number(val) > 0) ? val : '-',
-                    styles: { textColor: isOut ? [239, 68, 68] : [34, 197, 94] }
+                row.push({ 
+                    content: (val && Number(val) > 0) ? val : '-', 
+                    styles: { textColor: isOut ? [239, 68, 68] : [34, 197, 94] } 
                 });
             });
             return row;
@@ -208,21 +217,21 @@ export default function MonthEndSummary() {
                 const isOut = col.type === 'out';
 
                 if (isNetSale) {
-                    if (isOut) {
+                    if(isOut) {
                         const net = (currentTotals.out[key] || 0) - (currentTotals.free[key] || 0) - (currentTotals.labour[key] || 0) - (currentTotals.staff[key] || 0);
-                        row.push({ content: (net && net > 0) ? net : '-', styles: { fontStyle: 'bold', fillColor: color, textColor: [239, 68, 68] } });
+                        row.push({ content: (net && net > 0) ? net : '-', styles: { fontStyle: 'bold', fillColor: color, textColor: [239, 68, 68] } }); // OUT
                     } else {
-                        row.push({ content: "-", styles: { fillColor: color, textColor: [34, 197, 94] } });
+                        row.push({ content: "-", styles: { fillColor: color, textColor: [34, 197, 94] } }); 
                     }
                 } else if (isTransIn) {
-                    if (isOut) {
-                        row.push({ content: "-", styles: { fillColor: color, textColor: [239, 68, 68] } });
+                    if(isOut) {
+                        row.push({ content: "-", styles: { fillColor: color, textColor: [239, 68, 68] } }); 
                     } else {
                         const inVal = currentTotals.in[key];
                         row.push({ content: (inVal && inVal > 0) ? inVal : '-', styles: { fontStyle: 'bold', fillColor: color, textColor: [34, 197, 94] } });
                     }
                 } else {
-                    if (isOut) {
+                    if(isOut) {
                         const outVal = currentTotals[type][key];
                         row.push({ content: (outVal && outVal > 0) ? outVal : '-', styles: { fontStyle: 'bold', fillColor: color, textColor: [239, 68, 68] } });
                     } else {
@@ -230,16 +239,19 @@ export default function MonthEndSummary() {
                     }
                 }
             });
-            row.isFooter = true;
+            row.isFooter = true; 
             return row;
         };
 
-        data.push(createFooterRow("TOTAL ISSUED", "out", [244, 245, 245]));
-        data.push(createFooterRow("FREE ISSUED", "free", [244, 245, 245]));
+        // Add visual spacer row to PDF
+        data.push([{ content: "", colSpan: flatColumns.length + 1, styles: { fillColor: [255, 255, 255], minCellHeight: 6, lineWidth: 0 } }]);
+        
+        data.push(createFooterRow("TOTAL ISSUED", "out", [244, 245, 245])); 
+        data.push(createFooterRow("FREE ISSUED", "free", [244, 245, 245])); 
         data.push(createFooterRow("LABOUR ISS.", "labour", [244, 245, 245]));
         data.push(createFooterRow("STAFF ISS.", "staff", [244, 245, 245]));
-        data.push(createFooterRow("NET SALE", "netSale", [244, 245, 245], true, false));
-        data.push(createFooterRow("TRANSFER IN", "transferIn", [244, 245, 245], false, true));
+        data.push(createFooterRow("NET SALE", "netSale", [244, 245, 245], true, false)); 
+        data.push(createFooterRow("TRANSFER IN", "transferIn", [244, 245, 245], false, true)); 
 
         return data;
     };
@@ -252,7 +264,6 @@ export default function MonthEndSummary() {
 
             let totalCols = 1 + flatColumns.length;
 
-            // Title
             const titleRow = worksheet.addRow([`MONTH END SUMMARY - ${getMonthName()}`]);
             worksheet.mergeCells(1, 1, 1, totalCols);
             titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEAF5EC' } };
@@ -260,7 +271,6 @@ export default function MonthEndSummary() {
             titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
             titleRow.height = 30;
 
-            // Category Headers
             const catRow = worksheet.addRow(['DATE']);
             let colIndex = 2;
             teaCategories.forEach(cat => {
@@ -270,7 +280,6 @@ export default function MonthEndSummary() {
                 colIndex += span;
             });
 
-            // Size Headers
             const sizeRow = worksheet.addRow(['']);
             colIndex = 2;
             teaCategories.forEach(cat => {
@@ -281,7 +290,6 @@ export default function MonthEndSummary() {
                 });
             });
 
-            // OUT/IN Headers
             const outInRow = worksheet.addRow(['']);
             colIndex = 2;
             teaCategories.forEach(cat => {
@@ -291,13 +299,12 @@ export default function MonthEndSummary() {
                     colIndex += 2;
                 });
             });
-            worksheet.mergeCells('A2:A4');
+            worksheet.mergeCells('A2:A4'); 
 
-            // Style Headers
             [catRow, sizeRow, outInRow].forEach(row => {
                 row.eachCell((cell, cIdx) => {
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEAF5EC' } };
-                    if (row === outInRow && cIdx > 1) {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEBF5ED' } };
+                    if(row === outInRow && cIdx > 1) {
                         cell.font = { bold: true, color: { argb: cell.value === 'OUT' ? 'FFEF4444' : 'FF22C55E' } };
                     } else {
                         cell.font = { bold: true, color: { argb: 'FF111827' } };
@@ -307,25 +314,26 @@ export default function MonthEndSummary() {
                 });
             });
 
-            // Data Rows
             filteredDates.forEach(date => {
                 const rowData = [date];
                 flatColumns.forEach(col => {
                     const val = dailyDataMap[date]?.[`${col.catId}_${col.size}`]?.[col.type];
                     rowData.push(val && val > 0 ? Number(val) : '-');
                 });
-
+                
                 const dataRow = worksheet.addRow(rowData);
                 dataRow.eachCell((cell, cIdx) => {
                     cell.alignment = { horizontal: 'center', vertical: 'middle' };
                     cell.border = { top: { style: 'thin', color: { argb: 'FFDCEBDC' } }, bottom: { style: 'thin', color: { argb: 'FFDCEBDC' } }, left: { style: 'thin', color: { argb: 'FFDCEBDC' } }, right: { style: 'thin', color: { argb: 'FFDCEBDC' } } };
-                    if (cIdx === 1) cell.font = { bold: true, color: { argb: 'FF111827' } };
-                    else if (cIdx % 2 === 0) cell.font = { color: { argb: 'FFEF4444' } }; // OUT
-                    else cell.font = { color: { argb: 'FF22C55E' } }; // IN
+                    if(cIdx === 1) cell.font = { bold: true, color: { argb: 'FF111827' } };
+                    else if (cIdx % 2 === 0) cell.font = { color: { argb: 'FFEF4444' } }; 
+                    else cell.font = { color: { argb: 'FF22C55E' } }; 
                 });
             });
 
-            // Helper for Footer Rows
+            // ADD EMPTY SPACER ROW TO EXCEL
+            worksheet.addRow([]);
+
             const addFooterRow = (title, type, isNetSale = false, isTransIn = false) => {
                 const rowData = [title];
                 flatColumns.forEach(col => {
@@ -333,21 +341,21 @@ export default function MonthEndSummary() {
                     const isOut = col.type === 'out';
 
                     if (isNetSale) {
-                        if (isOut) {
+                        if(isOut) {
                             const net = (currentTotals.out[key] || 0) - (currentTotals.free[key] || 0) - (currentTotals.labour[key] || 0) - (currentTotals.staff[key] || 0);
-                            rowData.push(net && net > 0 ? Number(net) : '-');
-                        } else rowData.push('-');
+                            rowData.push(net && net > 0 ? Number(net) : '-'); 
+                        } else rowData.push('-'); 
                     } else if (isTransIn) {
-                        if (isOut) rowData.push('-');
+                        if(isOut) rowData.push('-'); 
                         else {
                             const inVal = currentTotals.in[key];
-                            rowData.push(inVal && inVal > 0 ? Number(inVal) : '-');
+                            rowData.push(inVal && inVal > 0 ? Number(inVal) : '-'); 
                         }
                     } else {
-                        if (isOut) {
+                        if(isOut) {
                             const outVal = currentTotals[type][key];
-                            rowData.push(outVal && outVal > 0 ? Number(outVal) : '-');
-                        } else rowData.push('-');
+                            rowData.push(outVal && outVal > 0 ? Number(outVal) : '-'); 
+                        } else rowData.push('-'); 
                     }
                 });
                 const ftRow = worksheet.addRow(rowData);
@@ -355,18 +363,18 @@ export default function MonthEndSummary() {
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4F5F5' } };
                     cell.alignment = { horizontal: 'center', vertical: 'middle' };
                     cell.border = { top: { style: 'thin', color: { argb: 'FFDCEBDC' } }, bottom: { style: 'thin', color: { argb: 'FFDCEBDC' } }, right: { style: 'thin', color: { argb: 'FFDCEBDC' } }, left: { style: 'thin', color: { argb: 'FFDCEBDC' } } };
-                    if (cIdx === 1) cell.font = { bold: true, color: { argb: 'FF111827' } };
-                    else if (cIdx % 2 === 0) cell.font = { bold: true, color: { argb: 'FFDC2626' } }; // OUT
-                    else cell.font = { bold: true, color: { argb: 'FF16A34A' } }; // IN
+                    if(cIdx === 1) cell.font = { bold: true, color: { argb: 'FF111827' } };
+                    else if (cIdx % 2 === 0) cell.font = { bold: true, color: { argb: 'FFDC2626' } }; 
+                    else cell.font = { bold: true, color: { argb: 'FF16A34A' } }; 
                 });
             };
 
-            addFooterRow("TOTAL ISSUED", "out");
-            addFooterRow("FREE ISSUED", "free");
+            addFooterRow("TOTAL ISSUED", "out"); 
+            addFooterRow("FREE ISSUED", "free"); 
             addFooterRow("LABOUR ISS.", "labour");
             addFooterRow("STAFF ISS.", "staff");
-            addFooterRow("NET SALE", "netSale", true, false);
-            addFooterRow("TRANSFER IN", "transferIn", false, true);
+            addFooterRow("NET SALE", "netSale", true, false); 
+            addFooterRow("TRANSFER IN", "transferIn", false, true); 
 
             worksheet.getColumn(1).width = 15;
             for (let i = 2; i <= totalCols; i++) worksheet.getColumn(i).width = 8;
@@ -404,21 +412,21 @@ export default function MonthEndSummary() {
                             data={getPdfData()}
                             uniqueCode={uniqueCode}
                             fileName={`Month_End_Summary_${getMonthName()}.pdf`}
-                            orientation="landscape"
+                            orientation="landscape" 
                             disabled={isLoading || filteredDates.length === 0}
                             autoTableOptions={{
                                 theme: 'grid',
                                 styles: {
-                                    fontSize: 5,
-                                    cellPadding: 1,
+                                    fontSize: 5,        
+                                    cellPadding: 1,   
                                     lineWidth: 0.1,
                                     lineColor: [220, 235, 220]
                                 },
                                 headStyles: {
-                                    minCellHeight: 12
+                                    minCellHeight: 12   
                                 },
                                 columnStyles: {
-                                    0: { cellWidth: 16 }
+                                    0: { cellWidth: 16 } 
                                 }
                             }}
                         />
@@ -533,11 +541,11 @@ export default function MonthEndSummary() {
                                 {filteredDates.map((date) => {
                                     return (
                                         <tr key={date} className="group hover:bg-[#f6fbf6] dark:hover:bg-zinc-900 transition-colors">
-                                            <td
+                                            <td 
                                                 onMouseEnter={() => setHoveredCol(0)}
                                                 className={`px-4 py-2 border border-[#dcebdc] dark:border-zinc-700/50 sticky left-0 z-10 text-sm font-bold text-gray-800 dark:text-gray-200 bg-[#eaf5ec] dark:bg-green-900/50 transition-colors ${hoveredCol === 0 ? 'brightness-95 dark:brightness-125' : ''}`}
                                             >
-                                                {date}
+                                                {formatShortDate(date)}
                                             </td>
 
                                             {flatColumns.map((col, idx) => {
@@ -546,7 +554,7 @@ export default function MonthEndSummary() {
                                                 const isOut = col.type === 'out';
 
                                                 return (
-                                                    <td
+                                                    <td 
                                                         key={`${date}-${col.catId}-${col.size}-${col.type}`}
                                                         onMouseEnter={() => setHoveredCol(cIdx)}
                                                         className={`px-2 py-2 border border-[#dcebdc] dark:border-zinc-700/50 text-sm font-medium transition-colors
@@ -565,6 +573,12 @@ export default function MonthEndSummary() {
                             {/* --- FOOTER: SUMMARY CALCULATIONS --- */}
                             {filteredDates.length > 0 && (
                                 <tfoot className="bg-[#f4f5f5] dark:bg-zinc-900 font-bold text-sm">
+                                    
+                                    {/* SPACER ROW FOR VISUAL SEPARATION */}
+                                    <tr className="bg-white dark:bg-zinc-950 border-none">
+                                        <td colSpan={flatColumns.length + 1} className="border-none border-transparent py-2"></td>
+                                    </tr>
+
                                     {[
                                         { title: "TOTAL ISSUED", type: "out" },
                                         { title: "FREE ISSUED", type: "free" },
@@ -574,13 +588,13 @@ export default function MonthEndSummary() {
                                         { title: "TRANSFER IN", type: "transferIn" }
                                     ].map((rowDef) => (
                                         <tr key={rowDef.title} className="hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
-                                            <td
+                                            <td 
                                                 onMouseEnter={() => setHoveredCol(0)}
                                                 className={`px-4 py-3 border border-[#dcebdc] dark:border-zinc-700 sticky left-0 bg-[#f4f5f5] dark:bg-zinc-900 z-10 uppercase text-gray-800 dark:text-gray-200 text-center text-xs transition-colors ${hoveredCol === 0 ? 'brightness-95 dark:brightness-125' : ''}`}
                                             >
                                                 {rowDef.title}
                                             </td>
-
+                                            
                                             {flatColumns.map((col, idx) => {
                                                 const cIdx = idx + 1;
                                                 const key = `${col.catId}_${col.size}`;
@@ -588,15 +602,15 @@ export default function MonthEndSummary() {
                                                 let val = 0;
 
                                                 if (rowDef.type === 'netSale') {
-                                                    if (isOut) val = (currentTotals.out[key] || 0) - (currentTotals.free[key] || 0) - (currentTotals.labour[key] || 0) - (currentTotals.staff[key] || 0);
+                                                    if(isOut) val = (currentTotals.out[key] || 0) - (currentTotals.free[key] || 0) - (currentTotals.labour[key] || 0) - (currentTotals.staff[key] || 0);
                                                 } else if (rowDef.type === 'transferIn') {
-                                                    if (!isOut) val = currentTotals.in[key];
+                                                    if(!isOut) val = currentTotals.in[key];
                                                 } else {
-                                                    if (isOut) val = currentTotals[rowDef.type][key];
+                                                    if(isOut) val = currentTotals[rowDef.type][key];
                                                 }
 
                                                 return (
-                                                    <td
+                                                    <td 
                                                         key={`${rowDef.title}-${col.catId}-${col.size}-${col.type}`}
                                                         onMouseEnter={() => setHoveredCol(cIdx)}
                                                         className={`px-2 py-3 border border-[#dcebdc] dark:border-zinc-700 transition-colors
