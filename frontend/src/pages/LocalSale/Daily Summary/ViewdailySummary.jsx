@@ -1,43 +1,42 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Calendar, Package, RefreshCw, Edit, Trash2, ArrowUpRight, ArrowDownRight, X, Save, AlertCircle, FileText } from 'lucide-react';
+import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
-import { Calendar, Package, RefreshCw, Filter } from 'lucide-react';
 import PDFDownloader from '@/components/PDFDownloader';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
-const teaCategories = [
-  { id: 'athukorala', title: 'Athukorala', sizes: ['400g', '200g', '100g'] },
-  { id: 'bopfSp', title: 'BOPF Sp.', sizes: ['400g', '200g'] },
-  { id: 'bopfPremium', title: 'BOPF Premium', sizes: ['400g', '200g'] },
-  { id: 'tb', title: 'T/B', sizes: ['100', '25'] },
-  { id: 'pitigala', title: 'PITIGALA TEA', sizes: ['400g', '200g'] },
-  { id: 'gt', title: 'G/T', sizes: ['200g'] },
-  { id: 'others', title: '', sizes: ['G/T T/B 25', 'DUST', 'DUST 1', 'BOPF'] } 
-];
-
-export default function DailySummaryTableView() {
+export default function DailySummaryManageView() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   
+  // --- States ---
   const [summaries, setSummaries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
 
-  // Filters State
-  const [filterMonth, setFilterMonth] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState({
+    recordId: null,
+    itemId: null,
+    categoryTitle: '',
+    size: '',
+    in: 0,
+    out: 0
+  });
 
+  // --- Fetch Data ---
   const fetchSummaries = async () => {
     setLoading(true);
     try {
       const response = await fetch(`${BACKEND_URL}/api/summary`);
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch summaries');
-      }
+      if (!response.ok) throw new Error(data.message || 'Failed to fetch summaries');
 
       setSummaries(data.data || []);
     } catch (error) {
       console.error("Fetch Error:", error);
-      toast.error("දත්ත ලබාගැනීමේ දෝෂයක් සිදු විය!");
+      toast.error("Failed to fetch data!");
     } finally {
       setLoading(false);
     }
@@ -45,338 +44,362 @@ export default function DailySummaryTableView() {
 
   useEffect(() => {
     fetchSummaries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [BACKEND_URL]);
 
-  const getItemValue = (items, categoryId, size, type) => {
-    if (!items) return 0;
-    const found = items.find(item => {
-      if (categoryId === 'others') {
-        return item.categoryId === 'others' && item.size.includes(size);
-      }
-      return item.categoryId === categoryId && item.size === size;
-    });
+  // --- Delete Logic ---
+  const handleDelete = async (recordId, itemId) => {
+    if (!window.confirm("Are you sure you want to delete this item? This action cannot be undone.")) return;
 
-    if (!found) return 0;
-    const val = found[type];
-    return (val !== undefined && val !== null && val !== '') ? Number(val) : 0;
-  };
-
-  // Filter Logic
-  const filteredSummaries = useMemo(() => {
-    let filtered = summaries;
-
-    if (filterMonth) {
-      filtered = filtered.filter(record => record.date.startsWith(filterMonth));
-    } else {
-      if (fromDate) filtered = filtered.filter(record => record.date >= fromDate);
-      if (toDate) filtered = filtered.filter(record => record.date <= toDate);
-    }
-
-    return filtered;
-  }, [summaries, filterMonth, fromDate, toDate]);
-
-  // Calculate Totals
-  const totals = useMemo(() => {
-    const calcTotals = {};
-    teaCategories.forEach(cat => {
-      calcTotals[cat.id] = {};
-      cat.sizes.forEach(size => {
-        calcTotals[cat.id][size] = { in: 0, out: 0 };
+    const toastId = toast.loading("Deleting record...");
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/summary/${recordId}/item/${itemId}`, {
+        method: 'DELETE'
       });
-    });
-
-    filteredSummaries.forEach(record => {
-      teaCategories.forEach(cat => {
-        cat.sizes.forEach(size => {
-          calcTotals[cat.id][size].out += getItemValue(record.items, cat.id, size, 'out');
-          calcTotals[cat.id][size].in += getItemValue(record.items, cat.id, size, 'in');
-        });
-      });
-    });
-
-    return calcTotals;
-  }, [filteredSummaries]);
-
-  // Handle Month change (clears from/to dates)
-  const handleMonthChange = (e) => {
-    setFilterMonth(e.target.value);
-    if (e.target.value) {
-      setFromDate('');
-      setToDate('');
+      const result = await response.json();
+      
+      if (!response.ok) throw new Error(result.message || 'Failed to delete item');
+      
+      toast.success("Deleted successfully!", { id: toastId });
+      fetchSummaries(); 
+    } catch (error) {
+      console.error("Delete Error:", error);
+      toast.error(error.message || "Error deleting item.", { id: toastId });
     }
   };
 
-  // Handle Date Range change (clears month)
-  const handleDateChange = (setter) => (e) => {
-    setter(e.target.value);
-    setFilterMonth('');
+  // --- Edit Logic ---
+  const openEditModal = (recordId, item) => {
+    setEditingItem({
+      recordId,
+      itemId: item._id,
+      categoryTitle: item.categoryTitle || item.categoryId,
+      size: item.size,
+      in: item.in || 0,
+      out: item.out || 0
+    });
+    setIsEditModalOpen(true);
   };
 
-  // Prepare Data for PDF
-  const preparePdfHeaders = () => {
-    return [
-      [
-        { content: 'DATE', rowSpan: 3, styles: { halign: 'center', valign: 'middle' } },
-        ...teaCategories.map(cat => {
-          if (cat.title === '') {
-            return cat.sizes.map(size => ({ content: size, colSpan: 2, rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }));
-          }
-          return { content: cat.title, colSpan: cat.sizes.length * 2, styles: { halign: 'center' } };
-        }).flat()
-      ],
-      [
-        ...teaCategories.filter(cat => cat.title !== '').map(cat =>
-          cat.sizes.map(size => ({ content: size, colSpan: 2, styles: { halign: 'center' } }))
-        ).flat(2)
-      ],
-      [
-        ...teaCategories.map(cat =>
-          cat.sizes.map(() => [
-            { content: 'OUT', styles: { textColor: [220, 38, 38], halign: 'center' } },
-            { content: 'IN', styles: { textColor: [22, 163, 74], halign: 'center' } }
-          ])
-        ).flat(3)
-      ]
-    ];
-  };
-
-  const preparePdfData = () => {
-    const data = filteredSummaries.map(record => {
-      const row = [record.date];
-      teaCategories.forEach(cat => {
-        cat.sizes.forEach(size => {
-          const outVal = getItemValue(record.items, cat.id, size, 'out');
-          const inVal = getItemValue(record.items, cat.id, size, 'in');
-          row.push(outVal > 0 ? outVal : '-');
-          row.push(inVal > 0 ? inVal : '-');
-        });
-      });
-      return row;
-    });
-
-    // Add Total Row
-    const totalRow = ['TOTAL'];
-    teaCategories.forEach(cat => {
-      cat.sizes.forEach(size => {
-        totalRow.push(totals[cat.id][size].out > 0 ? totals[cat.id][size].out.toFixed(2) : '-');
-        totalRow.push(totals[cat.id][size].in > 0 ? totals[cat.id][size].in.toFixed(2) : '-');
-      });
-    });
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    const toastId = toast.loading("Updating record...");
     
-    data.push(totalRow);
-    return data;
+    // Edit කරන කෙනාගේ නම ලබාගැනීම
+    const username = localStorage.getItem('userName') || localStorage.getItem('username') || 'System User';
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/summary/${editingItem.recordId}/item/${editingItem.itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        // Backend එකට editedBy අගය යැවීම
+        body: JSON.stringify({ 
+            in: Number(editingItem.in), 
+            out: Number(editingItem.out),
+            editedBy: username
+        })
+      });
+      const result = await response.json();
+      
+      if (!response.ok) throw new Error(result.message || 'Failed to update item');
+
+      toast.success("Updated successfully!", { id: toastId });
+      setIsEditModalOpen(false);
+      fetchSummaries(); 
+    } catch (error) {
+      console.error("Update Error:", error);
+      toast.error(error.message || "Error updating item.", { id: toastId });
+    }
+  };
+
+  // --- Derived State (Optimized with useMemo) ---
+  const currentRecord = useMemo(() => summaries.find(record => record.date === filterDate), [summaries, filterDate]);
+  const displayItems = useMemo(() => currentRecord?.items || [], [currentRecord]);
+
+  const pdfHeaders = useMemo(() => [['Category / Title', 'Size / Type', 'OUT (Issued)', 'IN (Received)']], []);
+  const pdfData = useMemo(() => displayItems.map(item => [
+    item.categoryTitle || item.categoryId,
+    item.size,
+    item.out > 0 ? item.out : '-',
+    item.in > 0 ? item.in : '-'
+  ]), [displayItems]);
+
+  // --- WhatsApp Share Logic ---
+  const handleWhatsAppShare = async () => {
+    const toastId = toast.loading("Preparing PDF for WhatsApp...");
+    try {
+      const doc = new jsPDF('portrait');
+      doc.setFontSize(16);
+      doc.setTextColor(27, 106, 49); 
+      doc.text("Daily IN/OUT Details", 14, 20);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Record Date: ${filterDate}`, 14, 26);
+
+      autoTable(doc, {
+        startY: 32,
+        head: pdfHeaders,
+        body: pdfData,
+        theme: 'grid',
+        headStyles: { fillColor: [57, 106, 49], textColor: 255 }, 
+        styles: { fontSize: 10, cellPadding: 2 }
+      });
+
+      const pdfBlob = doc.output('blob');
+      const file = new File([pdfBlob], `Daily_Details_${filterDate}.pdf`, { type: 'application/pdf' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: `Daily Report - ${filterDate}`,
+          text: `Daily IN/OUT Report for ${filterDate}. Please find the attached PDF.`,
+          files: [file]
+        });
+        toast.success("Shared successfully!", { id: toastId });
+      } else {
+        doc.save(`Daily_Details_${filterDate}.pdf`);
+        const message = `Here is the Daily IN/OUT Report for ${filterDate}. Please find the downloaded PDF document.`;
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+        toast.success("PDF Downloaded! Please attach it in WhatsApp.", { id: toastId });
+      }
+    } catch (error) {
+      console.error("WhatsApp Share Error:", error);
+      toast.error("Failed to share. Trying to download instead.", { id: toastId });
+    }
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-full mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
+    <div className="p-4 sm:p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen relative">
       
-      {/* Top Header Section */}
-      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+      {/* Header Section */}
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-green-100 dark:border-zinc-800">
         <div>
-          <h2 className="text-3xl font-bold text-green-700 dark:text-green-500 flex items-center gap-2">
-            <Package size={30} /> Daily IN/OUT Log
+          <h2 className="text-3xl font-bold text-green-700 dark:text-green-400 flex items-center gap-3">
+            <FileText size={32} />
+            Daily IN/OUT Details
           </h2>
-          <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium">Master overview of daily product inventory</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium">View, Edit, and Delete your daily product records</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* --- Top Action Buttons --- */}
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <PDFDownloader
-            title="Daily IN/OUT Log"
-            subtitle={`Filtered Data Overview - ${new Date().toLocaleDateString()}`}
-            headers={preparePdfHeaders()}
-            data={preparePdfData()}
-            fileName="daily_in_out_log.pdf"
-            orientation="landscape"
-            uniqueCode="DIOL-2026"
+            title="Daily IN/OUT Details"
+            subtitle={`Records for ${filterDate}`}
+            headers={pdfHeaders}
+            data={pdfData}
+            fileName={`Daily_Details_${filterDate}.pdf`}
+            orientation="portrait"
+            uniqueCode={`DID-${filterDate.replace(/-/g, '')}`}
+            disabled={loading || displayItems.length === 0}
             autoTableOptions={{
-              theme: 'grid', // Grid theme එක අනිවාර්ය කරන්න
-              styles: { 
-                fontSize: 6, 
-                cellPadding: 1.5,
-                lineWidth: 0.1, // මේකෙන් Table එක පුරාම ඉරි (Borders) අඳිනවා
-                lineColor: [180, 180, 180] // ඉරි වල පාට (අළු පාට)
-              },
-              headStyles: { 
-                fillColor: [220, 245, 220], // 👈 Header එකේ පසුබිම ලා කොළ පාට (Light Green) කරයි
-                textColor: [30, 30, 30], // අකුරු වල පාට කළු
-                lineWidth: 0.1, // 👈 Header එකේ කොටු වලටත් ඉරි දානවා
-                lineColor: [180, 180, 180] // Header එකේ ඉරි වල පාට
-              },
-              columnStyles: { 0: { cellWidth: 15 } }
+              theme: 'grid',
+              headStyles: { fillColor: [57, 106, 49], textColor: 255 }
+            }}
+          />
+
+          <PDFDownloader
+            isWhatsApp={true}
+            title="Daily IN/OUT Details"
+            subtitle={`Records for ${filterDate}`}
+            headers={pdfHeaders}
+            data={pdfData}
+            fileName={`Daily_Details_${filterDate}.pdf`}
+            orientation="portrait"
+            uniqueCode={`DID-${filterDate.replace(/-/g, '')}`}
+            disabled={loading || displayItems.length === 0}
+            autoTableOptions={{
+              theme: 'grid',
+              headStyles: { fillColor: [57, 106, 49], textColor: 255 }
             }}
           />
 
           <button 
             onClick={fetchSummaries} 
             disabled={loading}
-            className="px-4 py-2.5 bg-white dark:bg-zinc-900 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 rounded-lg transition-colors flex items-center gap-2 font-bold text-sm shadow-sm hover:bg-green-50 dark:hover:bg-green-900/30"
+            className="p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl transition-colors flex items-center justify-center disabled:opacity-50"
+            title="Refresh Data"
           >
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-            <span>Sync Data</span>
+            <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
       </div>
 
-      {/* Filter Section (Matched to Image Style) */}
-      <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 mb-6 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">Month</label>
-            <div className="relative">
-              <input 
-                type="month" 
-                value={filterMonth}
-                onChange={handleMonthChange}
-                className="w-full pl-3 pr-10 py-2 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 outline-none focus:border-green-500 bg-transparent"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">From Date</label>
-            <div className="relative">
-              <input 
-                type="date" 
-                value={fromDate}
-                onChange={handleDateChange(setFromDate)}
-                className="w-full pl-3 pr-10 py-2 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 outline-none focus:border-green-500 bg-transparent"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">To Date</label>
-            <div className="relative">
-              <input 
-                type="date" 
-                value={toDate}
-                onChange={handleDateChange(setToDate)}
-                className="w-full pl-3 pr-10 py-2 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 outline-none focus:border-green-500 bg-transparent"
-              />
-            </div>
-          </div>
+      {/* Date Filter Section */}
+      <div className="mb-6 flex items-center gap-3 bg-white dark:bg-zinc-900 w-max p-2 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm">
+        <div className="flex items-center gap-2 px-2">
+            <Calendar size={18} className="text-green-600" />
+            <span className="text-sm font-bold text-gray-500">SELECT DATE:</span>
         </div>
+        <input 
+            type="date" 
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            className="p-2 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-200 outline-none cursor-pointer focus:border-green-500 focus:ring-1 focus:ring-green-500"
+        />
       </div>
 
       {/* Table Section */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-24 text-gray-400 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800">
+        <div className="flex flex-col items-center justify-center py-24 text-gray-400 bg-white dark:bg-zinc-900 rounded-2xl border border-green-100 dark:border-zinc-800">
           <RefreshCw size={40} className="animate-spin mb-3 text-green-600" />
-          <p className="text-sm font-bold">Loading data...</p>
+          <p className="text-sm font-bold">Loading records...</p>
         </div>
-      ) : filteredSummaries.length === 0 ? (
-        <div className="bg-white dark:bg-zinc-900 p-12 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 text-center">
-          <Filter size={48} className="mx-auto mb-3 text-gray-300 dark:text-zinc-700" />
-          <h3 className="text-lg font-bold text-gray-700 dark:text-gray-300">No records found</h3>
-          <p className="text-sm text-gray-400 mt-1">Try adjusting your filters to see more results.</p>
+      ) : displayItems.length === 0 ? (
+        <div className="bg-white dark:bg-zinc-900 p-16 rounded-2xl shadow-sm border border-green-100 dark:border-zinc-800 text-center">
+          <AlertCircle size={48} className="mx-auto mb-3 text-gray-300 dark:text-zinc-700" />
+          <h3 className="text-lg font-bold text-gray-700 dark:text-gray-300">No records found for {filterDate}</h3>
+          <p className="text-sm text-gray-500 mt-1">Try selecting a different date or saving new entries.</p>
         </div>
       ) : (
-        <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-x-auto custom-scrollbar">
-          <table className="w-full border-collapse text-center text-xs">
-            <thead >
-              {/* Row 1: Category Titles */}
-              <tr className="bg-green-100 dark:bg-zinc-800 text-gray-800 dark:text-gray-200 font-bold border-b border-gray-200 dark:border-zinc-700">
-                <th className="bg-green-100 p-3 border-r border-gray-300 dark:border-zinc-700 min-w-[100px] sticky left-0 bg-gray-50 dark:bg-zinc-800 z-10 shadow-[1px_0_0_0_#e5e7eb] dark:shadow-[1px_0_0_0_#3f3f46]" rowSpan="2">
-                  DATE
-                </th>
-                {teaCategories.map((cat) => {
-                  if (cat.title === '') {
-                    return cat.sizes.map((size) => (
-                      <th key={`${cat.id}-${size}`} colSpan="2" className="bg-green-100 py-2 px-1 border-r border-gray-200 dark:border-zinc-700" rowSpan="2">
-                        {size}
-                      </th>
-                    ));
-                  }
-                  return (
-                    <th 
-                      key={cat.id} 
-                      colSpan={cat.sizes.length * 2} 
-                      className="bg-green-100 py-2 px-1 border-r border-gray-300 dark:border-zinc-700 uppercase tracking-wider"
-                    >
-                      {cat.title}
-                    </th>
-                  );
-                })}
-              </tr>
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-md border border-green-100 dark:border-zinc-800 overflow-hidden">
+          
+          <div className="bg-green-200/40 dark:bg-zinc-900 border-b border-green-500 dark:border-zinc-800 px-6 py-4 flex items-center gap-2">
+            <Package size={20} className="text-green-600 dark:text-green-500" />
+            <h3 className="font-bold text-gray-800 dark:text-gray-200 text-base">
+              Details for {filterDate}
+            </h3>
+            <span className="ml-auto bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs font-bold px-3 py-1 rounded-full">
+              {displayItems.length} Items
+            </span>
+          </div>
 
-              {/* Row 2: Sizes */}
-              <tr className="bg-white dark:bg-zinc-900 text-gray-600 dark:text-gray-400 font-semibold border-b border-gray-200 dark:border-zinc-700">
-                {teaCategories.map((cat) => {
-                  if (cat.title === '') return null; 
-                  return cat.sizes.map((size) => (
-                    <th key={`${cat.id}-${size}`} colSpan="2" className="bg-green-100 py-2 px-1 border-r border-gray-300 dark:border-zinc-700">
-                      {size}
-                    </th>
-                  ));
-                })}
-              </tr>
-
-              {/* Row 3: OUT / IN subheaders */}
-              <tr className="bg-green-100 dark:bg-zinc-800/50 text-gray-700 dark:text-gray-300 font-bold border-b-2 border-gray-300 dark:border-zinc-700 text-[10px]">
-                <th className="bg-green-100 sticky left-0 bg-gray-50 dark:bg-zinc-800/90 border-r border-gray-300 dark:border-zinc-700 shadow-[1px_0_0_0_#e5e7eb] dark:shadow-[1px_0_0_0_#3f3f46]"></th>
-                {teaCategories.map((cat) => 
-                  cat.sizes.map((size) => (
-                    <React.Fragment key={`sub-${cat.id}-${size}`}>
-                      <th className="py-1.5 px-1 border-r border-gray-300 dark:border-zinc-700 text-red-600 dark:text-red-400">OUT</th>
-                      <th className="py-1.5 px-1 border-r border-gray-300  dark:border-zinc-700 text-green-600 dark:text-green-400">IN</th>
-                    </React.Fragment>
-                  ))
-                )}
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-gray-100 dark:divide-zinc-800/50">
-              {filteredSummaries.map((record) => (
-                <tr key={record._id} className="hover:bg-amber-50/40 dark:hover:bg-zinc-800/40 transition-colors border-r border-gray-300">
-                  <td className="p-3 font-bold text-gray-800 dark:text-gray-200 border-r border-gray-300 dark:border-zinc-800 sticky left-0 bg-white dark:bg-zinc-900 z-10 whitespace-nowrap shadow-[1px_0_0_0_#f3f4f6] dark:shadow-[1px_0_0_0_#27272a]">
-                    {record.date}
-                  </td>
-                  {teaCategories.map((cat) => 
-                    cat.sizes.map((size) => {
-                      const outVal = getItemValue(record.items, cat.id, size, 'out');
-                      const inVal = getItemValue(record.items, cat.id, size, 'in');
-
-                      return (
-                        <React.Fragment key={`val-${record._id}-${cat.id}-${size}`}>
-                          <td className={`p-2 border-r border-gray-300 dark:border-zinc-800 font-semibold ${outVal > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-zinc-700'}`}>
-                            {outVal > 0 ? outVal : '-'}
-                          </td>
-                          <td className={`p-2 border-r border-gray-300 dark:border-zinc-800 font-semibold ${inVal > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-zinc-700'}`}>
-                            {inVal > 0 ? inVal : '-'}
-                          </td>
-                        </React.Fragment>
-                      );
-                    })
-                  )}
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left text-xs">
+              <thead>
+                <tr className="bg-white dark:bg-zinc-950 border-b border-gray-100 dark:border-zinc-800 uppercase tracking-wider text-[11px] font-bold text-gray-500 dark:text-gray-400">
+                  <th className="py-4 px-6 w-[30%]">Category / Title</th>
+                  <th className="py-4 px-4 w-[20%]">Size / Type</th>
+                  <th className="py-4 px-4 text-center text-red-500 w-[15%]">OUT</th>
+                  <th className="py-4 px-4 text-center text-green-500 w-[15%]">IN</th>
+                  <th className="py-4 px-6 text-center w-[20%]">Actions</th>
                 </tr>
-              ))}
-            </tbody>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-zinc-800/60 text-sm">
+                {displayItems.map((item, idx) => (
+                  <tr key={item._id || idx} className="hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition-colors">
+                    
+                    {/* Category Title & Edited By Badge */}
+                    <td className="py-3.5 px-6 font-bold text-gray-800 dark:text-gray-200 align-top">
+                      <div className="flex flex-col">
+                        <span>{item.categoryTitle || item.categoryId}</span>
+                        {item.lastEditedAt && (
+                          <span className="mt-1 text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-800/50 w-max leading-relaxed">
+                            Edited: {new Date(item.lastEditedAt).toISOString().split('T')[0]} <br/>
+                            by {item.lastEditedBy || 'User'}
+                          </span>
+                        )}
+                      </div>
+                    </td>
 
-            {/* Total Row */}
-            <tfoot className="sticky bottom-0">
-              <tr className="bg-gray-100 dark:bg-zinc-800 font-black border-t-2 border-gray-300 dark:border-zinc-700 text-xs">
-                <td className="p-3 border-r border-gray-300 dark:border-zinc-700 sticky left-0 bg-gray-100 dark:bg-zinc-800 z-10 text-gray-800 dark:text-gray-200 shadow-[1px_0_0_0_#d1d5db] dark:shadow-[1px_0_0_0_#3f3f46]">
-                  TOTAL
-                </td>
-                {teaCategories.map((cat) => 
-                  cat.sizes.map((size) => {
-                    const outTot = totals[cat.id][size].out;
-                    const inTot = totals[cat.id][size].in;
-                    return (
-                      <React.Fragment key={`tot-${cat.id}-${size}`}>
-                        <td className="p-2 border-r border-gray-300 dark:border-zinc-700 text-red-700 dark:text-red-400 bg-red-50/50 dark:bg-red-950/20">
-                          {outTot > 0 ? outTot.toFixed(2).replace(/\.00$/, '') : '-'}
-                        </td>
-                        <td className="p-2 border-r border-gray-300 dark:border-zinc-700 text-green-700 dark:text-green-400 bg-green-50/50 dark:bg-green-950/20">
-                          {inTot > 0 ? inTot.toFixed(2).replace(/\.00$/, '') : '-'}
-                        </td>
-                      </React.Fragment>
-                    );
-                  })
-                )}
-              </tr>
-            </tfoot>
-          </table>
+                    <td className="py-3.5 px-4 text-gray-600 dark:text-gray-400 font-semibold align-top">
+                      {item.size}
+                    </td>
+
+                    <td className="py-3.5 px-4 text-center align-top">
+                      {item.out > 0 ? (
+                        <span className="inline-flex items-center justify-center font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 min-w-[3rem] py-1 rounded">
+                          {item.out}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300 dark:text-zinc-700">-</span>
+                      )}
+                    </td>
+
+                    <td className="py-3.5 px-4 text-center align-top">
+                      {item.in > 0 ? (
+                        <span className="inline-flex items-center justify-center font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 min-w-[3rem] py-1 rounded">
+                          {item.in}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300 dark:text-zinc-700">-</span>
+                      )}
+                    </td>
+
+                    <td className="py-3.5 px-6 text-center align-top">
+                      <div className="flex items-center justify-center gap-2">
+                        <button 
+                          onClick={() => openEditModal(currentRecord._id, item)}
+                          className="p-1.5 bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/40 text-yellow-600 dark:text-yellow-400 rounded-lg transition-colors shadow-sm"
+                          title="Edit Item"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(currentRecord._id, item._id)}
+                          className="p-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors shadow-sm"
+                          title="Delete Item"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
+
+      {/* --- EDIT POPUP MODAL --- */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 transform transition-all">
+            <div className="bg-green-50 dark:bg-green-900/30 px-6 py-4 border-b border-green-100 dark:border-green-800 flex justify-between items-center">
+              <h3 className="font-bold text-green-800 dark:text-green-400 text-lg flex items-center gap-2">
+                <Edit size={20} /> Edit Item
+              </h3>
+              <button onClick={() => setIsEditModalOpen(false)} className="text-gray-400 hover:text-red-500 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="p-6">
+              <div className="mb-5 bg-gray-50 dark:bg-zinc-800/50 p-3 rounded-xl border border-gray-100 dark:border-zinc-700 text-center">
+                <p className="font-bold text-gray-800 dark:text-gray-200 text-base">
+                  {editingItem.categoryTitle} <span className="text-gray-500 font-semibold">({editingItem.size})</span>
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label className="block text-xs font-bold text-red-600 dark:text-red-400 mb-2 uppercase tracking-wider flex items-center gap-1">
+                    <ArrowUpRight size={14} /> OUT
+                  </label>
+                  <input 
+                    type="number" min="0" step="any"
+                    value={editingItem.out}
+                    onChange={(e) => setEditingItem({ ...editingItem, out: e.target.value })}
+                    className="w-full p-3 border border-red-200 dark:border-red-900/50 rounded-xl focus:ring-2 focus:ring-red-400/50 outline-none bg-red-50/30 dark:bg-red-950/20 text-red-700 dark:text-red-300 font-bold text-center transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-green-600 dark:text-green-400 mb-2 uppercase tracking-wider flex items-center gap-1">
+                    <ArrowDownRight size={14} /> IN
+                  </label>
+                  <input 
+                    type="number" min="0" step="any"
+                    value={editingItem.in}
+                    onChange={(e) => setEditingItem({ ...editingItem, in: e.target.value })}
+                    className="w-full p-3 border border-green-200 dark:border-green-900/50 rounded-xl focus:ring-2 focus:ring-green-400/50 outline-none bg-green-50/30 dark:bg-green-950/20 text-green-700 dark:text-green-300 font-bold text-center transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button type="button" onClick={() => setIsEditModalOpen(false)} className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl transition-colors">Cancel</button>
+                <button type="submit" disabled={loading} className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all shadow-sm flex justify-center items-center gap-2">
+                  <Save size={18} /> Update
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
