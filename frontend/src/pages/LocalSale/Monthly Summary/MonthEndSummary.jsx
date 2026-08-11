@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, FileSpreadsheet, RefreshCw, AlertCircle, FileText, Trash2 } from 'lucide-react';
+import { FileSpreadsheet, RefreshCw, AlertCircle, FileText, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PDFDownloader from '@/components/PDFDownloader'; 
 import ExcelJS from 'exceljs';
@@ -20,9 +20,10 @@ export default function MonthEndSummary() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+    const [fromDate, setFromDate] = useState('');
+    const [toDate, setToDate] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [hoveredCol, setHoveredCol] = useState(null); 
+    const [hoveredCol, setHoveredCol] = useState(null);
 
     // States for raw data
     const [datesOfMonth, setDatesOfMonth] = useState([]);
@@ -55,7 +56,7 @@ export default function MonthEndSummary() {
     };
 
     const processReportData = (dailyRecords, issueRecords) => {
-        const activeDates = new Set(); 
+        const activeDates = new Set();
         const dailyMap = {};
         const issueMap = { free: {}, labour: {}, staff: {} };
 
@@ -111,9 +112,17 @@ export default function MonthEndSummary() {
     }, [month]);
 
     // --- FILTERING & DYNAMIC TOTALS ---
-    const filteredDates = datesOfMonth.filter(date =>
-        !searchQuery || date.replace(/-/g, '.').includes(searchQuery)
-    );
+    const filteredDates = datesOfMonth.filter(date => {
+        if (!fromDate && !toDate) return true;
+        const targetDate = new Date(date);
+        const from = fromDate ? new Date(fromDate) : null;
+        const to = toDate ? new Date(toDate) : null;
+
+        if (from && to) return targetDate >= from && targetDate <= to;
+        if (from) return targetDate >= from;
+        if (to) return targetDate <= to;
+        return true;
+    });
 
     const calculateTotals = () => {
         const t = { out: {}, in: {}, free: {}, labour: {}, staff: {} };
@@ -139,7 +148,11 @@ export default function MonthEndSummary() {
     const currentTotals = calculateTotals();
 
     // --- UTILS ---
-    const clearFilters = () => setSearchQuery('');
+    const clearFilters = () => {
+        setFromDate('');
+        setToDate('');
+    };
+
     const getMonthName = () => {
         if (!month) return "";
         const [y, m] = month.split('-');
@@ -303,7 +316,7 @@ export default function MonthEndSummary() {
 
             [catRow, sizeRow, outInRow].forEach(row => {
                 row.eachCell((cell, cIdx) => {
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEBF5ED' } };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEAF5EC' } };
                     if(row === outInRow && cIdx > 1) {
                         cell.font = { bold: true, color: { argb: cell.value === 'OUT' ? 'FFEF4444' : 'FF22C55E' } };
                     } else {
@@ -390,6 +403,9 @@ export default function MonthEndSummary() {
     };
 
     const uniqueCode = `MONTH-END/${getMonthName()}/${new Date().getFullYear()}`;
+    const subtitleText = (fromDate || toDate) 
+        ? `Filtered: ${fromDate || 'Start'} to ${toDate || 'End'}` 
+        : `Complete Monthly Report`;
 
     return (
         <div className="p-4 sm:p-8 w-full max-w-[1500px] mx-auto font-sans bg-slate-50 dark:bg-zinc-950 min-h-screen transition-colors duration-300">
@@ -407,7 +423,7 @@ export default function MonthEndSummary() {
                     <div className="[&>button]:bg-blue-50 [&>button]:text-blue-600 [&>button]:border [&>button]:border-blue-200 [&>button]:px-4 [&>button]:py-2 [&>button]:rounded-lg [&>button]:font-semibold [&>button]:flex [&>button]:items-center [&>button]:gap-2 [&>button]:text-sm hover:[&>button]:bg-blue-100 dark:[&>button]:bg-blue-900/20 dark:[&>button]:border-blue-800/50 dark:hover:[&>button]:bg-blue-900/40 transition-colors">
                         <PDFDownloader
                             title={`MONTH END SUMMARY - ${getMonthName()}`}
-                            subtitle={searchQuery ? `Filtered by Date: ${searchQuery}` : `Complete Monthly Report`}
+                            subtitle={subtitleText}
                             headers={getPdfHeaders()}
                             data={getPdfData()}
                             uniqueCode={uniqueCode}
@@ -450,39 +466,51 @@ export default function MonthEndSummary() {
                 </div>
             </div>
 
-            {/* FILTER SECTION */}
-            <div className="mb-6 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm flex flex-wrap gap-6 items-end">
-                <div className="flex flex-col gap-1.5 flex-1 min-w-[220px]">
-                    <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Month</label>
-                    <input
-                        type="month"
-                        value={month}
-                        onChange={(e) => setMonth(e.target.value)}
-                        className="w-full p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-zinc-800 transition-all"
-                    />
-                </div>
-
-                <div className="flex flex-col gap-1.5 flex-1 min-w-[220px]">
-                    <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Search by Date</label>
-                    <div className="relative">
-                        <Search size={16} className="absolute left-3 top-3 text-gray-400" />
+            {/* NEW FILTER SECTION - PERFECTLY MATCHING IMAGE */}
+            <div className="mb-6 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm flex flex-col md:flex-row items-end gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 w-full">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Month</label>
                         <input
-                            type="text"
-                            placeholder="e.g. 2026-08-10"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-9 p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-zinc-800 transition-all"
+                            type="month"
+                            value={month}
+                            onChange={(e) => {
+                                setMonth(e.target.value);
+                                setFromDate('');
+                                setToDate('');
+                            }}
+                            className="w-full p-2.5 border border-gray-200 dark:border-zinc-700 rounded-lg outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-zinc-800 transition-all cursor-pointer shadow-sm"
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">From Date</label>
+                        <input
+                            type="date"
+                            value={fromDate}
+                            onChange={(e) => setFromDate(e.target.value)}
+                            className="w-full p-2.5 border border-gray-200 dark:border-zinc-700 rounded-lg outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-zinc-800 transition-all cursor-pointer shadow-sm"
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">To Date</label>
+                        <input
+                            type="date"
+                            value={toDate}
+                            onChange={(e) => setToDate(e.target.value)}
+                            className="w-full p-2.5 border border-gray-200 dark:border-zinc-700 rounded-lg outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-zinc-800 transition-all cursor-pointer shadow-sm"
                         />
                     </div>
                 </div>
 
                 <button
                     onClick={clearFilters}
-                    disabled={!searchQuery}
-                    className="p-2.5 text-gray-500 hover:text-red-500 bg-gray-50 hover:bg-red-50 border border-transparent hover:border-red-200 dark:bg-zinc-800 dark:hover:bg-red-900/20 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Clear Filters"
+                    disabled={!fromDate && !toDate}
+                    className="p-2.5 md:mb-[1px] text-gray-400 hover:text-red-500 bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 dark:bg-zinc-800 dark:border-zinc-700 dark:hover:bg-red-900/20 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto flex justify-center shadow-sm"
+                    title="Clear Date Filters"
                 >
-                    <Trash2 size={18} />
+                    <Trash2 size={20} />
                 </button>
             </div>
 
