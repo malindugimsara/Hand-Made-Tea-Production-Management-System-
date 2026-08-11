@@ -38,9 +38,6 @@ export const saveIssueTypeSummaries = async (req, res) => {
 
 export const getIssueTypeSummaries = async (req, res) => {
     try {
-        // ADD THESE TWO LINES FOR DEBUGGING:
-        console.log("👀 I am reading from Database:", mongoose.connection.name);
-        console.log("📁 The exact Collection name is:", IssueTypeSummary.collection.collectionName);
 
         const { date } = req.query; 
         const query = date ? { date: date } : {}; 
