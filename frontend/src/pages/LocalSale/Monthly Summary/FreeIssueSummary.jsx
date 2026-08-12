@@ -60,7 +60,12 @@ export default function FreeIssueSummary() {
         setIsLoading(true);
 
         try {
-            const response = await fetch(`${BACKEND_URL}/api/issue-summary?month=${month}`);
+            const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
+            const response = await fetch(`${BACKEND_URL}/api/issue-summary?month=${month}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}` // 👈 2. Headers වලට Token එක එකතු කිරීම
+                }
+            });
             const result = await response.json();
 
             if (!response.ok) {

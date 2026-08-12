@@ -25,6 +25,10 @@ const ISSUE_TYPES = [
 export default function IssueTypeSummaryView() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
+  // --- ROLE BASED ACCESS ---
+  const userRole = localStorage.getItem("userRole") || localStorage.getItem("role") || "";
+  const isViewer = userRole.toLowerCase() === "viewer" || userRole.toLowerCase() === "view";
+
   // --- States ---
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [summaryData, setSummaryData] = useState([]);
@@ -40,7 +44,12 @@ export default function IssueTypeSummaryView() {
   const fetchSummary = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/api/issue-summary?date=${date}`);      
+      const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
+      const response = await fetch(`${BACKEND_URL}/api/issue-summary?date=${date}`, {
+        headers: {
+          'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
+        }
+      });      
       const result = await response.json();
 
       if (!response.ok || !result.success) {
@@ -70,13 +79,12 @@ export default function IssueTypeSummaryView() {
       record.items?.forEach(item => {
         const key = `${item.categoryId}-${item.size}`;
         
-        // අදාළ පේළිය (Row) Initialize කිරීම
         if (!summaryMap[key]) {
           summaryMap[key] = {
             categoryTitle: item.categoryTitle || item.categoryId,
             size: item.size,
             rowTotal: 0,
-            lastEditedBy: null, // පේළියට අදාළව Edit දත්ත
+            lastEditedBy: null, 
             lastEditedAt: null, 
             types: {
                 "Free issued": { value: 0, recordId: null, itemId: null },
@@ -100,12 +108,10 @@ export default function IssueTypeSummaryView() {
         summaryMap[key].rowTotal += outValue;
         totals.total += outValue;
 
-        // අදාළ Item එක Edit කර ඇත්නම් එය පේළියට ලබා දීම
         if (item.lastEditedAt) {
           const itemEditTime = new Date(item.lastEditedAt).getTime();
           const currentEditTime = summaryMap[key].lastEditedAt ? new Date(summaryMap[key].lastEditedAt).getTime() : 0;
 
-          // Free, Labour, Staff 3න් අවසන් වරටම Edit වුණ වෙලාව සහ කෙනාව තෝරාගනී
           if (itemEditTime > currentEditTime) {
               summaryMap[key].lastEditedBy = item.lastEditedBy;
               summaryMap[key].lastEditedAt = item.lastEditedAt;
@@ -133,12 +139,16 @@ export default function IssueTypeSummaryView() {
     const toastId = toast.loading("Deleting record...");
     
     try {
+        const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
         const promises = [];
         for (const type of ISSUE_TYPES) {
             const typeData = rowToDelete.types[type];
             if (typeData.recordId && typeData.itemId) {
                 promises.push(fetch(`${BACKEND_URL}/api/issue-summary/${typeData.recordId}/item/${typeData.itemId}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: {
+                      'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
+                    }
                 }));
             }
         }
@@ -158,7 +168,7 @@ export default function IssueTypeSummaryView() {
 
   // --- Edit Logic ---
   const openEditModal = (row) => {
-    setEditingItem(JSON.parse(JSON.stringify(row))); // Deep copy
+    setEditingItem(JSON.parse(JSON.stringify(row))); 
     setIsEditModalOpen(true);
   };
 
@@ -168,13 +178,17 @@ export default function IssueTypeSummaryView() {
     const toastId = toast.loading("Updating record...");
     
     try {
+        const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
         const promises = [];
         for (const type of ISSUE_TYPES) {
             const typeData = editingItem.types[type];
             if (typeData.recordId && typeData.itemId) {
                 promises.push(fetch(`${BACKEND_URL}/api/issue-summary/${typeData.recordId}/item/${typeData.itemId}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
+                    },
                     body: JSON.stringify({ out: Number(typeData.value), editedBy: username })
                 }));
             }
@@ -280,8 +294,6 @@ export default function IssueTypeSummaryView() {
         />
       </div>
 
-      
-      
       {/* Data Table Section */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-lg border border-gray-200 dark:border-zinc-800 overflow-hidden">
         
@@ -308,7 +320,8 @@ export default function IssueTypeSummaryView() {
                     <th key={type} className="p-4 text-center">{type}</th>
                   ))}
                   <th className="p-4 text-center text-green-600 dark:text-green-500">Total OUT</th>
-                  <th className="p-4 pr-6 text-center w-[12%]">Actions</th>
+                  {/* Action Column Hidden if Viewer */}
+                  {!isViewer && <th className="p-4 pr-6 text-center w-[12%]">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-zinc-800/50 text-sm group">
@@ -348,42 +361,46 @@ export default function IssueTypeSummaryView() {
                       {row.rowTotal > 0 ? row.rowTotal : '-'}
                     </td>
 
-                    {/* --- ACTIONS COLUMN --- */}
-                    <td className="p-4 pr-6 text-center align-top">
-                      <div className="flex items-center justify-center gap-2">
-                        <button 
-                          onClick={() => openEditModal(row)} 
-                          className="p-1.5 bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/40 text-yellow-600 dark:text-yellow-400 rounded-lg transition-colors shadow-sm"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        
-                        <AdminOnly>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <button 
-                                onClick={() => setRowToDelete(row)} 
-                                className="p-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors shadow-sm"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md border border-gray-200 dark:border-zinc-800">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">Delete Record</AlertDialogTitle>
-                                <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
-                                  Are you sure you want to delete all entries for this item? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel onClick={() => setRowToDelete(null)} className="border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300">Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700 transition-colors">Delete</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </AdminOnly>
-                      </div>
-                    </td>
+                    {/* --- ACTIONS COLUMN (Hidden for Viewer) --- */}
+                    {!isViewer && (
+                      <td className="p-4 pr-6 text-center align-top">
+                        <div className="flex items-center justify-center gap-2">
+                          <button 
+                            onClick={() => openEditModal(row)} 
+                            className="p-1.5 bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/40 text-yellow-600 dark:text-yellow-400 rounded-lg transition-colors shadow-sm"
+                            title="Edit Item"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          
+                          <AdminOnly>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <button 
+                                  onClick={() => setRowToDelete(row)} 
+                                  className="p-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors shadow-sm"
+                                  title="Delete Item"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md border border-gray-200 dark:border-zinc-800">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">Delete Record</AlertDialogTitle>
+                                  <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
+                                    Are you sure you want to delete all entries for this item? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel onClick={() => setRowToDelete(null)} className="border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300">Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700 transition-colors">Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </AdminOnly>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -403,7 +420,8 @@ export default function IssueTypeSummaryView() {
                     <td className="p-4 text-center text-sm font-black text-red-600 dark:text-red-400 bg-red-50/50 dark:bg-red-900/20">
                       {columnTotals.total || '-'}
                     </td>
-                    <td className="p-4 pr-6 bg-red-50/50 dark:bg-red-900/20"></td>
+                    {/* Hide empty footer cell for Viewer */}
+                    {!isViewer && <td className="p-4 pr-6 bg-red-50/50 dark:bg-red-900/20"></td>}
                   </tr>
                 </tfoot>
               )}
@@ -440,7 +458,7 @@ export default function IssueTypeSummaryView() {
                             <label className="text-sm font-bold text-gray-700 dark:text-gray-300 w-1/2">{type}</label>
                             <input 
                                 type="number" min="0" step="any"
-                                disabled={!typeData.recordId} // අගයක් නැති ඒවා Edit කරන්න බැහැ
+                                disabled={!typeData.recordId} 
                                 value={typeData.value}
                                 onChange={(e) => setEditingItem({
                                     ...editingItem,
