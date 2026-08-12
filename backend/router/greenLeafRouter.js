@@ -11,16 +11,16 @@ import { verifyToken, authorizeRoles } from '../middleware/auth.js';
 
 const greenLeafRouter = express.Router();
 
-// POST: Add new records (Admins and Officers only)
-greenLeafRouter.post('/', verifyToken, authorizeRoles('Admin', 'HandMade Officer'), createGreenLeaf);
+// POST: Add new records (Admins and Users only)
+greenLeafRouter.post('/', verifyToken, authorizeRoles('Admin', 'User'), createGreenLeaf);
 
-// GET: View all records (Everyone logged in can view)
-greenLeafRouter.get('/', verifyToken, authorizeRoles('Admin', 'HandMade Officer', 'Viewer'), getAllGreenLeaf);
+// GET: View all records (Admins, Users, and Viewers can view)
+greenLeafRouter.get('/', verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getAllGreenLeaf);
 
-// PUT: Edit existing records (Admins and Officers only)
-greenLeafRouter.put('/:id', verifyToken, authorizeRoles('Admin', 'HandMade Officer'), updateGreenLeaf);
+// PUT: Edit existing records (Admins and Users only)
+greenLeafRouter.put('/:id', verifyToken, authorizeRoles('Admin', 'User'), updateGreenLeaf);
 
-// DELETE: Remove records (Admins and Officers)
-greenLeafRouter.delete('/:id', verifyToken, authorizeRoles('Admin', 'HandMade Officer'), deleteGreenLeaf);
+// DELETE: Remove records (Admin ONLY)
+greenLeafRouter.delete('/:id', verifyToken, authorizeRoles('Admin'), deleteGreenLeaf);
 
 export default greenLeafRouter;

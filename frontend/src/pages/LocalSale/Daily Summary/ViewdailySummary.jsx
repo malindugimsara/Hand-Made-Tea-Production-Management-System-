@@ -16,6 +16,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import AdminOnly from '@/components/AdminOnly';
 
 export default function DailySummaryManageView() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -341,29 +342,32 @@ export default function DailySummaryManageView() {
                         >
                           <Edit size={16} />
                         </button>
-                        <AlertDialog>
-  <AlertDialogTrigger asChild>
-    <button 
-      onClick={() => setItemToDelete({ recordId: currentRecord._id, itemId: item._id })} 
-      className="p-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors shadow-sm"
-      title="Delete Item"
-    >
-      <Trash2 size={16} />
-    </button>
-  </AlertDialogTrigger>
-  <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md border border-gray-200 dark:border-zinc-800">
-    <AlertDialogHeader>
-      <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">Delete Record</AlertDialogTitle>
-      <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
-        Are you sure you want to delete this item? This action cannot be undone.
-      </AlertDialogDescription>
-    </AlertDialogHeader>
-    <AlertDialogFooter>
-      <AlertDialogCancel onClick={() => setItemToDelete(null)} className="border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300">Cancel</AlertDialogCancel>
-      <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700 transition-colors">Delete</AlertDialogAction>
-    </AlertDialogFooter>
-  </AlertDialogContent>
-</AlertDialog>
+                        <AdminOnly>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <button 
+                                onClick={() => setItemToDelete({ recordId: currentRecord._id, itemId: item._id })} 
+                                className="p-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors shadow-sm"
+                                title="Delete Item"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md border border-gray-200 dark:border-zinc-800">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">Delete Record</AlertDialogTitle>
+                                <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
+                                  Are you sure you want to delete this item? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel onClick={() => setItemToDelete(null)} className="border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300">Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700 transition-colors">Delete</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </AdminOnly>
+                        
                       </div>
                     </td>
 

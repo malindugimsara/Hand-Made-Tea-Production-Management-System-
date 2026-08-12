@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, FileText, Package, AlertCircle, RefreshCw, Edit, Trash2, X, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PDFDownloader from '@/components/PDFDownloader';
+import AdminOnly from '@/components/AdminOnly';
 
 import {
   AlertDialog,
@@ -357,28 +358,30 @@ export default function IssueTypeSummaryView() {
                           <Edit size={16} />
                         </button>
                         
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <button 
-                              onClick={() => setRowToDelete(row)} 
-                              className="p-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors shadow-sm"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md border border-gray-200 dark:border-zinc-800">
-                            <AlertDialogHeader>
-                              <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">Delete Record</AlertDialogTitle>
-                              <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
-                                Are you sure you want to delete all entries for this item? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel onClick={() => setRowToDelete(null)} className="border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300">Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700 transition-colors">Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <AdminOnly>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <button 
+                                onClick={() => setRowToDelete(row)} 
+                                className="p-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors shadow-sm"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md border border-gray-200 dark:border-zinc-800">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">Delete Record</AlertDialogTitle>
+                                <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
+                                  Are you sure you want to delete all entries for this item? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel onClick={() => setRowToDelete(null)} className="border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300">Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700 transition-colors">Delete</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </AdminOnly>
                       </div>
                     </td>
                   </tr>

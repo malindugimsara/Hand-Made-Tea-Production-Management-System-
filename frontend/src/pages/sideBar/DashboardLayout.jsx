@@ -17,7 +17,7 @@ import {
   Moon,
   Sprout,
   Calculator, 
-  Search, // Added Search icon
+  Search, 
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -63,7 +63,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-// --- ROLE-BASED DATA CONFIGURATION ---
+// --- NEW DATA CONFIGURATION ---
 const DATA = {
   factory: {
     name: 'Athukorala Group',
@@ -83,58 +83,58 @@ const DATA = {
       title: 'Green Leaf',
       icon: Leaf,
       items: [
-        { title: 'G/L Record Entry', url: '/green-leaf-form', roles: ['Admin', 'HandMade Officer'] }, 
-        { title: 'G/L View Records', url: '/view-green-leaf', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'G/L Record Entry', url: '/green-leaf-form', nonViewer: true }, // 👈 Viewer ගෙන් හැංගෙනවා
+        { title: 'G/L View Records', url: '/view-green-leaf' },
       ],
     },
     {
       title: 'Loft Leaf Count',
       icon: Calculator,
       items: [
-        { title: 'L/L Record Entry', url: '/loft-leaf-count', roles: ['Admin', 'HandMade Officer'] }, 
-        { title: 'L/L View Records', url: '/view-loft-leaf', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
-        { title: 'L/L Weighted Average', url: '/summary-loft-leaf', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
-        { title: 'L/L Simple Average', url: '/simple-average', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'L/L Record Entry', url: '/loft-leaf-count', nonViewer: true }, // 👈 Viewer ගෙන් හැංගෙනවා
+        { title: 'L/L View Records', url: '/view-loft-leaf' },
+        { title: 'L/L Weighted Average', url: '/summary-loft-leaf' },
+        { title: 'L/L Simple Average', url: '/simple-average' },
       ],
     },
     {
       title: 'Dehydrator Machine',
       icon: Factory,
       items: [
-        { title: 'D/L Record Entry', url: '/dehydrator-record-form', roles: ['Admin', 'HandMade Officer'] },
-        { title: 'D/L View Records', url: '/view-dehydrator-records', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'D/L Record Entry', url: '/dehydrator-record-form', nonViewer: true }, // 👈 Viewer ගෙන් හැංගෙනවා
+        { title: 'D/L View Records', url: '/view-dehydrator-records' },
       ],
     },
     {
       title: 'Raw Material',
-      icon: Sprout ,
+      icon: Sprout,
       items: [
-        { title: 'Raw Material Cost', url: '/raw-material-cost', roles: ['Admin', 'HandMade Officer'] },
-        { title: 'View RM Costs', url: '/view-raw-material-cost', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'Raw Material Cost', url: '/raw-material-cost', nonViewer: true }, // 👈 Viewer ගෙන් හැංගෙනවා
+        { title: 'View RM Costs', url: '/view-raw-material-cost' },
       ],
     },
     {
       title: 'Summary Reports',
       icon: LineChart,
       items: [
-        { title: 'Production Summary', url: '/production-summary', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
-        { title: 'Selling Details', url: '/selling-details-table', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
-        { title: 'Cost of Production', url: '/cost-of-production', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'Production Summary', url: '/production-summary' },
+        { title: 'Selling Details', url: '/selling-details-table' },
+        { title: 'Cost of Production', url: '/cost-of-production' },
       ],
     },
     {
       title: 'Transfer Out',
       icon: ChevronRight,
       items: [
-        { title: 'Transfer Out', url: '/transfer-out', roles: ['HandMade Officer', 'Admin'] },
-        { title: 'Transfer Out Records', url: '/transfer-out-view', roles: ['Admin', 'HandMade Officer', 'Viewer'] },
+        { title: 'Transfer Out', url: '/transfer-out', nonViewer: true }, // 👈 Viewer ගෙන් හැංගෙනවා
+        { title: 'Transfer Out Records', url: '/transfer-out-view' },
       ],
     },
     {
       title: 'System Administration',
       icon: Shield,
       items: [
-        { title: 'Manage Users', url: '/manage-users', roles: ['Admin'] },
+        { title: 'Manage Users', url: '/manage-users', adminOnly: true },
       ],
     },
   ],
@@ -198,13 +198,10 @@ export default function DashboardLayout() {
 
   // --- AUTHENTICATION LOGIC ---
   const currentUsername = localStorage.getItem('username') || 'Unknown User';
-  const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'Viewer'; 
+  const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'User'; 
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userRole'); 
-    localStorage.removeItem('username');
-    localStorage.removeItem('role'); 
+    localStorage.clear(); // Clear all auth data
     navigate('/', { replace: true });
   };
 
@@ -237,7 +234,8 @@ export default function DashboardLayout() {
       ...DATA.quickLinks.map(link => ({ title: link.name, url: link.url, icon: link.icon })),
       ...DATA.navMain.flatMap(group =>
         group.items
-          .filter(item => item.roles.includes(currentUserRole))
+          .filter(item => !(item.adminOnly && currentUserRole !== 'Admin')) // Filter admin paths
+          .filter(item => !(item.nonViewer && currentUserRole === 'Viewer')) // 👈 Search Bar එකෙනුත් Viewer ගෙන් හැංගෙනවා
           .map(item => ({ title: item.title, url: item.url, icon: group.icon }))
       )
     ];
@@ -247,6 +245,31 @@ export default function DashboardLayout() {
   const searchResults = pageSearchQuery
     ? accessibleLinks.filter(link => link.title.toLowerCase().includes(pageSearchQuery.toLowerCase()))
     : [];
+
+  // Filter Sidebar Menus based on Role and Search
+  const filteredNavMain = DATA.navMain.map(group => {
+    const visibleItems = group.items.filter(subItem => {
+        // Admin Only ඒවා Admin ට විතරයි
+        if (subItem.adminOnly && currentUserRole !== 'Admin') return false;
+        
+        // nonViewer දාලා තියෙන ඒවා Viewer ට පෙන්වන්නේ නෑ
+        if (subItem.nonViewer && currentUserRole === 'Viewer') return false; 
+        
+        return true;
+    });
+    
+    const matchesGroupTitle = group.title.toLowerCase().includes(pageSearchQuery.toLowerCase());
+
+    const searchFilteredItems = visibleItems.filter(subItem => 
+        matchesGroupTitle || subItem.title.toLowerCase().includes(pageSearchQuery.toLowerCase())
+    );
+
+    return {
+        ...group,
+        items: searchFilteredItems,
+        isSearchMatch: matchesGroupTitle || searchFilteredItems.length > 0
+    };
+  }).filter(group => group.isSearchMatch && group.items.length > 0);
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -300,7 +323,7 @@ export default function DashboardLayout() {
                       key={result.url}
                       onClick={() => {
                         navigate(result.url);
-                        setPageSearchQuery(''); // Clear search after navigation
+                        setPageSearchQuery(''); 
                       }}
                       className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#F4F7F5] dark:hover:bg-zinc-700 cursor-pointer transition-colors"
                     >
@@ -347,17 +370,13 @@ export default function DashboardLayout() {
           <SidebarGroup className="mt-4">
             <SidebarGroupLabel className="text-xs font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase mb-2 ml-2">Management</SidebarGroupLabel>
             <SidebarMenu>
-              {DATA.navMain.map((item) => {
-                const visibleItems = item.items.filter(subItem => 
-                  subItem.roles.includes(currentUserRole)
-                );
-
-                if (visibleItems.length === 0) return null;
-
-                const isGroupActive = visibleItems.some((sub) => sub.url === location.pathname);
+              {filteredNavMain.map((item) => {
+                
+                const isGroupActive = item.items.some((sub) => sub.url === location.pathname);
+                const isOpen = pageSearchQuery.length > 0 ? true : isGroupActive;
 
                 return (
-                  <Collapsible key={item.title} asChild defaultOpen={isGroupActive} className="group/collapsible mb-1">
+                  <Collapsible key={item.title} asChild defaultOpen={isOpen} className="group/collapsible mb-1">
                     <SidebarMenuItem>
                       <CollapsibleTrigger asChild>
                         <SidebarMenuButton tooltip={item.title} className="text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-500 hover:bg-white/60 dark:hover:bg-zinc-900/50 py-6 rounded-full transition-all duration-300">
@@ -370,7 +389,7 @@ export default function DashboardLayout() {
                       </CollapsibleTrigger>
                       <CollapsibleContent>
                         <SidebarMenuSub className="border-l-2 border-gray-200 dark:border-zinc-800 ml-6 pl-4 mt-2 space-y-1">
-                          {visibleItems.map((subItem) => {
+                          {item.items.map((subItem) => {
                             const isSubActive = location.pathname === subItem.url;
                             return (
                               <SidebarMenuSubItem key={subItem.title}>
@@ -482,6 +501,7 @@ export default function DashboardLayout() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
           </div>
         </header>
 

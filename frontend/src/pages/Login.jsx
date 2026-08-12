@@ -6,10 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // ─────────────────────────────────────────────
 // THEMES  —  Four distinct visual identities
-// H/T Factory   → deep forest / olive green
-// Packing       → teal / cool emerald
-// Factory       → lime / green & yellow mix
-// Local Sale    → vibrant green & bright yellow (UPDATED)
 // ─────────────────────────────────────────────
 const THEMES = {
   handmade: {
@@ -69,24 +65,23 @@ const THEMES = {
     particleColor: '#facc15', 
     particleType: 'gear',
   },
-  // ── NEW: LOCAL SALE THEME (Green & Bright Yellow) ──
   localSale: {
-    pageBg: '#fefce8', // Very light yellow background
-    orb1: 'rgba(34, 197, 94, 0.22)', // Vibrant Green
-    orb2: 'rgba(234, 179, 8, 0.18)', // Bright Yellow
-    orb3: 'rgba(20, 184, 166, 0.15)', // Hint of Teal/Green
-    gridStroke: '#eab308', // Yellow grid
-    textPrimary: '#15803d', // Dark Green text
-    textSecondary: '#ca8a04', // Dark Yellow/Gold text
-    accent: '#22c55e', // Green accent
-    btnGradient: 'linear-gradient(135deg, #15803d 0%, #facc15 100%)', // Green to Yellow gradient
+    pageBg: '#fefce8', 
+    orb1: 'rgba(34, 197, 94, 0.22)', 
+    orb2: 'rgba(234, 179, 8, 0.18)', 
+    orb3: 'rgba(20, 184, 166, 0.15)', 
+    gridStroke: '#eab308', 
+    textPrimary: '#15803d', 
+    textSecondary: '#ca8a04', 
+    accent: '#22c55e', 
+    btnGradient: 'linear-gradient(135deg, #15803d 0%, #facc15 100%)', 
     wipeGradient: 'linear-gradient(135deg, #14532d 0%, #16a34a 40%, #fef08a 100%)',
     shimmer: 'rgba(234, 179, 8, 0.12)',
     ringFocus: 'focus:ring-yellow-400/25',
-    badgeBorder: '#fef08a', // Yellow border
-    badgeBg: '#f0fdf4', // Very light green background for badge
-    badgeText: '#15803d', // Green text for badge
-    particleColor: '#facc15', // Yellow particles
+    badgeBorder: '#fef08a', 
+    badgeBg: '#f0fdf4', 
+    badgeText: '#15803d', 
+    particleColor: '#facc15', 
     particleType: 'store',
   }
 };
@@ -108,7 +103,6 @@ const FloatingGear = ({ left, top, delay, color, size }) => (
   </motion.div>
 );
 
-// ── Floating Store Icon for Local Sale ──
 const FloatingStore = ({ left, top, delay, color, size }) => (
   <motion.div className="absolute pointer-events-none flex items-center justify-center" style={{ left, top, color }} initial={{ opacity: 0, y: 0, scale: 0.8 }} animate={{ opacity: [0, 0.4, 0.4, 0], y: [0, -60, -90], scale: [0.8, 1.1, 0.8] }} transition={{ duration: 7 + (delay % 4), delay, repeat: Infinity, ease: 'easeInOut' }}>
     <Store size={size - 2} strokeWidth={2} />
@@ -250,31 +244,33 @@ export default function Login() {
       try { data = text ? JSON.parse(text) : {}; } catch {}
 
       if (res.ok) {
-        const userRole = data.role ? data.role.toLowerCase() : '';
+        const userRole = data.role || 'User';
         let allowed = [];
 
-        if (['admin', 'viewer', 'view'].includes(userRole)) {
+        // 1. Identify Allowed Paths dynamically based on Role
+        if (userRole === 'Admin') {
+            // Admins get access to all sections
             allowed = ['handmade', 'packing', 'factory', 'localSale'];
-        } else if (userRole === 'handmade officer') {
-            allowed = ['handmade'];
-        } else if (userRole === 'packing officer') {
-            allowed = ['packing'];
-        } else if (userRole === 'factory officer') {
-            allowed = ['factory'];
-        } else if (userRole === 'local sale') {
-            allowed = ['localSale'];
+        } else {
+            // For standard users, map the IDs saved in DB to UI theme keys
+            const paths = data.allowedPaths || [];
+            allowed = paths.map(path => path === 'localsale' ? 'localSale' : path);
         }
 
+        // Check if user has no permissions at all
         if (allowed.length === 0) {
-            toast.error("Access Denied: Unrecognized role or permissions.");
+            toast.error("Access Denied: You do not have permission to access any sections.");
             setIsLoading(false);
             return;
         }
 
+        // 2. Save auth details and allowedPaths locally
         localStorage.setItem('token',    data.token);
         localStorage.setItem('userRole', data.role);
         localStorage.setItem('username', data.username);
+        localStorage.setItem('allowedPaths', JSON.stringify(allowed)); // Important for Protected Routes
 
+        // 3. Navigate appropriately
         if (allowed.length === 1) {
             const target = allowed[0];
             triggerThemeChange(target);
@@ -286,6 +282,7 @@ export default function Login() {
             setLoginStep('select');
         }
         setIsLoading(false);
+
       } else {
         toast.error(data.message || data.error || 'Incorrect username or password.');
         setPassword('');
@@ -371,7 +368,6 @@ export default function Login() {
               <Package size={14} className="opacity-80" /> Packing Section 
             </motion.div>
 
-            {/* ── NEW: Local Sale Label ── */}
             <motion.div
               initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay: 0.4 }}
               className="flex items-center justify-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border font-bold text-[11px] sm:text-sm backdrop-blur-md cursor-default select-none transition-colors duration-300"
@@ -477,7 +473,7 @@ export default function Login() {
                   </button>
                 )}
                 
-                {/* ── NEW: Local Sale Option Button (Updated Colors) ── */}
+                {/* ── Local Sale Option Button ── */}
                 {allowedSystems.includes('localSale') && (
                   <button onClick={() => handleSystemSelection('localSale')} className="p-4 bg-white hover:bg-[#fefce8] border-2 border-gray-100 hover:border-[#eab308] rounded-2xl flex items-center gap-4 transition-all duration-300 shadow-sm group">
                     <div className="p-3 bg-yellow-50 rounded-xl group-hover:bg-[#15803d] transition-colors"><Store className="text-[#15803d] group-hover:text-yellow-400" size={24} /></div>

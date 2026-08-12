@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
-import { Bell, Calendar, CheckCircle, Info, TrendingUp, Sparkles, X, Store, ShoppingBag, Activity, FileText } from 'lucide-react';
+import { Bell, Calendar, CheckCircle, Info, TrendingUp, Sparkles, X, Store, ShoppingBag, Activity, CalendarCheck, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function LocalSaleDashboard() {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
     
     // UI & Filter States
     const [isLoading, setIsLoading] = useState(true);
@@ -17,12 +17,12 @@ export default function LocalSaleDashboard() {
     // Modals State
     const [showTodaySalesModal, setShowTodaySalesModal] = useState(false);
 
-    // Raw Data State
-    const [allSalesRecords, setAllSalesRecords] = useState([]);
+    // Real Data States
+    const [dailySummaries, setDailySummaries] = useState([]);
+    const [issueSummaries, setIssueSummaries] = useState([]);
 
     // Dates Setup
     const todayDateObj = new Date();
-    // Adjust to local timezone string format YYYY-MM-DD
     const todayStr = new Date(todayDateObj.getTime() - (todayDateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
     const getGreeting = () => {
@@ -39,21 +39,24 @@ export default function LocalSaleDashboard() {
         return () => clearTimeout(timer);
     }, []);
 
-    // Fetch Local Sales Data
+    // Fetch All Summaries to Calculate Real Net Sales
     useEffect(() => {
         const fetchDashboardData = async () => {
             setIsLoading(true);
             try {
-                const token = localStorage.getItem('token');
-                const headers = { 'Authorization': `Bearer ${token}` };
-
-                const resLocal = await fetch(`${BACKEND_URL}/api/local-sales`, { headers });
+                // Fetch Daily IN/OUT and Issues simultaneously
+                const [dailyRes, issueRes] = await Promise.all([
+                    fetch(`${BACKEND_URL}/api/summary`),
+                    fetch(`${BACKEND_URL}/api/issue-summary`)
+                ]);
                 
-                if (resLocal.ok) {
-                    const localData = await resLocal.json();
-                    setAllSalesRecords(Array.isArray(localData) ? localData : []);
+                if (dailyRes.ok && issueRes.ok) {
+                    const dailyData = await dailyRes.json();
+                    const issueData = await issueRes.json();
+                    setDailySummaries(dailyData.data || []);
+                    setIssueSummaries(issueData.data || []);
                 } else {
-                    toast.error("Failed to load local sales data.");
+                    toast.error("Failed to load real-time sales data.");
                 }
 
             } catch (error) {
@@ -71,28 +74,15 @@ export default function LocalSaleDashboard() {
         return () => clearInterval(intervalId);
     }, [BACKEND_URL]);
 
-    // Process Data efficiently using useMemo
+    // Process Data efficiently using useMemo (Calculate Net Sales = OUT - Issues)
     const dashboardData = useMemo(() => {
-        if (!allSalesRecords || allSalesRecords.length === 0) {
-            return {
-                totalMonthKg: 0,
-                totalTodayKg: 0,
-                monthTransactions: 0,
-                todayRecords: [], 
-                dailyChartData: [],
-                monthlyTrendData: [],
-                alerts: []
-            };
-        }
-
         const [yearStr, monthStr] = selectedMonth.split('-');
         const daysInMonth = new Date(parseInt(yearStr), parseInt(monthStr), 0).getDate();
         
-        // 1. Current Month & Today Stats
         let totalMonthKg = 0;
         let totalTodayKg = 0;
-        let monthTransactions = 0;
-        const todayRecords = [];
+        const activeSaleDays = new Set();
+        const todayItemsMap = {}; 
 
         // Setup Daily Chart Array
         const dailyChartData = Array.from({ length: daysInMonth }, (_, i) => ({
@@ -103,41 +93,80 @@ export default function LocalSaleDashboard() {
         // Setup 6-Month Trend Array
         const monthMap = {};
         for(let i = 5; i >= 0; i--) {
-            const d = new Date();
-            d.setMonth(d.getMonth() - i);
+            const d = new Date(todayDateObj.getFullYear(), todayDateObj.getMonth() - i, 1);
             const yyyyMm = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
             const shortName = d.toLocaleString('default', { month: 'short' });
             monthMap[yyyyMm] = { name: shortName, TotalKG: 0 };
         }
 
-        allSalesRecords.forEach(rec => {
-            const recKg = Number(rec.totalQtyKg) || 0;
-            
-            // Month Stats
-            if (rec.date?.startsWith(selectedMonth)) {
-                totalMonthKg += recKg;
-                monthTransactions += 1;
-                
-                // Populate Daily Chart
-                const dayStr = rec.date.split('-')[2]?.substring(0, 2);
-                const dataRow = dailyChartData.find(d => d.name === dayStr);
-                if (dataRow) {
-                    dataRow.SalesKG += recKg;
+        // Map to hold calculated Net Sales per day per item
+        const netSalesMap = {}; 
+
+        // 1. Gather all OUTs from Daily Summary
+        dailySummaries.forEach(record => {
+            const date = record.date;
+            if (!netSalesMap[date]) netSalesMap[date] = {};
+            record.items?.forEach(item => {
+                const key = `${item.categoryId}_${item.size}`;
+                if (!netSalesMap[date][key]) {
+                    netSalesMap[date][key] = { title: item.categoryTitle || item.categoryId, size: item.size, out: 0, issues: 0 };
                 }
-            }
-
-            // Today Stats
-            if (rec.date === todayStr) {
-                totalTodayKg += recKg;
-                todayRecords.push(rec);
-            }
-
-            // 6-Month Trend
-            const yyyyMm = rec.date?.substring(0, 7);
-            if (yyyyMm && monthMap[yyyyMm]) {
-                monthMap[yyyyMm].TotalKG += recKg;
-            }
+                netSalesMap[date][key].out += (Number(item.out) || 0);
+            });
         });
+
+        // 2. Gather all Deductions from Issues
+        issueSummaries.forEach(record => {
+            const date = record.date;
+            if (!netSalesMap[date]) netSalesMap[date] = {};
+            record.items?.forEach(item => {
+                const key = `${item.categoryId}_${item.size}`;
+                if (!netSalesMap[date][key]) {
+                    netSalesMap[date][key] = { title: item.categoryTitle || item.categoryId, size: item.size, out: 0, issues: 0 };
+                }
+                netSalesMap[date][key].issues += (Number(item.out) || 0);
+            });
+        });
+
+        // 3. Calculate Final Net Sales and Populate Dashboard Metrics
+        Object.entries(netSalesMap).forEach(([date, items]) => {
+            const yyyyMm = date.substring(0, 7);
+            
+            Object.values(items).forEach(item => {
+                // Net Sale = Total OUT - All Issues
+                const netKg = item.out - item.issues;
+                
+                if (netKg > 0) {
+                    // Month Stats
+                    if (yyyyMm === selectedMonth) {
+                        totalMonthKg += netKg;
+                        activeSaleDays.add(date);
+
+                        const dayStr = date.split('-')[2];
+                        const chartRow = dailyChartData.find(d => d.name === dayStr);
+                        if (chartRow) chartRow.SalesKG += netKg;
+                    }
+
+                    // Today Stats
+                    if (date === todayStr) {
+                        totalTodayKg += netKg;
+                        const tKey = `${item.title}_${item.size}`;
+                        if (!todayItemsMap[tKey]) {
+                            todayItemsMap[tKey] = { title: item.title, size: item.size, netKg: 0 };
+                        }
+                        todayItemsMap[tKey].netKg += netKg;
+                    }
+
+                    // 6-Month Trend Stats
+                    if (monthMap[yyyyMm]) {
+                        monthMap[yyyyMm].TotalKG += netKg;
+                    }
+                }
+            });
+        });
+
+        const todayRecordsArray = Object.values(todayItemsMap).sort((a, b) => b.netKg - a.netKg);
+        const monthActiveDays = activeSaleDays.size;
 
         // ============================================
         // --- SMART ALERTS (Green & Yellow themed) ---
@@ -148,13 +177,13 @@ export default function LocalSaleDashboard() {
             generatedAlerts.push({
                 id: 'sales-active', type: 'success', icon: <TrendingUp size={20}/>,
                 title: 'Sales Active Today',
-                message: `You have successfully sold ${totalTodayKg.toFixed(2)}kg of tea today across ${todayRecords.length} transaction(s).`
+                message: `You have successfully sold ${totalTodayKg.toFixed(2)}kg of tea today across ${todayRecordsArray.length} product categories.`
             });
         } else {
             generatedAlerts.push({
                 id: 'no-sales', type: 'warning', icon: <Info size={20}/>,
                 title: 'No Sales Yet',
-                message: `No sales have been recorded for today (${todayStr}) yet.`
+                message: `No net sales have been recorded for today (${todayStr}) yet.`
             });
         }
 
@@ -162,15 +191,15 @@ export default function LocalSaleDashboard() {
              generatedAlerts.push({
                 id: 'high-volume', type: 'success', icon: <Sparkles size={20}/>,
                 title: 'High Monthly Volume',
-                message: `Great performance! You have crossed ${totalMonthKg.toFixed(2)}kg in sales this month.`
+                message: `Great performance! You have crossed ${totalMonthKg.toFixed(2)}kg in net sales this month.`
             });
         }
 
         return {
             totalMonthKg,
             totalTodayKg,
-            monthTransactions,
-            todayRecords, 
+            monthActiveDays,
+            todayRecords: todayRecordsArray, 
             dailyChartData, 
             monthlyTrendData: Object.values(monthMap).map(m => ({
                 name: m.name,
@@ -178,7 +207,7 @@ export default function LocalSaleDashboard() {
             })),
             alerts: generatedAlerts
         };
-    }, [allSalesRecords, selectedMonth, todayStr]); 
+    }, [dailySummaries, issueSummaries, selectedMonth, todayStr, todayDateObj]); 
 
     const getChartDateLabel = () => {
         if (!selectedMonth) return "";
@@ -190,7 +219,7 @@ export default function LocalSaleDashboard() {
     };
 
     const { 
-        totalMonthKg, totalTodayKg, monthTransactions, todayRecords, 
+        totalMonthKg, totalTodayKg, monthActiveDays, todayRecords, 
         dailyChartData, monthlyTrendData, alerts 
     } = dashboardData;
 
@@ -211,18 +240,18 @@ export default function LocalSaleDashboard() {
                     <div className="flex items-center gap-2 w-fit mb-3 sm:mb-5 px-3 py-1.5 sm:px-4 sm:py-1.5 rounded-full backdrop-blur-md bg-white/10 border border-white/20 shadow-sm">
                         <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-yellow-300 shadow-[0_0_8px_rgba(253,224,71,0.8)] animate-pulse" />
                         <span className="text-[10px] sm:text-[11px] font-bold tracking-widest uppercase text-green-50">
-                            Live Point of Sale
+                            Live Net Sales Sync
                         </span>
                     </div>
 
                     {/* Main Heading */}
                     <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-2 sm:mb-3 text-white tracking-tight drop-shadow-sm">
-                        Welcome to <span className="text-yellow-200 block sm:inline">Local Sale Section</span>
+                        Welcome to <span className="text-yellow-200 block sm:inline">Local Sale Dashboard</span>
                     </h1>
 
                     {/* Subtitle */}
                     <p className="text-xs sm:text-sm md:text-base font-medium text-green-50/90 max-w-full sm:max-w-md md:max-w-xl drop-shadow-sm leading-relaxed">
-                        {getGreeting()}, here is your real-time overview of daily revenue, sales volume, and transactions.
+                        {getGreeting()}, here is your real-time overview of net sales volumes and active selling days based on your daily IN/OUT records.
                     </p>
                 </div>
             </div>
@@ -240,17 +269,17 @@ export default function LocalSaleDashboard() {
                             <Store size={24} />
                         </div>
                         {todayRecords.length > 0 && (
-                            <span className="text-[10px] font-bold px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg uppercase animate-pulse">View Today's Bills</span>
+                            <span className="text-[10px] font-bold px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg uppercase animate-pulse">View Items</span>
                         )}
                     </div>
                     <div>
-                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Today's Sales Volume</p>
+                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Today's Net Sales</p>
                         <h3 className="text-3xl font-black text-gray-800 dark:text-gray-100">
                             {isLoading ? '...' : totalTodayKg.toFixed(2)} <span className="text-sm text-gray-400 font-semibold lowercase">kg</span>
                         </h3>
                         <div className="mt-3 text-[11px] font-bold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800/50 px-2 py-1 rounded-md inline-flex items-center gap-1.5">
                             <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                            {todayRecords.length} Transactions Today
+                            {todayRecords.length} Items Sold Today
                         </div>
                     </div>
                 </div>
@@ -264,25 +293,25 @@ export default function LocalSaleDashboard() {
                         <span className="text-[10px] font-bold px-2 py-1 bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 rounded-lg uppercase">This Month</span>
                     </div>
                     <div>
-                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Monthly Sales Volume</p>
+                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Monthly Net Sales</p>
                         <h3 className="text-3xl font-black text-gray-800 dark:text-gray-100">
                             {isLoading ? '...' : totalMonthKg.toFixed(2)} <span className="text-sm text-gray-400 font-semibold lowercase">kg</span>
                         </h3>
                     </div>
                 </div>
 
-                {/* Card 3: Monthly Transactions */}
+                {/* Card 3: Monthly Active Days */}
                 <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 relative overflow-hidden transition-all group hover:shadow-md hover:border-green-300">
                     <div className="flex justify-between items-start mb-4">
                         <div className="w-12 h-12 bg-green-50 dark:bg-green-900/20 rounded-xl flex items-center justify-center text-green-600 dark:text-green-400 group-hover:scale-110 transition-transform">
-                            <FileText size={24} />
+                            <CalendarCheck size={24} />
                         </div>
                         <span className="text-[10px] font-bold px-2 py-1 bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 rounded-lg uppercase">This Month</span>
                     </div>
                     <div>
-                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Total Invoices Issued</p>
+                        <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Active Sale Days</p>
                         <h3 className="text-3xl font-black text-gray-800 dark:text-gray-100">
-                            {isLoading ? '...' : monthTransactions} <span className="text-sm text-gray-400 font-semibold lowercase">bills</span>
+                            {isLoading ? '...' : monthActiveDays} <span className="text-sm text-gray-400 font-semibold lowercase">Days</span>
                         </h3>
                     </div>
                 </div>
@@ -300,7 +329,7 @@ export default function LocalSaleDashboard() {
                         <div className="flex flex-col md:flex-row md:items-start justify-between mb-8 gap-4">
                             <div>
                                 <h3 className="text-lg font-bold flex items-center gap-2 text-green-800 dark:text-green-500">
-                                    <Activity size={20}/> Daily Sales Volume
+                                    <Activity size={20}/> Daily Net Sales Volume
                                 </h3>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium uppercase tracking-wider">Kilograms sold per day</p>
                             </div>
@@ -336,7 +365,7 @@ export default function LocalSaleDashboard() {
                                             cursor={{fill: 'currentColor', opacity: 0.05}}
                                         />
                                         <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '12px', fontWeight: 600, color: '#6b7280' }} iconType="circle" />
-                                        <Bar dataKey="SalesKG" name="Sales Quantity (Kg)" fill="#16a34a" radius={[6, 6, 0, 0]} isAnimationActive={false} />
+                                        <Bar dataKey="SalesKG" name="Net Sales (Kg)" fill="#16a34a" radius={[6, 6, 0, 0]} isAnimationActive={false} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             )}
@@ -350,7 +379,7 @@ export default function LocalSaleDashboard() {
                                 <h3 className="text-lg font-bold flex items-center gap-2 text-yellow-600">
                                     <TrendingUp size={20}/> 6-Month Performance
                                 </h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium uppercase tracking-wider">Total sales volume (KG) over time</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium uppercase tracking-wider">Total net sales volume (KG) over time</p>
                             </div>
                             <div className="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-500 px-4 py-1.5 rounded-full text-[10px] font-bold border border-yellow-200 dark:border-yellow-700/50 uppercase tracking-widest">
                                 Historical Trend
@@ -373,7 +402,7 @@ export default function LocalSaleDashboard() {
                                         <XAxis dataKey="name" tick={{fontSize: 11, fontWeight: 600, fill: '#9ca3af'}} axisLine={false} tickLine={false} dy={10} />
                                         <YAxis tick={{fontSize: 11, fontWeight: 600, fill: '#9ca3af'}} axisLine={false} tickLine={false} tickFormatter={(val) => `${val}kg`} />
                                         <Tooltip 
-                                            formatter={(value) => [`${value} kg`, 'Total Sold']}
+                                            formatter={(value) => [`${value} kg`, 'Total Net Sold']}
                                             contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: 'rgba(255, 255, 255, 0.95)', color: '#374151', fontSize: '12px', fontWeight: 'bold' }}
                                         />
                                         <Area type="monotone" dataKey="TotalKG" stroke="#eab308" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" isAnimationActive={false} />
@@ -439,7 +468,7 @@ export default function LocalSaleDashboard() {
                              <div className="mt-6 bg-[#fefce8] dark:bg-zinc-800/50 p-4 rounded-2xl flex gap-3 items-start border border-yellow-100 dark:border-zinc-700">
                                  <Info size={18} className="text-yellow-600 dark:text-yellow-500 shrink-0 mt-0.5"/>
                                  <p className="text-[11px] text-yellow-800 dark:text-yellow-400 font-medium leading-relaxed uppercase tracking-wide">
-                                     Alerts are automatically generated based on daily activity and sales milestones.
+                                     Alerts are automatically generated based on daily activity and net sales milestones.
                                  </p>
                              </div>
                         )}
@@ -448,13 +477,13 @@ export default function LocalSaleDashboard() {
 
             </div>
 
-            {/* --- MODAL: TODAY'S SALES --- */}
+            {/* --- MODAL: TODAY'S SOLD ITEMS --- */}
             {showTodaySalesModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-opacity">
                     <div className="bg-white dark:bg-zinc-900 rounded-3xl w-full max-w-md shadow-2xl border border-gray-200 dark:border-zinc-800 overflow-hidden transform transition-all">
                         <div className="px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center bg-green-50/50 dark:bg-zinc-800/50">
                             <h3 className="text-lg font-bold text-green-700 dark:text-green-500 flex items-center gap-2">
-                                <Store size={20}/> Today's Transactions
+                                <Package size={20}/> Today's Sold Items
                             </h3>
                             <button onClick={() => setShowTodaySalesModal(false)} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 p-1.5 rounded-full transition-colors">
                                 <X size={20}/>
@@ -467,16 +496,16 @@ export default function LocalSaleDashboard() {
                             ) : (
                                 <div className="space-y-3">
                                     {todayRecords.map((item, i) => (
-                                        <div key={i} className="flex justify-between items-center p-3.5 border bg-gray-50 dark:bg-zinc-800/50 border-gray-100 dark:border-zinc-700/50 rounded-2xl">
+                                        <div key={i} className="flex justify-between items-center p-3.5 border bg-gray-50 dark:bg-zinc-800/50 border-gray-100 dark:border-zinc-700/50 rounded-2xl hover:border-green-300 transition-colors">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                                                <span className="font-bold text-gray-800 dark:text-gray-200">
-                                                    Bill #{item.billNo || `00${i+1}`}
+                                                <span className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+                                                    {item.title} <span className="text-gray-500 text-xs">({item.size})</span>
                                                 </span>
                                             </div>
                                             <div className="text-right whitespace-nowrap">
                                                 <span className="font-black text-lg text-green-700 dark:text-green-400">
-                                                    {(Number(item.totalQtyKg) || 0).toFixed(2)}
+                                                    {item.netKg.toFixed(2)}
                                                 </span>
                                                 <span className="text-gray-400 text-xs font-bold ml-1">kg</span>
                                             </div>

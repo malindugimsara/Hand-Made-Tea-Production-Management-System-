@@ -1,17 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast'; 
 import { useNavigate } from 'react-router-dom';
-import { UserPlus, Shield, User, Key, ArrowLeft } from "lucide-react";
+import { UserPlus, Shield, User, Key, ArrowLeft, CheckSquare } from "lucide-react";
+
+// System එකේ තියෙන ප්‍රධාන අංශ (Sections) ලැයිස්තුව
+const SYSTEM_SECTIONS = [
+    { id: 'localsale', label: 'Local Sale Section' },
+    { id: 'handmade', label: 'Handmade Section' },
+    { id: 'packing', label: 'Packing Section' },
+    { id: 'factory', label: 'Factory Section' },
+];
 
 export default function CreateUserForm() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const navigate = useNavigate();
     
     const [loading, setLoading] = useState(false);
+    
+    // formData එකට අලුතින් allowedPaths Array එකක් එක් කර ඇත
     const [formData, setFormData] = useState({
         username: '',
         password: '',
-        role: 'Viewer' // Default to lowest privilege for safety
+        role: 'User', // Default to User
+        allowedPaths: [] 
     });
 
     // Frontend security check: Ensure only Admins can view this page
@@ -28,11 +39,30 @@ export default function CreateUserForm() {
         setFormData({ ...formData, [name]: value });
     };
 
+    // Checkbox Click කරන විට allowedPaths Array එක Update කරන Function එක
+    const handleCheckboxChange = (sectionId) => {
+        setFormData((prev) => {
+            const isSelected = prev.allowedPaths.includes(sectionId);
+            return {
+                ...prev,
+                allowedPaths: isSelected
+                    ? prev.allowedPaths.filter(id => id !== sectionId) // අයින් කිරීම
+                    : [...prev.allowedPaths, sectionId] // එකතු කිරීම
+            };
+        });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         if (formData.password.length < 6) {
             toast.error("Password must be at least 6 characters long.");
+            return;
+        }
+
+        // User කෙනෙක් නම්, අඩුම තරමේ එක අංශයකටවත් access දීලා තියෙන්න ඕනේ
+        if (formData.role === 'User' && formData.allowedPaths.length === 0) {
+            toast.error("Please select at least one accessible section for the user.");
             return;
         }
 
@@ -48,12 +78,11 @@ export default function CreateUserForm() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` // The magic key!
+                    'Authorization': `Bearer ${token}` 
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(formData) // role, allowedPaths ඔක්කොම යවනවා
             });
 
-            // පෙළක් ලෙස ගෙන පසුව JSON වලට හැරවීම (Error handling වඩාත් නිවැරදි කිරීමට)
             const textResponse = await response.text();
             let data = {};
             try {
@@ -64,19 +93,17 @@ export default function CreateUserForm() {
 
             if (response.ok) {
                 toast.success(`User ${formData.username} created successfully!`, { id: toastId });
-                // Reset form so the admin can add another user if needed
-                setFormData({ username: '', password: '', role: 'Viewer' });
                 
-                // Optional: Redirect back to the manage users page after a short delay
+                // Reset form
+                setFormData({ username: '', password: '', role: 'User', allowedPaths: [] });
+                
                 setTimeout(() => {
                     navigate('/manage-users');
                 }, 1500);
             } else {
-                // Handle 403 Forbidden or 400 Bad Request (e.g., username already exists)
                 if (response.status === 403) {
                     toast.error("Access Denied. Only Admins can create users.", { id: toastId });
                 } else {
-                    // Backend එකෙන් 'message' හෝ 'error' ලෙස එවන පණිවිඩය ලබාගැනීම
                     const errorMsg = data.message || data.error || "Failed to create user.";
                     toast.error(errorMsg, { id: toastId });
                 }
@@ -105,7 +132,7 @@ export default function CreateUserForm() {
                     <UserPlus size={32} />
                 </div>
                 <h2 className="text-3xl font-bold text-[#1B6A31] dark:text-green-500">Create System User</h2>
-                <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Add new staff members and assign roles</p>
+                <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Add new staff members and assign their access</p>
             </div>
             
             <form onSubmit={handleSubmit} className="bg-white dark:bg-zinc-900 p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 transition-colors duration-300">
@@ -133,7 +160,7 @@ export default function CreateUserForm() {
                             <Key size={16} className="text-[#1B6A31] dark:text-green-500"/> Initial Password
                         </label>
                         <input 
-                            type="text" // Kept as text so the Admin can see what password they are setting
+                            type="text"
                             name="password" 
                             value={formData.password} 
                             onChange={handleInputChange} 
@@ -144,38 +171,72 @@ export default function CreateUserForm() {
                     </div>
 
                     {/* Role Selection Field */}
-                    <div className="mb-8 pb-6 border-b border-gray-100 dark:border-zinc-800 transition-colors">
+                    <div className="mb-4 pb-4 border-b border-gray-100 dark:border-zinc-800 transition-colors">
                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2 uppercase tracking-wider">
                             <Shield size={16} className="text-[#1B6A31] dark:text-green-500"/> System Role
                         </label>
                         <select 
                             name="role" 
                             value={formData.role} 
-                            onChange={handleInputChange} 
+                            onChange={(e) => {
+                                handleInputChange(e);
+                                // Admin තේරුවොත් allowed paths හිස් කරනවා
+                                if (e.target.value === 'Admin') {
+                                    setFormData(prev => ({ ...prev, allowedPaths: [] }));
+                                }
+                            }} 
                             required 
                             className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-gray-100 focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none transition-all cursor-pointer appearance-none"
                         >
-                            <option value="Viewer" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Viewer (Read-Only Access)</option>
-                            <option value="HandMade Officer" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">HandMade Officer (HandMade Tea Related Tasks)</option>
-                            <option value="Factory Officer" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Factory Officer (Factory Related Tasks)</option>
-                            <option value="Packing Officer" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Packing Officer (Packing Related Tasks)</option>
-                            <option value="Local Sale" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Local Sale (Local Sales Related Tasks)</option>
-                            <option value="Admin" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Admin (Full Control & User Management)</option>
+                            <option value="User" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Standard User (Specific Sections Only)</option>
+                            <option value="Viewer">Viewer (Read-Only Access)</option>
+                            <option value="Admin" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Admin (Full System Access)</option>
                         </select>
                         
-                        {/* Dynamic Help Text based on selected role */}
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2.5 italic">
-                            {formData.role === 'Admin' && "⚠️ Admins have full access to view, edit, delete data, and create other users."}
-                            {formData.role === 'HandMade Officer' && "Officers can enter and edit daily production data but cannot manage users."}
-                            {formData.role === 'Viewer' && "Viewers can only look at records and reports. They cannot change any data."}
-                            {formData.role === 'Packing Officer' && "Packing Officers can manage packing records but have limited access to other data."}
+                            {formData.role === 'Admin' 
+                                ? "⚠️ Admins have full access to view, edit, delete data, and create other users." 
+                                : "Users will only have access to the specific sections you select below."}
                         </p>
                     </div>
+
+                    {/* --- Accessible Sections (Checkboxes) --- */}
+                    {(formData.role === 'User' || formData.role === 'Viewer') && (
+                        <div className="mb-8">
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2 uppercase tracking-wider">
+                                <CheckSquare size={16} className="text-[#1B6A31] dark:text-green-500"/> Select Accessible Sections
+                            </label>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {SYSTEM_SECTIONS.map(section => (
+                                    <label 
+                                        key={section.id} 
+                                        className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors
+                                            ${formData.allowedPaths.includes(section.id) 
+                                                ? 'border-green-500 bg-green-50/50 dark:bg-green-900/20' 
+                                                : 'border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800'
+                                            }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.allowedPaths.includes(section.id)}
+                                            onChange={() => handleCheckboxChange(section.id)}
+                                            className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                                        />
+                                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                                            {section.label}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                 </div>
 
                 <button
                     type="submit"
-                    className={`w-full h-14 mt-4 text-white font-bold rounded-lg text-lg transition-all shadow-md flex justify-center items-center gap-2 ${
+                    className={`w-full h-14 mt-6 text-white font-bold rounded-lg text-lg transition-all shadow-md flex justify-center items-center gap-2 ${
                         loading ? 'bg-gray-400 dark:bg-zinc-700 cursor-not-allowed' : 'bg-[#1B6A31] hover:bg-[#145226] dark:bg-green-700 dark:hover:bg-green-600 active:scale-95'
                     }`}
                     disabled={loading}

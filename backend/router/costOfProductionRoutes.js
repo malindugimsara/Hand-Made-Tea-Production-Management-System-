@@ -6,9 +6,9 @@ import { verifyToken, authorizeRoles } from '../middleware/auth.js';
 const costOfProductionRouter = express.Router();
 
 // POST: Save or Update
-costOfProductionRouter.post('/', verifyToken, authorizeRoles('Admin', 'HandMade Officer'), saveCostOfProduction);
+costOfProductionRouter.post('/', verifyToken, authorizeRoles('Admin', 'User'), saveCostOfProduction);
 
 // GET: Fetch by Month 
-costOfProductionRouter.get('/:month', verifyToken, authorizeRoles('Admin', 'HandMade Officer', 'Viewer'), getCostOfProductionByMonth);
+costOfProductionRouter.get('/:month', verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getCostOfProductionByMonth);
 
 export default costOfProductionRouter;
