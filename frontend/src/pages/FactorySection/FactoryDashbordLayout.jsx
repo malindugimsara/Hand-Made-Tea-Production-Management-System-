@@ -62,7 +62,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-// --- ROLE-BASED DATA CONFIGURATION ---
+// --- NEW ROLE-BASED DATA CONFIGURATION ---
 const DATA = {
   factory: {
     name: 'Athukorala Group',
@@ -77,20 +77,20 @@ const DATA = {
       title: 'Factory Balance',
       icon: Store,
       items: [
-        { title: 'Daily Production', url: '/factory/dailyproduction', roles: ['Admin', 'Factory Officer'] },
-        { title: 'Dispatch And Return', url: '/factory/dispatchandreturn', roles: ['Admin', 'Factory Officer'] },
-        { title: 'Labour Output', url: '/factory/labouroutput', roles: ['Admin', 'Factory Officer'] },
-        { title: 'Factory Packing', url: '/factory/factorypacking', roles: ['Admin', 'Factory Officer'] }
+        { title: 'Daily Production', url: '/factory/dailyproduction', nonViewer: true },
+        { title: 'Dispatch And Return', url: '/factory/dispatchandreturn', nonViewer: true },
+        { title: 'Labour Output', url: '/factory/labouroutput', nonViewer: true },
+        { title: 'Factory Packing', url: '/factory/factorypacking', nonViewer: true }
       ],
     },
     {
       title: 'Summary Reports',
       icon: LineChart,
       items: [
-        { title: 'Factory Log View', url: '/factory/view', roles: ['Admin', 'Factory Officer', 'Viewer'] },
-        { title: 'Dispatch Records', url: '/factory/dispatchrecords', roles: ['Admin', 'Factory Officer', 'Viewer'] },
-        { title: 'Labour Output List', url: '/factory/labouroutputlist', roles: ['Admin', 'Factory Officer', 'Viewer'] },
-        { title: 'Packing Summary', url: '/factory/packingsummary', roles: ['Admin', 'Factory Officer', 'Viewer'] }
+        { title: 'Factory Log View', url: '/factory/view' },
+        { title: 'Dispatch Records', url: '/factory/dispatchrecords' },
+        { title: 'Labour Output List', url: '/factory/labouroutputlist' },
+        { title: 'Packing Summary', url: '/factory/packingsummary' }
       ],
     },
   ],
@@ -162,18 +162,14 @@ export default function FactoryDashboardLayout() {
 
   // --- AUTHENTICATION LOGIC ---
   const currentUsername = localStorage.getItem('username') || 'Unknown User';
-  const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'Viewer';
+  const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'User';
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('username');
-    localStorage.removeItem('role');
+    localStorage.clear(); // Clear all auth data
     navigate('/', { replace: true });
   };
 
-  
-// --- CUSTOM BREADCRUMB FALLBACK LOGIC ---
+  // --- CUSTOM BREADCRUMB FALLBACK LOGIC ---
   const getCustomBreadcrumbTitle = (path) => {
     switch (path) {
       case '/factory/dailyproduction': return 'Daily Production';
@@ -208,12 +204,12 @@ export default function FactoryDashboardLayout() {
       }
     }
 
-    // 3. Fallback to Switch Statement (For hidden edit pages and /packing/ module)
+    // 3. Fallback to Switch Statement (For hidden edit pages and /factory/ module)
     const customTitle = getCustomBreadcrumbTitle(location.pathname);
     if (customTitle) {
-      // Inject "Packing" as the parent folder automatically
-      if (location.pathname.includes('/packing/')) {
-        paths.push({ title: 'Packing', url: '' });
+      // Inject "Factory" as the parent folder automatically
+      if (location.pathname.includes('/factory/')) {
+        paths.push({ title: 'Factory', url: '' });
       }
       
       paths.push({ title: customTitle, url: location.pathname });
@@ -232,18 +228,40 @@ export default function FactoryDashboardLayout() {
   });
 
   // --- SEARCH FILTERING LOGIC ---
+  const accessibleLinks = React.useMemo(() => {
+    return [
+      ...DATA.quickLinks.map(link => ({ title: link.name, url: link.url, icon: link.icon })),
+      ...DATA.navMain.flatMap(group =>
+        group.items
+          .filter(item => !(item.adminOnly && currentUserRole !== 'Admin')) // Filter admin paths
+          .filter(item => !(item.nonViewer && currentUserRole === 'Viewer')) // Hide from viewers
+          .map(item => ({ title: item.title, url: item.url, icon: group.icon }))
+      )
+    ];
+  }, [currentUserRole]);
+
   const filteredQuickLinks = DATA.quickLinks.filter(item =>
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const searchResults = searchQuery
+    ? accessibleLinks.filter(link => link.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    : [];
+
   const filteredNavMain = DATA.navMain.map(group => {
-    const roleFilteredItems = group.items.filter(subItem =>
-      subItem.roles.includes(currentUserRole)
-    );
+    const visibleItems = group.items.filter(subItem => {
+        // Admin Only ඒවා Admin ට විතරයි
+        if (subItem.adminOnly && currentUserRole !== 'Admin') return false;
+        
+        // nonViewer දාලා තියෙන ඒවා Viewer ට පෙන්වන්නේ නෑ
+        if (subItem.nonViewer && currentUserRole === 'Viewer') return false; 
+        
+        return true;
+    });
 
     const matchesGroupTitle = group.title.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const searchFilteredItems = roleFilteredItems.filter(subItem =>
+    const searchFilteredItems = visibleItems.filter(subItem =>
       matchesGroupTitle || subItem.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -259,7 +277,7 @@ export default function FactoryDashboardLayout() {
       <SidebarProvider open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
         <Sidebar
           collapsible="icon"
-          className="border-none bg-[#F4F7F5] dark:bg-zinc-950 transition-[width] duration-300 ease-in-out z-50"
+          className="border-none !bg-[#F4F7F5] dark:!bg-zinc-950 !opacity-100 z-[60] transition-[width] duration-300 ease-in-out"
           onMouseEnter={handleSidebarMouseEnter}
           onMouseLeave={handleSidebarMouseLeave}
         >
@@ -282,7 +300,7 @@ export default function FactoryDashboardLayout() {
             </SidebarMenu>
           </SidebarHeader>
 
-          <SidebarContent className="px-2 mt-4">
+          <SidebarContent className="px-2 mt-4 relative">
 
             {/* --- SEARCH BAR --- */}
             <div className="px-2 mb-2 relative z-50">
@@ -296,6 +314,29 @@ export default function FactoryDashboardLayout() {
                   className="w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-[#1B6A31] dark:focus:border-green-600 rounded-xl py-2 pl-9 pr-4 text-sm outline-none transition-all dark:text-white shadow-sm"
                 />
               </div>
+
+              {/* SEARCH RESULTS DROPDOWN */}
+              {searchQuery && isSidebarOpen && (
+                <div className="absolute top-full mt-1 left-2 right-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg max-h-60 overflow-y-auto py-1 z-50 custom-scrollbar">
+                  {searchResults.length > 0 ? (
+                    searchResults.map((result) => (
+                      <div
+                        key={result.url}
+                        onClick={() => {
+                          navigate(result.url);
+                          setSearchQuery(''); 
+                        }}
+                        className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#F4F7F5] dark:hover:bg-zinc-700 cursor-pointer transition-colors"
+                      >
+                        {result.icon && <result.icon size={16} className="text-gray-400 dark:text-gray-500" />}
+                        <span className="font-medium">{result.title}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="px-4 py-3 text-sm text-gray-500 text-center">No pages found</div>
+                  )}
+                </div>
+              )}
             </div>
 
             {filteredQuickLinks.length > 0 && (
@@ -394,7 +435,7 @@ export default function FactoryDashboardLayout() {
 
         <SidebarInset className="bg-[#F4F7F5] dark:bg-zinc-950 relative flex flex-col h-screen overflow-hidden p-2 md:p-4 w-full">
 
-          <header className="flex h-14 bg-white dark:bg-zinc-900/95 backdrop-blur-2xl border border-white dark:border-zinc-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl shrink-0 items-center justify-between gap-2 absolute top-2 left-2 right-2 md:top-4 md:left-4 md:right-4 z-40 px-3 md:px-4 transition-all">
+          <header className="flex h-14 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-2xl border border-white dark:border-zinc-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl shrink-0 items-center justify-between gap-2 absolute top-2 left-2 right-2 md:top-4 md:left-4 md:right-4 z-40 px-3 md:px-4 transition-all">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-500 transition-colors" />
               <Separator orientation="vertical" className="mr-1 md:mr-2 h-5 bg-gray-200 dark:bg-zinc-700" />
@@ -460,7 +501,7 @@ export default function FactoryDashboardLayout() {
                 </DropdownMenuTrigger>
 
                 <DropdownMenuContent
-                  className="w-56 rounded-2xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-gray-100 dark:border-zinc-800 shadow-xl p-2 mt-2"
+                  className="w-56 rounded-2xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-gray-100 dark:border-zinc-800 shadow-xl p-2 mt-2 z-[70]"
                   align="end"
                 >
                   <DropdownMenuLabel className="p-0 font-normal">

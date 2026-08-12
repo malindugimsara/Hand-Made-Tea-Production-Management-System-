@@ -1,12 +1,26 @@
 import express from 'express';
-import {getLabourOutputs, saveLabourOutput,deleteLabourLogsByDate, updateLabourOutputByDate}  from '../controller/labourOutputController.js';
+import {
+    getLabourOutputs, 
+    saveLabourOutput,
+    deleteLabourLogsByDate, 
+    updateLabourOutputByDate
+}  from '../controller/labourOutputController.js';
+
+// Authentication සහ Role-based Authorization Middlewares Import කිරීම
+import { verifyToken, authorizeRoles } from '../../middleware/auth.js'; 
 
 const labourOutputRouter = express.Router();
 
-// You can add get/delete here later just like your factory logs!
-labourOutputRouter.delete('/date/:date', deleteLabourLogsByDate); // Put this FIRST
+// DELETE: Remove records by date (Admin ONLY) - Put this FIRST
+labourOutputRouter.delete('/date/:date', verifyToken, authorizeRoles('Admin', 'User'), deleteLabourLogsByDate); 
 
-labourOutputRouter.post('/', saveLabourOutput);
-labourOutputRouter.get('/', getLabourOutputs);
-labourOutputRouter.put('/date/:date', updateLabourOutputByDate);
+// POST: Save labour output (Admins and Users only)
+labourOutputRouter.post('/', verifyToken, authorizeRoles('Admin', 'User'), saveLabourOutput);
+
+// GET: View labour outputs (Admins, Users, and Viewers can view)
+labourOutputRouter.get('/', verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getLabourOutputs);
+
+// PUT: Update records by date (Admins and Users only)
+labourOutputRouter.put('/date/:date', verifyToken, authorizeRoles('Admin', 'User'), updateLabourOutputByDate);
+
 export default labourOutputRouter;

@@ -31,6 +31,11 @@ export default function PackingStockView() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // --- ROLE BASED ACCESS ---
+  const userRole = localStorage.getItem("userRole") || localStorage.getItem("role") || "";
+  const isViewer = userRole.toLowerCase() === "viewer" || userRole.toLowerCase() === "view";
+  const isAdmin = userRole === "Admin";
+
   const currentMonthStr = new Date().toISOString().slice(0, 7);
 
   const [records, setRecords] = useState([]);
@@ -63,7 +68,12 @@ export default function PackingStockView() {
   const fetchLedgerData = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/api/factory-packs`);
+      const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
+      const response = await fetch(`${BACKEND_URL}/api/factory-packs`, {
+        headers: {
+          'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
+        }
+      });
       if (!response.ok) throw new Error("Failed to fetch data from database");
       const res = await response.json();
       setRecords(res.data || []);
@@ -78,7 +88,13 @@ export default function PackingStockView() {
   const handleDeleteConfirm = async () => {
     if (!recordToDelete) return;
     try {
-      const response = await fetch(`${BACKEND_URL}/api/factory-packs/${recordToDelete}`, { method: 'DELETE' });
+      const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
+      const response = await fetch(`${BACKEND_URL}/api/factory-packs/${recordToDelete}`, { 
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
+        }
+      });
       if (!response.ok) {
         const resData = await response.json();
         throw new Error(resData.message);
@@ -392,7 +408,8 @@ export default function PackingStockView() {
                   <th colSpan="3" className="px-4 py-3 border-r border-gray-300 dark:border-gray-700 align-middle text-teal-800 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20">A / G / Super</th>
                   <th colSpan="3" className="px-4 py-3 border-r border-gray-300 dark:border-gray-700 align-middle text-blue-800 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20">A / Group</th>
                   <th colSpan="3" className="px-4 py-3 border-r border-gray-300 dark:border-gray-700 align-middle text-indigo-800 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20">Sample Bags</th>
-                  <th rowSpan="2" className="px-4 py-4 align-middle text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800/80 w-24 print:hidden">Action</th>
+                  {/* Action Column Hidden if Viewer */}
+                  {!isViewer && <th rowSpan="2" className="px-4 py-4 align-middle text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800/80 w-24 print:hidden">Action</th>}
                 </tr>
                 <tr className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-bold uppercase text-[10px] tracking-wider border-b border-gray-300 dark:border-gray-700">
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Rec</th>
@@ -428,42 +445,47 @@ export default function PackingStockView() {
                         <td className="py-3 px-2 border-r border-gray-200 dark:border-gray-700 text-red-600 dark:text-red-400 font-semibold">{row.sampleBags?.used || "-"}</td>
                         <td className="py-3 px-2 border-r border-gray-300 dark:border-gray-700 font-bold text-indigo-800 dark:text-indigo-300 bg-indigo-50/30 dark:bg-indigo-900/10">{row.calculatedBalances.sampleBags}</td>
 
-                        <td className="px-3 py-3 text-center print:hidden">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => handleEditClick(row)}
-                              className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded transition-all"
-                              title="Edit Record"
-                            >
-                              <MdOutlineEdit size={20} />
-                            </button>
-                            
-                            {/* Shadcn Alert Dialog wrapped around delete button functionality */}
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <button
-                                  onClick={() => setRecordToDelete(row._id)}
-                                  className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all"
-                                  title="Delete Record"
-                                >
-                                  <MdOutlineDeleteOutline size={20} />
-                                </button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This action cannot be undone. This will permanently delete this day's packing ledger data from the server database records.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </td>
+                        {/* Hide Actions cell if Viewer */}
+                        {!isViewer && (
+                          <td className="px-3 py-3 text-center print:hidden">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => handleEditClick(row)}
+                                className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 rounded transition-all"
+                                title="Edit Record"
+                              >
+                                <MdOutlineEdit size={20} />
+                              </button>
+                              
+                              {/* Show Delete Button ONLY for Admin */}
+                              {isAdmin && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <button
+                                      onClick={() => setRecordToDelete(row._id)}
+                                      className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all"
+                                      title="Delete Record"
+                                    >
+                                      <MdOutlineDeleteOutline size={20} />
+                                    </button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete this day's packing ledger data from the server database records.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700 text-white">Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     ))}
 
@@ -482,12 +504,14 @@ export default function PackingStockView() {
                       <td className="py-4 px-2 border-r border-gray-300 dark:border-gray-600 text-indigo-800 dark:text-indigo-300">{totals.sampleRec || "-"}</td>
                       <td className="py-4 px-2 border-r border-gray-300 dark:border-gray-600 text-red-700 dark:text-red-400">{totals.sampleUsed || "-"}</td>
                       <td className="border-r border-gray-300 dark:border-gray-600 bg-gray-300/50 dark:bg-gray-800/50"></td>
-                      <td className="bg-gray-200 dark:bg-gray-700"></td>
+                      
+                      {/* Hide empty action cell for Viewer */}
+                      {!isViewer && <td className="bg-gray-200 dark:bg-gray-700"></td>}
                     </tr>
                   </>
                 ) : (
                   <tr>
-                    <td colSpan="11" className="p-16 text-center">
+                    <td colSpan={!isViewer ? "11" : "10"} className="p-16 text-center">
                       <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
                         <AlertCircle size={40} className="mb-3 opacity-20" />
                         <p className="text-lg font-medium">No ledger records found for {getPeriodText()}</p>

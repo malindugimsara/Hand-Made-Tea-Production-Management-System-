@@ -17,6 +17,10 @@ const LabourOutputEdit = () => {
     const navigate = useNavigate();
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
 
+    // --- ROLE BASED ACCESS ---
+    const userRole = localStorage.getItem("userRole") || localStorage.getItem("role") || "";
+    const isViewer = userRole.toLowerCase() === "viewer" || userRole.toLowerCase() === "view";
+
     // Grab the grouped data passed from the table route
     const groupData = location.state?.recordData;
 
@@ -36,8 +40,15 @@ const LabourOutputEdit = () => {
         finalOutput: 0
     });
 
-    // --- Initialize Data on Mount ---
+    // --- Initialize Data on Mount & Role Check ---
     useEffect(() => {
+        // Viewer කෙනෙක් කෙලින්ම URL එකෙන් ආවොත් ආපහු හරවලා යවනවා
+        if (isViewer) {
+            toast.error("You don't have permission to edit records.");
+            navigate("/factory/labouroutputlist");
+            return;
+        }
+
         if (!groupData) {
             toast.error("No record data found. Redirecting...");
             navigate("/factory/labouroutputlist");
@@ -58,7 +69,7 @@ const LabourOutputEdit = () => {
         } else {
             setSections([{ id: Date.now(), section: "", noOfLabours: "", otHours: "" }]);
         }
-    }, [groupData, navigate]);
+    }, [groupData, navigate, isViewer]);
 
     // --- FETCH MADE TEA FROM DAILY PRODUCTION ---
     useEffect(() => {
@@ -75,10 +86,7 @@ const LabourOutputEdit = () => {
                 
                 if (response.ok) {
                     const data = await response.json();
-                    // Find the log for this specific date
                     const dailyLog = data.records?.find(r => r.date.split('T')[0] === recordDate);
-                    
-                    // Extract Made Tea (Check both nested and flat structures based on your DB)
                     const teaAmount = dailyLog?.madeTea?.today || dailyLog?.calculatedMadeTea || 0;
                     setMadeTeaToday(teaAmount);
                 } else {

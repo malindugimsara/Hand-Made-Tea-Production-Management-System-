@@ -28,6 +28,11 @@ const LabourOutputTable = () => {
     const navigate = useNavigate();
     const location = useLocation();
     
+    // --- ROLE BASED ACCESS ---
+    const userRole = localStorage.getItem("userRole") || localStorage.getItem("role") || "";
+    const isViewer = userRole.toLowerCase() === "viewer" || userRole.toLowerCase() === "view";
+    const isAdmin = userRole === "Admin";
+
     // Date Helpers
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
@@ -80,7 +85,12 @@ const LabourOutputTable = () => {
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`${BACKEND_URL}/api/labour-output`);
+            const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
+            const response = await fetch(`${BACKEND_URL}/api/labour-output`, {
+                headers: { 
+                    'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
+                }
+            });
             if (!response.ok) throw new Error("Failed to fetch data");
             const result = await response.json();
             setRawRecords(result || []);
@@ -105,7 +115,6 @@ const LabourOutputTable = () => {
 
     // --- Grouping, Filtering & Stats Calculations ---
     const { filteredGroups, stats } = useMemo(() => {
-        // 1. Group raw records by date
         const grouped = rawRecords.reduce((acc, record) => {
             const date = record.date ? record.date.split('T')[0] : 'Unknown Date';
             if (!acc[date]) acc[date] = [];
@@ -113,7 +122,6 @@ const LabourOutputTable = () => {
             return acc;
         }, {});
 
-        // 2. Format into array and pre-calculate base metrics
         let allGroups = Object.entries(grouped).map(([date, entries]) => {
             const groupWorkers = entries.reduce((sum, e) => sum + (e.noOfLabours || 0), 0);
             const dailyAvgOutput = entries.length > 0 
@@ -129,40 +137,28 @@ const LabourOutputTable = () => {
             };
         });
 
-        // 3. Calculate "To Date" averages for EACH ROW
-        // (Sum of all daily averages from the 1st of that month up to that row's date, divided by days)
         allGroups = allGroups.map(group => {
             const monthPrefix = group.date.slice(0, 7);
-            
-            // Find all dates in the same month that are less than or equal to this row's date
             const mtdGroups = allGroups.filter(g => g.date.startsWith(monthPrefix) && g.date <= group.date);
-            
             const toDateSumAvg = mtdGroups.reduce((sum, g) => sum + g.dailyAvgOutput, 0);
             const toDateAvgOutput = mtdGroups.length > 0 ? (toDateSumAvg / mtdGroups.length) : 0;
-
             return { ...group, toDateAvgOutput };
         });
 
-        // 4. Calculate Stats for the Top Cards
         let todayWorkers = 0, todayAvg = 0;
         let toDateWorkers = 0, toDateSumAvg = 0, toDateCount = 0;
         let lastMonthWorkers = 0, lastMonthSumAvg = 0, lastMonthCount = 0;
 
         allGroups.forEach(group => {
-            // Today
             if (group.date === todayStr) {
                 todayWorkers += group.dailyWorkers;
                 todayAvg = group.dailyAvgOutput;
             }
-            
-            // To Date (Current Month up to today)
             if (group.date.startsWith(currentMonthStr) && group.date <= todayStr) {
                 toDateWorkers += group.dailyWorkers;
                 toDateSumAvg += group.dailyAvgOutput;
                 toDateCount += 1;
             }
-
-            // Last Month
             if (group.date.startsWith(lastMonthStr)) {
                 lastMonthWorkers += group.dailyWorkers;
                 lastMonthSumAvg += group.dailyAvgOutput;
@@ -170,7 +166,6 @@ const LabourOutputTable = () => {
             }
         });
 
-        // 5. Filter Data for UI Table based on User Selection
         let filtered = allGroups;
         if (filterMonth) {
             filtered = filtered.filter(g => g.date.startsWith(filterMonth));
@@ -178,24 +173,14 @@ const LabourOutputTable = () => {
             filtered = filtered.filter(g => g.date >= fromDate && g.date <= toDate);
         }
 
-        // Sort descending
         filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         return {
             filteredGroups: filtered,
             stats: {
-                today: { 
-                    workers: todayWorkers, 
-                    avgOutput: todayAvg
-                },
-                toDate: { 
-                    workers: toDateWorkers, 
-                    avgOutput: toDateCount ? (toDateSumAvg / toDateCount) : 0 
-                },
-                lastMonth: { 
-                    workers: lastMonthWorkers, 
-                    avgOutput: lastMonthCount ? (lastMonthSumAvg / lastMonthCount) : 0 
-                }
+                today: { workers: todayWorkers, avgOutput: todayAvg },
+                toDate: { workers: toDateWorkers, avgOutput: toDateCount ? (toDateSumAvg / toDateCount) : 0 },
+                lastMonth: { workers: lastMonthWorkers, avgOutput: lastMonthCount ? (lastMonthSumAvg / lastMonthCount) : 0 }
             }
         };
     }, [rawRecords, filterMonth, fromDate, toDate, getPackingSummaryForDate, todayStr, currentMonthStr, lastMonthStr]);
@@ -210,9 +195,13 @@ const LabourOutputTable = () => {
         if (!recordToDelete) return;
         const toastId = toast.loading("Deleting records...");
         try {
+            const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
             const response = await fetch(`${BACKEND_URL}/api/labour-output/date/${recordToDelete.date}`, {
                 method: "DELETE",
-                headers: { "Content-Type": "application/json" }
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}` // 👈 Token එක යැවීම
+                }
             });
             if (!response.ok) throw new Error("Failed to delete the record");
             toast.success("Records deleted successfully!", { id: toastId });
@@ -262,7 +251,6 @@ const LabourOutputTable = () => {
         ];
 
         const worksheet = XLSX.utils.aoa_to_sheet(tableData);
-        // Extend merge range to cover the new column (col 0 to 7)
         worksheet['!merges'] = [
             { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } }, { s: { r: 2, c: 0 }, e: { r: 2, c: 7 } },
         ];
@@ -427,13 +415,15 @@ const LabourOutputTable = () => {
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right">Total Kgs</th>
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right text-blue-800 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20">Daily Avg Output</th>
                                 <th className="px-6 py-4 border-r border-gray-300 dark:border-gray-700 text-right text-indigo-800 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20">To-Date Avg Output</th>
-                                <th className="px-4 py-4 text-center w-24">Actions</th>
+                                
+                                {/* Hide Actions column completely if Viewer */}
+                                {!isViewer && <th className="px-4 py-4 text-center w-24">Actions</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700 transition-colors">
                             {isLoading && (
                                 <tr>
-                                    <td colSpan="9" className="p-16 text-center text-gray-500 dark:text-gray-400">
+                                    <td colSpan={!isViewer ? "9" : "8"} className="p-16 text-center text-gray-500 dark:text-gray-400">
                                         <div className="flex flex-col items-center justify-center">
                                             <div className="w-8 h-8 border-4 border-[#8CC63F] border-t-[#1B6A31] dark:border-green-600 dark:border-t-green-400 rounded-full animate-spin mb-4"></div>
                                             <p className="font-medium">Loading labour output...</p>
@@ -444,7 +434,7 @@ const LabourOutputTable = () => {
 
                             {!isLoading && filteredGroups.length === 0 && (
                                 <tr>
-                                    <td colSpan="9" className="p-16 text-center">
+                                    <td colSpan={!isViewer ? "9" : "8"} className="p-16 text-center">
                                         <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
                                             <AlertCircle size={40} className="mb-3 opacity-20" />
                                             <p className="text-lg font-medium text-gray-500 dark:text-gray-400">
@@ -494,37 +484,43 @@ const LabourOutputTable = () => {
                                             {toDateAvgOutput.toFixed(2)}
                                         </td>
                                         
-                                        <td className="px-3 py-3 text-center align-top">
-                                            <div className="flex items-center justify-center gap-1">
-                                                <button onClick={() => handleEditClick(group)} className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-all" title="Edit Record">
-                                                    <MdOutlineEdit size={20} />
-                                                </button>
+                                        {/* Actions cell (Hidden for Viewer) */}
+                                        {!isViewer && (
+                                            <td className="px-3 py-3 text-center align-top">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <button onClick={() => handleEditClick(group)} className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-all" title="Edit Record">
+                                                        <MdOutlineEdit size={20} />
+                                                    </button>
 
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <button onClick={() => setRecordToDelete(group)} className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all" title="Delete Record">
-                                                            <MdOutlineDeleteOutline size={20} />
-                                                        </button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent className="bg-white dark:bg-gray-800 rounded-2xl border-gray-100 dark:border-gray-700 shadow-xl max-w-md">
-                                                        <AlertDialogHeader>
-                                                            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4 border border-red-200 dark:border-red-800/50">
-                                                                <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
-                                                            </div>
-                                                            <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">Delete Labour Log</AlertDialogTitle>
-                                                            <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-base">
-                                                                Are you sure you want to permanently delete the log for <span className="font-bold text-gray-800 dark:text-gray-200 ml-1">{date}</span>?
-                                                                <br /><br />This action cannot be undone.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter className="mt-6">
-                                                            <AlertDialogCancel onClick={() => setRecordToDelete(null)} className="border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg px-6 font-semibold">Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white dark:bg-red-600 dark:hover:bg-red-700 rounded-lg px-6 font-semibold shadow-sm transition-colors">Delete Record</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
-                                        </td>
+                                                    {/* Delete Button (Only for Admin) */}
+                                                    {isAdmin && (
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <button onClick={() => setRecordToDelete(group)} className="p-1.5 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all" title="Delete Record">
+                                                                    <MdOutlineDeleteOutline size={20} />
+                                                                </button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent className="bg-white dark:bg-gray-800 rounded-2xl border-gray-100 dark:border-gray-700 shadow-xl max-w-md">
+                                                                <AlertDialogHeader>
+                                                                    <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4 border border-red-200 dark:border-red-800/50">
+                                                                        <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                                                                    </div>
+                                                                    <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">Delete Labour Log</AlertDialogTitle>
+                                                                    <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-base">
+                                                                        Are you sure you want to permanently delete the log for <span className="font-bold text-gray-800 dark:text-gray-200 ml-1">{date}</span>?
+                                                                        <br /><br />This action cannot be undone.
+                                                                    </AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter className="mt-6">
+                                                                    <AlertDialogCancel onClick={() => setRecordToDelete(null)} className="border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg px-6 font-semibold">Cancel</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white dark:bg-red-600 dark:hover:bg-red-700 rounded-lg px-6 font-semibold shadow-sm transition-colors">Delete Record</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        )}
                                     </tr>
                                 );
                             })}
