@@ -14,14 +14,21 @@ export const getAllUsers = async (req, res) => {
 // CREATE USER
 export const createUser = async (req, res) => {
   try {
-    const { username, password, role } = req.body;
+    // 👇 Frontend එකෙන් එවන allowedPaths ලබාගැනීම
+    const { username, password, role, allowedPaths } = req.body;
 
     const existingUser = await User.findOne({ username });
     if (existingUser) {
       return res.status(400).json({ message: "Username already taken." });
     }
 
-    const newUser = new User({ username, password, role });
+    const newUser = new User({ 
+        username, 
+        password, 
+        role: role || 'User',
+        allowedPaths: allowedPaths || [] // 👇 අලුතින් save කරන කොටස
+    });
+    
     await newUser.save();
 
     res.status(201).json({ message: "User created successfully" });
@@ -35,7 +42,8 @@ export const createUser = async (req, res) => {
 // UPDATE USER
 export const updateUser = async (req, res) => {
   try {
-    const { username, role, password } = req.body;
+    // 👇 Update කරද්දී එවන allowedPaths ලබාගැනීම
+    const { username, role, password, allowedPaths } = req.body;
 
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -44,6 +52,9 @@ export const updateUser = async (req, res) => {
 
     if (username) user.username = username;
     if (role) user.role = role;
+    
+    // 👇 allowedPaths එවා ඇත්නම් එය යාවත්කාලීන කිරීම
+    if (allowedPaths) user.allowedPaths = allowedPaths;
 
     // FIX: only set password if exists
     if (password && password.trim() !== '') {

@@ -13,10 +13,7 @@ import {
   Sun,
   Moon,
   Store,
-  Coffee,
-  PackagePlus,
-  Proportions, 
-  Search, // <-- Search icon එක අලුතින් එකතු කර ඇත
+  Search,
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -62,7 +59,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-// --- ROLE-BASED DATA CONFIGURATION ---
+// --- DATA CONFIGURATION ---
 const DATA = {
   factory: {
     name: 'Athukorala Group',
@@ -77,27 +74,28 @@ const DATA = {
       title: 'Daily Summary',
       icon: Store,
       items: [
-        { title: 'Enter Daily Summary', url: '/localsale/dailysummary', roles: ['Admin', 'Local Sale'] },
-        { title: 'Daily Summary View', url: '/localsale/viewdailysummary', roles: ['Admin', 'Local Sale'] },
+        // අපි දැන් 'roles' check කරන්නේ නැහැ. 'LocalSaleDashboardLayout' එකට එන්න පුළුවන්
+        // Admin ට හෝ 'localsale' access තියෙන කෙනෙකුට පමණයි. ඒ නිසා ඔක්කොම පෙන්නනවා.
+        { title: 'Enter Daily Summary', url: '/localsale/dailysummary' },
+        { title: 'Daily Summary View', url: '/localsale/viewdailysummary' },
       ],
     },
     {
       title: 'Issue Summary',
       icon: Store,
       items: [
-        { title: 'Enter Issue Summary', url: '/localsale/issuesummary', roles: ['Admin', 'Local Sale'] },
-        { title: 'Issue Summary View', url: '/localsale/issuesummaryview', roles: ['Admin', 'Local Sale'] },
+        { title: 'Enter Issue Summary', url: '/localsale/issuesummary' },
+        { title: 'Issue Summary View', url: '/localsale/issuesummaryview' },
       ],
     },
     {
       title: 'Monthly Summary',
       icon: LineChart,
       items: [
-        { title: 'Month End Summary View', url: '/localsale/monthlysummaryview', roles: ['Admin', 'Local Sale'] },
-        { title: 'Free Issue Summary', url: '/localsale/freeissuesummary', roles: ['Admin', 'Local Sale'] },
+        { title: 'Month End Summary View', url: '/localsale/monthlysummaryview' },
+        { title: 'Free Issue Summary', url: '/localsale/freeissuesummary' },
       ],
     },
-    
   ],
 };
 
@@ -109,22 +107,17 @@ export default function LocalSaleDashboardLayout() {
   // --- SEARCH BAR STATE ---
   const [searchQuery, setSearchQuery] = React.useState('');
 
-  // --- SIDEBAR HOVER & DELAY LOGIC ---
+  // --- SIDEBAR HOVER LOGIC ---
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
   const sidebarTimeoutRef = React.useRef(null);
 
-  // Close sidebar by default on mobile load
   React.useEffect(() => {
-    if (isMobile) {
-      setIsSidebarOpen(false);
-    }
+    if (isMobile) setIsSidebarOpen(false);
   }, [isMobile]);
 
   const handleSidebarMouseEnter = () => {
     if (isMobile) return; 
-    if (sidebarTimeoutRef.current) {
-      clearTimeout(sidebarTimeoutRef.current);
-    }
+    if (sidebarTimeoutRef.current) clearTimeout(sidebarTimeoutRef.current);
     setIsSidebarOpen(true);
   };
 
@@ -171,33 +164,18 @@ export default function LocalSaleDashboardLayout() {
   const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'Viewer'; 
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userRole'); 
-    localStorage.removeItem('username');
-    localStorage.removeItem('role'); 
+    localStorage.clear(); // Clear everything on logout
     navigate('/', { replace: true });
   };
 
   const getBreadcrumbTitle = () => {
     switch (location.pathname) {
-      case '/packing/local-record-entry': return 'Local Record Entry';
-      case '/packing/local-record-view': return 'Local Record View';
-      case '/packing/edit-local-sale': return 'Edit Local Sale Record';
-      case '/packing/tea-center-record-entry': return 'Tea Center Record Entry';
-      case '/packing/tea-center-record-view': return 'Tea Center Record View';
-      case '/packing/edit-tea-center-issue': return 'Edit Tea Center Record';
-      case '/packing/trans-in-entry': return 'Trans In Entry';
-      case '/packing/trans-in-view': return 'Trans In View';
-      case '/packing/trans-in-factory-entry': return 'Factory Trans In Entry';
-      case '/packing/trans-in-factory-view': return 'Factory Trans In View';
-      case '/packing/trans-in-other': return 'Other Trans In Entry';
-      case '/packing/trans-in-view-other': return 'Other Trans In View';
-      case '/packing/trans-in-raw-material': return 'Raw Material Entry';
-      case '/packing/trans-in-view-raw-material': return 'Raw Material View';
-      case '/packing/product-issue-summary': return 'Product Issue Summary';
-      case '/packing/summary-reports': return 'Stock Summary Reports';
-      case '/packing/stock-adjustment-entry': return 'Stock Adjustment Entry';
-      case '/packing/stock-adjustment-view': return 'Stock Adjustment View';
+      case '/localsale/dailysummary': return ' Daily Summary Entry';
+      case '/localsale/viewdailysummary': return 'Daily Summary View';
+      case '/localsale/issuesummary': return 'Issue Summary Entry';
+      case '/localsale/issuesummaryview': return 'Issue Summary View';
+      case '/localsale/monthlysummaryview': return 'Monthly Summary View';
+      case '/localsale/freeissuesummary': return 'Free Issue Summary';
       default: return 'System';
     }
   };
@@ -213,16 +191,10 @@ export default function LocalSaleDashboardLayout() {
   );
 
   const filteredNavMain = DATA.navMain.map(group => {
-    // 1. Role එකට ගැලපෙන items විතරක් වෙන් කරගන්නවා
-    const roleFilteredItems = group.items.filter(subItem => 
-        subItem.roles.includes(currentUserRole)
-    );
-
-    // 2. Group title එක search එකට match වෙනවද බලනවා
     const matchesGroupTitle = group.title.toLowerCase().includes(searchQuery.toLowerCase());
-
-    // 3. Sub-item titles search එකට match වෙනවද බලනවා (title එක match වුනොත් ඔක්කොම පෙන්නනවා)
-    const searchFilteredItems = roleFilteredItems.filter(subItem => 
+    
+    // Check if sub-items match search
+    const searchFilteredItems = group.items.filter(subItem => 
         matchesGroupTitle || subItem.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -231,7 +203,7 @@ export default function LocalSaleDashboardLayout() {
         items: searchFilteredItems,
         isSearchMatch: matchesGroupTitle || searchFilteredItems.length > 0
     };
-  }).filter(group => group.isSearchMatch && group.items.length > 0); // අදාළ items මොකුත් නැත්නම් ඒ group එක අයින් කරනවා
+  }).filter(group => group.isSearchMatch && group.items.length > 0);
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -278,7 +250,6 @@ export default function LocalSaleDashboardLayout() {
           </div>
 
           
-          
           {filteredQuickLinks.length > 0 && (
             <SidebarGroup>
                 <SidebarGroupLabel className="text-xs font-bold text-gray-400 dark:text-gray-500 tracking-widest uppercase mb-2 ml-2">Overview</SidebarGroupLabel>
@@ -320,7 +291,6 @@ export default function LocalSaleDashboardLayout() {
                 {filteredNavMain.map((item) => {
                     
                     const isGroupActive = item.items.some((sub) => sub.url === location.pathname);
-                    // Search කරන විටදී menu එක ඉබේම expand වීමට
                     const isOpen = searchQuery.length > 0 ? true : isGroupActive;
 
                     return (
@@ -378,7 +348,6 @@ export default function LocalSaleDashboardLayout() {
 
       <SidebarInset className="bg-[#F4F7F5] dark:bg-zinc-950 relative flex flex-col h-screen overflow-hidden p-2 md:p-4 w-full">
         
-        {/* Adjusted top position and padding for mobile */}
         <header className="flex h-14 bg-white dark:bg-zinc-900/95 backdrop-blur-2xl border border-white dark:border-zinc-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl shrink-0 items-center justify-between gap-2 absolute top-2 left-2 right-2 md:top-4 md:left-4 md:right-4 z-40 px-3 md:px-4 transition-all">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-500 transition-colors" />
@@ -401,13 +370,9 @@ export default function LocalSaleDashboardLayout() {
             </Breadcrumb>
           </div>
 
-          {/* --- TOP RIGHT CONTROLS --- */}
           <div className="flex items-center gap-2 sm:gap-4 md:mr-2">
-
-            {/* Time - Hidden on small screens to save space */}
             <p className="hidden md:block text-sm font-medium p-4 dark:text-white">{today}</p>
             
-            {/* Theme Toggle */}
             <button 
               onClick={toggleTheme}
               title="Toggle Dark Mode"
@@ -418,7 +383,6 @@ export default function LocalSaleDashboardLayout() {
 
             <Separator orientation="vertical" className="h-6 bg-gray-200 dark:bg-zinc-700 hidden sm:block" />
 
-            {/* User Profile Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 focus:outline-none group">
                 <Avatar className="h-8 w-8 md:h-9 md:w-9 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-transform group-hover:scale-105">
@@ -426,7 +390,6 @@ export default function LocalSaleDashboardLayout() {
                     {currentUsername.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                {/* Hide text on small screens */}
                 <div className="hidden lg:grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-bold text-gray-800 dark:text-gray-200 mb-0.5">{currentUsername}</span>
                   <span className="truncate text-[10px] font-bold tracking-wider text-gray-500 dark:text-gray-400 uppercase leading-none">{currentUserRole}</span>
@@ -465,7 +428,6 @@ export default function LocalSaleDashboardLayout() {
           </div>
         </header>
 
-        {/* Adjusted top margin to fit under mobile header */}
         <div className="flex-1 mt-[4.5rem] md:mt-20 bg-white dark:bg-zinc-900 rounded-[1.5rem] md:rounded-[2rem] shadow-[0_0_40px_rgb(0,0,0,0.02)] border border-gray-100 dark:border-zinc-800 overflow-hidden relative flex flex-col transition-colors duration-300">
           <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-zinc-700 hover:scrollbar-thumb-gray-300 dark:hover:scrollbar-thumb-zinc-600">
             <motion.div

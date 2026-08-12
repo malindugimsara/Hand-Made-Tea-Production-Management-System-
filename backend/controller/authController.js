@@ -14,9 +14,14 @@ export const loginUser = async (req, res) => {
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return res.status(401).json({ message: "Invalid credentials" });
 
-    // 3. Generate JWT containing the user ID and Role
+    // 3. Generate JWT containing the user ID, Role, and allowedPaths
     const token = jwt.sign(
-      { id: user._id, role: user.role , name: user.username }, 
+      { 
+          id: user._id, 
+          role: user.role, 
+          name: user.username,
+          allowedPaths: user.allowedPaths // අලුතින් token එකට දැමූ කොටස
+      }, 
       process.env.JWT_KEY, 
       { expiresIn: '12h' } // Token expires in 12 hours
     );
@@ -25,9 +30,11 @@ export const loginUser = async (req, res) => {
       message: "Login successful", 
       token, 
       role: user.role, 
-      username: user.username 
+      username: user.username,
+      allowedPaths: user.allowedPaths // Frontend එකට localStorage හි save කිරීමට යවන කොටස
     });
   } catch (error) {
+    console.error("Login Error:", error);
     res.status(500).json({ error: "Server error" });
   }
 };
@@ -35,11 +42,20 @@ export const loginUser = async (req, res) => {
 // Create a new user (Only Admins will be able to hit this route later)
 export const registerUser = async (req, res) => {
   try {
-    const { username, password, role } = req.body;
-    const newUser = new User({ username, password, role });
+    // Frontend එකෙන් එවන allowedPaths ලබාගැනීම
+    const { username, password, role, allowedPaths } = req.body;
+    
+    const newUser = new User({ 
+        username, 
+        password, 
+        role: role || 'User', // Role එකක් එව්වේ නැත්නම් සාමාන්‍ය 'User' ලෙස සකසයි
+        allowedPaths: allowedPaths || [] // තෝරාගත් අංශ (sections) ටික save කරයි
+    });
+    
     await newUser.save();
     res.status(201).json({ message: "User created successfully" });
   } catch (error) {
+    console.error("Registration Error:", error);
     res.status(500).json({ error: "Error creating user. Username might exist." });
   }
 };

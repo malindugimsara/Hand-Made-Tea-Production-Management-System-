@@ -26,6 +26,7 @@ export default function ViewLoftLeafCount() {
   // --- ROLE BASED ACCESS ---
   const userRole = localStorage.getItem("userRole") || "";
   const isViewer = userRole.toLowerCase() === "viewer" || userRole.toLowerCase() === "view";
+  const isAdmin = userRole === "Admin"; // 👈 Admin ද යන්න පරීක්ෂා කිරීම
   const currentUsername = localStorage.getItem("username") || "System Admin";
 
   // --- STATES ---
@@ -121,12 +122,10 @@ export default function ViewLoftLeafCount() {
     let totalLeafQ = 0;
     
     dayRecords.forEach(r => {
-        // Sum totalLeafQty only if it exists
         if (r.totalLeafQty) {
             totalLeafQ += (Number(r.totalLeafQty) || 0);
         }
 
-        // Only use Factory Sample Entries to display Best, Below Best, and Poor details in the summary
         if (r.sampleType === 'Factory') {
             factoryTotalQ += (Number(r.totalQty) || 0);
             factoryBestQ += (Number(r.bestQty) || 0);
@@ -152,11 +151,11 @@ export default function ViewLoftLeafCount() {
         const doc = new jsPDF('p', 'pt', 'a4');
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
-        const THEME_COLOR = [27, 106, 49]; // Dark Green Theme
+        const THEME_COLOR = [27, 106, 49]; 
         
         // --- 1. HEADER SECTION & LOGO ---
         const img = new Image();
-        img.src = '/logo.png'; // Public folder logo
+        img.src = '/logo.png'; 
         
         await new Promise((resolve) => {
             img.onload = resolve;
@@ -227,7 +226,6 @@ export default function ViewLoftLeafCount() {
             doc.setFont("helvetica", "bold");
             doc.text(title, 40, startY);
             
-            // Calculate and display Total Leaf Qty for Factory sample
             let tLeafQ = 0;
             if (isFactory) {
                 records.forEach(r => {
@@ -235,7 +233,7 @@ export default function ViewLoftLeafCount() {
                 });
                 
                 doc.setFontSize(11);
-                doc.setTextColor(27, 106, 49); // Dark Green for Total
+                doc.setTextColor(27, 106, 49); 
                 doc.text(`Total Leaf Count: ${tLeafQ.toFixed(2)} Kg`, pageWidth - 40, startY, { align: 'right' });
             }
 
@@ -271,7 +269,6 @@ export default function ViewLoftLeafCount() {
             const tBelowBestPct = totalQ > 0 ? Math.round((belowBestQ / totalQ) * 100) : 0;
             const tPoorPct = totalQ > 0 ? Math.round((poorQ / totalQ) * 100) : 0;
 
-            // Total Row
             body.push([
                 { content: 'Total Sample:', styles: { fontStyle: 'bold', halign: 'right' } },
                 { content: totalQ.toFixed(2), styles: { fontStyle: 'bold', textColor: THEME_COLOR, halign: 'center' } },
@@ -438,32 +435,21 @@ export default function ViewLoftLeafCount() {
             <table className="w-full text-xs sm:text-sm text-left border-collapse whitespace-nowrap min-w-[700px] md:min-w-max">
               <thead>
                 <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-[10px] sm:text-xs tracking-wider border-b border-gray-200 dark:border-zinc-800 transition-colors">
-                  {/* Sticky Date Column */}
                   <th className="sticky left-0 z-20 bg-gray-50 dark:bg-zinc-950/95 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] px-3 sm:px-4 py-2 sm:py-3 font-semibold border-r border-gray-200 dark:border-zinc-800 align-middle min-w-[150px]">
                     <div className="flex items-center gap-1"><Calendar size={14} className="text-[#1B6A31] dark:text-green-500"/> Date</div>
                   </th>
-                  
-                  {/* Total Leaf QTY */}
                   <th className="px-3 sm:px-4 py-2 sm:py-3 font-bold text-[#1B6A31] dark:text-green-500 border-r border-gray-200 dark:border-zinc-800 bg-[#8CC63F]/10 dark:bg-green-900/20 align-middle text-center">
                     Total Leaf QTY (Kg)
                   </th>
-                  
-                  {/* Best */}
                   <th className="px-3 sm:px-4 py-2 sm:py-3 font-bold text-teal-700 dark:text-teal-500 border-r border-gray-200 dark:border-zinc-800 bg-teal-50 dark:bg-teal-950/30 text-center">
                     Best %
                   </th>
-                  
-                  {/* Below Best */}
                   <th className="px-3 sm:px-4 py-2 sm:py-3 font-bold text-orange-700 dark:text-orange-500 border-r border-gray-200 dark:border-zinc-800 bg-orange-50 dark:bg-orange-950/30 text-center">
                     Below Best %
                   </th>
-                  
-                  {/* Poor */}
                   <th className="px-3 sm:px-4 py-2 sm:py-3 font-bold text-red-700 dark:text-red-500 border-r border-gray-200 dark:border-zinc-800 bg-red-50 dark:bg-red-950/30 text-center">
                     Poor %
                   </th>
-                  
-                  {/* Action */}
                   <th className="px-3 sm:px-4 py-2 sm:py-3 font-semibold align-middle text-center bg-gray-50 dark:bg-zinc-950/50">
                     Action
                   </th>
@@ -477,15 +463,12 @@ export default function ViewLoftLeafCount() {
                       const dayRecords = groupedRecords[date];
                       const summary = calculateDaySummary(dayRecords);
                       const isExpanded = expandedDate === date;
-
-                      // Filter factory records for the expanded view
                       const factoryRecords = dayRecords.filter(r => r.sampleType === 'Factory');
 
                       return (
                         <React.Fragment key={date}>
                           <tr className="hover:bg-gray-50/80 dark:hover:bg-zinc-800/50 transition-colors group">
                             
-                            {/* Sticky Date Body (Clickable to Expand) */}
                             <td 
                               onClick={() => toggleExpand(date)}
                               className="cursor-pointer sticky left-0 z-10 bg-white dark:bg-zinc-900 group-hover:bg-gray-50 dark:group-hover:bg-zinc-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] px-3 sm:px-4 py-3 border-r border-gray-100 dark:border-zinc-800 align-middle transition-colors font-semibold text-gray-800 dark:text-gray-200"
@@ -528,9 +511,9 @@ export default function ViewLoftLeafCount() {
                                   <FileDown className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
                                 </button>
 
+                                {/* Edit and Delete buttons (Hidden from Viewer) */}
                                 {!isViewer && (
                                   <>
-                                    {/* Edit Button */}
                                     <button
                                       onClick={() => navigate('/edit-loft-leaf', { state: { date: date, recordsData: dayRecords } })}
                                       className="p-1 sm:p-1.5 text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-400 hover:bg-[#8CC63F]/20 dark:hover:bg-zinc-800 rounded transition-all"
@@ -539,33 +522,35 @@ export default function ViewLoftLeafCount() {
                                       <MdOutlineEdit className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
                                     </button>
                                     
-                                    {/* Delete Button */}
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <button
-                                          onClick={() => setRecordToDelete(dayRecords)} 
-                                          className="p-1 sm:p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all"
-                                          title="Delete Date Records"
-                                        >
-                                          <MdOutlineDeleteOutline className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
-                                        </button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-sm sm:max-w-md w-[90vw]">
-                                        <AlertDialogHeader>
-                                          <div className="w-10 sm:w-12 h-10 sm:h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-3 sm:mb-4 border border-red-200 dark:border-red-800">
-                                              <AlertCircle className="w-5 sm:w-6 h-5 sm:h-6 text-red-600 dark:text-red-400" />
-                                          </div>
-                                          <AlertDialogTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Delete Record</AlertDialogTitle>
-                                          <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-                                            Are you sure you want to delete ALL records for {date}?
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter className="mt-4 sm:mt-6">
-                                          <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">Delete All</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
+                                    {/* Delete Button (Restricted to Admin ONLY) */}
+                                    {isAdmin && (
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <button
+                                            onClick={() => setRecordToDelete(dayRecords)} 
+                                            className="p-1 sm:p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all"
+                                            title="Delete Date Records"
+                                          >
+                                            <MdOutlineDeleteOutline className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
+                                          </button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl border-gray-100 dark:border-zinc-800 shadow-xl max-w-sm sm:max-w-md w-[90vw]">
+                                          <AlertDialogHeader>
+                                            <div className="w-10 sm:w-12 h-10 sm:h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-3 sm:mb-4 border border-red-200 dark:border-red-800">
+                                                <AlertCircle className="w-5 sm:w-6 h-5 sm:h-6 text-red-600 dark:text-red-400" />
+                                            </div>
+                                            <AlertDialogTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Delete Record</AlertDialogTitle>
+                                            <AlertDialogDescription className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                                              Are you sure you want to delete ALL records for {date}?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter className="mt-4 sm:mt-6">
+                                            <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">Delete All</AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    )}
                                   </>
                                 )}
                               </div>

@@ -11,13 +11,13 @@ import { verifyToken, authorizeRoles } from '../middleware/auth.js';
 const loftLeafrouter = express.Router();
 
 
-loftLeafrouter.get('/', verifyToken, authorizeRoles('Admin', 'HandMade Officer', 'Viewer'), getAllLoftLeafCounts);
+loftLeafrouter.get('/', verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getAllLoftLeafCounts);
 
-loftLeafrouter.get('/summary', verifyToken, authorizeRoles('Admin', 'HandMade Officer', 'Viewer'), getMonthlyRouteSummary);
+loftLeafrouter.get('/summary', verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getMonthlyRouteSummary);
 
-loftLeafrouter.post('/', verifyToken, authorizeRoles('Admin', 'HandMade Officer'), createLoftLeafCount);
+loftLeafrouter.post('/', verifyToken, authorizeRoles('Admin', 'User'), createLoftLeafCount);
 
-loftLeafrouter.put('/:id', verifyToken, authorizeRoles('Admin', 'HandMade Officer'), updateLoftLeafCount);
+loftLeafrouter.put('/:id', verifyToken, authorizeRoles('Admin', 'User'), updateLoftLeafCount);
 
 loftLeafrouter.delete('/:id', verifyToken, authorizeRoles('Admin'), deleteLoftLeafCount);
 

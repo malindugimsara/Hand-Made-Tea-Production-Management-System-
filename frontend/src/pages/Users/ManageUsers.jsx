@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { Users, Shield, UserPlus, Edit, Trash2, X, AlertCircle } from "lucide-react";
+import { Users, Shield, UserPlus, Edit, Trash2, X, AlertCircle, User as UserIcon, CheckSquare } from "lucide-react";
 
 import {
     AlertDialog,
@@ -15,6 +15,14 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+// System එකේ තියෙන ප්‍රධාන අංශ (Sections) ලැයිස්තුව
+const SYSTEM_SECTIONS = [
+    { id: 'localsale', label: 'Local Sale Section' },
+    { id: 'handmade', label: 'Handmade Section' },
+    { id: 'packing', label: 'Packing Section' },
+    { id: 'factory', label: 'Factory Section' }
+];
+
 export default function ManageUsers() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const navigate = useNavigate();
@@ -24,7 +32,7 @@ export default function ManageUsers() {
     
     // Modal State for Editing Users
     const [editingUser, setEditingUser] = useState(null);
-    const [editFormData, setEditFormData] = useState({ username: '', role: '', password: '' });
+    const [editFormData, setEditFormData] = useState({ username: '', role: 'User', password: '', allowedPaths: [] });
 
     // Delete State
     const [userToDelete, setUserToDelete] = useState(null);
@@ -88,12 +96,51 @@ export default function ManageUsers() {
     // --- EDIT LOGIC ---
     const openEditModal = (user) => {
         setEditingUser(user._id);
-        // Backend එක password එක හිස්ව ආවොත් skip කරන නිසා මෙතන password: '' ලෙස තැබීම නිවැරදියි
-        setEditFormData({ username: user.username, role: user.role, password: '' });
+
+        let mappedRole = user.role;
+        let mappedPaths = user.allowedPaths ? [...user.allowedPaths] : [];
+
+        // 💡 කලින් හදපු පරණ Users ලව අලුත් ක්‍රමයට හරවන කොටස (Auto Migration)
+        if (mappedRole !== 'Admin' && mappedRole !== 'User') {
+            mappedRole = 'User'; // පරණ මොන නම තිබුණත් 'User' බවට පත් කරනවා
+            
+            // එයාලට කලින් තිබුණු Role එක අනුව Checkbox එක Tick කරනවා
+            if (mappedPaths.length === 0) {
+                if (user.role === 'Local Sale') mappedPaths = ['localsale'];
+                else if (user.role === 'HandMade Officer') mappedPaths = ['handmade'];
+                else if (user.role === 'Packing Officer') mappedPaths = ['packing'];
+                else if (user.role === 'Factory Officer') mappedPaths = ['factory'];
+            }
+        }
+
+        setEditFormData({ 
+            username: user.username, 
+            role: mappedRole, 
+            password: '', 
+            allowedPaths: mappedPaths 
+        });
+    };
+
+    const handleCheckboxChange = (sectionId) => {
+        setEditFormData((prev) => {
+            const isSelected = prev.allowedPaths.includes(sectionId);
+            return {
+                ...prev,
+                allowedPaths: isSelected
+                    ? prev.allowedPaths.filter(id => id !== sectionId)
+                    : [...prev.allowedPaths, sectionId]
+            };
+        });
     };
 
     const handleEditSubmit = async (e) => {
         e.preventDefault();
+
+        if (editFormData.role === 'User' && editFormData.allowedPaths.length === 0) {
+            toast.error("Please select at least one accessible section for the user.");
+            return;
+        }
+
         const toastId = toast.loading("Updating user...");
 
         try {
@@ -132,7 +179,6 @@ export default function ManageUsers() {
                     </h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Administer system access and roles</p>
                 </div>
-                {/* Button to navigate to the Create User page you made earlier */}
                 <button 
                     onClick={() => navigate('/create-user')}
                     className="bg-[#1B6A31] hover:bg-green-800 dark:bg-green-700 dark:hover:bg-green-600 text-white px-5 py-2.5 rounded-lg font-bold flex items-center gap-2 transition-colors shadow-sm"
@@ -149,7 +195,7 @@ export default function ManageUsers() {
                         <thead>
                             <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider border-b border-gray-200 dark:border-zinc-800 transition-colors">
                                 <th className="px-6 py-4 font-bold border-r border-gray-200 dark:border-zinc-800/60">Username</th>
-                                <th className="px-6 py-4 font-bold border-r border-gray-200 dark:border-zinc-800/60">System Role</th>
+                                <th className="px-6 py-4 font-bold border-r border-gray-200 dark:border-zinc-800/60">System Role & Access</th>
                                 <th className="px-6 py-4 font-bold text-center">Actions</th>
                             </tr>
                         </thead>
@@ -158,16 +204,33 @@ export default function ManageUsers() {
                                 <tr key={user._id} className="hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
                                     <td className="px-6 py-4 font-bold text-gray-800 dark:text-gray-200 border-r border-gray-100 dark:border-zinc-800/60">{user.username}</td>
                                     <td className="px-6 py-4 border-r border-gray-100 dark:border-zinc-800/60">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-bold border flex w-fit items-center gap-1 transition-colors
-                                            ${user.role === 'Admin' ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800/50' : 
-                                            user.role === 'HandMade Officer' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800/50' : 
-                                            user.role === 'Factory Officer' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/50' : 
-                                            user.role === 'Packing Officer' ? 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-800/50' :
-                                            'bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-zinc-700'}`}
-                                        >
-                                            {user.role === 'Admin' && <Shield size={12}/>}
-                                            {user.role}
-                                        </span>
+                                        <div className="flex flex-col gap-2">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-bold border flex w-fit items-center gap-1 transition-colors
+                                                ${user.role === 'Admin' ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800/50' : 
+                                                'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/50'}`}
+                                            >
+                                                {user.role === 'Admin' ? <Shield size={12}/> : <UserIcon size={12}/>}
+                                                {/* පරණ Role නම පෙන්වයි, එය Admin හෝ User නොවේ නම් */}
+                                                {user.role === 'Admin' || user.role === 'User' ? user.role : `Legacy: ${user.role}`}
+                                            </span>
+
+                                            {/* Sections Badge for Users */}
+                                            {(user.role === 'User' || (user.role !== 'Admin' && user.allowedPaths)) && user.allowedPaths && user.allowedPaths.length > 0 && (
+                                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                                    {user.allowedPaths.map(pathId => {
+                                                        const sectionLabel = SYSTEM_SECTIONS.find(s => s.id === pathId)?.label || pathId;
+                                                        return (
+                                                            <span key={pathId} className="text-[10px] bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-md border border-gray-200 dark:border-zinc-700">
+                                                                {sectionLabel}
+                                                            </span>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                            {user.role === 'Admin' && (
+                                                <span className="text-[10px] text-gray-400 dark:text-gray-500 italic mt-1">Full System Access</span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 flex justify-center gap-3">
                                         <button 
@@ -243,33 +306,74 @@ export default function ManageUsers() {
                                     type="text" 
                                     value={editFormData.username}
                                     onChange={(e) => setEditFormData({...editFormData, username: e.target.value})}
-                                    className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                    className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none bg-gray-50 dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
                                 />
                             </div>
+
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Role</label>
                                 <select 
                                     value={editFormData.role}
-                                    onChange={(e) => setEditFormData({...editFormData, role: e.target.value})}
-                                    className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
+                                    onChange={(e) => {
+                                        const newRole = e.target.value;
+                                        setEditFormData({
+                                            ...editFormData, 
+                                            role: newRole,
+                                            allowedPaths: newRole === 'Admin' ? [] : editFormData.allowedPaths
+                                        });
+                                    }}
+                                    className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none bg-gray-50 dark:bg-zinc-950 dark:text-gray-100 transition-colors cursor-pointer"
                                 >
-                                    <option value="Viewer">Viewer</option>
-                                    <option value="HandMade Officer">HandMade Officer</option>
-                                    <option value="Packing Officer">Packing Officer</option>
+                                    <option value="User">Standard User</option>
+                                    <option value="Viewer">Viewer (Read-Only)</option>
                                     <option value="Admin">Admin</option>
                                 </select>
                             </div>
-                            <div>
+
+                            {/* --- Accessible Sections (Checkboxes) --- */}
+                            {(editFormData.role === 'User' || editFormData.role === 'Viewer') && (
+                                <div className="pt-2">
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2 uppercase tracking-wider">
+                                        <CheckSquare size={16} className="text-[#1B6A31] dark:text-green-500"/> Accessible Sections
+                                    </label>
+                                    
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        {SYSTEM_SECTIONS.map(section => (
+                                            <label 
+                                                key={section.id} 
+                                                className={`flex items-center gap-3 p-2.5 border rounded-lg cursor-pointer transition-colors
+                                                    ${editFormData.allowedPaths.includes(section.id) 
+                                                        ? 'border-green-500 bg-green-50/50 dark:bg-green-900/20' 
+                                                        : 'border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800'
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={editFormData.allowedPaths.includes(section.id)}
+                                                    onChange={() => handleCheckboxChange(section.id)}
+                                                    className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                                                />
+                                                <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">
+                                                    {section.label}
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="pt-2">
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Reset Password <span className="font-normal text-gray-400 dark:text-gray-500">(Optional)</span></label>
                                 <input 
                                     type="text" 
                                     placeholder="Leave blank to keep current password"
                                     value={editFormData.password}
                                     onChange={(e) => setEditFormData({...editFormData, password: e.target.value})}
-                                    className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-zinc-600 transition-colors" 
+                                    className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none bg-gray-50 dark:bg-zinc-950 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-zinc-600 transition-colors" 
                                 />
                             </div>
-                            <button type="submit" className="w-full mt-4 bg-[#1B6A31] hover:bg-green-800 dark:bg-green-700 dark:hover:bg-green-600 text-white font-bold py-3 rounded-lg transition-colors">
+
+                            <button type="submit" className="w-full mt-6 bg-[#1B6A31] hover:bg-green-800 dark:bg-green-700 dark:hover:bg-green-600 text-white font-bold py-3 rounded-lg transition-colors shadow-sm">
                                 Save Changes
                             </button>
                         </form>
