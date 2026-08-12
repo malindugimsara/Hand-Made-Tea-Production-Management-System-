@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { FileSpreadsheet, RefreshCw, AlertCircle, FileText, Trash2, Search } from 'lucide-react';
+import { Search, FileSpreadsheet, RefreshCw, AlertCircle, FileText, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PDFDownloader from '@/components/PDFDownloader'; 
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
-// Base structure (මෙයට අමතරව එන අලුත් items ඉබේම table එකට එකතු වේ)
-const baseTableStructure = [
+// Define structure
+const teaCategories = [
     { id: 'athukorala', title: 'Athukorala', sizes: ['400g', '200g', '100g'] },
     { id: 'bopfSp', title: 'BOPF Sp.', sizes: ['400g', '200g'] },
     { id: 'bopfPremium', title: 'BOPF Premium', sizes: ['400g', '200g'] },
@@ -20,19 +20,14 @@ export default function MonthEndSummary() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
-    const [fromDate, setFromDate] = useState('');
-    const [toDate, setToDate] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [hoveredCol, setHoveredCol] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [hoveredCol, setHoveredCol] = useState(null); 
 
     // States for raw data
     const [datesOfMonth, setDatesOfMonth] = useState([]);
     const [dailyDataMap, setDailyDataMap] = useState({});
     const [issueDataMap, setIssueDataMap] = useState({ free: {}, labour: {}, staff: {} });
-
-    // Dynamic columns states (අලුත් items ආවොත් ඒවා මෙතැනට එකතු වේ)
-    const [dynamicTableStructure, setDynamicTableStructure] = useState(baseTableStructure);
-    const [flatColumns, setFlatColumns] = useState([]);
 
     const fetchMonthEndData = async () => {
         if (!month) return;
@@ -63,39 +58,15 @@ export default function MonthEndSummary() {
         } catch (error) {
             console.error("Fetch Error:", error);
             toast.error(error.message || "Error generating month end report.");
-            setDatesOfMonth([]);
-            setDailyDataMap({});
-            setDynamicTableStructure(baseTableStructure);
-            setFlatColumns([]);
         } finally {
             setIsLoading(false);
         }
     };
 
     const processReportData = (dailyRecords, issueRecords) => {
-        const activeDates = new Set();
+        const activeDates = new Set(); 
         const dailyMap = {};
         const issueMap = { free: {}, labour: {}, staff: {} };
-
-        // Deep copy of base structure to append new custom items
-        const currentStructure = JSON.parse(JSON.stringify(baseTableStructure));
-
-        const addDynamicColumn = (item) => {
-            const catId = item.categoryId || item.categoryTitle.toLowerCase().replace(/\s+/g, '-');
-            let catIndex = currentStructure.findIndex(c => c.id === catId);
-            
-            if (catIndex === -1) {
-                currentStructure.push({
-                    id: catId,
-                    title: item.categoryTitle || catId.toUpperCase(),
-                    sizes: [item.size]
-                });
-            } else {
-                if (!currentStructure[catIndex].sizes.includes(item.size)) {
-                    currentStructure[catIndex].sizes.push(item.size);
-                }
-            }
-        };
 
         // 1. Process Daily Data
         dailyRecords.forEach(record => {
@@ -104,20 +75,16 @@ export default function MonthEndSummary() {
                 activeDates.add(date);
                 if (!dailyMap[date]) dailyMap[date] = {};
                 record.items.forEach(item => {
-                    const catId = item.categoryId || item.categoryTitle.toLowerCase().replace(/\s+/g, '-');
-                    const key = `${catId}_${item.size}`;
-                    
+                    const key = `${item.categoryId}_${item.size}`;
                     dailyMap[date][key] = {
                         out: (dailyMap[date][key]?.out || 0) + (Number(item.out) || 0),
                         in: (dailyMap[date][key]?.in || 0) + (Number(item.in) || 0)
                     };
-
-                    addDynamicColumn(item);
                 });
             }
         });
 
-        // 2. Process Issue Type Data (Merge OUT into Daily Map as well)
+        // 2. Process Issue Type Data 
         issueRecords.forEach(record => {
             const date = record.date;
             if (record.items && record.items.length > 0) {
@@ -127,46 +94,21 @@ export default function MonthEndSummary() {
                 else if (record.issueType === 'Labour issued') targetMap = issueMap.labour;
                 else if (record.issueType === 'Staff issued') targetMap = issueMap.staff;
 
-                if (!dailyMap[date]) dailyMap[date] = {}; // Ensure daily map exists
-
                 if (targetMap) {
                     if (!targetMap[date]) targetMap[date] = {};
                     record.items.forEach(item => {
-                        const catId = item.categoryId || item.categoryTitle.toLowerCase().replace(/\s+/g, '-');
-                        const key = `${catId}_${item.size}`;
-                        const outVal = Number(item.out) || 0;
-
-                        // Add to specific issue map
-                        targetMap[date][key] = (targetMap[date][key] || 0) + outVal;
-                        
-                        // Merge Issues into general Daily OUT 
-                        dailyMap[date][key] = {
-                            out: (dailyMap[date][key]?.out || 0) + outVal,
-                            in: dailyMap[date][key]?.in || 0
-                        };
-
-                        addDynamicColumn(item);
+                        const key = `${item.categoryId}_${item.size}`;
+                        targetMap[date][key] = (targetMap[date][key] || 0) + (Number(item.out) || 0);
                     });
                 }
             }
         });
 
-        // 3. Generate flat columns from dynamic structure
-        const newFlatColumns = [];
-        currentStructure.forEach(cat => {
-            cat.sizes.forEach(size => {
-                newFlatColumns.push({ catId: cat.id, size, type: 'out' });
-                newFlatColumns.push({ catId: cat.id, size, type: 'in' });
-            });
-        });
-
-        // 4. Sort Dates Descending
+        // 3. Sort Dates Descending
         const sortedDates = Array.from(activeDates)
             .filter(d => d.startsWith(month))
             .sort((a, b) => new Date(b) - new Date(a));
 
-        setDynamicTableStructure(currentStructure);
-        setFlatColumns(newFlatColumns);
         setDatesOfMonth(sortedDates);
         setDailyDataMap(dailyMap);
         setIssueDataMap(issueMap);
@@ -178,17 +120,9 @@ export default function MonthEndSummary() {
     }, [month]);
 
     // --- FILTERING & DYNAMIC TOTALS ---
-    const filteredDates = datesOfMonth.filter(date => {
-        if (!fromDate && !toDate) return true;
-        const targetDate = new Date(date);
-        const from = fromDate ? new Date(fromDate) : null;
-        const to = toDate ? new Date(toDate) : null;
-
-        if (from && to) return targetDate >= from && targetDate <= to;
-        if (from) return targetDate >= from;
-        if (to) return targetDate <= to;
-        return true;
-    });
+    const filteredDates = datesOfMonth.filter(date =>
+        !searchQuery || date.replace(/-/g, '.').includes(searchQuery)
+    );
 
     const calculateTotals = () => {
         const t = { out: {}, in: {}, free: {}, labour: {}, staff: {} };
@@ -214,11 +148,7 @@ export default function MonthEndSummary() {
     const currentTotals = calculateTotals();
 
     // --- UTILS ---
-    const clearFilters = () => {
-        setFromDate('');
-        setToDate('');
-    };
-
+    const clearFilters = () => setSearchQuery('');
     const getMonthName = () => {
         if (!month) return "";
         const [y, m] = month.split('-');
@@ -234,6 +164,15 @@ export default function MonthEndSummary() {
         return dateStr;
     };
 
+    // Prepare flat columns for easy grid rendering & crosshair math
+    const flatColumns = [];
+    teaCategories.forEach(cat => {
+        cat.sizes.forEach(size => {
+            flatColumns.push({ catId: cat.id, size, type: 'out' });
+            flatColumns.push({ catId: cat.id, size, type: 'in' });
+        });
+    });
+
     // --- EXPORT PDF LOGIC ---
     const getPdfHeaders = () => {
         const row1 = [{
@@ -245,7 +184,7 @@ export default function MonthEndSummary() {
         const row2 = []; 
         const row3 = []; 
 
-        dynamicTableStructure.forEach(cat => {
+        teaCategories.forEach(cat => {
             row1.push({
                 content: cat.title.toUpperCase(),
                 colSpan: cat.sizes.length * 2,
@@ -289,7 +228,7 @@ export default function MonthEndSummary() {
                 if (isNetSale) {
                     if(isOut) {
                         const net = (currentTotals.out[key] || 0) - (currentTotals.free[key] || 0) - (currentTotals.labour[key] || 0) - (currentTotals.staff[key] || 0);
-                        row.push({ content: (net && net > 0) ? net : '-', styles: { fontStyle: 'bold', fillColor: color, textColor: [239, 68, 68] } });
+                        row.push({ content: (net && net > 0) ? net : '-', styles: { fontStyle: 'bold', fillColor: color, textColor: [239, 68, 68] } }); // OUT
                     } else {
                         row.push({ content: "-", styles: { fillColor: color, textColor: [34, 197, 94] } }); 
                     }
@@ -343,7 +282,7 @@ export default function MonthEndSummary() {
 
             const catRow = worksheet.addRow(['DATE']);
             let colIndex = 2;
-            dynamicTableStructure.forEach(cat => {
+            teaCategories.forEach(cat => {
                 catRow.getCell(colIndex).value = cat.title.toUpperCase();
                 const span = cat.sizes.length * 2;
                 if (span > 1) worksheet.mergeCells(2, colIndex, 2, colIndex + span - 1);
@@ -352,7 +291,7 @@ export default function MonthEndSummary() {
 
             const sizeRow = worksheet.addRow(['']);
             colIndex = 2;
-            dynamicTableStructure.forEach(cat => {
+            teaCategories.forEach(cat => {
                 cat.sizes.forEach(size => {
                     sizeRow.getCell(colIndex).value = size;
                     worksheet.mergeCells(3, colIndex, 3, colIndex + 1);
@@ -362,7 +301,7 @@ export default function MonthEndSummary() {
 
             const outInRow = worksheet.addRow(['']);
             colIndex = 2;
-            dynamicTableStructure.forEach(cat => {
+            teaCategories.forEach(cat => {
                 cat.sizes.forEach(() => {
                     outInRow.getCell(colIndex).value = 'OUT';
                     outInRow.getCell(colIndex + 1).value = 'IN';
@@ -373,7 +312,7 @@ export default function MonthEndSummary() {
 
             [catRow, sizeRow, outInRow].forEach(row => {
                 row.eachCell((cell, cIdx) => {
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEAF5EC' } };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEBF5ED' } };
                     if(row === outInRow && cIdx > 1) {
                         cell.font = { bold: true, color: { argb: cell.value === 'OUT' ? 'FFEF4444' : 'FF22C55E' } };
                     } else {
@@ -460,9 +399,6 @@ export default function MonthEndSummary() {
     };
 
     const uniqueCode = `MONTH-END/${getMonthName()}/${new Date().getFullYear()}`;
-    const subtitleText = (fromDate || toDate) 
-        ? `Filtered: ${fromDate || 'Start'} to ${toDate || 'End'}` 
-        : `Complete Monthly Report`;
 
     return (
         <div className="p-4 sm:p-8 w-full max-w-[1500px] mx-auto font-sans bg-slate-50 dark:bg-zinc-950 min-h-screen transition-colors duration-300">
@@ -480,7 +416,7 @@ export default function MonthEndSummary() {
                     <div className="[&>button]:bg-blue-50 [&>button]:text-blue-600 [&>button]:border [&>button]:border-blue-200 [&>button]:px-4 [&>button]:py-2 [&>button]:rounded-lg [&>button]:font-semibold [&>button]:flex [&>button]:items-center [&>button]:gap-2 [&>button]:text-sm hover:[&>button]:bg-blue-100 dark:[&>button]:bg-blue-900/20 dark:[&>button]:border-blue-800/50 dark:hover:[&>button]:bg-blue-900/40 transition-colors">
                         <PDFDownloader
                             title={`MONTH END SUMMARY - ${getMonthName()}`}
-                            subtitle={subtitleText}
+                            subtitle={searchQuery ? `Filtered by Date: ${searchQuery}` : `Complete Monthly Report`}
                             headers={getPdfHeaders()}
                             data={getPdfData()}
                             uniqueCode={uniqueCode}
@@ -524,50 +460,38 @@ export default function MonthEndSummary() {
             </div>
 
             {/* FILTER SECTION */}
-            <div className="mb-6 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm flex flex-col md:flex-row items-end gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 w-full">
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Month</label>
-                        <input
-                            type="month"
-                            value={month}
-                            onChange={(e) => {
-                                setMonth(e.target.value);
-                                setFromDate('');
-                                setToDate('');
-                            }}
-                            className="w-full p-2.5 border border-gray-200 dark:border-zinc-700 rounded-lg outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-zinc-800 transition-all cursor-pointer shadow-sm"
-                        />
-                    </div>
+            <div className="mb-6 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm flex flex-wrap gap-6 items-end">
+                <div className="flex flex-col gap-1.5 flex-1 min-w-[220px]">
+                    <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Month</label>
+                    <input
+                        type="month"
+                        value={month}
+                        onChange={(e) => setMonth(e.target.value)}
+                        className="w-full p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-zinc-800 transition-all"
+                    />
+                </div>
 
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">From Date</label>
+                <div className="flex flex-col gap-1.5 flex-1 min-w-[220px]">
+                    <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Search by Date</label>
+                    <div className="relative">
+                        <Search size={16} className="absolute left-3 top-3 text-gray-400" />
                         <input
-                            type="date"
-                            value={fromDate}
-                            onChange={(e) => setFromDate(e.target.value)}
-                            className="w-full p-2.5 border border-gray-200 dark:border-zinc-700 rounded-lg outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-zinc-800 transition-all cursor-pointer shadow-sm"
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">To Date</label>
-                        <input
-                            type="date"
-                            value={toDate}
-                            onChange={(e) => setToDate(e.target.value)}
-                            className="w-full p-2.5 border border-gray-200 dark:border-zinc-700 rounded-lg outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-zinc-800 transition-all cursor-pointer shadow-sm"
+                            type="text"
+                            placeholder="e.g. 2026-08-10"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-9 p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-zinc-800 transition-all"
                         />
                     </div>
                 </div>
 
                 <button
                     onClick={clearFilters}
-                    disabled={!fromDate && !toDate}
-                    className="p-2.5 md:mb-[1px] text-gray-400 hover:text-red-500 bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 dark:bg-zinc-800 dark:border-zinc-700 dark:hover:bg-red-900/20 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto flex justify-center shadow-sm"
-                    title="Clear Date Filters"
+                    disabled={!searchQuery}
+                    className="p-2.5 text-gray-500 hover:text-red-500 bg-gray-50 hover:bg-red-50 border border-transparent hover:border-red-200 dark:bg-zinc-800 dark:hover:bg-red-900/20 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Clear Filters"
                 >
-                    <Trash2 size={20} />
+                    <Trash2 size={18} />
                 </button>
             </div>
 
@@ -590,7 +514,7 @@ export default function MonthEndSummary() {
                                     <th rowSpan={3} className="px-4 py-3 align-middle border border-[#dcebdc] dark:border-green-800/50 sticky left-0 z-30 text-xs font-bold uppercase tracking-wider bg-[#eaf5ec] dark:bg-green-900/80">
                                         Date
                                     </th>
-                                    {dynamicTableStructure.map((cat, idx) => (
+                                    {teaCategories.map((cat, idx) => (
                                         <th key={idx} colSpan={cat.sizes.length * 2} className="px-4 py-2 border border-[#dcebdc] dark:border-green-800/50 text-[11px] font-bold uppercase tracking-wider">
                                             {cat.title}
                                         </th>
@@ -599,7 +523,7 @@ export default function MonthEndSummary() {
 
                                 {/* Level 2: Sizes */}
                                 <tr>
-                                    {dynamicTableStructure.map(cat => (
+                                    {teaCategories.map(cat => (
                                         cat.sizes.map((size, sIdx) => (
                                             <th key={`${cat.id}-${sIdx}`} colSpan={2} className="px-3 py-1.5 text-[11px] font-bold border border-[#dcebdc] dark:border-green-800/50">
                                                 {size}
