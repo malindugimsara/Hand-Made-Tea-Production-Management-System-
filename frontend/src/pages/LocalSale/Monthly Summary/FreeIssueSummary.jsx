@@ -133,7 +133,7 @@ export default function FreeIssueSummary() {
         // Sort Dates Descending
         const sortedDates = Array.from(activeDates)
             .filter(d => d.startsWith(month))
-            .sort((a, b) => new Date(b) - new Date(a));
+            .sort((a, b) => new Date(a) - new Date(b));
 
         // Generate flat columns from the dynamically updated structure
         const newFlatColumns = [];
