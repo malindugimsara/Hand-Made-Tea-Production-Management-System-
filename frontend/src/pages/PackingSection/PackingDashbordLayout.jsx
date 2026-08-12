@@ -16,7 +16,7 @@ import {
   Coffee,
   PackagePlus,
   Proportions, 
-  Search, // <-- Search icon එක අලුතින් එකතු කර ඇත
+  Search, 
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -62,7 +62,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-// --- ROLE-BASED DATA CONFIGURATION ---
+// --- NEW DATA CONFIGURATION ---
 const DATA = {
   factory: {
     name: 'Athukorala Group',
@@ -77,52 +77,52 @@ const DATA = {
       title: 'Local Sales',
       icon: Store,
       items: [
-        { title: 'Local Record Entry', url: '/packing/local-record-entry', roles: ['Admin', 'Packing Officer'] },
-        { title: 'Local Record View', url: '/packing/local-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+        { title: 'Local Record Entry', url: '/packing/local-record-entry', nonViewer: true },
+        { title: 'Local Record View', url: '/packing/local-record-view' },
       ],
     },
     {
       title: 'Tea Center',
       icon: Coffee,
       items: [
-        { title: 'Tea Center Record Entry', url: '/packing/tea-center-record-entry', roles: ['Admin', 'Packing Officer'] },
-        { title: 'Tea Center Record View', url: '/packing/tea-center-record-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+        { title: 'Tea Center Record Entry', url: '/packing/tea-center-record-entry', nonViewer: true },
+        { title: 'Tea Center Record View', url: '/packing/tea-center-record-view' },
       ],
     },
     {
         title: 'Summary',
         icon: LineChart,
         items: [
-          { title: 'Product-Issue Summary', url: '/packing/product-issue-summary', roles: ['Admin', 'Packing Officer', 'Viewer'] },
-          { title: 'Stock Summary', url: '/packing/summary-reports', roles: ['Admin', 'Packing Officer', 'Viewer'] },
-          ],
+          { title: 'Product-Issue Summary', url: '/packing/product-issue-summary' },
+          { title: 'Stock Summary', url: '/packing/summary-reports' },
+        ],
     }, 
     {
       title: 'Trans In',
       icon: PackagePlus,
       items: [
-        { title: 'H/T - Trans In', url: '/packing/trans-in-entry', roles: ['Admin', 'Packing Officer'] },
-        { title: 'Factory - Trans In', url: '/packing/trans-in-factory-entry', roles: ['Admin'] },
-        { title: 'Other - Trans In', url: '/packing/trans-in-other', roles: ['Admin'] },
-        { title: 'Raw Material - Trans In', url: '/packing/trans-in-raw-material', roles: ['Admin'] }
+        { title: 'H/T - Trans In', url: '/packing/trans-in-entry', nonViewer: true },
+        { title: 'Factory - Trans In', url: '/packing/trans-in-factory-entry', adminOnly: true, nonViewer: true },
+        { title: 'Other - Trans In', url: '/packing/trans-in-other', adminOnly: true, nonViewer: true },
+        { title: 'Raw Material - Trans In', url: '/packing/trans-in-raw-material', adminOnly: true, nonViewer: true }
       ],
     },
     {
         title: 'Trans-In Reports',
         icon: Proportions,
         items: [
-          { title: 'H/T - Trans In View', url: '/packing/trans-in-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
-          { title: 'Factory - Trans In View', url: '/packing/trans-in-factory-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
-          { title: 'Other - Trans In View', url: '/packing/trans-in-view-other', roles: ['Admin', 'Packing Officer', 'Viewer'] },
-          { title: 'Raw Material - Trans In View', url: '/packing/trans-in-view-raw-material', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+          { title: 'H/T - Trans In View', url: '/packing/trans-in-view' },
+          { title: 'Factory - Trans In View', url: '/packing/trans-in-factory-view' },
+          { title: 'Other - Trans In View', url: '/packing/trans-in-view-other' },
+          { title: 'Raw Material - Trans In View', url: '/packing/trans-in-view-raw-material' },
         ],
     }, 
     {
         title: 'Stock Adjustment',
         icon: PackagePlus,
         items: [
-          { title: 'Stock Adjustment Entry', url: '/packing/stock-adjustment-entry', roles: ['Admin'] },
-          { title: 'Stock Adjustment View', url: '/packing/stock-adjustment-view', roles: ['Admin', 'Packing Officer', 'Viewer'] },
+          { title: 'Stock Adjustment Entry', url: '/packing/stock-adjustment-entry', adminOnly: true, nonViewer: true },
+          { title: 'Stock Adjustment View', url: '/packing/stock-adjustment-view' },
         ],
     }, 
   ],
@@ -195,13 +195,10 @@ export default function DashboardLayoutP() {
 
   // --- AUTHENTICATION LOGIC ---
   const currentUsername = localStorage.getItem('username') || 'Unknown User';
-  const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'Viewer'; 
+  const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'User'; 
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userRole'); 
-    localStorage.removeItem('username');
-    localStorage.removeItem('role'); 
+    localStorage.clear(); // Clear all auth data
     navigate('/', { replace: true });
   };
 
@@ -235,21 +232,43 @@ export default function DashboardLayoutP() {
     });
 
   // --- SEARCH FILTERING LOGIC ---
+  const accessibleLinks = React.useMemo(() => {
+    return [
+      ...DATA.quickLinks.map(link => ({ title: link.name, url: link.url, icon: link.icon })),
+      ...DATA.navMain.flatMap(group =>
+        group.items
+          .filter(item => !(item.adminOnly && currentUserRole !== 'Admin')) // Filter admin paths
+          .filter(item => !(item.nonViewer && currentUserRole === 'Viewer')) // 👈 Hide from viewers
+          .map(item => ({ title: item.title, url: item.url, icon: group.icon }))
+      )
+    ];
+  }, [currentUserRole]);
+
   const filteredQuickLinks = DATA.quickLinks.filter(item => 
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const searchResults = searchQuery
+    ? accessibleLinks.filter(link => link.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    : [];
+
   const filteredNavMain = DATA.navMain.map(group => {
-    // 1. Role එකට ගැලපෙන items විතරක් වෙන් කරගන්නවා
-    const roleFilteredItems = group.items.filter(subItem => 
-        subItem.roles.includes(currentUserRole)
-    );
+    // 1. Role / Access මත items පෙරීම
+    const visibleItems = group.items.filter(subItem => {
+        // Admin Only ඒවා Admin ට විතරයි
+        if (subItem.adminOnly && currentUserRole !== 'Admin') return false;
+        
+        // nonViewer දාලා තියෙන ඒවා Viewer ට පෙන්වන්නේ නෑ
+        if (subItem.nonViewer && currentUserRole === 'Viewer') return false; 
+        
+        return true;
+    });
 
     // 2. Group title එක search එකට match වෙනවද බලනවා
     const matchesGroupTitle = group.title.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // 3. Sub-item titles search එකට match වෙනවද බලනවා (title එක match වුනොත් ඔක්කොම පෙන්නනවා)
-    const searchFilteredItems = roleFilteredItems.filter(subItem => 
+    // 3. Sub-item titles search එකට match වෙනවද බලනවා
+    const searchFilteredItems = visibleItems.filter(subItem => 
         matchesGroupTitle || subItem.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -258,7 +277,7 @@ export default function DashboardLayoutP() {
         items: searchFilteredItems,
         isSearchMatch: matchesGroupTitle || searchFilteredItems.length > 0
     };
-  }).filter(group => group.isSearchMatch && group.items.length > 0); // අදාළ items මොකුත් නැත්නම් ඒ group එක අයින් කරනවා
+  }).filter(group => group.isSearchMatch && group.items.length > 0); 
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -302,9 +321,30 @@ export default function DashboardLayoutP() {
                 className="w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-[#1B6A31] dark:focus:border-green-600 rounded-xl py-2 pl-9 pr-4 text-sm outline-none transition-all dark:text-white shadow-sm"
               />
             </div>
-          </div>
 
-          
+            {/* SEARCH RESULTS DROPDOWN */}
+            {searchQuery && isSidebarOpen && (
+              <div className="absolute top-full mt-1 left-2 right-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg max-h-60 overflow-y-auto py-1 z-50 custom-scrollbar">
+                {searchResults.length > 0 ? (
+                  searchResults.map((result) => (
+                    <div
+                      key={result.url}
+                      onClick={() => {
+                        navigate(result.url);
+                        setSearchQuery(''); 
+                      }}
+                      className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#F4F7F5] dark:hover:bg-zinc-700 cursor-pointer transition-colors"
+                    >
+                      {result.icon && <result.icon size={16} className="text-gray-400 dark:text-gray-500" />}
+                      <span className="font-medium">{result.title}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-4 py-3 text-sm text-gray-500 text-center">No pages found</div>
+                )}
+              </div>
+            )}
+          </div>
           
           {filteredQuickLinks.length > 0 && (
             <SidebarGroup>
@@ -347,7 +387,6 @@ export default function DashboardLayoutP() {
                 {filteredNavMain.map((item) => {
                     
                     const isGroupActive = item.items.some((sub) => sub.url === location.pathname);
-                    // Search කරන විටදී menu එක ඉබේම expand වීමට
                     const isOpen = searchQuery.length > 0 ? true : isGroupActive;
 
                     return (
@@ -405,7 +444,6 @@ export default function DashboardLayoutP() {
 
       <SidebarInset className="bg-[#F4F7F5] dark:bg-zinc-950 relative flex flex-col h-screen overflow-hidden p-2 md:p-4 w-full">
         
-        {/* Adjusted top position and padding for mobile */}
         <header className="flex h-14 bg-white dark:bg-zinc-900/95 backdrop-blur-2xl border border-white dark:border-zinc-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl shrink-0 items-center justify-between gap-2 absolute top-2 left-2 right-2 md:top-4 md:left-4 md:right-4 z-40 px-3 md:px-4 transition-all">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-500 transition-colors" />
@@ -428,13 +466,9 @@ export default function DashboardLayoutP() {
             </Breadcrumb>
           </div>
 
-          {/* --- TOP RIGHT CONTROLS --- */}
           <div className="flex items-center gap-2 sm:gap-4 md:mr-2">
-
-            {/* Time - Hidden on small screens to save space */}
             <p className="hidden md:block text-sm font-medium p-4 dark:text-white">{today}</p>
             
-            {/* Theme Toggle */}
             <button 
               onClick={toggleTheme}
               title="Toggle Dark Mode"
@@ -445,7 +479,6 @@ export default function DashboardLayoutP() {
 
             <Separator orientation="vertical" className="h-6 bg-gray-200 dark:bg-zinc-700 hidden sm:block" />
 
-            {/* User Profile Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-2 focus:outline-none group">
                 <Avatar className="h-8 w-8 md:h-9 md:w-9 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-transform group-hover:scale-105">
@@ -453,7 +486,6 @@ export default function DashboardLayoutP() {
                     {currentUsername.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                {/* Hide text on small screens */}
                 <div className="hidden lg:grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-bold text-gray-800 dark:text-gray-200 mb-0.5">{currentUsername}</span>
                   <span className="truncate text-[10px] font-bold tracking-wider text-gray-500 dark:text-gray-400 uppercase leading-none">{currentUserRole}</span>
@@ -492,7 +524,6 @@ export default function DashboardLayoutP() {
           </div>
         </header>
 
-        {/* Adjusted top margin to fit under mobile header */}
         <div className="flex-1 mt-[4.5rem] md:mt-20 bg-white dark:bg-zinc-900 rounded-[1.5rem] md:rounded-[2rem] shadow-[0_0_40px_rgb(0,0,0,0.02)] border border-gray-100 dark:border-zinc-800 overflow-hidden relative flex flex-col transition-colors duration-300">
           <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-zinc-700 hover:scrollbar-thumb-gray-300 dark:hover:scrollbar-thumb-zinc-600">
             <motion.div

@@ -5,17 +5,22 @@ import {
     getTeaCenterIssues,
     updateTeaCenterIssue
 } from '../controllers/TeaCenterIssueController.js';
+import { authorizeRoles, verifyToken } from '../../middleware/auth.js';
+
+// Authentication සහ Role-based Authorization Middlewares Import කිරීම
 
 const teaCenterIssueRouter = express.Router();
 
-teaCenterIssueRouter.route('/')
-    .post(createTeaCenterIssue)
-    .get(getTeaCenterIssues)
+// GET: View all records (Admins, Users, and Viewers can view)
+teaCenterIssueRouter.get('/', verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getTeaCenterIssues);
 
-teaCenterIssueRouter.route('/:id')
-.put(updateTeaCenterIssue);
+// POST: Add new records (Admins and Users only)
+teaCenterIssueRouter.post('/', verifyToken, authorizeRoles('Admin', 'User'), createTeaCenterIssue);
 
-teaCenterIssueRouter.route('/:id')
-.delete(deleteTeaCenterIssue);
+// PUT: Edit existing records (Admins and Users only)
+teaCenterIssueRouter.put('/:id', verifyToken, authorizeRoles('Admin', 'User'), updateTeaCenterIssue);
+
+// DELETE: Remove records (Admin ONLY)
+teaCenterIssueRouter.delete('/:id', verifyToken, authorizeRoles('Admin'), deleteTeaCenterIssue);
 
 export default teaCenterIssueRouter;
