@@ -107,7 +107,7 @@ export default function MonthEndSummary() {
         // 3. Sort Dates Descending
         const sortedDates = Array.from(activeDates)
             .filter(d => d.startsWith(month))
-            .sort((a, b) => new Date(b) - new Date(a));
+            .sort((a, b) => new Date(a) - new Date(b));
 
         setDatesOfMonth(sortedDates);
         setDailyDataMap(dailyMap);
