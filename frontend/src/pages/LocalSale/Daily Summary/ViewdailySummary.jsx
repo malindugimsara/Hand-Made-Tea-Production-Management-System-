@@ -5,15 +5,26 @@ import toast from 'react-hot-toast';
 import PDFDownloader from '@/components/PDFDownloader';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function DailySummaryManageView() {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   
   // --- States ---
   const [summaries, setSummaries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
-
+  const [itemToDelete, setItemToDelete] = useState(null); 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState({
     recordId: null,
@@ -48,10 +59,12 @@ export default function DailySummaryManageView() {
   }, [BACKEND_URL]);
 
   // --- Delete Logic ---
-  const handleDelete = async (recordId, itemId) => {
-    if (!window.confirm("Are you sure you want to delete this item? This action cannot be undone.")) return;
-
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete) return;
+    
+    const { recordId, itemId } = itemToDelete;
     const toastId = toast.loading("Deleting record...");
+    
     try {
       const response = await fetch(`${BACKEND_URL}/api/summary/${recordId}/item/${itemId}`, {
         method: 'DELETE'
@@ -65,6 +78,8 @@ export default function DailySummaryManageView() {
     } catch (error) {
       console.error("Delete Error:", error);
       toast.error(error.message || "Error deleting item.", { id: toastId });
+    } finally {
+      setItemToDelete(null); // Modal එක වැසීමට State එක හිස් කිරීම
     }
   };
 
@@ -326,13 +341,29 @@ export default function DailySummaryManageView() {
                         >
                           <Edit size={16} />
                         </button>
-                        <button 
-                          onClick={() => handleDelete(currentRecord._id, item._id)}
-                          className="p-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors shadow-sm"
-                          title="Delete Item"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <AlertDialog>
+  <AlertDialogTrigger asChild>
+    <button 
+      onClick={() => setItemToDelete({ recordId: currentRecord._id, itemId: item._id })} 
+      className="p-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors shadow-sm"
+      title="Delete Item"
+    >
+      <Trash2 size={16} />
+    </button>
+  </AlertDialogTrigger>
+  <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md border border-gray-200 dark:border-zinc-800">
+    <AlertDialogHeader>
+      <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">Delete Record</AlertDialogTitle>
+      <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
+        Are you sure you want to delete this item? This action cannot be undone.
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel onClick={() => setItemToDelete(null)} className="border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300">Cancel</AlertDialogCancel>
+      <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700 transition-colors">Delete</AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
                       </div>
                     </td>
 
