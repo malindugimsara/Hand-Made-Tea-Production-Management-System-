@@ -44,10 +44,19 @@ export default function LocalSaleDashboard() {
         const fetchDashboardData = async () => {
             setIsLoading(true);
             try {
+                const token = localStorage.getItem("token");
                 // Fetch Daily IN/OUT and Issues simultaneously
                 const [dailyRes, issueRes] = await Promise.all([
-                    fetch(`${BACKEND_URL}/api/summary`),
-                    fetch(`${BACKEND_URL}/api/issue-summary`)
+                    fetch(`${BACKEND_URL}/api/summary`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    }),
+                    fetch(`${BACKEND_URL}/api/issue-summary`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    })
                 ]);
                 
                 if (dailyRes.ok && issueRes.ok) {

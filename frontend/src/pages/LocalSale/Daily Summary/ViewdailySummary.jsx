@@ -21,6 +21,10 @@ import AdminOnly from '@/components/AdminOnly';
 export default function DailySummaryManageView() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   
+  // --- ROLE BASED ACCESS ---
+  const userRole = localStorage.getItem("userRole") || localStorage.getItem("role") || "";
+  const isViewer = userRole.toLowerCase() === "viewer" || userRole.toLowerCase() === "view";
+
   // --- States ---
   const [summaries, setSummaries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +44,12 @@ export default function DailySummaryManageView() {
   const fetchSummaries = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/api/summary`);
+      const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
+      const response = await fetch(`${BACKEND_URL}/api/summary`, {
+        headers: {
+          'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
+        }
+      });
       const data = await response.json();
 
       if (!response.ok) throw new Error(data.message || 'Failed to fetch summaries');
@@ -48,7 +57,7 @@ export default function DailySummaryManageView() {
       setSummaries(data.data || []);
     } catch (error) {
       console.error("Fetch Error:", error);
-      toast.error("Failed to fetch data!");
+      toast.error(error.message || "Failed to fetch data!");
     } finally {
       setLoading(false);
     }
@@ -67,8 +76,12 @@ export default function DailySummaryManageView() {
     const toastId = toast.loading("Deleting record...");
     
     try {
+      const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
       const response = await fetch(`${BACKEND_URL}/api/summary/${recordId}/item/${itemId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
+        }
       });
       const result = await response.json();
       
@@ -105,9 +118,13 @@ export default function DailySummaryManageView() {
     const username = localStorage.getItem('userName') || localStorage.getItem('username') || 'System User';
 
     try {
+      const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
       const response = await fetch(`${BACKEND_URL}/api/summary/${editingItem.recordId}/item/${editingItem.itemId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
+        },
         // Backend එකට editedBy අගය යැවීම
         body: JSON.stringify({ 
             in: Number(editingItem.in), 
@@ -289,7 +306,8 @@ export default function DailySummaryManageView() {
                   <th className="py-4 px-4 w-[20%]">Size / Type</th>
                   <th className="py-4 px-4 text-center text-red-500 w-[15%]">OUT</th>
                   <th className="py-4 px-4 text-center text-green-500 w-[15%]">IN</th>
-                  <th className="py-4 px-6 text-center w-[20%]">Actions</th>
+                  {/* Action Column Hidden if Viewer */}
+                  {!isViewer && <th className="py-4 px-6 text-center w-[20%]">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-zinc-800/60 text-sm">
@@ -333,43 +351,46 @@ export default function DailySummaryManageView() {
                       )}
                     </td>
 
-                    <td className="py-3.5 px-6 text-center align-top">
-                      <div className="flex items-center justify-center gap-2">
-                        <button 
-                          onClick={() => openEditModal(currentRecord._id, item)}
-                          className="p-1.5 bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/40 text-yellow-600 dark:text-yellow-400 rounded-lg transition-colors shadow-sm"
-                          title="Edit Item"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <AdminOnly>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <button 
-                                onClick={() => setItemToDelete({ recordId: currentRecord._id, itemId: item._id })} 
-                                className="p-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors shadow-sm"
-                                title="Delete Item"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md border border-gray-200 dark:border-zinc-800">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">Delete Record</AlertDialogTitle>
-                                <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
-                                  Are you sure you want to delete this item? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel onClick={() => setItemToDelete(null)} className="border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300">Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700 transition-colors">Delete</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </AdminOnly>
-                        
-                      </div>
-                    </td>
+                    {/* Action Column Hidden if Viewer */}
+                    {!isViewer && (
+                        <td className="py-3.5 px-6 text-center align-top">
+                        <div className="flex items-center justify-center gap-2">
+                            <button 
+                            onClick={() => openEditModal(currentRecord._id, item)}
+                            className="p-1.5 bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/40 text-yellow-600 dark:text-yellow-400 rounded-lg transition-colors shadow-sm"
+                            title="Edit Item"
+                            >
+                            <Edit size={16} />
+                            </button>
+                            <AdminOnly>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                <button 
+                                    onClick={() => setItemToDelete({ recordId: currentRecord._id, itemId: item._id })} 
+                                    className="p-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors shadow-sm"
+                                    title="Delete Item"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md border border-gray-200 dark:border-zinc-800">
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">Delete Record</AlertDialogTitle>
+                                    <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
+                                    Are you sure you want to delete this item? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel onClick={() => setItemToDelete(null)} className="border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300">Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700 transition-colors">Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                            </AdminOnly>
+                            
+                        </div>
+                        </td>
+                    )}
 
                   </tr>
                 ))}

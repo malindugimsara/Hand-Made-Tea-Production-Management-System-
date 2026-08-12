@@ -59,7 +59,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-// --- DATA CONFIGURATION ---
+// --- ROLE-BASED DATA CONFIGURATION ---
 const DATA = {
   factory: {
     name: 'Athukorala Group',
@@ -74,9 +74,7 @@ const DATA = {
       title: 'Daily Summary',
       icon: Store,
       items: [
-        // අපි දැන් 'roles' check කරන්නේ නැහැ. 'LocalSaleDashboardLayout' එකට එන්න පුළුවන්
-        // Admin ට හෝ 'localsale' access තියෙන කෙනෙකුට පමණයි. ඒ නිසා ඔක්කොම පෙන්නනවා.
-        { title: 'Enter Daily Summary', url: '/localsale/dailysummary' },
+        { title: 'Enter Daily Summary', url: '/localsale/dailysummary', nonViewer: true }, // 👈 Hidden from Viewer
         { title: 'Daily Summary View', url: '/localsale/viewdailysummary' },
       ],
     },
@@ -84,7 +82,7 @@ const DATA = {
       title: 'Issue Summary',
       icon: Store,
       items: [
-        { title: 'Enter Issue Summary', url: '/localsale/issuesummary' },
+        { title: 'Enter Issue Summary', url: '/localsale/issuesummary', nonViewer: true }, // 👈 Hidden from Viewer
         { title: 'Issue Summary View', url: '/localsale/issuesummaryview' },
       ],
     },
@@ -161,7 +159,7 @@ export default function LocalSaleDashboardLayout() {
 
   // --- AUTHENTICATION LOGIC ---
   const currentUsername = localStorage.getItem('username') || 'Unknown User';
-  const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'Viewer'; 
+  const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'User'; 
 
   const handleLogout = () => {
     localStorage.clear(); // Clear everything on logout
@@ -186,15 +184,40 @@ export default function LocalSaleDashboardLayout() {
     });
 
   // --- SEARCH FILTERING LOGIC ---
+  const accessibleLinks = React.useMemo(() => {
+    return [
+      ...DATA.quickLinks.map(link => ({ title: link.name, url: link.url, icon: link.icon })),
+      ...DATA.navMain.flatMap(group =>
+        group.items
+          .filter(item => !(item.adminOnly && currentUserRole !== 'Admin')) // Filter admin paths
+          .filter(item => !(item.nonViewer && currentUserRole === 'Viewer')) // 👈 Hide from viewers
+          .map(item => ({ title: item.title, url: item.url, icon: group.icon }))
+      )
+    ];
+  }, [currentUserRole]);
+
   const filteredQuickLinks = DATA.quickLinks.filter(item => 
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const searchResults = searchQuery
+    ? accessibleLinks.filter(link => link.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    : [];
+
   const filteredNavMain = DATA.navMain.map(group => {
+    const visibleItems = group.items.filter(subItem => {
+        // Admin Only ඒවා Admin ට විතරයි
+        if (subItem.adminOnly && currentUserRole !== 'Admin') return false;
+        
+        // nonViewer දාලා තියෙන ඒවා Viewer ට පෙන්වන්නේ නෑ
+        if (subItem.nonViewer && currentUserRole === 'Viewer') return false; 
+        
+        return true;
+    });
+    
     const matchesGroupTitle = group.title.toLowerCase().includes(searchQuery.toLowerCase());
     
-    // Check if sub-items match search
-    const searchFilteredItems = group.items.filter(subItem => 
+    const searchFilteredItems = visibleItems.filter(subItem => 
         matchesGroupTitle || subItem.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -233,7 +256,7 @@ export default function LocalSaleDashboardLayout() {
           </SidebarMenu>
         </SidebarHeader>
 
-        <SidebarContent className="px-2 mt-4">
+        <SidebarContent className="px-2 mt-4 relative">
           
           {/* --- SEARCH BAR --- */}
           <div className="px-2 mb-2 relative z-50">
@@ -247,6 +270,29 @@ export default function LocalSaleDashboardLayout() {
                 className="w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-[#1B6A31] dark:focus:border-green-600 rounded-xl py-2 pl-9 pr-4 text-sm outline-none transition-all dark:text-white shadow-sm"
               />
             </div>
+
+            {/* SEARCH RESULTS DROPDOWN */}
+            {searchQuery && isSidebarOpen && (
+              <div className="absolute top-full mt-1 left-2 right-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg max-h-60 overflow-y-auto py-1 z-50 custom-scrollbar">
+                {searchResults.length > 0 ? (
+                  searchResults.map((result) => (
+                    <div
+                      key={result.url}
+                      onClick={() => {
+                        navigate(result.url);
+                        setSearchQuery(''); 
+                      }}
+                      className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#F4F7F5] dark:hover:bg-zinc-700 cursor-pointer transition-colors"
+                    >
+                      {result.icon && <result.icon size={16} className="text-gray-400 dark:text-gray-500" />}
+                      <span className="font-medium">{result.title}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-4 py-3 text-sm text-gray-500 text-center">No pages found</div>
+                )}
+              </div>
+            )}
           </div>
 
           

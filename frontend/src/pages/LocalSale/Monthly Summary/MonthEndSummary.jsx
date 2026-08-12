@@ -39,9 +39,18 @@ export default function MonthEndSummary() {
         setIsLoading(true);
 
         try {
+            const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
             const [dailyRes, issueRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/summary?month=${month}`),
-                fetch(`${BACKEND_URL}/api/issue-summary?month=${month}`)
+                fetch(`${BACKEND_URL}/api/summary?month=${month}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }),
+                fetch(`${BACKEND_URL}/api/issue-summary?month=${month}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                })
             ]);
 
             const dailyJson = await dailyRes.json();

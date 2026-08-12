@@ -178,10 +178,12 @@ export default function IssueTypeSummaryEntry() {
     };
 
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch(`${BACKEND_URL}/api/issue-summary/bulk-save`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(payload)
       });
