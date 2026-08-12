@@ -5,8 +5,8 @@ import PDFDownloader from '@/components/PDFDownloader';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
-// Maps the exact UI columns
-const tableStructure = [
+// Base structure (මෙයට අමතරව එන ඒවා ඉබේම table එකට එකතු වේ)
+const baseTableStructure = [
     { 
         id: 'athukorala', title: 'ATHUKORALA', 
         columns: [{ size: '400g', key: 'athukorala_400g' }, { size: '200g', key: 'athukorala_200g' }, { size: '100g', key: 'athukorala_100g' }] 
@@ -51,13 +51,9 @@ export default function FreeIssueSummary() {
     const [datesOfMonth, setDatesOfMonth] = useState([]);
     const [dailyDataMap, setDailyDataMap] = useState({});
 
-    // Prepare flat columns for easy grid rendering & crosshair math
-    const flatColumns = [];
-    tableStructure.forEach(cat => {
-        cat.columns.forEach(col => {
-            flatColumns.push({ catId: cat.id, size: col.size, key: col.key });
-        });
-    });
+    // Dynamic columns states (අලුත් items ආවොත් ඒවා මෙතැනට එකතු වේ)
+    const [dynamicTableStructure, setDynamicTableStructure] = useState(baseTableStructure);
+    const [flatColumns, setFlatColumns] = useState([]);
 
     const fetchFreeIssues = async () => {
         if (!month) return;
@@ -77,6 +73,8 @@ export default function FreeIssueSummary() {
             toast.error(error.message || "Error generating free issues report.");
             setDatesOfMonth([]);
             setDailyDataMap({});
+            setDynamicTableStructure(baseTableStructure);
+            setFlatColumns([]);
         } finally {
             setIsLoading(false);
         }
@@ -86,6 +84,9 @@ export default function FreeIssueSummary() {
         const freeRecords = records.filter(record => record.issueType === 'Free issued');
         const dailyMap = {};
         const activeDates = new Set();
+        
+        // Deep copy of base structure to append new custom items
+        const currentStructure = JSON.parse(JSON.stringify(baseTableStructure));
 
         freeRecords.forEach(record => {
             const date = record.date;
@@ -100,6 +101,24 @@ export default function FreeIssueSummary() {
                 if (outValue > 0) {
                     dailyMap[date][key] = (dailyMap[date][key] || 0) + outValue;
                     hasData = true;
+
+                    // --- DYNAMICALLY ADD NEW CATEGORY OR SIZE ---
+                    let catIndex = currentStructure.findIndex(c => c.id === item.categoryId);
+                    
+                    if (catIndex === -1) {
+                        // Category එක නැත්නම් අලුතින් එකතු කරන්න
+                        currentStructure.push({
+                            id: item.categoryId,
+                            title: item.categoryTitle || item.categoryId.toUpperCase(),
+                            columns: [{ size: item.size, key: key }]
+                        });
+                    } else {
+                        // Category එක තියෙනවා, Size එක තියෙනවද බලන්න
+                        const colExists = currentStructure[catIndex].columns.some(c => c.size === item.size);
+                        if (!colExists) {
+                            currentStructure[catIndex].columns.push({ size: item.size, key: key });
+                        }
+                    }
                 }
             });
 
@@ -111,6 +130,16 @@ export default function FreeIssueSummary() {
             .filter(d => d.startsWith(month))
             .sort((a, b) => new Date(b) - new Date(a));
 
+        // Generate flat columns from the dynamically updated structure
+        const newFlatColumns = [];
+        currentStructure.forEach(cat => {
+            cat.columns.forEach(col => {
+                newFlatColumns.push({ catId: cat.id, size: col.size, key: col.key });
+            });
+        });
+
+        setDynamicTableStructure(currentStructure);
+        setFlatColumns(newFlatColumns);
         setDatesOfMonth(sortedDates);
         setDailyDataMap(dailyMap);
     };
@@ -122,10 +151,8 @@ export default function FreeIssueSummary() {
 
     // --- FILTERING & DYNAMIC TOTALS ---
     const filteredDates = datesOfMonth.filter(date => {
-        // Text Search Filter
         if (searchQuery && !date.replace(/-/g, '.').includes(searchQuery)) return false;
 
-        // Date Range Filter
         if (!fromDate && !toDate) return true;
         const targetDate = new Date(date);
         const from = fromDate ? new Date(fromDate) : null;
@@ -185,7 +212,7 @@ export default function FreeIssueSummary() {
 
         const row2 = []; 
 
-        tableStructure.forEach(cat => {
+        dynamicTableStructure.forEach(cat => {
             row1.push({
                 content: cat.title.toUpperCase(),
                 colSpan: cat.columns.length,
@@ -210,16 +237,14 @@ export default function FreeIssueSummary() {
                 const val = dailyDataMap[date]?.[col.key];
                 row.push({ 
                     content: formatVal(val), 
-                    styles: { textColor: [239, 68, 68] } // Red for Free Issues
+                    styles: { textColor: [239, 68, 68] } 
                 });
             });
             return row;
         });
 
-        // Add spacer
         data.push([{ content: "", colSpan: flatColumns.length + 1, styles: { fillColor: [255, 255, 255], minCellHeight: 6, lineWidth: 0 } }]);
         
-        // Add Footer Totals
         const totalsRow = [{ content: "TOTAL", styles: { fontStyle: 'bold', fillColor: [244, 245, 245], textColor: [17, 24, 39], halign: 'center' } }];
         flatColumns.forEach(col => {
             const val = currentTotals[col.key];
@@ -239,7 +264,6 @@ export default function FreeIssueSummary() {
 
             let totalCols = 1 + flatColumns.length;
 
-            // Title
             const titleRow = worksheet.addRow([`FREE ISSUED SUMMARY - ${getMonthName()}`]);
             worksheet.mergeCells(1, 1, 1, totalCols);
             titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEAF5EC' } };
@@ -247,20 +271,18 @@ export default function FreeIssueSummary() {
             titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
             titleRow.height = 30;
 
-            // Category Headers
             const catRow = worksheet.addRow(['DATE']);
             let colIndex = 2;
-            tableStructure.forEach(cat => {
+            dynamicTableStructure.forEach(cat => {
                 catRow.getCell(colIndex).value = cat.title.toUpperCase();
                 const span = cat.columns.length;
                 if (span > 1) worksheet.mergeCells(2, colIndex, 2, colIndex + span - 1);
                 colIndex += span;
             });
 
-            // Size Headers
             const sizeRow = worksheet.addRow(['']);
             colIndex = 2;
-            tableStructure.forEach(cat => {
+            dynamicTableStructure.forEach(cat => {
                 cat.columns.forEach(col => {
                     sizeRow.getCell(colIndex).value = col.size;
                     colIndex += 1;
@@ -268,7 +290,6 @@ export default function FreeIssueSummary() {
             });
             worksheet.mergeCells('A2:A3'); 
 
-            // Style Headers
             [catRow, sizeRow].forEach(row => {
                 row.eachCell((cell) => {
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEAF5EC' } };
@@ -278,7 +299,6 @@ export default function FreeIssueSummary() {
                 });
             });
 
-            // Data Rows
             filteredDates.forEach(date => {
                 const rowData = [date];
                 flatColumns.forEach(col => {
@@ -291,14 +311,12 @@ export default function FreeIssueSummary() {
                     cell.alignment = { horizontal: 'center', vertical: 'middle' };
                     cell.border = { top: { style: 'thin', color: { argb: 'FFDCEBDC' } }, bottom: { style: 'thin', color: { argb: 'FFDCEBDC' } }, left: { style: 'thin', color: { argb: 'FFDCEBDC' } }, right: { style: 'thin', color: { argb: 'FFDCEBDC' } } };
                     if(cIdx === 1) cell.font = { bold: true, color: { argb: 'FF111827' } };
-                    else cell.font = { color: { argb: 'FFEF4444' } }; // Red for free issues
+                    else cell.font = { color: { argb: 'FFEF4444' } }; 
                 });
             });
 
-            // Spacer
             worksheet.addRow([]);
 
-            // Totals Row
             const totalsData = ["TOTAL"];
             flatColumns.forEach(col => {
                 const val = currentTotals[col.key];
@@ -310,7 +328,7 @@ export default function FreeIssueSummary() {
                 cell.alignment = { horizontal: 'center', vertical: 'middle' };
                 cell.border = { top: { style: 'thin', color: { argb: 'FFDCEBDC' } }, bottom: { style: 'thin', color: { argb: 'FFDCEBDC' } }, right: { style: 'thin', color: { argb: 'FFDCEBDC' } }, left: { style: 'thin', color: { argb: 'FFDCEBDC' } } };
                 if(cIdx === 1) cell.font = { bold: true, color: { argb: 'FF111827' } };
-                else cell.font = { bold: true, color: { argb: 'FFDC2626' } }; // Red totals
+                else cell.font = { bold: true, color: { argb: 'FFDC2626' } }; 
             });
 
             worksheet.getColumn(1).width = 15;
@@ -471,7 +489,7 @@ export default function FreeIssueSummary() {
                                     <th rowSpan={2} className="px-4 py-3 align-middle border border-[#dcebdc] dark:border-green-800/50 sticky left-0 z-30 text-xs font-bold uppercase tracking-wider bg-[#eaf5ec] dark:bg-green-900/80">
                                         Date
                                     </th>
-                                    {tableStructure.map((cat, idx) => (
+                                    {dynamicTableStructure.map((cat, idx) => (
                                         <th key={idx} colSpan={cat.columns.length} className="px-4 py-2 border border-[#dcebdc] dark:border-green-800/50 text-[11px] font-bold uppercase tracking-wider">
                                             {cat.title}
                                         </th>
@@ -480,7 +498,7 @@ export default function FreeIssueSummary() {
 
                                 {/* Level 2: Sizes */}
                                 <tr>
-                                    {tableStructure.map(cat => (
+                                    {dynamicTableStructure.map(cat => (
                                         cat.columns.map((col, cIdx) => (
                                             <th key={`${cat.id}-${cIdx}`} className="px-3 py-1.5 text-[11px] font-bold border border-[#dcebdc] dark:border-green-800/50 text-red-500">
                                                 {col.size}

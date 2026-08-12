@@ -1,36 +1,53 @@
 import DailySummary from '../models/DailySummary.js';
 
-// 1. Bulk Save or Update
+// 1. Bulk Save
 export const saveBulkSummaries = async (req, res) => {
     try {
         const { records } = req.body;
-
+        
         if (!records || records.length === 0) {
             return res.status(400).json({ success: false, message: "No records found to save!" });
         }
 
-        const operations = records.map(async (record) => {
-            return await DailySummary.findOneAndUpdate(
-                { date: record.date },
-                { $set: { items: record.items } },
-                { new: true, upsert: true }
-            );
-        });
+        // සෑම record (දිනයක්ම) එකින් එක පරීක්ෂා කිරීම
+        for (const record of records) {
+            // අදාළ දිනයට කලින් Save කරපු දත්ත තියෙනවදැයි සෙවීම
+            let existingSummary = await DailySummary.findOne({ date: record.date });
 
-        await Promise.all(operations);
+            if (!existingSummary) {
+                // එම දිනයට කිසිදු දත්තයක් නැත්නම් අලුතින්ම Document එකක් සාදයි
+                const newSummary = new DailySummary({
+                    date: record.date,
+                    items: record.items
+                });
+                await newSummary.save();
+            } else {
+                // එම දිනයට දත්ත තිබේ නම් අලුත් Items ටික ඊට එකතු කරයි (Merge)
+                record.items.forEach(newItem => {
+                    // මේ එවන Item එක (Category එක සහ Size එක) දැනටමත් තියෙනවද කියලා බලනවා
+                    const existingItemIndex = existingSummary.items.findIndex(
+                        item => item.categoryId === newItem.categoryId && item.size === newItem.size
+                    );
 
-        res.status(200).json({ 
-            success: true, 
-            message: "All daily records saved successfully!" 
-        });
+                    if (existingItemIndex > -1) {
+                        // එකම Item එක තිබුණොත්, පරණ ගාණට අලුත් ගාණ එකතු කරනවා (+)
+                        existingSummary.items[existingItemIndex].out += Number(newItem.out || 0);
+                        existingSummary.items[existingItemIndex].in += Number(newItem.in || 0);
+                    } else {
+                        // වෙනත් අලුත් Item එකක් (Tea type එකක්) නම්, ඒක අලුතින්ම list එකට දානවා
+                        existingSummary.items.push(newItem);
+                    }
+                });
+                
+                // යාවත්කාලීන කළ දත්ත Save කිරීම
+                await existingSummary.save();
+            }
+        }
 
+        res.status(200).json({ success: true, message: "All daily records saved successfully!" });
     } catch (error) {
         console.error("Error saving summaries:", error);
-        res.status(500).json({ 
-            success: false, 
-            message: "Internal server error while saving records.", 
-            error: error.message 
-        });
+        res.status(500).json({ success: false, message: "Internal server error.", error: error.message });
     }
 };
 

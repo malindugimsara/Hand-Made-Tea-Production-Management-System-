@@ -15,7 +15,7 @@ const teaCategories = [
 ];
 
 export default function DailySummaryEntry() {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const navigate = useNavigate();
 
   const getInitialState = () => {
@@ -34,8 +34,14 @@ export default function DailySummaryEntry() {
   const [pendingRecords, setPendingRecords] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
+  // --- Custom Tea Type States ---
+  const [customItems, setCustomItems] = useState([]);
+  const [customTeaName, setCustomTeaName] = useState('');
+  const [customTeaSize, setCustomTeaSize] = useState('');
+  const [customIn, setCustomIn] = useState('');
+  const [customOut, setCustomOut] = useState('');
+
   const handleInputChange = (categoryId, size, type, value) => {
-    // Prevent negative values
     if (value !== '' && Number(value) < 0) return;
     
     setFormData(prev => ({
@@ -50,7 +56,39 @@ export default function DailySummaryEntry() {
     }));
   };
 
-  // Extract only filled data to add to the list
+  // අලුත් (Custom) අයිතමයක් දැනට පුරවන ලිස්ට් එකට එකතු කිරීම
+  const handleAddCustomItem = () => {
+    if (!customTeaName.trim() || !customTeaSize.trim()) {
+      toast.error("Please enter both Tea Name and Size.");
+      return;
+    }
+    if (!customIn && !customOut) {
+      toast.error("Please enter at least one IN or OUT value.");
+      return;
+    }
+
+    const newItem = {
+      categoryId: customTeaName.toLowerCase().replace(/\s+/g, '-'), // Generate ID from name
+      categoryTitle: customTeaName.trim(),
+      size: customTeaSize.trim(),
+      in: customIn || '0',
+      out: customOut || '0'
+    };
+
+    setCustomItems([...customItems, newItem]);
+    
+    // Reset custom inputs
+    setCustomTeaName('');
+    setCustomTeaSize('');
+    setCustomIn('');
+    setCustomOut('');
+    toast.success("Added to current entry.");
+  };
+
+  const removeCustomItem = (indexToRemove) => {
+    setCustomItems(customItems.filter((_, idx) => idx !== indexToRemove));
+  };
+
   const extractFilledData = () => {
     const filledItems = [];
     Object.entries(formData).forEach(([catId, sizes]) => {
@@ -73,13 +111,15 @@ export default function DailySummaryEntry() {
   const handleAddToList = (e) => {
     e.preventDefault();
     const filledItems = extractFilledData();
+    
+    // කලින් තියෙන (Predefined) ඒවායි, අලුතින් එකතු කරපු (Custom) ඒවායි දෙකම එකතු කරනවා
+    const allItemsForDate = [...filledItems, ...customItems];
 
-    if (filledItems.length === 0) {
+    if (allItemsForDate.length === 0) {
       toast.error("Please enter at least one IN or OUT value before adding!");
       return;
     }
 
-    // Check if date already exists in the list
     if (pendingRecords.some(record => record.date === date)) {
       toast.error(`A record for ${date} is already in the pending list!`);
       return;
@@ -88,7 +128,7 @@ export default function DailySummaryEntry() {
     const newRecord = {
       id: Date.now(),
       date,
-      items: filledItems
+      items: allItemsForDate
     };
 
     setPendingRecords([...pendingRecords, newRecord]);
@@ -96,6 +136,7 @@ export default function DailySummaryEntry() {
     
     // Reset form after adding
     setFormData(getInitialState());
+    setCustomItems([]);
   };
 
   const handleRemoveFromList = (indexToRemove) => {
@@ -111,7 +152,6 @@ export default function DailySummaryEntry() {
     setIsSaving(true);
     const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
 
-    // Format Payload exactly matching the backend schema
     const payload = {
       records: pendingRecords.map(record => ({
         date: record.date,
@@ -126,14 +166,10 @@ export default function DailySummaryEntry() {
     };
 
     try {
-      // Optional: Add Auth token if needed
-      // const token = localStorage.getItem('token'); 
-      
       const response = await fetch(`${BACKEND_URL}/api/summary/bulk-save`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // 'Authorization': `Bearer ${token}` 
         },
         body: JSON.stringify(payload)
       });
@@ -145,7 +181,7 @@ export default function DailySummaryEntry() {
       }
 
       toast.success(data.message || "All daily records saved successfully!", { id: toastId });
-      setPendingRecords([]); // Clear list on success
+      setPendingRecords([]); 
 
       setTimeout(() => {
         navigate("/localsale/viewdailysummary");
@@ -208,7 +244,6 @@ export default function DailySummaryEntry() {
                       </div>
 
                       {category.sizes.map((size) => {
-                        // මේක KG වලින් තියෙන එකක්ද කියලා අඳුරගන්නවා
                         const isKg = size.includes('(KG)'); 
 
                         return (
@@ -221,7 +256,7 @@ export default function DailySummaryEntry() {
                                 type="number" 
                                 min="0" 
                                 step="any" 
-                                placeholder={isKg ? "0.00" : "0"} // KG නම් 0.00 විදිහටත් නැත්නම් 0 විදිහටත් පෙන්වනවා
+                                placeholder={isKg ? "0.00" : "0"}
                                 value={formData[category.id][size].out}
                                 onChange={(e) => handleInputChange(category.id, size, 'out', e.target.value)}
                                 onWheel={(e) => e.target.blur()}
@@ -233,7 +268,7 @@ export default function DailySummaryEntry() {
                                 type="number" 
                                 min="0" 
                                 step="any" 
-                                placeholder={isKg ? "0.00" : "0"} // KG නම් 0.00 විදිහටත් නැත්නම් 0 විදිහටත් පෙන්වනවා
+                                placeholder={isKg ? "0.00" : "0"}
                                 value={formData[category.id][size].in}
                                 onChange={(e) => handleInputChange(category.id, size, 'in', e.target.value)}
                                 onWheel={(e) => e.target.blur()}
@@ -247,6 +282,91 @@ export default function DailySummaryEntry() {
                   </div>
                 ))}
               </div>
+
+              {/* --- CUSTOM TEA TYPE SECTION --- */}
+              <div className="mt-8 p-5 border border-dashed border-gray-300 dark:border-zinc-700 rounded-xl bg-gray-50/50 dark:bg-zinc-900/50">
+                <h3 className="font-bold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2 text-sm">
+                  <PlusCircle size={18} className="text-blue-500" /> Add Other Tea Type
+                </h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                  <div className="sm:col-span-4">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Tea Name</label>
+                    <input 
+                      type="text" 
+                      value={customTeaName} 
+                      onChange={e => setCustomTeaName(e.target.value)} 
+                      className="w-full p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-blue-400/50" 
+                      placeholder="e.g. Special Green" 
+                    />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Size / Type</label>
+                    <input 
+                      type="text" 
+                      value={customTeaSize} 
+                      onChange={e => setCustomTeaSize(e.target.value)} 
+                      className="w-full p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-blue-400/50" 
+                      placeholder="e.g. 50g" 
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] font-bold text-red-500 uppercase block mb-1 text-center">OUT</label>
+                    <input 
+                      type="number" min="0" step="any"
+                      value={customOut} 
+                      onChange={e => setCustomOut(e.target.value)} 
+                      className="w-full p-2.5 bg-red-50/30 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-lg text-center text-sm font-bold text-red-600 dark:text-red-400 focus:ring-2 focus:ring-red-400/50 outline-none" 
+                      placeholder="0" 
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] font-bold text-green-500 uppercase block mb-1 text-center">IN</label>
+                    <input 
+                      type="number" min="0" step="any"
+                      value={customIn} 
+                      onChange={e => setCustomIn(e.target.value)} 
+                      className="w-full p-2.5 bg-green-50/30 dark:bg-green-950/20 border border-green-200 dark:border-green-900/50 rounded-lg text-center text-sm font-bold text-green-600 dark:text-green-400 focus:ring-2 focus:ring-green-400/50 outline-none" 
+                      placeholder="0" 
+                    />
+                  </div>
+                  <div className="sm:col-span-1">
+                    <button 
+                      type="button" 
+                      onClick={handleAddCustomItem} 
+                      className="w-full p-2.5 bg-gray-800 hover:bg-gray-700 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-white rounded-lg text-sm font-bold transition-colors flex justify-center items-center h-[42px]"
+                      title="Add to Current Entry"
+                    >
+                      <PlusCircle size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* List of custom items added for current session */}
+                {customItems.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-[10px] text-gray-500 uppercase font-bold">Added Custom Items (Ready to add to list):</p>
+                    {customItems.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-white dark:bg-zinc-800/80 p-2.5 rounded-lg border border-gray-200 dark:border-zinc-700 text-sm shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-gray-800 dark:text-gray-200">{item.categoryTitle}</span>
+                          <span className="text-gray-500 text-xs">({item.size})</span>
+                          
+                          <div className="flex gap-2 ml-2">
+                            {item.out !== '0' && <span className="text-xs font-bold text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded">OUT: {item.out}</span>}
+                            {item.in !== '0' && <span className="text-xs font-bold text-green-500 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded">IN: {item.in}</span>}
+                          </div>
+                        </div>
+                        <button type="button" onClick={() => removeCustomItem(idx)} className="text-gray-400 hover:text-red-500 transition-colors p-1">
+                          <X size={16}/>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* --- END CUSTOM TEA TYPE SECTION --- */}
+
             </div>
 
             {/* Add to List Button (Yellow Theme) */}

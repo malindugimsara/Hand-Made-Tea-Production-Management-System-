@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Save, Calendar, PlusCircle, Trash2, ListChecks, Package, ArrowRight, Layers } from 'lucide-react';
+import { Save, Calendar, PlusCircle, Trash2, ListChecks, Package, ArrowRight, Layers, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 const teaCategories = [
   { id: 'athukorala', title: 'Athukorala', sizes: ['400g', '200g', '100g'] },
@@ -21,6 +22,7 @@ const ISSUE_TYPES = [
 
 export default function IssueTypeSummaryEntry() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const navigate = useNavigate();
 
   const getInitialState = () => {
     const initialState = {};
@@ -39,6 +41,12 @@ export default function IssueTypeSummaryEntry() {
   const [pendingRecords, setPendingRecords] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
+  // --- Custom Tea Type States ---
+  const [customItems, setCustomItems] = useState([]);
+  const [customTeaName, setCustomTeaName] = useState('');
+  const [customTeaSize, setCustomTeaSize] = useState('');
+  const [customOut, setCustomOut] = useState('');
+
   const handleInputChange = (categoryId, size, value) => {
     // Prevent negative values
     if (value !== '' && Number(value) < 0) return;
@@ -52,6 +60,37 @@ export default function IssueTypeSummaryEntry() {
         }
       }
     }));
+  };
+
+  // අලුත් (Custom) අයිතමයක් දැනට පුරවන ලිස්ට් එකට එකතු කිරීම
+  const handleAddCustomItem = () => {
+    if (!customTeaName.trim() || !customTeaSize.trim()) {
+      toast.error("Please enter both Tea Name and Size.");
+      return;
+    }
+    if (!customOut) {
+      toast.error("Please enter an OUT value.");
+      return;
+    }
+
+    const newItem = {
+      categoryId: customTeaName.toLowerCase().replace(/\s+/g, '-'), // Generate ID from name
+      categoryTitle: customTeaName.trim(),
+      size: customTeaSize.trim(),
+      out: customOut || '0'
+    };
+
+    setCustomItems([...customItems, newItem]);
+    
+    // Reset custom inputs
+    setCustomTeaName('');
+    setCustomTeaSize('');
+    setCustomOut('');
+    toast.success("Added to current entry.");
+  };
+
+  const removeCustomItem = (indexToRemove) => {
+    setCustomItems(customItems.filter((_, idx) => idx !== indexToRemove));
   };
 
   // Extract only filled OUT data to add to the list
@@ -82,8 +121,10 @@ export default function IssueTypeSummaryEntry() {
     }
 
     const filledItems = extractFilledData();
+    // Predefined ඒවායි, අලුතින් එකතු කරපු Custom ඒවායි දෙකම එකතු කරනවා
+    const allItemsForEntry = [...filledItems, ...customItems];
 
-    if (filledItems.length === 0) {
+    if (allItemsForEntry.length === 0) {
       toast.error("Please enter at least one OUT value before adding!");
       return;
     }
@@ -98,14 +139,15 @@ export default function IssueTypeSummaryEntry() {
       id: Date.now(),
       date,
       issueType,
-      items: filledItems
+      items: allItemsForEntry
     };
 
     setPendingRecords([...pendingRecords, newRecord]);
     toast.success(`Record added to list!`);
 
-    // Reset form data after adding
+    // Reset form data and custom items after adding
     setFormData(getInitialState());
+    setCustomItems([]);
   };
 
   const handleRemoveFromList = (indexToRemove) => {
@@ -152,6 +194,10 @@ export default function IssueTypeSummaryEntry() {
 
       toast.success(data.message || "All records saved successfully!", { id: toastId });
       setPendingRecords([]);
+
+      setTimeout(() => {
+        navigate("/localsale/issuesummaryview");
+      }, 1000);
 
     } catch (error) {
       console.error("Save Error:", error);
@@ -256,6 +302,80 @@ export default function IssueTypeSummaryEntry() {
                   </div>
                 ))}
               </div>
+
+              {/* --- CUSTOM TEA TYPE SECTION --- */}
+              <div className="mt-8 p-5 border border-dashed border-gray-300 dark:border-zinc-700 rounded-xl bg-gray-50/50 dark:bg-zinc-900/50">
+                <h3 className="font-bold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2 text-sm">
+                  <PlusCircle size={18} className="text-blue-500" /> Add Other Tea Type
+                </h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                  <div className="sm:col-span-5">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Tea Name</label>
+                    <input 
+                      type="text" 
+                      value={customTeaName} 
+                      onChange={e => setCustomTeaName(e.target.value)} 
+                      className="w-full p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-blue-400/50" 
+                      placeholder="e.g. Special Green" 
+                    />
+                  </div>
+                  <div className="sm:col-span-4">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Size / Type</label>
+                    <input 
+                      type="text" 
+                      value={customTeaSize} 
+                      onChange={e => setCustomTeaSize(e.target.value)} 
+                      className="w-full p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-blue-400/50" 
+                      placeholder="e.g. 50g" 
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] font-bold text-red-500 uppercase block mb-1 text-center">OUT</label>
+                    <input 
+                      type="number" min="0" step="any"
+                      value={customOut} 
+                      onChange={e => setCustomOut(e.target.value)} 
+                      className="w-full p-2.5 bg-red-50/30 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-lg text-center text-sm font-bold text-red-600 dark:text-red-400 focus:ring-2 focus:ring-red-400/50 outline-none" 
+                      placeholder="0" 
+                    />
+                  </div>
+                  <div className="sm:col-span-1">
+                    <button 
+                      type="button" 
+                      onClick={handleAddCustomItem} 
+                      className="w-full p-2.5 bg-gray-800 hover:bg-gray-700 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-white rounded-lg text-sm font-bold transition-colors flex justify-center items-center h-[42px]"
+                      title="Add to Current Entry"
+                    >
+                      <PlusCircle size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* List of custom items added for current session */}
+                {customItems.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-[10px] text-gray-500 uppercase font-bold">Added Custom Items (Ready to add to list):</p>
+                    {customItems.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-white dark:bg-zinc-800/80 p-2.5 rounded-lg border border-gray-200 dark:border-zinc-700 text-sm shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-gray-800 dark:text-gray-200">{item.categoryTitle}</span>
+                          <span className="text-gray-500 text-xs">({item.size})</span>
+                          
+                          <div className="flex gap-2 ml-2">
+                            {item.out !== '0' && <span className="text-xs font-bold text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded">OUT: {item.out}</span>}
+                          </div>
+                        </div>
+                        <button type="button" onClick={() => removeCustomItem(idx)} className="text-gray-400 hover:text-red-500 transition-colors p-1">
+                          <X size={16}/>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* --- END CUSTOM TEA TYPE SECTION --- */}
+
             </div>
 
             {/* Add to List Button */}
