@@ -57,9 +57,7 @@ export default function ViewTeaGradesReceivedRecords() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     
     // States
-    const [activeTab, setActiveTab] = useState('auto'); // 'auto', 'manual', 'rejected'
     const [records, setRecords] = useState([]);
-    const [rejectedRecords, setRejectedRecords] = useState([]);
     const [loading, setLoading] = useState(true);
     const [recordToDelete, setRecordToDelete] = useState(null);
 
@@ -91,17 +89,14 @@ export default function ViewTeaGradesReceivedRecords() {
             const token = localStorage.getItem('token');
             const headers = { 'Authorization': `Bearer ${token}` };
 
-            const [acceptedRes, rejectedRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/api/tea-received`, { headers }),
-                fetch(`${BACKEND_URL}/api/tea-received/rejected-transfers`, { headers })
-            ]);
+            const response = await fetch(`${BACKEND_URL}/api/tea-received`, { headers });
 
-            if (!acceptedRes.ok) {
-                if(acceptedRes.status === 401) throw new Error("Unauthorized. Please log in.");
-                throw new Error("Failed to fetch accepted data");
+            if (!response.ok) {
+                if(response.status === 401) throw new Error("Unauthorized. Please log in.");
+                throw new Error("Failed to fetch data");
             }
 
-            const data = await acceptedRes.json();
+            const data = await response.json();
             
             const processedData = data.map(rec => {
                 const createdTime = rec.createdAt ? new Date(rec.createdAt).getTime() : 0;
@@ -126,10 +121,6 @@ export default function ViewTeaGradesReceivedRecords() {
 
             setRecords(sortedData);
 
-            if (rejectedRes.ok) {
-                const rejectedData = await rejectedRes.json();
-                setRejectedRecords(rejectedData);
-            }
         } catch (error) {
             toast.error(error.message || "Could not load data from server.");
         } finally {
@@ -161,14 +152,11 @@ export default function ViewTeaGradesReceivedRecords() {
         return acc;
     }, []);
 
-    // 🌟 FIXED: Split records by type using Transaction No for old records 🌟
-    const checkIsManual = (r) => r.isManual === true || (r.transactionNo && r.transactionNo.includes('HO/TO'));
+    // Since we only have one type of records now, we use filteredRecords directly
+    const displayRecords = filteredRecords;
 
-    const autoRecords = filteredRecords.filter(r => !checkIsManual(r));
-    const manualRecords = filteredRecords.filter(r => checkIsManual(r));
-
-    // Row Span Logic specifically for Manual Records
-    const manualRecordsWithSpan = manualRecords.map((record, index, arr) => {
+    // Row Span Logic for Records
+    const recordsWithSpan = displayRecords.map((record, index, arr) => {
         const currentDate = new Date(record.date).toISOString().split('T')[0];
         const prevDate = index > 0 ? new Date(arr[index - 1].date).toISOString().split('T')[0] : null;
         
@@ -184,10 +172,10 @@ export default function ViewTeaGradesReceivedRecords() {
         return { ...record, isFirstOfDate, dateRowSpan: rowSpan };
     });
 
-    const grandTotalQty = filteredRecords.reduce((sum, record) => sum + (Number(record.totalQtyKg) || 0), 0);
+    const grandTotalQty = displayRecords.reduce((sum, record) => sum + (Number(record.totalQtyKg) || 0), 0);
 
     const gradeSummaryMap = {};
-    filteredRecords.forEach(record => {
+    displayRecords.forEach(record => {
         record.itemsArray.forEach(item => {
             if (!gradeSummaryMap[item.grade]) gradeSummaryMap[item.grade] = 0;
             gradeSummaryMap[item.grade] += Number(item.qtyKg) || 0;
@@ -230,7 +218,7 @@ export default function ViewTeaGradesReceivedRecords() {
 
     // PDF GENERATION
     const getPdfData = () => {
-        const pdfSortedRecords = [...filteredRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
+        const pdfSortedRecords = [...displayRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
         const tableRows = [];
 
         pdfSortedRecords.forEach(record => {
@@ -238,9 +226,6 @@ export default function ViewTeaGradesReceivedRecords() {
             const pdfDateCell = record.isEdited ? `${baseDate}\n(Edited)` : baseDate;
             const itemsCount = record.itemsArray.length;
             
-            const isManualRec = checkIsManual(record);
-            const typeStr = isManualRec ? 'Manual' : 'Factory (Auto)';
-            const dispByStr = record.factoryUsername || (isManualRec ? 'Manual Entry' : '-');
             const accByStr = record.acceptedBy || record.editedBy || '-';
 
             record.itemsArray.forEach((item, index) => {
@@ -253,8 +238,6 @@ export default function ViewTeaGradesReceivedRecords() {
                     tableRows.push([
                         { content: pdfDateCell, rowSpan: itemsCount, styles: { valign: 'top', halign: 'center' } },
                         { content: record.transactionNo || "-", rowSpan: itemsCount, styles: { valign: 'top', halign: 'center' } },
-                        { content: typeStr, rowSpan: itemsCount, styles: { valign: 'top', halign: 'center', textColor: isManualRec ? [107, 114, 128] : [37, 99, 235] } },
-                        { content: dispByStr, rowSpan: itemsCount, styles: { valign: 'top', halign: 'center' } },
                         { content: accByStr, rowSpan: itemsCount, styles: { valign: 'top', halign: 'center' } },
                         gradeCell,
                         qtyCell
@@ -266,7 +249,7 @@ export default function ViewTeaGradesReceivedRecords() {
         });
 
         tableRows.push([
-            { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' }, colSpan: 6 },
+            { content: "MONTHLY TOTAL", styles: { fontStyle: 'bold', halign: 'right' }, colSpan: 4 },
             { content: `${parseFloat(Number(grandTotalQty).toFixed(3)).toString()} kg`, styles: { fontStyle: 'bold', textColor: [15, 118, 110], halign: 'right' } } 
         ]);
         return tableRows;
@@ -279,7 +262,7 @@ export default function ViewTeaGradesReceivedRecords() {
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="w-full sm:w-auto">
                     <h2 className="text-2xl font-bold text-[#0f766e] dark:text-teal-400 flex items-center gap-2">
-                        <FileText size={24} /> Trans In Records
+                        <FileText size={24} /> Trans In Factory Records
                     </h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Overview of tea grades received in Packing</p>
                 </div>
@@ -289,12 +272,12 @@ export default function ViewTeaGradesReceivedRecords() {
                         <PDFDownloader 
                             title="Tea Grades Received Log"
                             subtitle={`Filters -> Month: ${filterMonth || 'All'} | Date: ${startDate || 'All'} to ${endDate || 'All'} | Grade: ${gradeFilter || 'All'}`}
-                            headers={["Date", "Transaction No", "Type", "Dispatched By", "Accepted By", "Grade", "Qty (KG)"]}
+                            headers={["Date", "Transaction No", "Accepted By", "Grade", "Qty (KG)"]}
                             data={getPdfData()}
                             uniqueCode={uniqueCode}
                             fileName={`Received_Records_${new Date().toISOString().split('T')[0]}.pdf`}
                             orientation="portrait" 
-                            disabled={loading || filteredRecords.length === 0}
+                            disabled={loading || displayRecords.length === 0}
                         />
                     </div>
                     <button onClick={fetchRecords} disabled={loading} className={`w-full sm:w-auto justify-center px-4 py-2.5 bg-white dark:bg-zinc-900 text-[#0f766e] dark:text-teal-400 border border-[#0d9488] dark:border-teal-800 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-50 dark:hover:bg-zinc-800'}`}>
@@ -303,87 +286,62 @@ export default function ViewTeaGradesReceivedRecords() {
                 </div>
             </div>
 
-            {/* --- TAB MENU --- */}
-            <div className="flex border-b border-gray-200 dark:border-zinc-800 mb-6 w-full overflow-x-auto">
-                <button
-                    className={`py-3 px-6 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === 'auto' ? 'border-[#0d9488] text-[#0f766e] dark:text-teal-400 bg-teal-50/50 dark:bg-teal-900/10' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
-                    onClick={() => setActiveTab('auto')}
-                >
-                    <CheckCircle2 size={16} /> Auto Transfers (Factory)
-                </button>
-                <button
-                    className={`py-3 px-6 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === 'manual' ? 'border-[#0d9488] text-[#0f766e] dark:text-teal-400 bg-teal-50/50 dark:bg-teal-900/10' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
-                    onClick={() => setActiveTab('manual')}
-                >
-                    <PackagePlus size={16} /> Manual Transfers
-                </button>
-                <button
-                    className={`py-3 px-6 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === 'rejected' ? 'border-red-500 text-red-600 dark:text-red-400 bg-red-50/50 dark:bg-red-900/10' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
-                    onClick={() => setActiveTab('rejected')}
-                >
-                    <XCircle size={16} /> Rejected
-                    {rejectedRecords.length > 0 && <span className="bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full text-[10px]">{rejectedRecords.length}</span>}
-                </button>
-            </div>
+            {/* --- FILTER SECTION --- */}
+            <div className="mb-6 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-colors duration-300">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Month</label>
+                        <input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">From Date</label>
+                        <input type="date" value={startDate} onChange={handleStartDateChange} className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">To Date</label>
+                        <input type="date" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} disabled={!startDate} className="w-full border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors disabled:opacity-50" />
+                    </div>
+                    
+                    <div className="flex flex-col gap-1.5 relative" ref={dropdownRef}>
+                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Search Grade/Trans No</label>
+                        <input 
+                            type="text" 
+                            placeholder="Type to search..." 
+                            value={gradeFilter} 
+                            onChange={(e) => {
+                                setGradeFilter(e.target.value);
+                                setIsDropdownOpen(true);
+                            }} 
+                            onFocus={() => setIsDropdownOpen(true)}
+                            className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors" 
+                        />
+                        {isDropdownOpen && (
+                            <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
+                                {TEA_TYPES.filter(t => t.toLowerCase().includes(gradeFilter.toLowerCase()))
+                                    .map((grade, idx) => (
+                                    <li 
+                                        key={idx} 
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={() => {
+                                            setGradeFilter(grade);
+                                            setIsDropdownOpen(false);
+                                        }}
+                                        className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-teal-50 dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex items-center gap-2"
+                                    >
+                                        <div className={`w-3 h-3 rounded-full ${getTeaColor(grade)} border border-white/20`}></div> {grade}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
 
-            {/* --- FILTER SECTION (For Auto & Manual) --- */}
-            {(activeTab === 'auto' || activeTab === 'manual') && (
-                <div className="mb-6 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-colors duration-300">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Month</label>
-                            <input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors" />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">From Date</label>
-                            <input type="date" value={startDate} onChange={handleStartDateChange} className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors" />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">To Date</label>
-                            <input type="date" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} disabled={!startDate} className="w-full border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors disabled:opacity-50" />
-                        </div>
-                        
-                        <div className="flex flex-col gap-1.5 relative" ref={dropdownRef}>
-                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Search Grade/Trans No</label>
-                            <input 
-                                type="text" 
-                                placeholder="Type to search..." 
-                                value={gradeFilter} 
-                                onChange={(e) => {
-                                    setGradeFilter(e.target.value);
-                                    setIsDropdownOpen(true);
-                                }} 
-                                onFocus={() => setIsDropdownOpen(true)}
-                                className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf] transition-colors" 
-                            />
-                            {isDropdownOpen && (
-                                <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
-                                    {TEA_TYPES.filter(t => t.toLowerCase().includes(gradeFilter.toLowerCase()))
-                                        .map((grade, idx) => (
-                                        <li 
-                                            key={idx} 
-                                            onMouseDown={(e) => e.preventDefault()}
-                                            onClick={() => {
-                                                setGradeFilter(grade);
-                                                setIsDropdownOpen(false);
-                                            }}
-                                            className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-teal-50 dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex items-center gap-2"
-                                        >
-                                            <div className={`w-3 h-3 rounded-full ${getTeaColor(grade)} border border-white/20`}></div> {grade}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
-
-                        <div className="flex items-end lg:justify-end">
-                            <button onClick={clearFilters} disabled={!filterMonth && !startDate && !endDate && !gradeFilter} className={`w-full lg:w-auto px-4 py-2.5 text-sm font-bold rounded-md transition-colors flex items-center justify-center gap-2 ${filterMonth || startDate || endDate || gradeFilter ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 border border-red-200 dark:border-red-800' : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-gray-600 cursor-not-allowed border border-transparent'}`}>
-                                <FilterX size={16} /> Clear
-                            </button>
-                        </div>
+                    <div className="flex items-end lg:justify-end">
+                        <button onClick={clearFilters} disabled={!filterMonth && !startDate && !endDate && !gradeFilter} className={`w-full lg:w-auto px-4 py-2.5 text-sm font-bold rounded-md transition-colors flex items-center justify-center gap-2 ${filterMonth || startDate || endDate || gradeFilter ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 border border-red-200 dark:border-red-800' : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-gray-600 cursor-not-allowed border border-transparent'}`}>
+                            <FilterX size={16} /> Clear
+                        </button>
                     </div>
                 </div>
-            )}
+            </div>
             
             {/* --- MAIN CONTENT AREA --- */}
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
@@ -398,220 +356,90 @@ export default function ViewTeaGradesReceivedRecords() {
                     ) : (
                         <div className="overflow-x-auto w-full scrollbar-thin scrollbar-thumb-gray-300">
                             
-                            {/* --- 1. AUTO TRANSFERS TAB (REPORT STYLE) --- */}
-                            {activeTab === 'auto' && (
-                                <table className="w-full text-sm text-left border-collapse min-w-full">
-                                    <thead className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-[11px] font-bold tracking-wider border-b border-gray-200 dark:border-zinc-500">
-                                        <tr>
-                                            <th className="px-5 py-4 border-r border-gray-200 dark:border-zinc-600">RECORD DETAILS</th>
-                                            <th className="px-5 py-4 border-r border-gray-200 dark:border-zinc-600"><Tag size={12} className="inline mr-1"/> PRODUCTS INCLUDED</th>
-                                            <th className="px-5 py-4 text-center border-r border-gray-200 dark:border-zinc-600"><Weight size={12} className="inline mr-1"/> ISSUED (KG)</th>
-                                            <th className="px-5 py-4 text-center border-r border-gray-200 dark:border-zinc-600 text-[#0d9488] dark:text-teal-500"><Weight size={12} className="inline mr-1"/> RECEIVED (KG)</th>
-                                            <th className="px-5 py-4 text-center border-r border-gray-200 dark:border-zinc-600">VARIANCE</th>
-                                            <th className="px-5 py-4 text-center">INVOLVED STAFF</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-                                        {autoRecords.length > 0 ? (
-                                            autoRecords.map((record) => {
-                                                const issued = Number(record.sentQtyKg) || 0;
-                                                const received = Number(record.totalQtyKg) || 0;
-                                                const variance = received - issued;
-                                                const formattedVariance = variance === 0 ? 'Match' : (variance > 0 ? `+${variance.toFixed(2)}` : variance.toFixed(2));
-
-                                                return (
-                                                    <tr key={record._id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/50 transition-colors">
-                                                        <td className="px-5 py-5 border-r border-gray-100 dark:border-zinc-800 align-top">
-                                                            <div className="font-bold text-gray-900 dark:text-gray-100 text-sm mb-1">{record.transactionNo}</div>
-                                                            <div className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                                                <Calendar size={12}/> Received: {new Date(record.date).toISOString().split('T')[0]}
+                            <table className="w-full text-sm text-left border-collapse min-w-full">
+                                <thead className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-[11px] font-bold tracking-wider border-b border-gray-200 dark:border-zinc-500">
+                                    <tr>
+                                        <th className="px-4 py-3 border-r border-gray-200 dark:border-zinc-500"><Calendar size={14} className="inline mr-1"/> Date</th>
+                                        <th className="px-4 py-3 border-r border-gray-200 dark:border-zinc-500"><FileText size={14} className="inline mr-1"/> Trans No</th>
+                                        <th className="px-4 py-3 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-green-700 dark:text-green-500"><Tag size={14} className="inline mr-1"/> Grade</th>
+                                        <th className="px-4 py-3 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center text-green-700 dark:text-green-500"><Weight size={14} className="inline mr-1"/> Qty (Kg)</th>
+                                        <th className="px-4 py-3 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Total (Kg)</th>
+                                        {!isViewer && <th className="px-4 py-3 text-center">Action</th>}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
+                                    {recordsWithSpan.length > 0 ? (
+                                        recordsWithSpan.map((record) => (
+                                            <tr key={record._id} className="hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors group">
+                                                {record.isFirstOfDate && (
+                                                    <td rowSpan={record.dateRowSpan} className="px-4 py-4 border-r border-b border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                        <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
+                                                        {record.isEdited && (
+                                                            <div className="mt-1.5 text-[10px] bg-teal-50 dark:bg-teal-900 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-700 px-2 py-1 rounded font-medium w-max leading-tight">
+                                                                <span className="font-bold">Edited by {record.editedBy}</span><br />
+                                                                <span className="opacity-100">{record.lastUpdatedDate}</span>
                                                             </div>
-                                                        </td>
-                                                        <td className="p-0 border-r border-gray-100 dark:border-zinc-800 align-top">
-                                                            <div className="flex flex-col h-full">
-                                                                {record.itemsArray.map((t, i) => (
-                                                                    <div key={i} className="flex items-center px-5 py-3 border-b border-gray-100 dark:border-zinc-800 last:border-0 h-12">
-                                                                        <span className={`px-2.5 py-1 text-[11px] font-bold rounded shadow-sm border ${getTeaColor(t.grade)}`}>
-                                                                            {t.grade}
-                                                                        </span>
-                                                                    </div>
-                                                                ))}
+                                                        )}
+                                                    </td>
+                                                )}
+                                                
+                                                <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                    <span className="font-semibold text-[#0d9488] dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-2 py-1 rounded">{record.transactionNo}</span>
+                                                </td>
+                                                
+                                                <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px">
+                                                    <div className="flex flex-col w-full h-full">
+                                                        {record.itemsArray.map((t, i) => (
+                                                            <div key={i} className={`flex-1 flex items-center px-4 py-3 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0 ${getTeaColor(t.grade)}`}>
+                                                                {t.grade}
                                                             </div>
-                                                        </td>
-                                                        <td className="p-0 border-r border-gray-100 dark:border-zinc-800 align-top">
-                                                            <div className="flex flex-col h-full text-center text-gray-600 dark:text-gray-300 font-medium">
-                                                                <div className="flex items-center justify-center px-5 py-3 h-full min-h-[48px]">
-                                                                    {issued > 0 ? issued.toFixed(2) : '-'}
-                                                                </div>
+                                                        ))}
+                                                    </div>
+                                                </td>
+                                                
+                                                <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                    <div className="flex flex-col w-full h-full">
+                                                        {record.itemsArray.map((t, i) => (
+                                                            <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-800 dark:text-gray-200 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
+                                                                <span className="text-gray-600 dark:text-green-500 text-base">{Number(t.qtyKg).toFixed(4)}</span>                                                                
                                                             </div>
-                                                        </td>
-                                                        <td className="p-0 border-r border-gray-100 dark:border-zinc-800 align-top">
-                                                            <div className="flex flex-col h-full text-center">
-                                                                {record.itemsArray.map((t, i) => (
-                                                                    <div key={i} className="flex items-center justify-center px-5 py-3 border-b border-gray-100 dark:border-zinc-800 last:border-0 h-12 font-bold text-[#0d9488] dark:text-teal-400">
-                                                                        {Number(t.qtyKg).toFixed(2)}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </td>
-                                                        <td className="p-0 border-r border-gray-100 dark:border-zinc-800 align-top">
-                                                            <div className="flex flex-col h-full items-center justify-center min-h-[48px]">
-                                                                <span className={`text-xs font-bold ${variance === 0 ? 'text-gray-400' : (variance > 0 ? 'text-green-600' : 'text-red-600')}`}>
-                                                                    {formattedVariance}
-                                                                </span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-5 py-5 align-top text-xs text-gray-500 dark:text-gray-400">
-                                                            <div className="flex flex-col gap-1.5 justify-center h-full">
-                                                                <div className="flex items-center gap-1.5"><Truck size={12}/> <span className="font-medium text-gray-700 dark:text-gray-300">{record.factoryUsername || 'Factory'}</span> (Out)</div>
-                                                                <div className="flex items-center gap-1.5"><UserCheck size={12}/> <span className="font-medium text-gray-700 dark:text-gray-300">{record.acceptedBy || 'System'}</span> (In)</div>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })
-                                        ) : (
-                                            <tr><td colSpan="6" className="p-16 text-center text-gray-400">No auto transfers found</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            )}
-
-                            {/* --- 2. MANUAL TRANSFERS TAB (LOGBOOK STYLE) --- */}
-                            {activeTab === 'manual' && (
-                                <table className="w-full text-sm text-left border-collapse min-w-full">
-                                    <thead className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-[11px] font-bold tracking-wider border-b border-gray-200 dark:border-zinc-500">
-                                        <tr>
-                                            <th className="px-4 py-3 border-r border-gray-200 dark:border-zinc-500"><Calendar size={14} className="inline mr-1"/> Date</th>
-                                            <th className="px-4 py-3 border-r border-gray-200 dark:border-zinc-500"><FileText size={14} className="inline mr-1"/> Trans No</th>
-                                            <th className="px-4 py-3 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-green-700 dark:text-green-500"><Tag size={14} className="inline mr-1"/> Grade</th>
-                                            <th className="px-4 py-3 border-r border-gray-200 dark:border-zinc-600 bg-orange-50 dark:bg-orange-950/30 text-center text-green-700 dark:text-green-500"><Weight size={14} className="inline mr-1"/> Qty (Kg)</th>
-                                            <th className="px-4 py-3 border-r border-gray-200 dark:border-zinc-600 text-center bg-gray-100 dark:bg-zinc-800">Daily Total (Kg)</th>
-                                            {!isViewer && <th className="px-4 py-3 text-center">Action</th>}
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
-                                        {manualRecordsWithSpan.length > 0 ? (
-                                            manualRecordsWithSpan.map((record) => (
-                                                <tr key={record._id} className="hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors group">
-                                                    {record.isFirstOfDate && (
-                                                        <td rowSpan={record.dateRowSpan} className="px-4 py-4 border-r border-b border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                            <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
-                                                            {record.isEdited && (
-                                                                <div className="mt-1.5 text-[10px] bg-teal-50 dark:bg-teal-900 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-700 px-2 py-1 rounded font-medium w-max leading-tight">
-                                                                    <span className="font-bold">Edited by {record.editedBy}</span><br />
-                                                                    <span className="opacity-100">{record.lastUpdatedDate}</span>
-                                                                </div>
+                                                        ))}
+                                                    </div>
+                                                </td>
+                                                
+                                                <td className="px-3 py-4 text-center border-r border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 align-top">
+                                                    <span className="font-bold text-green-700 dark:text-green-400 text-lg">{Number(record.totalQtyKg).toFixed(4)}</span>
+                                                </td>
+                                                
+                                                {!isViewer && (
+                                                    <td className="px-3 py-4 text-center align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                                                        <div className="flex flex-wrap items-center justify-center gap-1">
+                                                            <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-teal-600 rounded transition-colors"><MdOutlineEdit size={20} /></button>
+                                                            {isAdmin && (
+                                                                <AlertDialog>
+                                                                    <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 rounded transition-colors"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
+                                                                    <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-[90vw]">
+                                                                        <AlertDialogHeader>
+                                                                            <AlertDialogTitle className="text-xl font-bold dark:text-gray-100">Delete Record</AlertDialogTitle>
+                                                                            <AlertDialogDescription className="dark:text-gray-400">Are you sure you want to delete this record?</AlertDialogDescription>
+                                                                        </AlertDialogHeader>
+                                                                        <AlertDialogFooter>
+                                                                            <AlertDialogCancel onClick={() => setRecordToDelete(null)} className="dark:bg-zinc-800 dark:text-gray-200 dark:hover:bg-zinc-700 rounded-xl">Cancel</AlertDialogCancel>
+                                                                            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700 rounded-xl">Delete</AlertDialogAction>
+                                                                        </AlertDialogFooter>
+                                                                    </AlertDialogContent>
+                                                                </AlertDialog>
                                                             )}
-                                                        </td>
-                                                    )}
-                                                    
-                                                    <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                        <span className="font-semibold text-[#0d9488] dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-2 py-1 rounded">{record.transactionNo}</span>
-                                                    </td>
-                                                    
-                                                    <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px">
-                                                        <div className="flex flex-col w-full h-full">
-                                                            {record.itemsArray.map((t, i) => (
-                                                                <div key={i} className={`flex-1 flex items-center px-4 py-3 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0 ${getTeaColor(t.grade)}`}>
-                                                                    {t.grade}
-                                                                </div>
-                                                            ))}
                                                         </div>
                                                     </td>
-                                                    
-                                                    <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                        <div className="flex flex-col w-full h-full">
-                                                            {record.itemsArray.map((t, i) => (
-                                                                <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-800 dark:text-gray-200 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                                    <span className="text-gray-600 dark:text-green-500 text-base">{Number(t.qtyKg).toFixed(4)}</span>                                                                
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </td>
-                                                    
-                                                    <td className="px-3 py-4 text-center border-r border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 align-top">
-                                                        <span className="font-bold text-green-700 dark:text-green-400 text-lg">{Number(record.totalQtyKg).toFixed(4)}</span>
-                                                    </td>
-                                                    
-                                                    {!isViewer && (
-                                                        <td className="px-3 py-4 text-center align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                            <div className="flex flex-wrap items-center justify-center gap-1">
-                                                                <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-teal-600 rounded transition-colors"><MdOutlineEdit size={20} /></button>
-                                                                {isAdmin && (
-                                                                    <AlertDialog>
-                                                                        <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 rounded transition-colors"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
-                                                                        <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-[90vw]">
-                                                                            <AlertDialogHeader>
-                                                                                <AlertDialogTitle className="text-xl font-bold dark:text-gray-100">Delete Record</AlertDialogTitle>
-                                                                                <AlertDialogDescription className="dark:text-gray-400">Are you sure you want to delete this record?</AlertDialogDescription>
-                                                                            </AlertDialogHeader>
-                                                                            <AlertDialogFooter>
-                                                                                <AlertDialogCancel onClick={() => setRecordToDelete(null)} className="dark:bg-zinc-800 dark:text-gray-200 dark:hover:bg-zinc-700 rounded-xl">Cancel</AlertDialogCancel>
-                                                                                <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700 rounded-xl">Delete</AlertDialogAction>
-                                                                            </AlertDialogFooter>
-                                                                        </AlertDialogContent>
-                                                                    </AlertDialog>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                    )}
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr><td colSpan={isViewer ? "5" : "6"} className="p-16 text-center text-gray-400">No manual records found</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            )}
-
-                            {/* --- 3. REJECTED TRANSFERS TAB --- */}
-                            {activeTab === 'rejected' && (
-                                <table className="w-full text-sm text-left border-collapse min-w-full">
-                                    <thead className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 uppercase text-[11px] font-bold tracking-wider border-b border-red-100 dark:border-red-900/50">
-                                        <tr>
-                                            <th className="px-6 py-4 border-r border-red-100 dark:border-red-900/50"><Calendar size={14} className="inline mr-1"/> Rejected Date</th>
-                                            <th className="px-6 py-4 border-r border-red-100 dark:border-red-900/50"><FileText size={14} className="inline mr-1"/> Factory Ref No</th>
-                                            <th className="px-6 py-4 text-center border-r border-red-100 dark:border-red-900/50"><Truck size={14} className="inline mr-1"/> Sent By</th>
-                                            <th className="px-6 py-4 text-center border-r border-red-100 dark:border-red-900/50"><UserCheck size={14} className="inline mr-1"/> Rejected By</th>
-                                            <th className="px-6 py-4 border-r border-red-100 dark:border-red-900/50"><Tag size={14} className="inline mr-1"/> Grade / Type</th>
-                                            <th className="px-6 py-4 text-center"><Weight size={14} className="inline mr-1"/> Sent Qty (Kg)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-                                        {rejectedRecords.length > 0 ? (
-                                            rejectedRecords.map((record) => (
-                                                <tr key={record._id} className="hover:bg-red-50/30 dark:hover:bg-red-900/10 transition-colors">
-                                                    <td className="px-6 py-4 font-medium text-gray-800 dark:text-gray-200 border-r border-gray-100 dark:border-zinc-800">
-                                                        {new Date(record.updatedAt).toISOString().split('T')[0]}
-                                                    </td>
-                                                    <td className="px-6 py-4 border-r border-gray-100 dark:border-zinc-800">
-                                                        <span className="font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-2 py-1 rounded">{record.transferNo}</span>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-center text-gray-600 dark:text-gray-400 border-r border-gray-100 dark:border-zinc-800 font-medium">
-                                                        {record.factoryUsername || 'Unknown'}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-center border-r border-gray-100 dark:border-zinc-800">
-                                                        <span className="font-bold text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/20 px-2 py-1 rounded text-[11px] uppercase tracking-wider">
-                                                            {record.acceptedBy || 'Unknown'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 border-r border-gray-100 dark:border-zinc-800">
-                                                        <span className={`font-bold border px-2.5 py-1 rounded shadow-sm text-xs ${getTeaColor(record.grade)}`}>
-                                                            {record.teaType && record.teaType.trim() !== "" ? record.teaType : record.grade}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-center font-black text-gray-700 dark:text-gray-300 text-base">
-                                                        {Number(record.sentQtyKg).toFixed(2)}
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr><td colSpan="6" className="p-16 text-center text-gray-400">No rejected transfers found.</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            )}
+                                                )}
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr><td colSpan={isViewer ? "5" : "6"} className="p-16 text-center text-gray-400">No records found</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
 
                         </div>
                     )}
