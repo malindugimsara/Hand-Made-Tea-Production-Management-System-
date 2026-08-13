@@ -6,7 +6,7 @@ const receivedItemSchema = new mongoose.Schema({
         type: String, 
         required: true 
     },
-    // අලුතින් එකතු කළ field එක (පිරිසිදු කළ නම save කිරීමට)
+    // පිරිසිදු කළ නම save කිරීමට
     teaType: { 
         type: String 
     },
@@ -26,10 +26,6 @@ const teaReceivedSchema = new mongoose.Schema({
         type: String, 
         required: true
     },
-    // Factory එකෙන් එවපු ගාණ (Issued Qty) පෙන්වීමට
-    sentQtyKg: { 
-        type: Number 
-    },
     // Packing එකට ලැබුණු ගාණ (Received Qty)
     totalQtyKg: { 
         type: Number, 
@@ -37,19 +33,10 @@ const teaReceivedSchema = new mongoose.Schema({
     },
     receivedItems: [receivedItemSchema],
     
-    // 🌟 අලුතින් එකතු කළ Fields 🌟
-    isManual: { 
-        type: Boolean, 
-        default: false // Manual Entry එකක්ද යන්න හඳුනා ගැනීමට
-    },
-    factoryUsername: { 
-        type: String // Factory එකෙන් එව්ව කෙනාගේ නම
-    },
-    acceptedBy: { 
-        type: String // Packing එකෙන් Accept කරපු කෙනාගේ නම
-    },
-    
-    updatedBy: { type: String }
+    // Update කළ කෙනාගේ නම
+    updatedBy: { 
+        type: String 
+    }
 }, { 
     timestamps: true 
 });

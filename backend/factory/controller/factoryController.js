@@ -1,9 +1,6 @@
 import FactoryLog from "../models/FactoryLog.js";
-import PendingTransfer from "../../Packing/models/PendingTransfer.js";
-import TeaReceived from "../../Packing/models/TeaReceivedModel.js"; 
-import webpush from 'web-push';
-import Subscription from '../../Packing/models/SubscriptionModel.js';// 1. GET FACTORY LOGS
 
+// 1. GET FACTORY LOGS
 export const getFactoryLogsByMonth = async (req, res) => {
   try {
     const { month, startDate, endDate } = req.query;
@@ -173,64 +170,6 @@ export const saveDailyFactoryLog = async (req, res) => {
       { $set: updateFields },
       { new: true, upsert: true }
     );
-
-    // ==========================================
-    // 🌟 PACKING AUTOMATION (Local Sales to Pending) 🌟
-    // ==========================================
-    const d = new Date(targetDate);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const dateStr = `${year}${month}${day}`;
-
-    await PendingTransfer.deleteMany({
-      date: targetDate,
-      transferNo: { $regex: /FACT\/TO\// },
-      status: "Pending"
-    });
-
-    for (const [index, sale] of finalLocalSales.entries()) {
-      if (sale.weight > 0 && sale.teaType) {
-        const randomNum = Math.floor(100 + Math.random() * 900);
-        
-        await new PendingTransfer({
-            date: targetDate,
-            transferNo: `FACT/TO/${dateStr}-LOC-${randomNum}-${index}`,
-            grade: sale.teaType,   
-            teaType: sale.teaType, 
-            sentQtyKg: sale.weight,
-            factoryUsername: currentUser 
-        }).save();
-
-        // ========================================================
-        // 🌟 PUSH NOTIFICATION CODE
-        // ========================================================
-        try {
-            const subscriptions = await Subscription.find({ 
-                role: "Packing Officer" 
-            });
-            const payload = JSON.stringify({
-                title: '🏭 New Factory Transfer',
-                message: `A new transfer of ${sale.weight}kg (${sale.teaType}) arrived from Factory!`,
-                url: '/packing/trans-in-factory-entry'
-            });
-
-            await Promise.all(
-                subscriptions.map(async (sub) => {
-                    try {
-                        await webpush.sendNotification(sub, payload);
-                    } catch(err) {
-                        if (err.statusCode === 410) {
-                            await Subscription.deleteOne({ endpoint: sub.endpoint });
-                        }
-                    }
-                })
-            );
-        } catch(pushErr) {
-            console.error("Notification error:", pushErr);
-        }
-      }
-    }
     
     res.status(200).json({ message: "Daily factory log saved successfully.", data: updatedLog });
   } catch (error) {
@@ -243,19 +182,12 @@ export const saveDailyFactoryLog = async (req, res) => {
 export const deleteFactoryLog = async (req, res) => {
   try {
     const { id } = req.params;
-    const { clearDispatchOnly } = req.query; // අලුතින් එකතු කළ parameter එක
+    const { clearDispatchOnly } = req.query; 
 
     const log = await FactoryLog.findById(id);
     if (!log) {
       return res.status(404).json({ message: "Record not found." });
     }
-
-    // Pending Transfers මකා දැමීම (අවස්ථා දෙකටම පොදුයි)
-    await PendingTransfer.deleteMany({
-        date: log.date,
-        transferNo: { $regex: /FACT\/TO\// },
-        status: "Pending"
-    });
 
     if (clearDispatchOnly === 'true') {
         
