@@ -539,27 +539,26 @@ export default function LocalRecordEntry() {
     }
   };
 
-  const handleKeyDown = (e, rowId, filteredOptions) => {
-    if (!openDropdownId || filteredOptions.length === 0) return;
+  const handleKeyDown = (e, rowId, options, field) => {
+    if (!openDropdownId || !options || options.length === 0) return;
 
     if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setFocusedOptionIndex((prev) =>
-        prev < filteredOptions.length - 1 ? prev + 1 : prev,
-      );
+        e.preventDefault();
+        setFocusedOptionIndex((prev) => (prev < options.length - 1 ? prev + 1 : prev));
     } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setFocusedOptionIndex((prev) => (prev > 0 ? prev - 1 : 0));
+        e.preventDefault();
+        setFocusedOptionIndex((prev) => (prev > 0 ? prev - 1 : 0));
     } else if (e.key === "Enter" && focusedOptionIndex >= 0) {
-      e.preventDefault();
-      handleItemChange(rowId, "product", filteredOptions[focusedOptionIndex]);
-      setOpenDropdownId(null);
-      setFocusedOptionIndex(-1);
+        e.preventDefault();
+        // field කියන එකෙන් 'product' ද 'packSizeKg' ද කියලා අඳුරගන්නවා
+        handleItemChange(rowId, field, options[focusedOptionIndex]); 
+        setOpenDropdownId(null);
+        setFocusedOptionIndex(-1); // Select කරාට පස්සේ reset කරනවා
     } else if (e.key === "Escape") {
-      setOpenDropdownId(null);
-      setFocusedOptionIndex(-1);
+        setOpenDropdownId(null);
+        setFocusedOptionIndex(-1);
     }
-  };
+};
 
   return (
     <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen">
@@ -789,14 +788,14 @@ export default function LocalRecordEntry() {
                               setFocusedOptionIndex(-1);
                             }}
                             onKeyDown={(e) => {
-                              const filteredOptions = TEA_TYPES.filter((tea) =>
-                                tea
-                                  .toLowerCase()
-                                  .includes(row.product.toLowerCase()),
-                              );
-                              handleKeyDown(e, row.id, filteredOptions);
-                            }}
+                                const filteredOptions = TEA_TYPES.filter((tea) =>
+                                    tea.toLowerCase().includes(row.product.toLowerCase())
+                                );
+                                // 👇 අගට "product" කියලා යවන්න
+                                handleKeyDown(e, row.id, filteredOptions, "product");
+                            }}          
                             required
+                            autoFocus={row.product === ""}
                             className={`w-full p-2.5 h-[42px] border rounded-md text-sm focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none transition-colors ${row.product ? getTeaColor(row.product) : "bg-white dark:bg-zinc-950 dark:text-gray-100"} ${isOverCapacity ? "border-amber-300" : "border-teal-200 dark:border-teal-800/50"}`}
                           />
 
@@ -864,8 +863,15 @@ export default function LocalRecordEntry() {
                               )
                             }
                             onFocus={() => {
-                              if (availableSizes)
-                                setOpenDropdownId(`size-${row.id}`);
+                                if (availableSizes) {
+                                    setOpenDropdownId(`size-${row.id}`);
+                                    setFocusedOptionIndex(-1); // Reset Arrow Key State
+                                }
+                            }}
+                            onKeyDown={(e) => {
+                                if (availableSizes) {
+                                    handleKeyDown(e, row.id, availableSizes, "packSizeKg");
+                                }
                             }}
                             onWheel={(e) => e.target.blur()}
                             required
@@ -873,28 +879,36 @@ export default function LocalRecordEntry() {
                             className="w-full p-2.5 h-[42px] border border-teal-200 dark:border-teal-800/50 rounded-md text-sm focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
                           />
 
-                          {openDropdownId === `size-${row.id}` &&
-                            availableSizes && (
-                              <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-hidden">
-                                {availableSizes.map((size, idx) => (
-                                  <li
-                                    key={idx}
-                                    onMouseDown={(e) => e.preventDefault()}
-                                    onClick={() => {
-                                      handleItemChange(
-                                        row.id,
-                                        "packSizeKg",
-                                        size,
-                                      );
-                                      setOpenDropdownId(null);
-                                    }}
-                                    className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0"
-                                  >
-                                    {size} kg
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
+                          {openDropdownId === `size-${row.id}` && availableSizes && (
+                            <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-hidden">
+                                {availableSizes.map((size, idx) => {
+                                    
+                                    // 👇 මේ option එකද select වෙලා තියෙන්නේ කියලා බලනවා
+                                    const isFocused = focusedOptionIndex === idx; 
+
+                                    return (
+                                        <li
+                                            key={idx}
+                                            ref={isFocused ? activeOptionRef : null} // 👇 Auto scroll වෙන්න Ref එක දෙනවා
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            onClick={() => {
+                                                handleItemChange(row.id, "packSizeKg", size);
+                                                setOpenDropdownId(null);
+                                                            setFocusedOptionIndex(-1);
+                                            }}
+                                            onMouseEnter={() => setFocusedOptionIndex(idx)} // Mouse එක ගෙනිච්චමත් select වෙන්න
+                                            className={`px-4 py-2 text-sm cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 transition-colors ${
+                                                isFocused
+                                                    ? "bg-[#ccfbf1] dark:bg-teal-900/60 text-[#0f766e] dark:text-teal-300 font-bold"
+                                                    : "text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30"
+                                            }`}
+                                        >
+                                            {size} kg
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        )}              
                         </div>
 
                         {/* Number of Boxes Input */}
@@ -918,6 +932,18 @@ export default function LocalRecordEntry() {
                             required
                             placeholder="e.g. 50"
                             className="w-full p-2.5 h-[42px] border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    e.preventDefault(); // Form එක Submit වීම නතර කරයි
+                                    
+                                    // Product, PackSize සහ Box ප්‍රමාණය දීලා තියෙනවද කියලා බලනවා
+                                    if (row.product && row.packSizeKg && row.numberOfBoxes) {
+                                        handleAddItemRow(); // අලුත් Row එකක් එකතු කරයි
+                                    } else {
+                                        toast.error("Please fill current row details before adding a new one.");
+                                    }
+                                }
+                            }}
                           />
                         </div>
 

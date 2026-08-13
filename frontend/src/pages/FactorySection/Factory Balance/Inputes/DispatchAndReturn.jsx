@@ -8,8 +8,33 @@ const inputStyles = "w-full p-3.5 bg-white dark:bg-gray-800 border border-gray-2
 
 // --- Tea Type Predefined Options ---
 const teaTypeOptions = [
-  "BOPF", "BOPF SP", "OPA", "OP 1", "OP", "Pekoe", "BOP",
-  "FBOP", "FF SP", "FF EX SP", "Dust", "Dust 1", "Premium"
+  "BOPF",
+  "BOPF SP",
+  "OPA",
+  "OP 1",
+  "OP",
+  "Pekoe",
+  "BOP",
+  "FBOP",
+  "FF SP",
+  "FF EX SP",
+  "Dust",
+  "Dust 1",
+  "Premium",
+  "BM",
+  "Bop",
+  "BOP SP",
+  "BOPSP",
+  "BOP1",
+  "BOP1A",
+  "BOPA",
+  "BOPF1",
+  "BT",
+  "FBOP1",
+  "FBOPF1",
+  "FNGS",
+  "OP1",
+  "Pekoe1"
 ];
 
 // --- Custom Autocomplete Component ---
