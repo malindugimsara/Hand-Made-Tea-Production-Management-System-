@@ -92,6 +92,7 @@ const DATA = {
       items: [
         { title: 'Month End Summary View', url: '/localsale/monthlysummaryview' },
         { title: 'Free Issue Summary', url: '/localsale/freeissuesummary' },
+        { title: "Balance Report", url: '/localsale/balancereport'},
       ],
     },
   ],
