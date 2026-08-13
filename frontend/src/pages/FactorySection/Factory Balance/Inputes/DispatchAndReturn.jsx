@@ -8,40 +8,18 @@ const inputStyles = "w-full p-3.5 bg-white dark:bg-gray-800 border border-gray-2
 
 // --- Tea Type Predefined Options ---
 const teaTypeOptions = [
-  "BOPF",
-  "BOPF SP",
-  "OPA",
-  "OP 1",
-  "OP",
-  "Pekoe",
-  "BOP",
-  "FBOP",
-  "FF SP",
-  "FF EX SP",
-  "Dust",
-  "Dust 1",
-  "Premium",
-  "BM",
-  "Bop",
-  "BOP SP",
-  "BOPSP",
-  "BOP1",
-  "BOP1A",
-  "BOPA",
-  "BOPF1",
-  "BT",
-  "FBOP1",
-  "FBOPF1",
-  "FNGS",
-  "OP1",
-  "Pekoe1"
+  "BOPF", "BOPF SP", "OPA", "OP 1", "OP", "Pekoe", "BOP", "FBOP",
+  "FF SP", "FF EX SP", "Dust", "Dust 1", "Premium", "BM", "Bop",
+  "BOP SP", "BOPSP", "BOP1", "BOP1A", "BOPA", "BOPF1", "BT",
+  "FBOP1", "FBOPF1", "FNGS", "OP1", "Pekoe1"
 ];
 
 // --- Custom Autocomplete Component ---
-const TeaTypeAutocomplete = ({ name, value, onChange, placeholder }) => {
+const TeaTypeAutocomplete = ({ id, name, value, onChange, placeholder, autoFocus, onEnterKeyPress }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const wrapperRef = useRef(null);
+  const activeOptionRef = useRef(null); 
 
   const filteredOptions = teaTypeOptions.filter(opt =>
     opt.toLowerCase().includes((value || '').toLowerCase())
@@ -57,12 +35,28 @@ const TeaTypeAutocomplete = ({ name, value, onChange, placeholder }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (activeOptionRef.current && isOpen) {
+      activeOptionRef.current.scrollIntoView({
+        behavior: 'auto',
+        block: 'nearest',
+      });
+    }
+  }, [highlightedIndex, isOpen]);
+
   const handleKeyDown = (e) => {
+    // Dropdown එක වැහිලා තියෙනවා නම්
     if (!isOpen) {
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") setIsOpen(true);
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        setIsOpen(true);
+      } else if (e.key === "Enter") {
+        e.preventDefault(); 
+        if (onEnterKeyPress) onEnterKeyPress(); // ඊළඟ input එකට යන්න
+      }
       return;
     }
 
+    // Dropdown එක ඇරලා තියෙනවා නම්
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setHighlightedIndex(prev => (prev < filteredOptions.length - 1 ? prev + 1 : prev));
@@ -70,13 +64,21 @@ const TeaTypeAutocomplete = ({ name, value, onChange, placeholder }) => {
       e.preventDefault();
       setHighlightedIndex(prev => (prev > 0 ? prev - 1 : 0));
     } else if (e.key === "Enter") {
-      e.preventDefault();
+      e.preventDefault(); 
       if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
+        // Option එකක් select කරලා Enter එබුවම
         onChange({ target: { name, value: filteredOptions[highlightedIndex] } });
         setIsOpen(false);
+        setHighlightedIndex(-1);
+        if (onEnterKeyPress) setTimeout(() => onEnterKeyPress(), 50); // Select කරාට පස්සේ ඉබේම ඊළඟට යන්න
+      } else {
+        // මුකුත් select කරන්නේ නැතුව Enter එබුවම
+        setIsOpen(false);
+        if (onEnterKeyPress) onEnterKeyPress();
       }
     } else if (e.key === "Escape") {
       setIsOpen(false);
+      setHighlightedIndex(-1);
     }
   };
 
@@ -84,58 +86,66 @@ const TeaTypeAutocomplete = ({ name, value, onChange, placeholder }) => {
     <div className="relative" ref={wrapperRef}>
       <Tag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
       <input
+        id={id}
         type="text"
         name={name}
         value={value}
         onChange={(e) => {
           onChange(e);
           setIsOpen(true);
+          setHighlightedIndex(-1); 
+        }}
+        onFocus={() => {
+          setIsOpen(true);
           setHighlightedIndex(-1);
         }}
-        onFocus={() => setIsOpen(true)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         className={`${inputStyles} pl-10 relative z-0`}
         autoComplete="off"
+        autoFocus={autoFocus} 
       />
       {isOpen && filteredOptions.length > 0 && (
         <ul className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl max-h-56 overflow-y-auto custom-scrollbar overflow-hidden">
-          {filteredOptions.map((opt, index) => (
-            <li
-              key={opt}
-              className={`px-4 py-2.5 cursor-pointer text-sm font-bold transition-colors ${
-                highlightedIndex === index
-                  ? "bg-teal-50 dark:bg-teal-900/40 text-teal-700 dark:text-teal-400"
-                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-              }`}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                onChange({ target: { name, value: opt } });
-                setIsOpen(false);
-              }}
-              onMouseEnter={() => setHighlightedIndex(index)}
-            >
-              {opt}
-            </li>
-          ))}
+          {filteredOptions.map((opt, index) => {
+            const isHighlighted = highlightedIndex === index;
+            return (
+              <li
+                key={opt}
+                ref={isHighlighted ? activeOptionRef : null} 
+                className={`px-4 py-2.5 cursor-pointer text-sm font-bold transition-colors ${
+                  isHighlighted
+                    ? "bg-teal-50 dark:bg-teal-900/40 text-teal-700 dark:text-teal-400"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                }`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onChange({ target: { name, value: opt } });
+                  setIsOpen(false);
+                  // Mouse එකෙන් select කරාමත් ඊළඟට යන්න
+                  if (onEnterKeyPress) setTimeout(() => onEnterKeyPress(), 50);
+                }}
+                onMouseEnter={() => setHighlightedIndex(index)}
+              >
+                {opt}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
   );
 };
 
-
 // --- MAIN COMPONENT ---
 export default function DispatchAndReturn() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const navigate = useNavigate();
   
-  // States
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [records, setRecords] = useState([]);
   const [pendingRecords, setPendingRecords] = useState([]);
 
-  // Dark Mode State
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark' || false;
   });
@@ -145,12 +155,11 @@ export default function DispatchAndReturn() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  // Array-based initial state for multiple entries
   const initialFormState = {
     date: new Date().toISOString().split('T')[0],
     dispatches: [{ invoiceNo: '', teaType: '', weight: '' }],
     localSales: [{ teaType: '', weight: '' }],
-    returns: [{ teaType: '', amount: '' }], // Added teaType to returns array based on your update
+    returns: [{ teaType: '', amount: '' }], 
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -168,14 +177,12 @@ export default function DispatchAndReturn() {
   const userRole = localStorage.getItem('userRole') || '';
   const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
 
-  // Calculate Totals dynamically from arrays
   const totalDispatch = formData.dispatches.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
   const totalLocalSale = formData.localSales.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
   const totalReturn = formData.returns.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   
   const calculatedTotalOut = totalDispatch + totalLocalSale;
 
-  // Dark Mode Toggle Effect
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -203,10 +210,8 @@ export default function DispatchAndReturn() {
 
   useEffect(() => {
     fetchFactoryData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMonth]);
 
-  // --- Dynamic Array Handlers ---
   const handleArrayChange = (category, index, field, value) => {
     const updatedArray = [...formData[category]];
     updatedArray[index][field] = value;
@@ -249,7 +254,6 @@ export default function DispatchAndReturn() {
     setPendingRecords([...pendingRecords, newRecord]);
     toast.success("Added to list!");
     
-    // Reset Form (except date)
     setFormData({ 
       ...initialFormState,
       date: formData.date
@@ -270,18 +274,13 @@ export default function DispatchAndReturn() {
       const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
       for (const record of pendingRecords) {
-        
-        // 🚨 UPDATE PAYLOAD: Format arrays correctly and include Totals
         const payload = {
           date: record.date,
           greenLeafToday: Number(record.greenLeafToday) || 0,
-          
-          // 1. Send the Total values required by your schema
           dispatch: Number(record.totalDispatch) || 0,
           localSaleAndGratis: Number(record.totalLocalSale) || 0,
           returnAmount: Number(record.totalReturn) || 0,
 
-          // 2. Map arrays to make sure 'weight' and 'amount' are strictly Numbers
           dispatches: record.dispatches
             .filter(d => d.weight || d.invoiceNo)
             .map(d => ({
@@ -325,11 +324,19 @@ export default function DispatchAndReturn() {
     }
   };
 
+  // 👇 ඊළඟ Input එකට Focus කරන්න භාවිතා කරන Helper Function එක
+  const focusNextInput = (nextId) => {
+    const nextInput = document.getElementById(nextId);
+    if (nextInput) {
+      nextInput.focus();
+    }
+  };
+
   return (
     <div className="min-h-screen p-4 sm:p-6 md:p-8 font-sans transition-colors duration-300 bg-[#f3faf7] dark:bg-gray-900">
       <div className="max-w-[1200px] mx-auto">
         
-        {/* HEADER & TOGGLE */}
+        {/* HEADER */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm border bg-[#f0fdfa] dark:bg-teal-900/30 border-[#99f6e4] dark:border-teal-800 text-[#0d5e4d] dark:text-teal-400 transition-colors">
@@ -346,7 +353,15 @@ export default function DispatchAndReturn() {
           
           {/* FORM SIDE */}
           <div className="lg:col-span-7 space-y-6">
-            <form onSubmit={handleAddToList} className="bg-white dark:bg-gray-800 p-5 sm:p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
+            <form 
+              onSubmit={handleAddToList} 
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                }
+              }}
+              className="bg-white dark:bg-gray-800 p-5 sm:p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors"
+            >
               
               <div className="mb-6 pb-6 border-b border-gray-100 dark:border-gray-700">
                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Record Date</label>
@@ -354,6 +369,12 @@ export default function DispatchAndReturn() {
                   type="date" name="date" value={formData.date} 
                   onChange={(e) => setFormData({...formData, date: e.target.value})} required 
                   className={inputStyles}
+                  onKeyDown={(e) => {
+                    if(e.key === "Enter"){
+                      e.preventDefault();
+                      focusNextInput('dispatch-invoice-0');
+                    }
+                  }}
                 />
               </div>
 
@@ -384,19 +405,29 @@ export default function DispatchAndReturn() {
                       <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Invoice No.</label>
                         <input 
+                          id={`dispatch-invoice-${index}`} // 👈 ID එකක් ලබාදීම
                           type="text" 
                           value={dispatchItem.invoiceNo} 
                           onChange={(e) => handleArrayChange('dispatches', index, 'invoiceNo', e.target.value)} 
                           placeholder="Enter Invoice Number" className={inputStyles} 
+                          autoFocus={index > 0 && index === formData.dispatches.length - 1}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              focusNextInput(`dispatch-tea-${index}`); // Enter එබූ විට ඊළඟට යයි
+                            }
+                          }}
                         />
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
                         <TeaTypeAutocomplete
+                          id={`dispatch-tea-${index}`} // 👈 ID එකක් ලබාදීම
                           name={`dispatchTeaType-${index}`}
                           value={dispatchItem.teaType}
                           onChange={(e) => handleArrayChange('dispatches', index, 'teaType', e.target.value)}
                           placeholder="E.g. BOPF, Pekoe"
+                          onEnterKeyPress={() => focusNextInput(`dispatch-weight-${index}`)} // Select කළ පසු ඊළඟට යයි
                         />
                       </div>
                     </div>
@@ -404,10 +435,19 @@ export default function DispatchAndReturn() {
                     <div>
                       <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Total Gross Weight (kg)</label>
                       <input 
+                        id={`dispatch-weight-${index}`} // 👈 ID එකක් ලබාදීම
                         type="number" step="0.01" min="0" 
                         value={dispatchItem.weight} 
                         onChange={(e) => handleArrayChange('dispatches', index, 'weight', e.target.value)} 
                         onWheel={(e) => e.target.blur()} placeholder="0.00 kg" className={inputStyles} 
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault(); 
+                            if (dispatchItem.invoiceNo || dispatchItem.teaType || dispatchItem.weight) {
+                              addArrayItem('dispatches', { invoiceNo: '', teaType: '', weight: '' });
+                            }
+                          }
+                        }}
                       />
                     </div>
                   </div>
@@ -446,19 +486,31 @@ export default function DispatchAndReturn() {
                       <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
                         <TeaTypeAutocomplete
+                          id={`localSale-tea-${index}`} // 👈 ID එකක් ලබාදීම
                           name={`localSaleTeaType-${index}`}
                           value={saleItem.teaType}
                           onChange={(e) => handleArrayChange('localSales', index, 'teaType', e.target.value)}
                           placeholder="E.g. Dust, Fannings"
+                          autoFocus={index > 0 && index === formData.localSales.length - 1}
+                          onEnterKeyPress={() => focusNextInput(`localSale-weight-${index}`)} // Select කළ පසු ඊළඟට යයි
                         />
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Total Qty (kg)</label>
                         <input 
+                          id={`localSale-weight-${index}`} // 👈 ID එකක් ලබාදීම
                           type="number" step="0.01" min="0" 
                           value={saleItem.weight} 
                           onChange={(e) => handleArrayChange('localSales', index, 'weight', e.target.value)} 
                           onWheel={(e) => e.target.blur()} placeholder="0.00 kg" className={inputStyles} 
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault(); 
+                              if (saleItem.teaType || saleItem.weight) {
+                                addArrayItem('localSales', { teaType: '', weight: '' });
+                              }
+                            }
+                          }}
                         />
                       </div>
                     </div>
@@ -506,19 +558,31 @@ export default function DispatchAndReturn() {
                       <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
                         <TeaTypeAutocomplete
+                          id={`return-tea-${index}`} // 👈 ID එකක් ලබාදීම
                           name={`returnTeaType-${index}`}
                           value={returnItem.teaType}
                           onChange={(e) => handleArrayChange('returns', index, 'teaType', e.target.value)}
                           placeholder="E.g. BOPF, Pekoe"
+                          autoFocus={index > 0 && index === formData.returns.length - 1}
+                          onEnterKeyPress={() => focusNextInput(`return-weight-${index}`)} // Select කළ පසු ඊළඟට යයි
                         />
                       </div>
                       <div>
                         <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Return Amount (kg)</label>
                         <input 
+                          id={`return-weight-${index}`} // 👈 ID එකක් ලබාදීම
                           type="number" step="0.01" min="0" 
                           value={returnItem.amount} 
                           onChange={(e) => handleArrayChange('returns', index, 'amount', e.target.value)} 
                           onWheel={(e) => e.target.blur()} placeholder="0.00" className={inputStyles} 
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault(); 
+                              if (returnItem.teaType || returnItem.amount) {
+                                addArrayItem('returns', { teaType: '', amount: '' });
+                              }
+                            }
+                          }}
                         />
                       </div>
                     </div>
