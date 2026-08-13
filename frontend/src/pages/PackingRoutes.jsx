@@ -23,6 +23,7 @@ import EditRawMaterialIn from "./PackingSection/Trans In RawMaterial/EditRawMate
 import StockAdjustment from "./PackingSection/Stock Adjustment/StockAdjustment";
 import StockAdjustmentHistory from "./PackingSection/Stock Adjustment/StockAdjustmentHistory";
 import EditStockAdjustment from "./PackingSection/Stock Adjustment/EditStockAdjustment";
+import HistoricalStockView from "./PackingSection/Summary Report/HistoricalStockView";
 
 
 
@@ -42,6 +43,8 @@ export const PackingRoutes = () => (
     <Route path="trans-in-view" element={<ViewTransInRecords />} />
     <Route path="product-issue-summary" element={<ProductIssueSummary />} />    
     <Route path="summary-reports" element={<ViewPackingStock />} />
+    <Route path="historical-stock" element={<HistoricalStockView />} />
+
 
     //Trans in other
     <Route path="trans-in-other" element={<TeaGradesReceivedOutEntry />} />

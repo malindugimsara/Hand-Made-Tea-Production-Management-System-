@@ -95,6 +95,7 @@ const DATA = {
         items: [
           { title: 'Product-Issue Summary', url: '/packing/product-issue-summary' },
           { title: 'Stock Summary', url: '/packing/summary-reports' },
+          { title: 'Historical Stock', url: '/packing/historical-stock' }
         ],
     }, 
     {

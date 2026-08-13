@@ -43,10 +43,10 @@ const PURE_SPICES = [
 
 // --- FLAVORS LIST FOR FILTERING ---
 const FLAVOR_NAMES = [
-    "Cinnamon", "Chakra", "Ginger", "Masala", "Vanilla", "Mint", 
+    "Cinnamon", "Ginger", "Masala", "Vanilla", "Mint", 
     "Moringa", "Curry Leaves", "Gotukola", "Heen Bovitiya", "Cardamom", 
     "Rose", "Strawberry", "Peach", "Mix Fruit", "Pineapple", "Mango", 
-    "Honey", "Earl Grey", "Lime", "Soursop", "Jasmine", "Flower", "Turmeric", "Black Pepper"
+    "Honey", "Earl Grey", "Lime", "Soursop", "Jasmine", "Turmeric", "Black Pepper"
 ];
 
 // --- LOGIC: BASE TEA MAPPING ---fetchStocks
@@ -130,25 +130,154 @@ const getMaterialColor = (material) => {
 };
 
 const TEA_TYPES = [
-    "Lemongrass - BOPF", "Lemongrass - Green Tea", "BOP", "Pekoe", "Rose Tea", "English Breakfast", "Pink Tea", "Ceylon Premium - FF ", "Ceylon Supreme", "Cinnamon Tea - BOPF SP", "Cinnamon Tea - BOPF", "Ginger Tea - BOPF SP", "Ginger Tea - BOPF", "Silver Tips", "Golden Tips", "OPA", "OP", "OP 1", "FF EX SP", "Masala Tea - BOPF", "Masala Tea - BOPF SP", "Pineapple Tea", "Mix Fruit", "Peach", "Strawberry", "Jasmin - Green Tea", "Jasmin - BOPF", "Mango Tea", "Carmel", "Honey", "Vanilla", "Earl Grey", "Hibiscus", "Mint - Green Tea", "Mint - BOPF SP", "Lime", "Soursop - Green Tea", "Soursop - BOPF", "White Tea", "Purple Tea", "Slim Beauty", "Vita Glow", "Silver Green", "FBOP", "Moringa - BOPF SP", "Moringa - Green Tea", "Curry Leaves - BOPF SP", "Curry Leaves - Green Tea", "Heen Bovitiya - BOPF SP", "Heen Bovitiya - Green Tea", "Gotukola - BOPF SP", "Gotukola", "Flower", "Chakra", "Green Tea", "Gift Pack", "Premium", "Cardamom", "English Afternoon", "Green Tea T/B", "Black Tea T/B", "Black Pepper", "Cinnamon Stick", "Turmeric"
+    "Premium",
+    "Black Tea T/B",
+    "Pekoe",
+    "Golden Tips",
+    "Silver Tips",
+    "Flower",
+    "Chakra",
+    "Pink Tea",
+    "Green Tea",
+    "Lemongrass - Green Tea",
+    "Silver Green",
+    "Purple Tea",
+    "White Tea",
+    "Ceylon Premium - FF ",
+    "Turmeric",
+    "FF EX SP",
+    "Green Tea T/B",
+    "OP 1",
+    "Cinnamon Stick",
+    "OP",
+    "Rose Tea",
+    "Heen Bovitiya - Green Tea",
+    "Curry Leaves - Green Tea",
+    "Gotukola",
+    "Moringa - Green Tea",
+    "Slim Beauty",
+    "Mint - Green Tea",
+    "Jasmin - Green Tea",
+    "FBOP",
+    "FF SP",
+    "BOP",
+    "Orange Tea",
+    "Black Pepper",
+    "Awurudu Special",
+    "Mix Flower",
+    "Ginger Tea - BOPF",
+    "Hibiscus",
+    "OPA",
+    "Masala Tea - BOPF",
+    "Cinnamon Tea - BOPF",
+    "Cinnamon Tea - BOPF SP",
+    "Arabic Tea",
+    "Soursop - Green Tea",
+    "Peach",
+    "Ginger Tea - BOPF SP",
+    "Pomegranate Tea",
+    "Earl Grey",
+    "Lemongrass - BOPF",
+    "English Breakfast",
+    "Ceylon Supreme",
+    "Masala Tea - BOPF SP",
+    "Pineapple Tea",
+    "Mix Fruit",
+    "Strawberry",
+    "Jasmin - BOPF",
+    "Mango Tea",
+    "Carmel",
+    "Honey",
+    "Vanilla",
+    "Mint - BOPF SP",
+    "Lime",
+    "Soursop - BOPF",
+    "Vita Glow",
+    "Moringa - BOPF SP",
+    "Curry Leaves - BOPF SP",
+    "Heen Bovitiya - BOPF SP",
+    "Gotukola - BOPF SP",
+    "Gift Pack",
+    "Cardamom",
+    "English Afternoon"
 ];
 
 const PACKAGING_TYPES = [
-    "E/L Pack", "Pack", "Box", "Chest box", "Cloth bag", 
-    "Paper can", "Wooden box", "Wooden cylinder", "Tin"
+    "Box", "Pack", "Paper can", "E/L Pack", "Chest box", "Cloth bag", 
+     "Wooden box", "Wooden cylinder", "Tin"
 ];
 
 const getPackSizes = (product) => {
     if (!product) return null;
     const p = product.toLowerCase();
-    if (p.includes('pink tea can') || p.includes('white tea can') || p.includes('chakra') || p.includes('flower') || p.includes('black t/b')) return ["0.025"];
-    if (p.includes('silver tips') || p.includes('cinnamon can') || p.includes('silver green') || p.includes('golden tips') || p.includes('slim beauty') || p.includes('turmeric') || p.includes('black pepar')) return ["0.05"];
-    if (p.includes('lemangrass') || p.includes('fbop chest') || p.includes('ff sp chest') || p.includes('cinnamon pack') || p.includes('cinnaamon box') || p.includes('ff ex sp box') || p.includes('purple pack') || p.includes('masala')) return ["0.1"];
-    if (p.includes('ff ex sp pack') || p.includes('bop pack')) return ["0.15"];
-    if (p.includes('green tea') || p.includes('op1 pack') || p.includes('pekoe box') || p.includes('premium')) return ["0.2"];
-    if (p.includes('ceylon premium')) return ["0.125"];
+
+    // 1. බහුලව Pack Sizes කිහිපයක් ඇති සහ විශේෂිත වූ අයිතම (Specific overrides)
+    if (p.includes('black tea t/b')) return ["0.025", "0.05", "0.2"];
+    if (p.includes('ceylon premium')) return ["0.125"]; 
+    if (p.includes('premium')) return ["0.2", "0.4"];
+    if (p.includes('cinnamon pack')) return ["0.05", "0.1"];
+    if (p.includes('golden tips') || p.includes('silver tips')) return ["0.02", "0.04", "0.05"];
+    
+    if (p.includes('pekoe box')) return ["0.2"];
+    if (p.includes('pekoe')) return ["0.1", "0.2"];
+    
+    if (p.includes('ff ex sp pack')) return ["0.15"];
+    if (p.includes('ff ex sp box')) return ["0.1"];
+    if (p.includes('ff ex sp')) return ["0.1", "0.15"];
+
+    // ව්‍යාකූලතා මඟහරවා ගැනීම සඳහා විශේෂිත පරීක්ෂාවන් (Overlapping preventions)
+    if (p.includes('mix flower')) return ["0.05"];
+    if (p.includes('g/t jasmin can')) return ["0.5"];
+    if (p.includes('awurudu special')) return ["0.2"];
+    if (p.includes('purple pack')) return ["0.1"];
+
+    // 2. 0.025 kg කාණ්ඩය
+    if (p.includes('pink tea') || p.includes('white tea') || 
+        p.includes('chakra') || p.includes('flower')) {
+        return ["0.025"];
+    }
+
+    // 3. 0.05 kg කාණ්ඩය
+    if (p.includes('cinnamon can') || p.includes('silver green') || 
+        p.includes('slim beauty') || p.includes('turmeric') || 
+        p.includes('black pepar') || p.includes('black pepper') || 
+        p.includes('rose tea') || p.includes('heen bovitiy') || 
+        p.includes('curry leaves') || p.includes('gotukola') || 
+        p.includes('moringa') || p.includes('purple tea') || 
+        p.includes('mint can') || p.includes('orange can') || 
+        p.includes('hibiscus') || p.includes('cinnamon stick') || 
+        p.includes('soursop')) {
+        return ["0.05"];
+    }
+
+    // 4. 0.1 kg කාණ්ඩය
+    if (p.includes('lemangrass') || p.includes('fbop chest') || 
+        p.includes('ff sp chest') || p.includes('cinnaamon box') || 
+        p.includes('cinnamon box') || p.includes('masala') || 
+        p.includes('arabic tea') || p.includes('ginger tea') || 
+        p.includes('earl grey') || p.includes('cinnamon tea')) {
+        return ["0.1"];
+    }
+
+    // 5. 0.15 kg කාණ්ඩය
+    if (p.includes('bop pack')) return ["0.15"];
+
+    // 6. 0.2 kg කාණ්ඩය
+    if (p.includes('green tea') || p.includes('op1 pack') || 
+        p.includes('guide issue-bopf') || p.includes('op 1') || 
+        p.includes('op1') || p.includes('opa') || 
+        (p.includes('op') && !p.includes('bop'))) {
+        return ["0.2"];
+    }
+
+    // 7. 0.125 kg කාණ්ඩය
+    if (p.includes('peach') || p.includes('pomegranate tea')) {
+        return ["0.125"];
+    }
+
+    // 8. 0.3 kg කාණ්ඩය
     if (p.includes('awrudu')) return ["0.3"];
-    if (p.includes('guide issue-bopf')) return ["0.2"];
+
     return null; 
 };
 
@@ -936,6 +1065,7 @@ export default function TeaCenterRecordEntry() {
                                                                 handleKeyDown(e, row.id, filteredOptions, 'product');
                                                             }}
                                                             required
+                                                            autoFocus={row.product === ''} 
                                                             className={`w-full p-2.5 h-[42px] border rounded-md text-sm focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none transition-colors ${row.product ? getTeaColor(row.product) : 'bg-white dark:bg-zinc-950 dark:text-gray-100'} ${isOverCapacity ? 'border-amber-300' : 'border-teal-200 dark:border-teal-800/50'}`}
                                                         />
                                                         
@@ -1076,7 +1206,33 @@ export default function TeaCenterRecordEntry() {
 
                                                     <div>
                                                         <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase whitespace-nowrap">Items</label>
-                                                        <input type="number" step="1" min="0" value={row.numberOfBoxes} onChange={(e) => handleItemChange(row.id, 'numberOfBoxes', e.target.value)} onWheel={(e) => e.target.blur()} required placeholder="e.g. 15" className="w-full p-2.5 h-[42px] border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
+                                                        <input type="number" 
+                                                            step="1" 
+                                                            min="0" 
+                                                            value={row.numberOfBoxes} 
+                                                            onChange={(e) => handleItemChange(row.id, 'numberOfBoxes', e.target.value)} 
+                                                            onWheel={(e) => e.target.blur()} 
+                                                            required 
+                                                            placeholder="e.g. 15"
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === "Enter") {
+                                                                    e.preventDefault();
+                                                                    if (!needsFlavorSelection) {
+                                                                        // Flavour නැති එකක් නම් කෙලින්ම add කරනවා
+                                                                        if (row.product && row.type && row.packSizeKg && row.numberOfBoxes) {
+                                                                            handleAddItemRow();
+                                                                        } else {
+                                                                            toast.error("Please fill current row details before adding a new one.");
+                                                                        }
+                                                                    } else {
+                                                                        // Flavour තියෙන එකක් නම් ඊළඟ Input එකට Focus කරනවා
+                                                                        const nextInput = dropdownRefs.current[`rmName-${row.id}`]?.querySelector('input');
+                                                                        if (nextInput) nextInput.focus();
+                                                                    }
+                                                                }
+                                                            }} 
+                                                            className="w-full p-2.5 h-[42px] border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" 
+                                                        />
                                                     </div>
                                                 </div>
 
@@ -1148,6 +1304,16 @@ export default function TeaCenterRecordEntry() {
                                                             onWheel={(e) => e.target.blur()}
                                                             disabled={!needsFlavorSelection}
                                                             placeholder={isPureSpiceUI ? "100%" : isFlavoredUI ? "3%" : "N/A"} 
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === "Enter" && needsFlavorSelection) {
+                                                                    e.preventDefault();
+                                                                    if (row.product && row.type && row.packSizeKg && row.numberOfBoxes && row.rawMaterialName) {
+                                                                        handleAddItemRow();
+                                                                    } else {
+                                                                        toast.error("Please fill current row details before adding a new one.");
+                                                                    }
+                                                                }
+                                                            }}
                                                             className={`w-full p-2.5 h-[42px] border text-sm rounded-md outline-none transition-colors 
                                                             ${!needsFlavorSelection ? 'bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 cursor-not-allowed opacity-60' : isRMOverCapacity ? 'border-amber-400 focus:ring-2 focus:ring-amber-500/50' : 'bg-white dark:bg-zinc-950 border-teal-200 dark:border-teal-800/50 focus:ring-2 focus:ring-[#2dd4bf]/50'}`} 
                                                         />

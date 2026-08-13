@@ -4,14 +4,15 @@ import {
     getPackingStockById,
     createPackingStock,
     updatePackingStock,
-    deletePackingStock
+    deletePackingStock,
+    getHistoricalPackingStock
 } from '../controllers/packingStockController.js'; 
 
 // Authentication සහ Role-based Authorization Middlewares Import කිරීම
 import { verifyToken, authorizeRoles } from '../../middleware/auth.js'; 
 
 const packingStockRouter = express.Router();
-
+packingStockRouter.get('/history', verifyToken, getHistoricalPackingStock); // GET: View historical packing stock records (Admins, Users, and Viewers can view)
 // GET: View all packing stocks (Admins, Users, and Viewers can view)
 packingStockRouter.get('/', verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getAllPackingStocks);
 
