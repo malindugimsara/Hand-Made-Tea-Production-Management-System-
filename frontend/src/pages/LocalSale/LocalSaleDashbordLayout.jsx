@@ -90,6 +90,7 @@ const DATA = {
       title: 'Monthly Summary',
       icon: LineChart,
       items: [
+        { title: "Daily Extended Stock", url: '/localsale/dailyextendedstock'},
         { title: 'Month End Summary View', url: '/localsale/monthlysummaryview' },
         { title: 'Free Issue Summary', url: '/localsale/freeissuesummary' },
         { title: "Balance Report", url: '/localsale/balancereport'},
