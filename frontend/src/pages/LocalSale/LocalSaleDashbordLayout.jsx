@@ -12,8 +12,10 @@ import {
   ChevronDown,
   Sun,
   Moon,
-  Store,
   Search,
+  ClipboardList,
+  CalendarCheck,
+  PackageMinus,
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -72,7 +74,7 @@ const DATA = {
   navMain: [
     {
       title: 'Daily Summary',
-      icon: Store,
+      icon: CalendarCheck,
       items: [
         { title: 'Enter Daily Summary', url: '/localsale/dailysummary', nonViewer: true }, // 👈 Hidden from Viewer
         { title: 'Daily Summary View', url: '/localsale/viewdailysummary' },
@@ -80,17 +82,23 @@ const DATA = {
     },
     {
       title: 'Issue Summary',
-      icon: Store,
+      icon: PackageMinus,
       items: [
         { title: 'Enter Issue Summary', url: '/localsale/issuesummary', nonViewer: true }, // 👈 Hidden from Viewer
         { title: 'Issue Summary View', url: '/localsale/issuesummaryview' },
       ],
     },
     {
+      title: 'Daily Reports',
+      icon: ClipboardList,
+      items: [
+        { title: "Daily Extended Stock", url: '/localsale/dailyextendedstock'},
+      ],
+    }, 
+    {
       title: 'Monthly Summary',
       icon: LineChart,
       items: [
-        { title: "Daily Extended Stock", url: '/localsale/dailyextendedstock'},
         { title: 'Month End Summary View', url: '/localsale/monthlysummaryview' },
         { title: 'Free Issue Summary', url: '/localsale/freeissuesummary' },
         { title: "Balance Report", url: '/localsale/balancereport'},
