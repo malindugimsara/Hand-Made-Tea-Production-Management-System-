@@ -44,10 +44,21 @@ export default function BalanceReport() {
 
     const fetchBalanceData = async () => {
         if (!month) return;
+
+        // --- NEW LOGIC: Boundary Checks ---
+        const currentMonthStr = new Date().toISOString().slice(0, 7);
+        const systemStartMonth = "2026-07"; // The exact month you seeded your initial B/M stock
+
+        // Rule 1: Do not show data for months before the system started (e.g., June 2026)
+        // Rule 2: Do not show data for future months (e.g., September 2026 if today is August)
+        if (month < systemStartMonth || month > currentMonthStr) {
+            setReportData([]);
+            return; // Exit early, no need to hit the backend!
+        }
+
         setIsLoading(true);
 
         try {
-            // ONLY 1 API CALL REQUIRED NOW! The backend does all the heavy lifting.
             const response = await fetch(`${BACKEND_URL}/api/monthly-balance?month=${month}`, { 
                 headers: getHeaders() 
             });
