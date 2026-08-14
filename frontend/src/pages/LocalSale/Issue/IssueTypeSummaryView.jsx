@@ -258,7 +258,7 @@ export default function IssueTypeSummaryView() {
             uniqueCode={`ISU-${date.replace(/-/g, '')}`}
             disabled={isLoading || summaryData.length === 0}
           />
-          <PDFDownloader
+          {/* <PDFDownloader
             isWhatsApp={true}
             title="Daily Issue Summary"
             subtitle={`Records for ${date}`}
@@ -268,7 +268,7 @@ export default function IssueTypeSummaryView() {
             orientation="landscape"
             uniqueCode={`ISU-${date.replace(/-/g, '')}`}
             disabled={isLoading || summaryData.length === 0}
-          />
+          /> */}
           <button 
             onClick={fetchSummary}
             disabled={isLoading}

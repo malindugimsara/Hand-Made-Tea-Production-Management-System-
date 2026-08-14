@@ -155,52 +155,7 @@ export default function DailySummaryManageView() {
     item.size,
     item.out > 0 ? item.out : '-',
     item.in > 0 ? item.in : '-'
-  ]), [displayItems]);
-
-  // --- WhatsApp Share Logic ---
-  const handleWhatsAppShare = async () => {
-    const toastId = toast.loading("Preparing PDF for WhatsApp...");
-    try {
-      const doc = new jsPDF('portrait');
-      doc.setFontSize(16);
-      doc.setTextColor(27, 106, 49); 
-      doc.text("Daily IN/OUT Details", 14, 20);
-      
-      doc.setFontSize(10);
-      doc.setTextColor(100);
-      doc.text(`Record Date: ${filterDate}`, 14, 26);
-
-      autoTable(doc, {
-        startY: 32,
-        head: pdfHeaders,
-        body: pdfData,
-        theme: 'grid',
-        headStyles: { fillColor: [57, 106, 49], textColor: 255 }, 
-        styles: { fontSize: 10, cellPadding: 2 }
-      });
-
-      const pdfBlob = doc.output('blob');
-      const file = new File([pdfBlob], `Daily_Details_${filterDate}.pdf`, { type: 'application/pdf' });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: `Daily Report - ${filterDate}`,
-          text: `Daily IN/OUT Report for ${filterDate}. Please find the attached PDF.`,
-          files: [file]
-        });
-        toast.success("Shared successfully!", { id: toastId });
-      } else {
-        doc.save(`Daily_Details_${filterDate}.pdf`);
-        const message = `Here is the Daily IN/OUT Report for ${filterDate}. Please find the downloaded PDF document.`;
-        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, '_blank');
-        toast.success("PDF Downloaded! Please attach it in WhatsApp.", { id: toastId });
-      }
-    } catch (error) {
-      console.error("WhatsApp Share Error:", error);
-      toast.error("Failed to share. Trying to download instead.", { id: toastId });
-    }
-  };
+  ]), [displayItems]);  
 
   return (
     <div className="p-4 sm:p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen relative">
@@ -232,7 +187,7 @@ export default function DailySummaryManageView() {
             }}
           />
 
-          <PDFDownloader
+          {/* <PDFDownloader
             isWhatsApp={true}
             title="Daily IN/OUT Details"
             subtitle={`Records for ${filterDate}`}
@@ -246,7 +201,7 @@ export default function DailySummaryManageView() {
               theme: 'grid',
               headStyles: { fillColor: [57, 106, 49], textColor: 255 }
             }}
-          />
+          /> */}
 
           <button 
             onClick={fetchSummaries} 

@@ -567,8 +567,12 @@ export default function MonthEndSummary() {
                                                         key={`${date}-${col.catId}-${col.size}-${col.type}`}
                                                         onMouseEnter={() => setHoveredCol(cIdx)}
                                                         className={`px-2 py-2 border border-[#dcebdc] dark:border-zinc-700/50 text-sm font-medium transition-colors
-                                                        ${isOut ? 'text-red-500' : 'text-green-600'} 
-                                                        ${hoveredCol === cIdx ? 'bg-[#f6fbf6] dark:bg-zinc-800' : 'bg-white dark:bg-zinc-950'}`}
+                                                            ${isOut ? 'text-red-700 dark:text-red-400' : 'text-green-800 dark:text-green-400'} 
+                                                            ${
+                                                                hoveredCol === cIdx 
+                                                                ? (isOut ? 'bg-red-200 dark:bg-red-900/40' : 'bg-green-200 dark:bg-green-900/40') 
+                                                                : (isOut ? 'bg-red-50 dark:bg-red-900/10' : 'bg-green-50 dark:bg-green-900/10')
+                                                            }`}
                                                     >
                                                         {val && Number(val) > 0 ? Number(val) : '-'}
                                                     </td>
