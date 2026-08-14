@@ -24,8 +24,6 @@ export default function   LocalSaleRouter() {
       <Route path="balancereport" element={<BalanceReport />} />
       <Route path="dailyextendedstock" element={<DailyExtendedStockView />} />
 
-
-
     </Route>
   );
 }
