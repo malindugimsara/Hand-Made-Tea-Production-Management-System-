@@ -5,7 +5,7 @@ import PDFDownloader from '@/components/PDFDownloader';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
-// Define structure
+// Define structure - FIXED: 'dusts' changed to 'others' to match database
 const teaCategories = [
     { id: 'athukorala', title: 'Athukorala', sizes: ['400g', '200g', '100g'] },
     { id: 'bopfSp', title: 'BOPF Sp.', sizes: ['400g', '200g'] },
@@ -13,7 +13,7 @@ const teaCategories = [
     { id: 'tb', title: 'T/B', sizes: ['100', '25'] },
     { id: 'pitigala', title: 'PITIGALA TEA', sizes: ['400g', '200g'] },
     { id: 'gt', title: 'G/T', sizes: ['200g', 'T/B 25'] },
-    { id: 'dusts', title: 'Other Grades', sizes: ['DUST', 'DUST 1', 'BOPF'] }
+    { id: 'others', title: 'Other Grades', sizes: ['DUST', 'DUST 1', 'BOPF'] }
 ];
 
 export default function MonthEndSummary() {
@@ -34,7 +34,7 @@ export default function MonthEndSummary() {
         setIsLoading(true);
 
         try {
-            const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
+            const token = localStorage.getItem("token");
             const [dailyRes, issueRes] = await Promise.all([
                 fetch(`${BACKEND_URL}/api/summary?month=${month}`, {
                     headers: {
@@ -63,6 +63,29 @@ export default function MonthEndSummary() {
         }
     };
 
+    // Auto-Correction Key Generator (Same as DailyExtendedStockView)
+    const generateKey = (catId, catTitle, size) => {
+        let cleanId = (catId || '').toLowerCase().trim();
+        let cleanTitle = (catTitle || '').toLowerCase().trim();
+        let cleanSize = (size || '').toLowerCase().trim();
+
+        if (!cleanId && cleanTitle) {
+            cleanId = cleanTitle; 
+        }
+
+        let finalId = catId;
+        let finalSize = size;
+
+        // Fix Mismatches
+        if (cleanId === 'g/t' || cleanTitle === 'g/t') finalId = 'gt';
+        if (cleanId === 'other grades' || cleanTitle === 'other grades' || cleanId === 'others') finalId = 'others';
+        if (cleanSize === 'bopf (kg)' || cleanSize === 'kg' || cleanSize === 'bopf') finalSize = 'BOPF';
+        if (cleanSize === 'dust (kg)' || cleanSize === 'dust') finalSize = 'DUST';
+        if (cleanSize === 'dust 1 (kg)' || cleanSize === 'dust 1') finalSize = 'DUST 1';
+
+        return `${finalId}_${finalSize}`;
+    };
+
     const processReportData = (dailyRecords, issueRecords) => {
         const activeDates = new Set(); 
         const dailyMap = {};
@@ -75,7 +98,7 @@ export default function MonthEndSummary() {
                 activeDates.add(date);
                 if (!dailyMap[date]) dailyMap[date] = {};
                 record.items.forEach(item => {
-                    const key = `${item.categoryId}_${item.size}`;
+                    const key = generateKey(item.categoryId, item.categoryTitle, item.size);
                     dailyMap[date][key] = {
                         out: (dailyMap[date][key]?.out || 0) + (Number(item.out) || 0),
                         in: (dailyMap[date][key]?.in || 0) + (Number(item.in) || 0)
@@ -97,7 +120,7 @@ export default function MonthEndSummary() {
                 if (targetMap) {
                     if (!targetMap[date]) targetMap[date] = {};
                     record.items.forEach(item => {
-                        const key = `${item.categoryId}_${item.size}`;
+                        const key = generateKey(item.categoryId, item.categoryTitle, item.size);
                         targetMap[date][key] = (targetMap[date][key] || 0) + (Number(item.out) || 0);
                     });
                 }
@@ -228,7 +251,7 @@ export default function MonthEndSummary() {
                 if (isNetSale) {
                     if(isOut) {
                         const net = (currentTotals.out[key] || 0) - (currentTotals.free[key] || 0) - (currentTotals.labour[key] || 0) - (currentTotals.staff[key] || 0);
-                        row.push({ content: (net && net > 0) ? net : '-', styles: { fontStyle: 'bold', fillColor: color, textColor: [239, 68, 68] } }); // OUT
+                        row.push({ content: (net && net > 0) ? net : '-', styles: { fontStyle: 'bold', fillColor: color, textColor: [239, 68, 68] } }); 
                     } else {
                         row.push({ content: "-", styles: { fillColor: color, textColor: [34, 197, 94] } }); 
                     }
