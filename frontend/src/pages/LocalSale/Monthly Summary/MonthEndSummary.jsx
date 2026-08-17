@@ -17,7 +17,7 @@ const teaCategories = [
 ];
 
 export default function MonthEndSummary() {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL 
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
     const [isLoading, setIsLoading] = useState(false);

@@ -4,7 +4,7 @@ import { Bell, Calendar, CheckCircle, Info, TrendingUp, Sparkles, X, Store, Shop
 import toast from 'react-hot-toast';
 
 export default function LocalSaleDashboard() {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     
     // UI & Filter States
     const [isLoading, setIsLoading] = useState(true);

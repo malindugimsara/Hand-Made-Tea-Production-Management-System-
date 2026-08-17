@@ -23,7 +23,7 @@ const ISSUE_TYPES = [
 ];
 
 export default function IssueTypeSummaryView() {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   // --- ROLE BASED ACCESS ---
   const userRole = localStorage.getItem("userRole") || localStorage.getItem("role") || "";
