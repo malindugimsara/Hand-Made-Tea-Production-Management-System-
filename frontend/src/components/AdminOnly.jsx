@@ -8,6 +8,5 @@ export default function AdminOnly({ children }) {
         return <>{children}</>;
     }
 
-    // නැත්නම් මුකුත් පෙන්වන්නේ නෑ
     return null;
 }
