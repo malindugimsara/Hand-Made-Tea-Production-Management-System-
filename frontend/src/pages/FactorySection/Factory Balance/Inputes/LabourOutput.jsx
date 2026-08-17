@@ -4,7 +4,7 @@ import { Save, Users, Clock, Activity, Plus, Trash2, Calculator, Calendar, Erase
 import { useNavigate } from 'react-router-dom';
 
 export default function LabourOutput() {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const navigate = useNavigate();
 
     const [isDarkMode, setIsDarkMode] = useState(() => {

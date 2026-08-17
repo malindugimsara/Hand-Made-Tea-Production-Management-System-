@@ -108,7 +108,7 @@ Frontend (frontend/.env):
 
 
 Code snippet
-VITE_BACKEND_URL=http://localhost:5000
+VITE_BACKEND_URL=http://localhost:3000
 Backend (backend/.env):
 
 Code snippet
