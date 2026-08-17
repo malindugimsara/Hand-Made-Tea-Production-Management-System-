@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { Calendar, Download, Share2, RefreshCw, FileText, Box, SearchX } from 'lucide-react';
+import { Calendar, Share2, RefreshCw, FileText, Box, SearchX } from 'lucide-react';
 import PDFDownloader from '@/components/PDFDownloader';
 
 export default function DailyExtendedStockView() {
@@ -11,24 +11,11 @@ export default function DailyExtendedStockView() {
     
     const [monthData, setMonthData] = useState({
         currBalances: null,
-        prevBalances: null,
         ins: null,
         outs: null
     });
 
-    const selectedMonth = selectedDate.substring(0, 7);
-
-    const getPreviousMonth = (currentMonthStr) => {
-        if (!currentMonthStr) return "";
-        const [year, month] = currentMonthStr.split('-');
-        let prevYear = parseInt(year, 10);
-        let prevMonth = parseInt(month, 10) - 1;
-        if (prevMonth === 0) {
-            prevMonth = 12;
-            prevYear -= 1;
-        }
-        return `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
-    };
+    const selectedMonth = selectedDate.substring(0, 7); // YYYY-MM
 
     useEffect(() => {
         fetchMonthData(selectedMonth);
@@ -39,11 +26,9 @@ export default function DailyExtendedStockView() {
         try {
             const token = localStorage.getItem('token');
             const headers = { 'Authorization': `Bearer ${token}` };
-            const prevMonthStr = getPreviousMonth(monthStr);
 
-            const [monthlyBalanceRes, prevMonthlyBalanceRes, dailySummaryRes, issueSummaryRes] = await Promise.all([
+            const [monthlyBalanceRes, dailySummaryRes, issueSummaryRes] = await Promise.all([
                 fetch(`${BACKEND_URL}/api/monthly-balance?month=${monthStr}`, { headers }).catch(() => ({ ok: false })),
-                fetch(`${BACKEND_URL}/api/monthly-balance?month=${prevMonthStr}`, { headers }).catch(() => ({ ok: false })),
                 fetch(`${BACKEND_URL}/api/summary?month=${monthStr}`, { headers }).catch(() => ({ ok: false })),
                 fetch(`${BACKEND_URL}/api/issue-summary?month=${monthStr}`, { headers }).catch(() => ({ ok: false }))
             ]);
@@ -58,11 +43,10 @@ export default function DailyExtendedStockView() {
             };
 
             const currBalances = await getJsonData(monthlyBalanceRes);
-            const prevBalances = await getJsonData(prevMonthlyBalanceRes);
             const ins = await getJsonData(dailySummaryRes);
             const outs = await getJsonData(issueSummaryRes);
 
-            setMonthData({ currBalances, prevBalances, ins, outs });
+            setMonthData({ currBalances, ins, outs });
         } catch (error) {
             console.error("Error fetching data:", error);
             toast.error("Failed to load data from servers.");
@@ -75,35 +59,86 @@ export default function DailyExtendedStockView() {
         const insArray = Array.isArray(monthData.ins) ? monthData.ins : (monthData.ins?.data || monthData.ins?.records || []);
         const outsArray = Array.isArray(monthData.outs) ? monthData.outs : (monthData.outs?.data || monthData.outs?.records || []);
         
-        const hasSummary = insArray.some(d => d.date && d.date.split('T')[0] === selectedDate);
-        const hasIssue = outsArray.some(d => d.date && d.date.split('T')[0] === selectedDate);
+        const hasSummary = insArray.some(d => d.date && d.date === selectedDate);
+        const hasIssue = outsArray.some(d => d.date && d.date === selectedDate);
         return hasSummary || hasIssue;
     }, [selectedDate, monthData]);
 
-    const tableData = useMemo(() => {
+   const tableData = useMemo(() => {
         const dataMap = {};
 
-        const generateKey = (catId, size) => {
-            const cleanId = (catId || '').toLowerCase().trim();
-            const cleanSize = (size || '').toLowerCase().trim();
+        // 💡 1. Standard Product Categories (BOPF සහ DUST සඳහා displaySize එකතු කර ඇත)
+        const productCategories = [
+            { categoryId: 'athukorala', size: '400g', name: 'Athukorala BOPF 400g' },
+            { categoryId: 'athukorala', size: '200g', name: 'Athukorala BOPF 200g' },
+            { categoryId: 'athukorala', size: '100g', name: 'Athukorala BOPF 100g' },
+            { categoryId: 'bopfSp', size: '400g', name: 'Athukorala BOPF SP 400g' },
+            { categoryId: 'bopfSp', size: '200g', name: 'Athukorala BOPF SP 200g' },
+            { categoryId: 'bopfPremium', size: '400g', name: 'Athukorala BOPF PREMIUM 400g' },
+            { categoryId: 'bopfPremium', size: '200g', name: 'Athukorala BOPF PREMIUM 200g' },
+            { categoryId: 'pitigala', size: '400g', name: 'Pitigala tea 400g' },
+            { categoryId: 'pitigala', size: '200g', name: 'Pitigala tea 200g' },
+            { categoryId: 'tb', size: '25', name: 'Pitigala tea 25 bag' },
+            { categoryId: 'tb', size: '100', name: 'Pitigala tea 100 bag' },
+            { categoryId: 'gt', size: '200g', name: 'Green tea 200g' },
+            { categoryId: 'gt', size: 'T/B 25', name: 'Green tea 25 bag' },
+            
+            // 👇 වෙනස් කළ කොටස: Size එක "BOPF" වුණත් පෙන්වන්නේ "KG" ලෙසයි 👇
+            { categoryId: 'others', size: 'BOPF', name: 'BOPF', displaySize: 'KG' },
+            { categoryId: 'others', size: 'DUST', name: 'DUST', displaySize: 'KG' },
+            { categoryId: 'others', size: 'DUST 1', name: 'DUST 1', displaySize: 'KG' }
+        ];
+
+        // 💡 2. Auto-Correction Key Generator
+        const generateKey = (catId, catTitle, size) => {
+            let cleanId = (catId || '').toLowerCase().trim();
+            let cleanTitle = (catTitle || '').toLowerCase().trim();
+            let cleanSize = (size || '').toLowerCase().trim();
+
+            if (!cleanId && cleanTitle) {
+                cleanId = cleanTitle; 
+            }
+
+            // Fix Mismatches: Daily In/Out vs Database
+            if (cleanId === 'g/t' || cleanTitle === 'g/t') cleanId = 'gt';
+            if (cleanId === 'other grades' || cleanTitle === 'other grades') cleanId = 'others';
+            if (cleanSize === 'bopf (kg)' || cleanSize === 'kg') cleanSize = 'bopf';
+            if (cleanSize === 'dust (kg)') cleanSize = 'dust';
+            if (cleanSize === 'dust 1 (kg)') cleanSize = 'dust 1';
+
             return `${cleanId}_${cleanSize}`;
         };
 
-        const initItem = (categoryId, categoryTitle, size) => {
-            const key = generateKey(categoryId, size);
-            if (!dataMap[key]) {
-                let cleanTitle = categoryTitle || 'Unknown Category';
-                
-                if (size && cleanTitle.toLowerCase().endsWith(size.toLowerCase())) {
-                    const tempTitle = cleanTitle.substring(0, cleanTitle.length - size.length).trim();
-                    if (tempTitle.length > 0) cleanTitle = tempTitle;
-                }
+        // 💡 3. Pre-fill Map with Standard Categories
+        productCategories.forEach(cat => {
+            const key = generateKey(cat.categoryId, cat.name, cat.size);
+            dataMap[key] = {
+                categoryId: cat.categoryId, 
+                displayTitle: cat.name, 
+                // 👇 වෙනස් කළ කොටස: displaySize එකක් දීලා තියෙනවා නම් ඒක පෙන්වන්න 👇
+                size: cat.displaySize || cat.size, 
+                openingBalance: 0, 
+                inToday: 0, cumulativeIn: 0,   
+                outSoldToday: 0, cumulativeOutSold: 0, 
+                outIssueToday: 0, cumulativeOutIssue: 0, 
+                issueBreakdown: { labour: 0, staff: 0, free: 0 }, 
+                balanceToDate: 0   
+            };
+        });
 
+        // 💡 4. Initialize Function for records mapping
+        const initItem = (categoryId, categoryTitle, size) => {
+            const key = generateKey(categoryId, categoryTitle, size);
+            if (!dataMap[key]) {
                 dataMap[key] = {
-                    categoryId, displayTitle: cleanTitle, size: size || '-',
-                    openingBalance: 0, inToday: 0, cumulativeIn: 0,   
-                    outSoldToday: 0, cumulativeOutSold: 0, outIssueToday: 0,  
-                    cumulativeOutIssue: 0, issueBreakdown: { labour: 0, staff: 0, free: 0 }, 
+                    categoryId: categoryId || 'Unknown', 
+                    displayTitle: categoryTitle || categoryId || 'Unknown Category', 
+                    size: size || '-',
+                    openingBalance: 0, 
+                    inToday: 0, cumulativeIn: 0,   
+                    outSoldToday: 0, cumulativeOutSold: 0, 
+                    outIssueToday: 0, cumulativeOutIssue: 0, 
+                    issueBreakdown: { labour: 0, staff: 0, free: 0 }, 
                     balanceToDate: 0   
                 };
             }
@@ -112,56 +147,37 @@ export default function DailyExtendedStockView() {
 
         const extractItems = (dbResponse) => {
             if (!dbResponse) return [];
-            
             if (Array.isArray(dbResponse)) {
                 if (dbResponse[0]?.items && Array.isArray(dbResponse[0].items)) return dbResponse[0].items;
                 return dbResponse;
             }
-            if (dbResponse.items && Array.isArray(dbResponse.items)) {
-                return dbResponse.items;
-            }
+            if (dbResponse.items && Array.isArray(dbResponse.items)) return dbResponse.items;
             if (dbResponse.data) {
                 if (Array.isArray(dbResponse.data)) {
                     if (dbResponse.data[0]?.items) return dbResponse.data[0].items;
                     return dbResponse.data;
                 }
-                if (dbResponse.data.items && Array.isArray(dbResponse.data.items)) {
-                    return dbResponse.data.items;
-                }
+                if (dbResponse.data.items && Array.isArray(dbResponse.data.items)) return dbResponse.data.items;
             }
             return [];
         };
 
+        // A. Map Opening Balance (bmStock)
         const currBalanceItems = extractItems(monthData.currBalances);
-        const prevBalanceItems = extractItems(monthData.prevBalances);
-
-        // A. Opening Balance
         currBalanceItems.forEach(b => {
             const key = initItem(b.categoryId, b.categoryTitle, b.size);
-            const val = Number(b.bmStock) || Number(b.openingBalance) || 0;
+            const val = Number(b.bmStock) || 0; 
             if (val > 0) {
                 dataMap[key].openingBalance = val;
-            }
-        });
-
-        prevBalanceItems.forEach(b => {
-            const key = initItem(b.categoryId, b.categoryTitle, b.size);
-            if (dataMap[key].openingBalance === 0) {
-                const prevClosing = Number(b.closingBalance) || Number(b.bmStock) || 0;
-                if (prevClosing > 0) {
-                    dataMap[key].openingBalance = prevClosing;
-                }
             }
         });
 
         const insArray = Array.isArray(monthData.ins) ? monthData.ins : (monthData.ins?.data || monthData.ins?.records || []);
         const outsArray = Array.isArray(monthData.outs) ? monthData.outs : (monthData.outs?.data || monthData.outs?.records || []);
 
-        // B. Cumulative INs & OUTs (Strictly constrained to Current Month)
+        // B. Map INs and OUTs (Sold)
         insArray.forEach(daily => {
-            const recordDate = daily.date ? daily.date.split('T')[0] : '';
-            
-            // 👇 මෙතැනයි අලුතින් වෙනස් කළේ: මෙම මාසයේ 1 වෙනිදා සිට අද දක්වා පමණක් එකතු කිරීම 👇
+            const recordDate = daily.date || '';
             if (recordDate.startsWith(selectedMonth) && recordDate <= selectedDate) {
                 if (Array.isArray(daily.items)) {
                     daily.items.forEach(item => {
@@ -181,10 +197,9 @@ export default function DailyExtendedStockView() {
             }
         });
 
+        // C. Map OUTs (Issues)
         outsArray.forEach(issue => {
-            const recordDate = issue.date ? issue.date.split('T')[0] : '';
-            
-            // 👇 Issues සඳහාත් එම සීමාවම යෙදීම 👇
+            const recordDate = issue.date || '';
             if (recordDate.startsWith(selectedMonth) && recordDate <= selectedDate) {
                 const issueTypeStr = (issue.issueType || '').toLowerCase();
                 const isLabour = issueTypeStr.includes('labour') || issueTypeStr.includes('labor');
@@ -208,12 +223,13 @@ export default function DailyExtendedStockView() {
             }
         });
 
+        // 💡 5. Calculate Final Balances (Filtered & Sorted)
         const finalData = Object.values(dataMap)
             .map(row => {
                 row.balanceToDate = row.openingBalance + row.cumulativeIn - row.cumulativeOutSold - row.cumulativeOutIssue;
                 return row;
             })
-            .filter(row => row.openingBalance !== 0 || row.cumulativeIn !== 0 || row.cumulativeOutSold !== 0 || row.cumulativeOutIssue !== 0)
+            .filter(row => row.inToday > 0 || row.outSoldToday > 0 || row.outIssueToday > 0)
             .sort((a, b) => a.displayTitle.localeCompare(b.displayTitle));
         
         return finalData;
@@ -256,9 +272,9 @@ export default function DailyExtendedStockView() {
                 { content: 'CATEGORY / TITLE', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [107, 114, 128] } },
                 { content: 'SIZE / TYPE', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [107, 114, 128] } },
                 { content: `OPENING BALANCE\n(${getMonthName()} 1st)`, rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [107, 114, 128] } },
-                { content: 'OUT (TODAY)', colSpan: 2, styles: { halign: 'center', textColor: [239, 68, 68] } }, // Red Text
-                { content: 'IN (TODAY)', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [20, 147, 82] } }, // Green Text
-                { content: 'BALANCE\nTO DATE', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [67, 56, 202] } } // Indigo Text
+                { content: 'OUT (TODAY)', colSpan: 2, styles: { halign: 'center', textColor: [239, 68, 68] } },
+                { content: 'IN (TODAY)', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [20, 147, 82] } }, 
+                { content: 'BALANCE\nTO DATE', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [67, 56, 202] } } 
             ],
             [
                 { content: 'SOLD', styles: { halign: 'center', textColor: [239, 68, 68] } },
@@ -266,7 +282,7 @@ export default function DailyExtendedStockView() {
             ]
         ],
         headStyles: { 
-            fillColor: [168, 241, 202], // Light Gray Background
+            fillColor: [168, 241, 202], 
             lineColor: [106, 222, 154],
             lineWidth: 0.1,
             fontStyle: 'bold'
@@ -276,11 +292,11 @@ export default function DailyExtendedStockView() {
             cellPadding: 3
         },
         columnStyles: {
-            2: { halign: 'center' }, // Opening Balance
-            3: { halign: 'center', textColor: [220, 38, 38] }, // Sold (Red)
-            4: { halign: 'center', textColor: [234, 88, 12] }, // Issue (Orange)
-            5: { halign: 'center', textColor: [34, 197, 94] }, // IN (Green)
-            6: { halign: 'center' }  // Balance
+            2: { halign: 'center' }, 
+            3: { halign: 'center', textColor: [220, 38, 38] }, 
+            4: { halign: 'center', textColor: [234, 88, 12] }, 
+            5: { halign: 'center', textColor: [34, 197, 94] }, 
+            6: { halign: 'center' }  
         }
     };
 
@@ -319,6 +335,7 @@ export default function DailyExtendedStockView() {
                         fileName={`Daily_Stock_${selectedDate}.pdf`}
                         orientation="portrait"
                         disabled={loading || tableData.length === 0 || !hasDataForSelectedDate}
+                        autoTableOptions={pdfTableConfig}
                     />
                     <button onClick={handleSync} className="p-2 border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-lg transition-colors dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-300">
                         <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
