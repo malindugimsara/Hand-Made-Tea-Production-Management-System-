@@ -226,7 +226,7 @@ export default function DailyExtendedStockView() {
         // 💡 5. Calculate Final Balances (Filtered & Sorted)
         const finalData = Object.values(dataMap)
             .map(row => {
-                row.balanceToDate = row.openingBalance + row.cumulativeIn - row.cumulativeOutSold - row.cumulativeOutIssue;
+                row.balanceToDate = row.openingBalance + row.cumulativeIn - row.cumulativeOutSold;
                 return row;
             })
             .filter(row => row.inToday > 0 || row.outSoldToday > 0 || row.outIssueToday > 0)
@@ -257,7 +257,13 @@ export default function DailyExtendedStockView() {
                 row.outSoldToday > 0 ? row.outSoldToday.toFixed(2) : '-',
                 row.outIssueToday > 0 ? row.outIssueToday.toFixed(2) : '-',
                 row.inToday > 0 ? row.inToday.toFixed(2) : '-',
-                { content: row.balanceToDate.toFixed(2), styles: { fontStyle: 'bold', textColor: [67, 56, 202] } } 
+{ 
+                    content: row.balanceToDate.toFixed(2), 
+                    styles: { 
+                        fontStyle: 'bold', 
+                        textColor: row.balanceToDate < 0 ? [220, 38, 38] : [67, 56, 202] 
+                    } 
+                }            
             ]);
         });
         return rows;
@@ -434,7 +440,11 @@ export default function DailyExtendedStockView() {
                                             {row.inToday > 0 ? row.inToday.toFixed(2) : '-'}
                                         </td>
 
-                                        <td className="px-6 py-4 font-black text-center text-indigo-700 dark:text-indigo-400 bg-indigo-50/30 dark:bg-indigo-900/10">
+                                        <td className={`px-6 py-4 font-black text-center ${
+                                            row.balanceToDate < 0 
+                                                ? 'text-red-600 bg-red-50/80 dark:text-red-400 dark:bg-red-900/20' 
+                                                : 'text-indigo-700 dark:text-indigo-400 bg-indigo-50/30 dark:bg-indigo-900/10'
+                                            }`}>
                                             {row.balanceToDate.toFixed(2)}
                                         </td>
                                     </tr>
