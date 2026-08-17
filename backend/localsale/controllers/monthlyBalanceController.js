@@ -71,13 +71,13 @@ export const getOrCalculateBalance = async (req, res) => {
         // 3. Map everything to the structured product categories
         // Initial base seed stock (you can adjust these base seed values if your system started with a fixed inventory before day one)
         const baseSeedStock = {
-            'athukorala_400g': 95, 'athukorala_200g': 100, 'athukorala_100g': 64,
-            'bopfSp_400g': 53, 'bopfSp_200g': 31,
-            'bopfPremium_400g': 18, 'bopfPremium_200g': 17,
+            'athukorala_400g': 32, 'athukorala_200g': 44, 'athukorala_100g': 97,
+            'bopfSp_400g': 2, 'bopfSp_200g': 21,
+            'bopfPremium_400g': 23, 'bopfPremium_200g': 33,
             'pitigala_400g': 18, 'pitigala_200g': 22,
-            'tb_25': 14, 'tb_100': 9,
-            'gt_200g': 28, 'gt_T/B 25': 19,
-            'others_BOPF': 6, 'others_DUST': 2.5, 'others_DUST 1': 7.5
+            'tb_25': 7, 'tb_100': 9,
+            'gt_200g': 17, 'gt_T/B 25': 21,
+            'others_BOPF': 10, 'others_DUST': 1.5, 'others_DUST 1': 1.5,'others_BOPF': 1.5
         };
 
         const items = productCategories.map(cat => {
