@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const LabourOutputTable = () => {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const navigate = useNavigate();
     const location = useLocation();
     

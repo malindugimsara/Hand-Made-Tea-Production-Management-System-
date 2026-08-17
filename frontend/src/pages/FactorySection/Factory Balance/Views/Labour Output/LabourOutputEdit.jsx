@@ -15,7 +15,7 @@ import {
 const LabourOutputEdit = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
     // --- ROLE BASED ACCESS ---
     const userRole = localStorage.getItem("userRole") || localStorage.getItem("role") || "";
