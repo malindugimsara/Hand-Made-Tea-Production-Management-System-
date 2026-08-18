@@ -2,7 +2,8 @@ import { Production } from '../models/Production.js'; // Adjust path if needed
 
 export const createProduction = async (req, res) => {
     try {
-        const { date, teaType, madeTeaWeight, expectedDryerDate, dryerDetails } = req.body;
+        // Add selectedTeaWeight to the destructured body
+        const { date, teaType, selectedTeaWeight, madeTeaWeight, expectedDryerDate, dryerDetails } = req.body;
         
         let processedDryerDetails = dryerDetails;
 
@@ -16,6 +17,7 @@ export const createProduction = async (req, res) => {
         const newProduction = new Production({
             date,
             teaType,
+            selectedTeaWeight: selectedTeaWeight || 0, // Map the new field here
             madeTeaWeight,
             expectedDryerDate, 
             dryerDetails: processedDryerDetails
@@ -51,7 +53,9 @@ export const deleteProduction = async (req, res) => {
 export const updateProduction = async (req, res) => {
     try {
         const { id } = req.params;
-        const updatedData = req.body;
+        
+        // updatedData will now automatically contain selectedTeaWeight from the frontend payload
+        const updatedData = req.body; 
         
         // Safely Auto-calculate dryer units if meter readings are provided in the update
         if (updatedData.dryerDetails && 
@@ -62,6 +66,7 @@ export const updateProduction = async (req, res) => {
         }
         
         // Note: updatedData.dryerDetails.rollerPoints is automatically passed from the frontend payload
+        // Note: updatedData.selectedTeaWeight is automatically applied to the document via findByIdAndUpdate
 
         const record = await Production.findByIdAndUpdate(id, updatedData, { new: true });
         
