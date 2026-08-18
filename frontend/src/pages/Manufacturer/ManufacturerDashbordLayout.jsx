@@ -73,15 +73,14 @@ const DATA = {
     { name: 'Dashboard Home', url: '/manufacturer', icon: LayoutDashboard },
   ],
   navMain: [
-    // 💡 Add your manufacturer specific routes here
-    // {
-    //   title: 'Production',
-    //   icon: Store,
-    //   items: [
-    //     { title: 'Daily Production', url: '/manufacturer/dailyproduction', nonViewer: true },
-    //     ...
-    //   ],
-    // },
+    {
+      title: 'Loft Leaf',
+      icon: Store,
+      items: [
+        { title: 'Enter Loft Leaf Count', url: '/manufacturer/factory-loft-leaf', nonViewer: true },
+        { title: 'View Loft Leaf Count', url: '/manufacturer/view-factory-loft-leaf', nonViewer: true },
+      ],
+    },
   ],
 };
 

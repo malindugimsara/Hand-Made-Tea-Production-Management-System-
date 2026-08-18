@@ -108,3 +108,20 @@ export const getDailyReport = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// 4. Delete Record (Delete API)
+export const deleteRecord = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const deletedRecord = await LoftLeaf.findByIdAndDelete(id);
+        
+        if (!deletedRecord) {
+            return res.status(404).json({ success: false, message: "Record not found" });
+        }
+
+        res.status(200).json({ success: true, message: "Record deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
