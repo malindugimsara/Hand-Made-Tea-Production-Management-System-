@@ -7,6 +7,7 @@ import { HandmadeRoutes } from './pages/HandmadeRoutes';
 import { PackingRoutes } from './pages/PackingRoutes';
 import FactoryRouter from './pages/FactoryRouter';
 import LocalSaleRouter from './pages/LocalSaleRouter';
+import ManufacturerRouter from './pages/ManufacturerRouter';
 
 const PUBLIC_VAPID_KEY = import.meta.env.VITE_PUBLIC_VAPID_KEY;
 
@@ -105,6 +106,7 @@ export default function App() {
           {PackingRoutes()}
           {FactoryRouter()}
           {LocalSaleRouter()}
+          {ManufacturerRouter()}
         </Route>
       </Routes>
     </BrowserRouter>
