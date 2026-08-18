@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { IoMdArrowRoundBack } from "react-icons/io";
-import { PlusCircle, X, Leaf, Factory, CalendarClock, Users } from "lucide-react";
+import { PlusCircle, X, Leaf, Factory, Users, Zap } from "lucide-react";
 
 export default function EditRecordPage() {
     // 1. Configuration & Hooks
@@ -14,17 +14,24 @@ export default function EditRecordPage() {
     // State to hold the latest meter readings for auto-filling
     const [lastReadings, setLastReadings] = useState({ 'Dryer 1': '', 'Dryer 2': '' });
 
-    // 2. Form State Management (Added expectedDryerDate)
+    // 2. Form State Management (Unified Outputs)
     const [formData, setFormData] = useState({
         greenLeafId: '',
         productionId: '',
         labourId: '',
         date: '',
-        expectedDryerDate: '', // <-- NEW FIELD
+        expectedDryerDate: '', 
         totalWeight: '',
-        selectedWeight: '',
-        outputs: [{ teaType: '', madeTeaWeight: '' }], 
-        dryers: [{ dryerName: '', meterStart: '', meterEnd: '', rollerPoints: '' }], 
+        selectedWeight: '', // Green Leaf selected weight
+        productionOutputs: [{
+            teaType: '',
+            selectedTeaWeight: '', // <-- NEW FIELD
+            madeTeaWeight: '',
+            dryerName: '',
+            meterStart: '',
+            meterEnd: '',
+            rollerPoints: '' 
+        }],
         workerCount: '',
         rollingType: 'Machine Rolling1',
         rollingWorkerCount: ''
@@ -45,20 +52,21 @@ export default function EditRecordPage() {
                 productionId: data.productionId,
                 labourId: data.labourId,
                 date: data.date,
-                // Safely grab expectedDryerDate or fallback to the main date
                 expectedDryerDate: data.expectedDryerDate ? new Date(data.expectedDryerDate).toISOString().split('T')[0] : data.date,
                 totalWeight: data.totalWeight || '',
                 selectedWeight: data.selectedWeight || '',
-                outputs: [{ 
-                    teaType: data.teaType || '', 
-                    madeTeaWeight: data.madeTeaWeight || '' 
-                }],
-                dryers: [{
+                
+                // Map the initial data to the unified block
+                productionOutputs: [{ 
+                    teaType: data.teaType !== '-' ? data.teaType : '', 
+                    selectedTeaWeight: data.selectedTeaWeight !== undefined ? data.selectedTeaWeight : '',
+                    madeTeaWeight: data.madeTeaWeight || '',
                     dryerName: data.dryerName !== '-' ? data.dryerName : '',
                     meterStart: data.meterStart !== '-' ? data.meterStart : '',
                     meterEnd: data.meterEnd !== '-' ? data.meterEnd : '',
                     rollerPoints: data.rollerPoints !== undefined && data.rollerPoints !== '-' ? data.rollerPoints : ''
                 }],
+                
                 workerCount: data.workerCount || '',
                 rollingType: data.rollingType && data.rollingType !== '-' ? data.rollingType : 'Machine Rolling1',
                 rollingWorkerCount: data.rollingWorkerCount || ''
@@ -114,38 +122,31 @@ export default function EditRecordPage() {
         }
     };
 
-    // --- Dynamic Array Handlers ---
+    // --- Unified Array Handlers ---
     const handleOutputChange = (index, field, value) => {
-        const newOutputs = [...formData.outputs];
+        const newOutputs = [...formData.productionOutputs];
         newOutputs[index][field] = value;
-        setFormData({ ...formData, outputs: newOutputs });
+
+        // Auto-fill meterStart when dryerName changes
+        if (field === 'dryerName') {
+            newOutputs[index].meterStart = lastReadings[value] !== undefined ? String(lastReadings[value]) : '';
+        }
+        setFormData({ ...formData, productionOutputs: newOutputs });
     };
 
     const addOutput = () => {
-        setFormData({ ...formData, outputs: [...formData.outputs, { teaType: '', madeTeaWeight: '' }] });
+        setFormData({ 
+            ...formData, 
+            productionOutputs: [...formData.productionOutputs, { 
+                teaType: '', selectedTeaWeight: '', madeTeaWeight: '', 
+                dryerName: '', meterStart: '', meterEnd: '', rollerPoints: '' 
+            }] 
+        });
     };
 
     const removeOutput = (index) => {
-        const newOutputs = formData.outputs.filter((_, i) => i !== index);
-        setFormData({ ...formData, outputs: newOutputs });
-    };
-
-    const handleDryerChange = (index, field, value) => {
-        const newDryers = [...formData.dryers];
-        newDryers[index][field] = value;
-        if (field === 'dryerName') {
-            newDryers[index].meterStart = lastReadings[value] !== undefined ? String(lastReadings[value]) : '';
-        }
-        setFormData({ ...formData, dryers: newDryers });
-    };
-
-    const addDryer = () => {
-        setFormData({ ...formData, dryers: [...formData.dryers, { dryerName: '', meterStart: '', meterEnd: '', rollerPoints: '' }] });
-    };
-
-    const removeDryer = (index) => {
-        const newDryers = formData.dryers.filter((_, i) => i !== index);
-        setFormData({ ...formData, dryers: newDryers });
+        const newOutputs = formData.productionOutputs.filter((_, i) => i !== index);
+        setFormData({ ...formData, productionOutputs: newOutputs });
     };
 
     const handleWheel = (e) => e.target.blur();
@@ -179,20 +180,15 @@ export default function EditRecordPage() {
         const total = Number(formData.totalWeight);
         const selected = Number(formData.selectedWeight);
         
-        let totalMade = 0;
-        for (let out of formData.outputs) {
-            if (!out.teaType || out.madeTeaWeight === '') {
-                toast.error("Please fill all Tea Types and Weights!"); return;
+        // Validate Unified Blocks
+        for (let out of formData.productionOutputs) {
+            if (!out.teaType || out.selectedTeaWeight === '' || out.madeTeaWeight === '' || !out.dryerName || out.meterStart === '' || out.meterEnd === '') {
+                toast.error("Please fill all required fields in Production & Dryer blocks!"); 
+                return;
             }
-            totalMade += Number(out.madeTeaWeight);
-        }
-
-        // Validate Dryers
-        for (let dryer of formData.dryers) {
-            if (dryer.dryerName && dryer.meterEnd !== '') {
-                if (Number(dryer.meterEnd) < Number(dryer.meterStart)) {
-                    toast.error(`End Reading must be greater than Start for ${dryer.dryerName}!`); return;
-                }
+            if (Number(out.meterEnd) < Number(out.meterStart)) {
+                toast.error(`End Reading must be greater than Start for ${out.dryerName}!`); 
+                return;
             }
         }
 
@@ -208,7 +204,7 @@ export default function EditRecordPage() {
 
             const promises = [];
 
-            // 1. Update Green Leaf (Fixed to handle creation on edit)
+            // 1. Update Green Leaf
             if (formData.greenLeafId) {
                 promises.push(fetchWithErr(`${BACKEND_URL}/api/green-leaf/${formData.greenLeafId}`, {
                     method: 'PUT', headers: authHeaders, body: JSON.stringify({ totalWeight: total, selectedWeight: selected, updatedBy: currentUser })
@@ -224,7 +220,7 @@ export default function EditRecordPage() {
                 }, "Failed to create new Green Leaf record."));
             }
 
-            // 2. Update Labour (Fixed to handle creation on edit)
+            // 2. Update Labour
             if (formData.labourId) {
                 promises.push(fetchWithErr(`${BACKEND_URL}/api/labour/${formData.labourId}`, {
                     method: 'PUT', headers: authHeaders, 
@@ -248,68 +244,50 @@ export default function EditRecordPage() {
                 }, "Failed to create new Labour record."));
             }
 
-            // 3. Update the Primary Production Record (outputs[0] & dryers[0])
+            // 3. Update the Primary Production Record (Block 0)
             if (formData.productionId) {
-                const primaryDryer = formData.dryers[0];
-                const dryerDetailsObj = primaryDryer.dryerName ? {
-                    dryerName: primaryDryer.dryerName,
-                    meterStart: Number(primaryDryer.meterStart),
-                    meterEnd: Number(primaryDryer.meterEnd),
-                    rollerPoints: Number(primaryDryer.rollerPoints || 0)
-                } : {
-                    dryerName: '', meterStart: 0, meterEnd: 0, rollerPoints: 0
+                const primaryOut = formData.productionOutputs[0];
+                const dryerDetailsObj = {
+                    dryerName: primaryOut.dryerName,
+                    meterStart: Number(primaryOut.meterStart),
+                    meterEnd: Number(primaryOut.meterEnd),
+                    rollerPoints: Number(primaryOut.rollerPoints || 0)
                 };
 
                 promises.push(fetchWithErr(`${BACKEND_URL}/api/production/${formData.productionId}`, {
                     method: 'PUT', headers: authHeaders, 
                     body: JSON.stringify({
-                        teaType: formData.outputs[0].teaType,
-                        madeTeaWeight: Number(formData.outputs[0].madeTeaWeight),
-                        expectedDryerDate: formData.expectedDryerDate, // <-- INCLUDED
+                        teaType: primaryOut.teaType,
+                        selectedTeaWeight: Number(primaryOut.selectedTeaWeight),
+                        madeTeaWeight: Number(primaryOut.madeTeaWeight),
+                        expectedDryerDate: formData.expectedDryerDate,
                         dryerDetails: dryerDetailsObj,
                         updatedBy: currentUser
                     })
                 }, "Failed to update Primary Production record."));
             }
 
-            // 4. Create NEW Production Records for extra Tea Types (outputs.slice(1))
-            if (formData.outputs.length > 1) {
-                for (let i = 1; i < formData.outputs.length; i++) {
+            // 4. Create NEW Production Records for extra blocks (Blocks 1+)
+            if (formData.productionOutputs.length > 1) {
+                for (let i = 1; i < formData.productionOutputs.length; i++) {
+                    const extraOut = formData.productionOutputs[i];
                     const extraPayload = {
                         date: formData.date,
-                        teaType: formData.outputs[i].teaType,
-                        madeTeaWeight: Number(formData.outputs[i].madeTeaWeight),
-                        expectedDryerDate: formData.expectedDryerDate, // <-- INCLUDED
-                        dryerDetails: { dryerName: '', meterStart: 0, meterEnd: 0, rollerPoints: 0 }, 
+                        teaType: extraOut.teaType,
+                        selectedTeaWeight: Number(extraOut.selectedTeaWeight),
+                        madeTeaWeight: Number(extraOut.madeTeaWeight),
+                        expectedDryerDate: formData.expectedDryerDate, 
+                        dryerDetails: {
+                            dryerName: extraOut.dryerName, 
+                            meterStart: Number(extraOut.meterStart), 
+                            meterEnd: Number(extraOut.meterEnd), 
+                            rollerPoints: Number(extraOut.rollerPoints || 0)
+                        }, 
                         updatedBy: currentUser
                     };
                     promises.push(fetchWithErr(`${BACKEND_URL}/api/production`, {
                         method: 'POST', headers: authHeaders, body: JSON.stringify(extraPayload)
-                    }, `Failed to add extra tea type: ${formData.outputs[i].teaType}`));
-                }
-            }
-
-            // 5. Create NEW Production Records for extra Dryers (dryers.slice(1))
-            if (formData.dryers.length > 1) {
-                for (let j = 1; j < formData.dryers.length; j++) {
-                    const extraDryer = formData.dryers[j];
-                    if (extraDryer.dryerName) {
-                        const extraPayload = {
-                            date: formData.date,
-                            teaType: formData.outputs[0].teaType || "Other", // Bind to primary tea type securely
-                            madeTeaWeight: 0, // Prevent duplicating yields
-                            expectedDryerDate: formData.expectedDryerDate, // <-- INCLUDED
-                            dryerDetails: {
-                                dryerName: extraDryer.dryerName,
-                                meterStart: Number(extraDryer.meterStart),
-                                meterEnd: Number(extraDryer.meterEnd),
-                                rollerPoints: Number(extraDryer.rollerPoints || 0)
-                            }
-                        };
-                        promises.push(fetchWithErr(`${BACKEND_URL}/api/production`, {
-                            method: 'POST', headers: authHeaders, body: JSON.stringify(extraPayload)
-                        }, `Failed to add extra dryer: ${extraDryer.dryerName}`));
-                    }
+                    }, `Failed to add extra block for: ${extraOut.teaType}`));
                 }
             }
 
@@ -359,50 +337,14 @@ export default function EditRecordPage() {
                     </div>
                 </div>
 
-                {/* 2. PRODUCTION OUTPUTS (Multiple Array) */}
+                {/* 2. PRODUCTION OUTPUTS & DRYER DETAILS (Unified Array) */}
                 <div className="mb-8 bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/50 rounded-xl p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-bold text-purple-700 dark:text-purple-400 flex items-center gap-2">
-                            <Factory size={18}/> 2. Made Tea Output
+                            <Factory size={18}/> 2. Production & Dryer Details
                         </h3>
                         <button type="button" onClick={addOutput} className="text-sm font-bold text-purple-600 hover:text-purple-800 dark:text-purple-400 flex items-center gap-1 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/30 px-3 py-1.5 rounded-lg transition-colors">
                             <PlusCircle size={16} /> Add Type
-                        </button>
-                    </div>
-
-                    <div className="space-y-4">
-                        {formData.outputs.map((out, index) => (
-                            <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-purple-100 dark:border-purple-900/30 relative shadow-sm">
-                                {formData.outputs.length > 1 && (
-                                    <button type="button" onClick={() => removeOutput(index)} className="absolute -top-2 -right-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 p-1.5 rounded-full hover:bg-red-200 transition-colors shadow-sm border border-red-200 dark:border-red-800/50">
-                                        <X size={14} />
-                                    </button>
-                                )}
-                                <div>
-                                    <label className={labelStyles}>Tea Type</label>
-                                    <select value={out.teaType} onChange={(e) => handleOutputChange(index, 'teaType', e.target.value)} required className={inputStyles}>
-                                        <option value="">Select Type...</option>
-                                        {teaOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                        {!teaOptions.includes(out.teaType) && out.teaType && <option value={out.teaType}>{out.teaType}</option>}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className={labelStyles}>Made Tea (kg)</label>
-                                    <input type="number" step="0.001" min="0" value={out.madeTeaWeight} onChange={(e) => handleOutputChange(index, 'madeTeaWeight', e.target.value)} onWheel={handleWheel} onKeyDown={blockMinus} required className={inputStyles} />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* 3. DRYER METER READINGS (Multiple Array) */}
-                <div className="mb-8 bg-orange-50/50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800/50 rounded-xl p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-bold text-orange-600 dark:text-orange-500 flex items-center gap-2">
-                            <CalendarClock size={18}/> 3. Dryer Schedule & Meter Readings
-                        </h3>
-                        <button type="button" onClick={addDryer} className="text-sm font-bold text-orange-600 hover:text-orange-800 dark:text-orange-400 flex items-center gap-1 bg-orange-100 hover:bg-orange-200 dark:bg-orange-900/30 px-3 py-1.5 rounded-lg transition-colors">
-                            <PlusCircle size={16} /> Add Dryer
                         </button>
                     </div>
 
@@ -411,36 +353,62 @@ export default function EditRecordPage() {
                         <input type="date" name="expectedDryerDate" value={formData.expectedDryerDate} onChange={handleInputChange} required className={inputStyles} />
                     </div>
 
-                    <div className="space-y-4">
-                        {formData.dryers.map((dryer, index) => (
-                            <div key={index} className="p-5 border border-orange-100 dark:border-orange-900/30 rounded-xl bg-white dark:bg-zinc-900 relative shadow-sm">
-                                {formData.dryers.length > 1 && (
-                                    <button type="button" onClick={() => removeDryer(index)} className="absolute -top-2 -right-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 p-1.5 rounded-full hover:bg-red-200 transition-colors shadow-sm">
+                    <div className="space-y-6">
+                        {formData.productionOutputs.map((out, index) => (
+                            <div key={index} className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-purple-100 dark:border-purple-900/30 relative shadow-sm">
+                                {formData.productionOutputs.length > 1 && (
+                                    <button type="button" onClick={() => removeOutput(index)} className="absolute -top-3 -right-3 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 p-1.5 rounded-full hover:bg-red-200 transition-colors shadow-sm border border-red-200 dark:border-red-800/50">
                                         <X size={14} />
                                     </button>
                                 )}
-                                <div className="space-y-4">
+                                
+                                {/* TEA OUTPUT INFO */}
+                                <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Tea Output Info</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                                     <div>
-                                        <label className={labelStyles}>Select Dryer</label>
-                                        <select value={dryer.dryerName} onChange={(e) => handleDryerChange(index, 'dryerName', e.target.value)} className={inputStyles}>
-                                            <option value="">Select Dryer (Optional)</option>
-                                            <option value="Dryer 1">Dryer 1</option>
-                                            <option value="Dryer 2">Dryer 2</option>
+                                        <label className={labelStyles}>Tea Type</label>
+                                        <select value={out.teaType} onChange={(e) => handleOutputChange(index, 'teaType', e.target.value)} required className={inputStyles}>
+                                            <option value="">Select Type...</option>
+                                            {teaOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                            {!teaOptions.includes(out.teaType) && out.teaType && <option value={out.teaType}>{out.teaType}</option>}
                                         </select>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className={labelStyles}>Start Reading</label>
-                                            <input type="number" min="0" value={dryer.meterStart} onChange={(e) => handleDryerChange(index, 'meterStart', e.target.value)} onWheel={handleWheel} onKeyDown={blockMinus} className={inputStyles} />
-                                        </div>
-                                        <div>
-                                            <label className={labelStyles}>End Reading</label>
-                                            <input type="number" min="0" value={dryer.meterEnd} onChange={(e) => handleDryerChange(index, 'meterEnd', e.target.value)} onWheel={handleWheel} onKeyDown={blockMinus} className={inputStyles} />
-                                        </div>
+                                    <div>
+                                        <label className={labelStyles}>Selected Tea (KG)</label>
+                                        <input type="number" step="0.01" min="0" value={out.selectedTeaWeight} onChange={(e) => handleOutputChange(index, 'selectedTeaWeight', e.target.value)} onWheel={handleWheel} onKeyDown={blockMinus} required className={inputStyles} />
                                     </div>
                                     <div>
-                                        <label className={labelStyles}>Roller (Points)</label>
-                                        <input type="number" min="0" value={dryer.rollerPoints} onChange={(e) => handleDryerChange(index, 'rollerPoints', e.target.value)} onWheel={handleWheel} onKeyDown={blockMinus} className={inputStyles} placeholder="Optional" />
+                                        <label className={labelStyles}>Made Tea (kg)</label>
+                                        <input type="number" step="0.001" min="0" value={out.madeTeaWeight} onChange={(e) => handleOutputChange(index, 'madeTeaWeight', e.target.value)} onWheel={handleWheel} onKeyDown={blockMinus} required className={inputStyles} />
+                                    </div>
+                                </div>
+
+                                {/* DRYER READINGS INFO */}
+                                <div className="pt-4 border-t border-gray-100 dark:border-zinc-800">
+                                    <h4 className="text-xs font-bold text-orange-500 uppercase mb-3 flex items-center gap-1"><Zap size={14}/> Dryer Readings</h4>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className={labelStyles}>Select Dryer</label>
+                                            <select value={out.dryerName} onChange={(e) => handleOutputChange(index, 'dryerName', e.target.value)} required className={inputStyles}>
+                                                <option value="">Choose...</option>
+                                                <option value="Dryer 1">Dryer 1</option>
+                                                <option value="Dryer 2">Dryer 2</option>
+                                            </select>
+                                        </div>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                            <div>
+                                                <label className={labelStyles}>Start Reading</label>
+                                                <input type="number" min="0" value={out.meterStart} onChange={(e) => handleOutputChange(index, 'meterStart', e.target.value)} onWheel={handleWheel} onKeyDown={blockMinus} required className={inputStyles} />
+                                            </div>
+                                            <div>
+                                                <label className={labelStyles}>End Reading</label>
+                                                <input type="number" min="0" value={out.meterEnd} onChange={(e) => handleOutputChange(index, 'meterEnd', e.target.value)} onWheel={handleWheel} onKeyDown={blockMinus} required className={inputStyles} />
+                                            </div>
+                                            <div className="col-span-2 md:col-span-1">
+                                                <label className={labelStyles}>Roller (Points)</label>
+                                                <input type="number" min="0" value={out.rollerPoints} onChange={(e) => handleOutputChange(index, 'rollerPoints', e.target.value)} onWheel={handleWheel} onKeyDown={blockMinus} className={inputStyles} placeholder="Optional" />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -448,9 +416,9 @@ export default function EditRecordPage() {
                     </div>
                 </div>
 
-                {/* 4. LABOUR DETAILS */}
+                {/* 3. LABOUR DETAILS */}
                 <div className="mb-8 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/50 rounded-xl p-6">
-                    <h3 className="text-lg font-bold text-blue-700 dark:text-blue-400 mb-4 flex items-center gap-2"><Users size={18}/> 4. Labour & Rolling Details</h3>
+                    <h3 className="text-lg font-bold text-blue-700 dark:text-blue-400 mb-4 flex items-center gap-2"><Users size={18}/> 3. Labour & Rolling Details</h3>
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
