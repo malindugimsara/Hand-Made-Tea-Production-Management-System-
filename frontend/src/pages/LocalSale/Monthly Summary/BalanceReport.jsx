@@ -5,24 +5,24 @@ import PDFDownloader from '@/components/PDFDownloader';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
-// Mapping exact product names to match your backend keys
+// Mapping exact product categories and keys to match backend/frontend consistently
 const productCategories = [
-    { id: 'athukorala_400g', name: 'Athukorala BOPF 400g' },
-    { id: 'athukorala_200g', name: 'Athukorala BOPF 200g' },
-    { id: 'athukorala_100g', name: 'Athukorala BOPF 100g' },
-    { id: 'bopfSp_400g', name: 'Athukorala BOPF SP 400g' },
-    { id: 'bopfSp_200g', name: 'Athukorala BOPF SP 200g' },
-    { id: 'bopfPremium_400g', name: 'Athukorala BOPF PREMIUM 400g' },
-    { id: 'bopfPremium_200g', name: 'Athukorala BOPF PREMIUM 200g' },
-    { id: 'pitigala_400g', name: 'Pitigala tea 400g' },
-    { id: 'pitigala_200g', name: 'Pitigala tea 200g' },
-    { id: 'tb_25', name: 'Pitigala tea 25 bag' },
-    { id: 'tb_100', name: 'Pitigala tea 100 bag' },
-    { id: 'gt_200g', name: 'Green tea 200g' },
-    { id: 'gt_T/B 25', name: 'Green tea 25 bag' },
-    { id: 'others_BOPF', name: 'BOPF' },
-    { id: 'others_DUST', name: 'DUST' },
-    { id: 'others_DUST 1', name: 'DUST 1' },
+    { id: 'athukorala_400g', categoryId: 'athukorala', size: '400g', name: 'Athukorala BOPF 400g' },
+    { id: 'athukorala_200g', categoryId: 'athukorala', size: '200g', name: 'Athukorala BOPF 200g' },
+    { id: 'athukorala_100g', categoryId: 'athukorala', size: '100g', name: 'Athukorala BOPF 100g' },
+    { id: 'bopfSp_400g', categoryId: 'bopfSp', size: '400g', name: 'Athukorala BOPF SP 400g' },
+    { id: 'bopfSp_200g', categoryId: 'bopfSp', size: '200g', name: 'Athukorala BOPF SP 200g' },
+    { id: 'bopfPremium_400g', categoryId: 'bopfPremium', size: '400g', name: 'Athukorala BOPF PREMIUM 400g' },
+    { id: 'bopfPremium_200g', categoryId: 'bopfPremium', size: '200g', name: 'Athukorala BOPF PREMIUM 200g' },
+    { id: 'pitigala_400g', categoryId: 'pitigala', size: '400g', name: 'Pitigala tea 400g' },
+    { id: 'pitigala_200g', categoryId: 'pitigala', size: '200g', name: 'Pitigala tea 200g' },
+    { id: 'tb_25', categoryId: 'tb', size: '25', name: 'Pitigala tea 25 bag' },
+    { id: 'tb_100', categoryId: 'tb', size: '100', name: 'Pitigala tea 100 bag' },
+    { id: 'gt_200g', categoryId: 'gt', size: '200g', name: 'Green tea 200g' },
+    { id: 'gt_t/b 25', categoryId: 'gt', size: 't/b 25', name: 'Green tea 25 bag' },
+    { id: 'others_bopf', categoryId: 'others', size: 'bopf', name: 'BOPF' },
+    { id: 'others_dust', categoryId: 'others', size: 'dust', name: 'DUST' },
+    { id: 'others_dust 1', categoryId: 'others', size: 'dust 1', name: 'DUST 1' },
 ];
 
 export default function BalanceReport() {
@@ -39,11 +39,45 @@ export default function BalanceReport() {
         return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
     };
 
+    // 💡 Auto-Correction Key Generator (Highly Strict Normalization to fix mapping issues)
+    const generateKey = (catId, catTitle, size) => {
+        let idStr = (catId || catTitle || '').toLowerCase().trim();
+        let sizeStr = (size || '').toLowerCase().trim();
+
+        // 1. Normalize Category IDs
+        if (idStr === 'g/t' || idStr === 'gt' || idStr === 'green tea 25 bag') idStr = 'gt';
+        else if (idStr === 'other grades' || idStr === 'others') idStr = 'others';
+        else if (idStr === 'bopf premium' || idStr === 'bopfpremium') idStr = 'bopfPremium';
+        else if (idStr === 'bopf sp.' || idStr === 'bopfsp' || idStr === 'bopf sp') idStr = 'bopfSp';
+        else if (idStr.includes('pitigala')) idStr = 'pitigala';
+        else if (idStr.includes('athukorala')) idStr = 'athukorala';
+        else if (idStr === 't/b' || idStr === 'tb') idStr = 'tb';
+
+        // 2. Normalize Sizes
+        if (sizeStr === 'bopf (kg)' || sizeStr === 'kg' || sizeStr === 'bopf') sizeStr = 'bopf';
+        else if (sizeStr === 'dust (kg)' || sizeStr === 'dust') sizeStr = 'dust';
+        else if (sizeStr === 'dust 1 (kg)' || sizeStr === 'dust 1') sizeStr = 'dust 1';
+        else if (sizeStr === 't/b 25' || sizeStr === 't/b') sizeStr = 't/b 25';
+        else if (sizeStr === '25') sizeStr = '25';
+        else if (sizeStr === '100') sizeStr = '100';
+        else if (sizeStr === '400g') sizeStr = '400g';
+        else if (sizeStr === '200g') sizeStr = '200g';
+        else if (sizeStr === '100g') sizeStr = '100g';
+
+        // 3. Fallbacks (If Category ID is Unknown, map it based on the Size)
+        if (!idStr || idStr === 'unknown category' || idStr === 'undefined') {
+            if (sizeStr === 't/b 25') idStr = 'gt';
+            else if (sizeStr === 'bopf' || sizeStr === 'dust' || sizeStr === 'dust 1') idStr = 'others';
+            else if (sizeStr === '25' || sizeStr === '100') idStr = 'tb';
+        }
+
+        return `${idStr}_${sizeStr}`.toLowerCase();
+    };
+
     const fetchBalanceData = async () => {
         if (!month) return;
         
         const currentMonthStr = new Date().toISOString().slice(0, 7);
-        // Do not fetch if the selected month is before the system start date or in the future
         if (month < "2026-07" || month > currentMonthStr) {
             setReportData([]);
             return; 
@@ -51,15 +85,86 @@ export default function BalanceReport() {
 
         setIsLoading(true);
         try {
-            const response = await fetch(`${BACKEND_URL}/api/monthly-balance?month=${month}`, { headers: getHeaders() });
-            const result = await response.json();
-            
-            if (response.ok && result.data?.items) {
-                setReportData(result.data.items);
-            } else {
-                setReportData([]);
+            // Fetch Monthly Balance (for bmStock), Daily Summary (for IN & Sold OUT), and Issue Summary (for Issue OUT)
+            const [balanceRes, summaryRes, issueRes] = await Promise.all([
+                fetch(`${BACKEND_URL}/api/monthly-balance?month=${month}`, { headers: getHeaders() }).catch(() => ({ ok: false })),
+                fetch(`${BACKEND_URL}/api/summary?month=${month}`, { headers: getHeaders() }).catch(() => ({ ok: false })),
+                fetch(`${BACKEND_URL}/api/issue-summary?month=${month}`, { headers: getHeaders() }).catch(() => ({ ok: false }))
+            ]);
+
+            const balanceJson = balanceRes.ok ? await balanceRes.json() : null;
+            const summaryJson = summaryRes.ok ? await summaryRes.json() : null;
+            const issueJson = issueRes.ok ? await issueRes.json() : null;
+
+            // Extract bmStock map
+            const bmStockMap = {};
+            const balanceItems = balanceJson?.data?.items || balanceJson?.items || [];
+            balanceItems.forEach(item => {
+                const key = generateKey(item.categoryId, item.categoryTitle, item.size);
+                bmStockMap[key] = Number(item.bmStock) || 0;
+            });
+
+            // Extract IN and Sold OUT from daily summary
+            const inMap = {};
+            const soldOutMap = {};
+            const summaries = summaryJson?.data || summaryJson || [];
+            if (Array.isArray(summaries)) {
+                summaries.forEach(day => {
+                    const recordDate = day.date || '';
+                    if (recordDate.startsWith(month) && Array.isArray(day.items)) {
+                        day.items.forEach(item => {
+                            const key = generateKey(item.categoryId, item.categoryTitle, item.size);
+                            inMap[key] = (inMap[key] || 0) + (Number(item.in) || 0);
+                            soldOutMap[key] = (soldOutMap[key] || 0) + (Number(item.out) || 0);
+                        });
+                    }
+                });
             }
+
+            // Extract Issue OUT from issue summary
+            const issueOutMap = {};
+            const issues = issueJson?.data || issueJson || [];
+            if (Array.isArray(issues)) {
+                issues.forEach(issueRecord => {
+                    const recordDate = issueRecord.date || '';
+                    if (recordDate.startsWith(month) && Array.isArray(issueRecord.items)) {
+                        issueRecord.items.forEach(item => {
+                            const key = generateKey(item.categoryId, item.categoryTitle, item.size);
+                            issueOutMap[key] = (issueOutMap[key] || 0) + (Number(item.out) || 0);
+                        });
+                    }
+                });
+            }
+
+            // Build final report rows matching productCategories structure
+            const formattedData = productCategories.map(cat => {
+                const standardKey = `${cat.categoryId}_${cat.size}`.toLowerCase();
+                
+                const bmStock = bmStockMap[standardKey] || 0;
+                const inQty = inMap[standardKey] || 0;
+                const total = bmStock + inQty;
+                
+                const outQty = (soldOutMap[standardKey] || 0) + (issueOutMap[standardKey] || 0);
+                const balance = total - outQty;
+
+                const formatNum = (num) => (num % 1 !== 0 ? num.toFixed(2) : num);
+
+                return {
+                    id: cat.id,
+                    name: cat.name,
+                    bmStock: formatNum(bmStock),
+                    inQty: formatNum(inQty),
+                    total: formatNum(total),
+                    outQty: formatNum(outQty),
+                    balance: formatNum(balance),
+                    rawBalance: balance
+                };
+            });
+
+            setReportData(formattedData);
+
         } catch (error) {
+            console.error("Balance report fetch error:", error);
             toast.error("Error generating balance report.");
             setReportData([]);
         } finally {
@@ -89,7 +194,7 @@ export default function BalanceReport() {
 
             if (!response.ok) throw new Error(result.message);
             toast.success(result.message, { id: toastId });
-            
+            fetchBalanceData();
         } catch (error) {
             toast.error(error.message || "Failed to update BM Stock", { id: toastId });
         } finally {
@@ -111,7 +216,13 @@ export default function BalanceReport() {
         { content: row.inQty.toString(), styles: { textColor: [34, 197, 94] } }, 
         { content: row.total.toString(), styles: { fontStyle: 'bold', textColor: [17, 24, 39] } },
         { content: row.outQty.toString(), styles: { textColor: [239, 68, 68] } }, 
-        { content: row.balance.toString(), styles: { fontStyle: 'bold', textColor: [37, 99, 235] } } 
+        { 
+            content: row.balance.toString(), 
+            styles: { 
+                fontStyle: 'bold', 
+                textColor: row.rawBalance < 0 ? [220, 38, 38] : [37, 99, 235] 
+            } 
+        } 
     ]);
 
     // --- EXPORT EXCEL LOGIC ---
@@ -140,6 +251,9 @@ export default function BalanceReport() {
                 dataRow.eachCell((cell, colNumber) => {
                     cell.border = { top: { style: 'thin', color: { argb: 'FFCCCCCC' } }, bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } }, left: { style: 'thin', color: { argb: 'FFCCCCCC' } }, right: { style: 'thin', color: { argb: 'FFCCCCCC' } } };
                     cell.alignment = { horizontal: colNumber === 1 ? 'left' : 'right', vertical: 'middle' };
+                    if (colNumber === 6) {
+                        cell.font = { bold: true, color: { argb: row.rawBalance < 0 ? 'FFDC2626' : 'FF2563EB' } };
+                    }
                 });
             });
 
@@ -267,7 +381,13 @@ export default function BalanceReport() {
                                         <td className="px-4 py-3 border-r border-gray-100 dark:border-zinc-800 text-sm font-semibold text-green-600">{row.inQty}</td>
                                         <td className="px-4 py-3 border-r border-gray-100 dark:border-zinc-800 text-sm font-bold text-gray-900 dark:text-gray-100 bg-gray-50/30 dark:bg-zinc-900/50">{row.total}</td>
                                         <td className="px-4 py-3 border-r border-gray-100 dark:border-zinc-800 text-sm font-semibold text-red-500">{row.outQty}</td>
-                                        <td className="px-4 py-3 text-sm font-black text-blue-600 bg-blue-50/30 dark:bg-blue-900/10">{row.balance}</td>
+                                        <td className={`px-4 py-3 text-sm font-black ${
+                                            row.rawBalance < 0 
+                                                ? 'text-red-600 bg-red-50/80 dark:text-red-400 dark:bg-red-900/20' 
+                                                : 'text-blue-600 bg-blue-50/30 dark:bg-blue-900/10'
+                                        }`}>
+                                            {row.balance}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
