@@ -184,6 +184,8 @@ export default function LocalSaleDashboardLayout() {
       case '/localsale/issuesummaryview': return 'Issue Summary View';
       case '/localsale/monthlysummaryview': return 'Monthly Summary View';
       case '/localsale/freeissuesummary': return 'Free Issue Summary';
+      case '/localsale/balancereport': return 'Balance Report';
+      case '/localsale/dailyextendedstock': return 'Daily Extended Stock Report';
       default: return 'System';
     }
   };

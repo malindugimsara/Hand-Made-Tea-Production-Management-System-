@@ -9,6 +9,7 @@ const SYSTEM_SECTIONS = [
     { id: 'handmade', label: 'Handmade Section' },
     { id: 'packing', label: 'Packing Section' },
     { id: 'factory', label: 'Factory Section' },
+    { id: 'manufacturer', label: 'Manufacturer Section' },
 ];
 
 export default function CreateUserForm() {
