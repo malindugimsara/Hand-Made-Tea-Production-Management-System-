@@ -20,7 +20,7 @@ import AdminOnly from '@/components/AdminOnly';
 
 export default function DailySummaryManageView() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  
+
   // --- ROLE BASED ACCESS ---
   const userRole = localStorage.getItem("userRole") || localStorage.getItem("role") || "";
   const isViewer = userRole.toLowerCase() === "viewer" || userRole.toLowerCase() === "view";
@@ -29,7 +29,7 @@ export default function DailySummaryManageView() {
   const [summaries, setSummaries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
-  const [itemToDelete, setItemToDelete] = useState(null); 
+  const [itemToDelete, setItemToDelete] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState({
     recordId: null,
@@ -71,10 +71,10 @@ export default function DailySummaryManageView() {
   // --- Delete Logic ---
   const handleConfirmDelete = async () => {
     if (!itemToDelete) return;
-    
+
     const { recordId, itemId } = itemToDelete;
     const toastId = toast.loading("Deleting record...");
-    
+
     try {
       const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
       const response = await fetch(`${BACKEND_URL}/api/summary/${recordId}/item/${itemId}`, {
@@ -84,11 +84,11 @@ export default function DailySummaryManageView() {
         }
       });
       const result = await response.json();
-      
+
       if (!response.ok) throw new Error(result.message || 'Failed to delete item');
-      
+
       toast.success("Deleted successfully!", { id: toastId });
-      fetchSummaries(); 
+      fetchSummaries();
     } catch (error) {
       console.error("Delete Error:", error);
       toast.error(error.message || "Error deleting item.", { id: toastId });
@@ -113,7 +113,7 @@ export default function DailySummaryManageView() {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     const toastId = toast.loading("Updating record...");
-    
+
     // Edit කරන කෙනාගේ නම ලබාගැනීම
     const username = localStorage.getItem('userName') || localStorage.getItem('username') || 'System User';
 
@@ -121,24 +121,24 @@ export default function DailySummaryManageView() {
       const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
       const response = await fetch(`${BACKEND_URL}/api/summary/${editingItem.recordId}/item/${editingItem.itemId}`, {
         method: 'PUT',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
         },
         // Backend එකට editedBy අගය යැවීම
-        body: JSON.stringify({ 
-            in: Number(editingItem.in), 
-            out: Number(editingItem.out),
-            editedBy: username
+        body: JSON.stringify({
+          in: Number(editingItem.in),
+          out: Number(editingItem.out),
+          editedBy: username
         })
       });
       const result = await response.json();
-      
+
       if (!response.ok) throw new Error(result.message || 'Failed to update item');
 
       toast.success("Updated successfully!", { id: toastId });
       setIsEditModalOpen(false);
-      fetchSummaries(); 
+      fetchSummaries();
     } catch (error) {
       console.error("Update Error:", error);
       toast.error(error.message || "Error updating item.", { id: toastId });
@@ -155,11 +155,11 @@ export default function DailySummaryManageView() {
     item.size,
     item.out > 0 ? item.out : '-',
     item.in > 0 ? item.in : '-'
-  ]), [displayItems]);  
+  ]), [displayItems]);
 
   return (
     <div className="p-4 sm:p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen relative">
-      
+
       {/* Header Section */}
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-green-100 dark:border-zinc-800">
         <div>
@@ -172,39 +172,11 @@ export default function DailySummaryManageView() {
 
         {/* --- Top Action Buttons --- */}
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          <PDFDownloader
-            title="Daily IN/OUT Details"
-            subtitle={`Records for ${filterDate}`}
-            headers={pdfHeaders}
-            data={pdfData}
-            fileName={`Daily_Details_${filterDate}.pdf`}
-            orientation="portrait"
-            uniqueCode={`DID-${filterDate.replace(/-/g, '')}`}
-            disabled={loading || displayItems.length === 0}
-            autoTableOptions={{
-              theme: 'grid',
-              headStyles: { fillColor: [57, 106, 49], textColor: 255 }
-            }}
-          />
 
-          {/* <PDFDownloader
-            isWhatsApp={true}
-            title="Daily IN/OUT Details"
-            subtitle={`Records for ${filterDate}`}
-            headers={pdfHeaders}
-            data={pdfData}
-            fileName={`Daily_Details_${filterDate}.pdf`}
-            orientation="portrait"
-            uniqueCode={`DID-${filterDate.replace(/-/g, '')}`}
-            disabled={loading || displayItems.length === 0}
-            autoTableOptions={{
-              theme: 'grid',
-              headStyles: { fillColor: [57, 106, 49], textColor: 255 }
-            }}
-          /> */}
 
-          <button 
-            onClick={fetchSummaries} 
+
+          <button
+            onClick={fetchSummaries}
             disabled={loading}
             className="p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl transition-colors flex items-center justify-center disabled:opacity-50"
             title="Refresh Data"
@@ -217,14 +189,14 @@ export default function DailySummaryManageView() {
       {/* Date Filter Section */}
       <div className="mb-6 flex items-center gap-3 bg-white dark:bg-zinc-900 w-max p-2 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm">
         <div className="flex items-center gap-2 px-2">
-            <Calendar size={18} className="text-green-600" />
-            <span className="text-sm font-bold text-gray-500">SELECT DATE:</span>
+          <Calendar size={18} className="text-green-600" />
+          <span className="text-sm font-bold text-gray-500">SELECT DATE:</span>
         </div>
-        <input 
-            type="date" 
-            value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
-            className="p-2 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-200 outline-none cursor-pointer focus:border-green-500 focus:ring-1 focus:ring-green-500"
+        <input
+          type="date"
+          value={filterDate}
+          onChange={(e) => setFilterDate(e.target.value)}
+          className="p-2 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-200 outline-none cursor-pointer focus:border-green-500 focus:ring-1 focus:ring-green-500"
         />
       </div>
 
@@ -242,7 +214,7 @@ export default function DailySummaryManageView() {
         </div>
       ) : (
         <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-md border border-green-100 dark:border-zinc-800 overflow-hidden">
-          
+
           <div className="bg-green-200/40 dark:bg-zinc-900 border-b border-green-500 dark:border-zinc-800 px-6 py-4 flex items-center gap-2">
             <Package size={20} className="text-green-600 dark:text-green-500" />
             <h3 className="font-bold text-gray-800 dark:text-gray-200 text-base">
@@ -268,14 +240,14 @@ export default function DailySummaryManageView() {
               <tbody className="divide-y divide-gray-50 dark:divide-zinc-800/60 text-sm">
                 {displayItems.map((item, idx) => (
                   <tr key={item._id || idx} className="hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition-colors">
-                    
+
                     {/* Category Title & Edited By Badge */}
                     <td className="py-3.5 px-6 font-bold text-gray-800 dark:text-gray-200 align-top">
                       <div className="flex flex-col">
                         <span>{item.categoryTitle || item.categoryId}</span>
                         {item.lastEditedAt && (
                           <span className="mt-1 text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-800/50 w-max leading-relaxed">
-                            Edited: {new Date(item.lastEditedAt).toISOString().split('T')[0]} <br/>
+                            Edited: {new Date(item.lastEditedAt).toISOString().split('T')[0]} <br />
                             by {item.lastEditedBy || 'User'}
                           </span>
                         )}
@@ -308,43 +280,43 @@ export default function DailySummaryManageView() {
 
                     {/* Action Column Hidden if Viewer */}
                     {!isViewer && (
-                        <td className="py-3.5 px-6 text-center align-top">
+                      <td className="py-3.5 px-6 text-center align-top">
                         <div className="flex items-center justify-center gap-2">
-                            <button 
+                          <button
                             onClick={() => openEditModal(currentRecord._id, item)}
                             className="p-1.5 bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/40 text-yellow-600 dark:text-yellow-400 rounded-lg transition-colors shadow-sm"
                             title="Edit Item"
-                            >
+                          >
                             <Edit size={16} />
-                            </button>
-                            <AdminOnly>
+                          </button>
+                          <AdminOnly>
                             <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                <button 
-                                    onClick={() => setItemToDelete({ recordId: currentRecord._id, itemId: item._id })} 
-                                    className="p-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors shadow-sm"
-                                    title="Delete Item"
+                              <AlertDialogTrigger asChild>
+                                <button
+                                  onClick={() => setItemToDelete({ recordId: currentRecord._id, itemId: item._id })}
+                                  className="p-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors shadow-sm"
+                                  title="Delete Item"
                                 >
-                                    <Trash2 size={16} />
+                                  <Trash2 size={16} />
                                 </button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md border border-gray-200 dark:border-zinc-800">
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md border border-gray-200 dark:border-zinc-800">
                                 <AlertDialogHeader>
-                                    <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">Delete Record</AlertDialogTitle>
-                                    <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
+                                  <AlertDialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">Delete Record</AlertDialogTitle>
+                                  <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
                                     Are you sure you want to delete this item? This action cannot be undone.
-                                    </AlertDialogDescription>
+                                  </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                    <AlertDialogCancel onClick={() => setItemToDelete(null)} className="border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300">Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700 transition-colors">Delete</AlertDialogAction>
+                                  <AlertDialogCancel onClick={() => setItemToDelete(null)} className="border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300">Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700 transition-colors">Delete</AlertDialogAction>
                                 </AlertDialogFooter>
-                                </AlertDialogContent>
+                              </AlertDialogContent>
                             </AlertDialog>
-                            </AdminOnly>
-                            
+                          </AdminOnly>
+
                         </div>
-                        </td>
+                      </td>
                     )}
 
                   </tr>
@@ -380,7 +352,7 @@ export default function DailySummaryManageView() {
                   <label className="block text-xs font-bold text-red-600 dark:text-red-400 mb-2 uppercase tracking-wider flex items-center gap-1">
                     <ArrowUpRight size={14} /> OUT
                   </label>
-                  <input 
+                  <input
                     type="number" min="0" step="any"
                     value={editingItem.out}
                     onChange={(e) => setEditingItem({ ...editingItem, out: e.target.value })}
@@ -391,7 +363,7 @@ export default function DailySummaryManageView() {
                   <label className="block text-xs font-bold text-green-600 dark:text-green-400 mb-2 uppercase tracking-wider flex items-center gap-1">
                     <ArrowDownRight size={14} /> IN
                   </label>
-                  <input 
+                  <input
                     type="number" min="0" step="any"
                     value={editingItem.in}
                     onChange={(e) => setEditingItem({ ...editingItem, in: e.target.value })}
