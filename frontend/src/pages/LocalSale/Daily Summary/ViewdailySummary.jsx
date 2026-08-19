@@ -17,6 +17,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import AdminOnly from '@/components/AdminOnly';
+import { useNavigate } from 'react-router-dom';
 
 export default function DailySummaryManageView() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -39,6 +40,8 @@ export default function DailySummaryManageView() {
     in: 0,
     out: 0
   });
+
+  const navigate = useNavigate();
 
   // --- Fetch Data ---
   const fetchSummaries = async () => {
@@ -172,8 +175,6 @@ export default function DailySummaryManageView() {
 
         {/* --- Top Action Buttons --- */}
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-
-
 
           <button
             onClick={fetchSummaries}

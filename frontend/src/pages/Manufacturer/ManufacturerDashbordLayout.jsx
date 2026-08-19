@@ -79,7 +79,15 @@ const DATA = {
       items: [
         { title: 'B/L Production', url: '/manufacturer/bl-production/witherLeafForm', nonViewer: true },
       ],
-    },   
+    },
+    {
+      title: 'Loft Leaf',
+      icon: Store,
+      items: [
+        { title: 'Enter Loft Leaf Count', url: '/manufacturer/factory-loft-leaf', nonViewer: true },
+        { title: 'View Loft Leaf Count', url: '/manufacturer/view-factory-loft-leaf', nonViewer: true },
+      ],
+    },
   ],
 };
 
