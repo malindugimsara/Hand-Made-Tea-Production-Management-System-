@@ -8,7 +8,7 @@ export default function DailyExtendedStockView() {
 
     const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(false);
-    
+
     const [monthData, setMonthData] = useState({
         currBalances: null,
         ins: null,
@@ -58,218 +58,232 @@ export default function DailyExtendedStockView() {
     const hasDataForSelectedDate = useMemo(() => {
         const insArray = Array.isArray(monthData.ins) ? monthData.ins : (monthData.ins?.data || monthData.ins?.records || []);
         const outsArray = Array.isArray(monthData.outs) ? monthData.outs : (monthData.outs?.data || monthData.outs?.records || []);
-        
+
         const hasSummary = insArray.some(d => d.date && d.date === selectedDate);
         const hasIssue = outsArray.some(d => d.date && d.date === selectedDate);
         return hasSummary || hasIssue;
     }, [selectedDate, monthData]);
 
-   const tableData = useMemo(() => {
-    const dataMap = {};
+    const tableData = useMemo(() => {
+        const dataMap = {};
 
-    // 💡 1. Exact list of Typical Teas matching your form cards
-    const productCategories = [
-        // --- Typical Tea ---
-        { categoryId: 'athukorala', size: '400g', name: 'Athukorala BOPF 400g', group: 'Main' },
-        { categoryId: 'athukorala', size: '200g', name: 'Athukorala BOPF 200g', group: 'Main' },
-        { categoryId: 'athukorala', size: '100g', name: 'Athukorala BOPF 100g', group: 'Main' },
-        
-        { categoryId: 'bopfSp', size: '400g', name: 'Athukorala BOPF SP 400g', group: 'Main' },
-        { categoryId: 'bopfSp', size: '200g', name: 'Athukorala BOPF SP 200g', group: 'Main' },
-        
-        { categoryId: 'bopfPremium', size: '400g', name: 'Athukorala BOPF PREMIUM 400g', group: 'Main' },
-        { categoryId: 'bopfPremium', size: '200g', name: 'Athukorala BOPF PREMIUM 200g', group: 'Main' },
-        
-        { categoryId: 'pitigala', size: '400g', name: 'Pitigala tea 400g', group: 'Main' },
-        { categoryId: 'pitigala', size: '200g', name: 'Pitigala tea 200g', group: 'Main' },
-        
-        { categoryId: 'tb', size: '100', name: 'Pitigala tea 100 bag', group: 'Main' },
-        { categoryId: 'tb', size: '25', name: 'Pitigala tea 25 bag', group: 'Main' },
-        
-        { categoryId: 'gt', size: '200g', name: 'Green tea 200g', group: 'Main' },
-        { categoryId: 'gt', size: 'T/B 25', name: 'Green tea 25 bag', group: 'Main' },
-        
-        // --- Other Tea Types & Grades ---
-        { categoryId: 'others', size: 'BOPF', name: 'BOPF', displaySize: 'KG', group: 'Other' },
-        { categoryId: 'others', size: 'DUST', name: 'DUST', displaySize: 'KG', group: 'Other' },
-        { categoryId: 'others', size: 'DUST 1', name: 'DUST 1', displaySize: 'KG', group: 'Other' }
-    ];
+        // 💡 1. Exact list with custom 'sortOrder' and new Pitigala order/display sizes
+        const productCategories = [
+            // --- Typical Tea ---
+            { categoryId: 'athukorala', size: '400g', name: 'Athukorala BOPF 400g', group: 'Main', sortOrder: 1 },
+            { categoryId: 'athukorala', size: '200g', name: 'Athukorala BOPF 200g', group: 'Main', sortOrder: 2 },
+            { categoryId: 'athukorala', size: '100g', name: 'Athukorala BOPF 100g', group: 'Main', sortOrder: 3 },
 
-    // 💡 2. Auto-Correction Key Generator
-    const generateKey = (catId, catTitle, size) => {
-        let cleanId = (catId || '').toLowerCase().trim();
-        let cleanTitle = (catTitle || '').toLowerCase().trim();
-        let cleanSize = (size || '').toLowerCase().trim();
+            { categoryId: 'bopfSp', size: '400g', name: 'Athukorala BOPF SP 400g', group: 'Main', sortOrder: 4 },
+            { categoryId: 'bopfSp', size: '200g', name: 'Athukorala BOPF SP 200g', group: 'Main', sortOrder: 5 },
 
-        if (!cleanId && cleanTitle) {
-            cleanId = cleanTitle; 
-        }
+            { categoryId: 'bopfPremium', size: '400g', name: 'Athukorala BOPF PREMIUM 400g', group: 'Main', sortOrder: 6 },
+            { categoryId: 'bopfPremium', size: '200g', name: 'Athukorala BOPF PREMIUM 200g', group: 'Main', sortOrder: 7 },
 
-        // Standardize IDs
-        if (cleanId === 'g/t' || cleanTitle === 'g/t' || cleanId.includes('green')) cleanId = 'gt';
-        if (cleanId === 'bopf premium' || cleanId === 'bopfpremium') cleanId = 'bopfPremium';
-        if (cleanId === 'bopf sp' || cleanId === 'bopfsp' || cleanId === 'bopf sp.') cleanId = 'bopfSp';
-        if (cleanId === 'pitigala tea' || cleanId === 'pitigala') cleanId = 'pitigala';
-        if (cleanId === 't/b' || cleanId === 'tb') cleanId = 'tb';
-        if (cleanId === 'other grades' || cleanTitle === 'other grades') cleanId = 'others';
-        
-        // Standardize Sizes
-        if (cleanSize === 'bopf (kg)' || cleanSize === 'kg') cleanSize = 'bopf';
-        if (cleanSize === 'dust (kg)') cleanSize = 'dust';
-        if (cleanSize === 'dust 1 (kg)') cleanSize = 'dust 1';
-        if (cleanSize === 't/b 25' || cleanSize === 'tb 25' || cleanSize === '25 bag') cleanSize = 't/b 25';
+            // --- Requested Pitigala Order & Gram Sizes ---
+            { categoryId: 'pitigala', size: '200g', name: 'Pitigala tea 200g', group: 'Main', sortOrder: 8 },
+            { categoryId: 'pitigala', size: '400g', name: 'Pitigala tea 400g', group: 'Main', sortOrder: 9 },
+            { categoryId: 'tb', size: '25', name: 'Pitigala tea 25 bag', displaySize: '50g', group: 'Main', sortOrder: 10 },
+            { categoryId: 'tb', size: '50', name: 'Pitigala tea 50 bag', displaySize: '100g', group: 'Main', sortOrder: 11 },
+            { categoryId: 'tb', size: '100', name: 'Pitigala tea 100 bag', displaySize: '200g', group: 'Main', sortOrder: 12 },
 
-        return `${cleanId}_${cleanSize}`;
-    };
+            { categoryId: 'gt', size: '200g', name: 'Green tea 200g', group: 'Main', sortOrder: 13 },
+            { categoryId: 'gt', size: 'T/B 25', name: 'Green tea 25 bag', displaySize: '50g', group: 'Main', sortOrder: 14 },
 
-    // 💡 3. Pre-fill Map with Standard Categories
-    productCategories.forEach(cat => {
-        const key = generateKey(cat.categoryId, cat.name, cat.size);
-        dataMap[key] = {
-            categoryId: cat.categoryId, 
-            displayTitle: cat.name, 
-            size: cat.displaySize || cat.size, 
-            group: cat.group,
-            openingBalance: 0, 
-            inToday: 0, 
-            cumulativeIn: 0,   
-            outSoldToday: 0, 
-            cumulativeOutSold: 0, 
-            outIssueToday: 0, 
-            cumulativeOutIssue: 0, 
-            issueBreakdown: { labour: 0, staff: 0, free: 0 }, 
-            balanceToDate: 0   
+            // --- Other Tea Types & Grades ---
+            { categoryId: 'others', size: 'BOPF', name: 'BOPF', displaySize: 'KG', group: 'Other', sortOrder: 99 },
+            { categoryId: 'others', size: 'DUST', name: 'DUST', displaySize: 'KG', group: 'Other', sortOrder: 99 },
+            { categoryId: 'others', size: 'DUST 1', name: 'DUST 1', displaySize: 'KG', group: 'Other', sortOrder: 99 }
+        ];
+
+        // 💡 2. Auto-Correction Key Generator
+        const generateKey = (catId, catTitle, size) => {
+            let cleanId = (catId || '').toLowerCase().trim();
+            let cleanTitle = (catTitle || '').toLowerCase().trim();
+            let cleanSize = (size || '').toLowerCase().trim();
+
+            if (!cleanId && cleanTitle) {
+                cleanId = cleanTitle;
+            }
+
+            // Standardize IDs
+            if (cleanId === 'g/t' || cleanTitle === 'g/t' || cleanId.includes('green')) cleanId = 'gt';
+            if (cleanId === 'bopf premium' || cleanId === 'bopfpremium') cleanId = 'bopfPremium';
+            if (cleanId === 'bopf sp' || cleanId === 'bopfsp' || cleanId === 'bopf sp.') cleanId = 'bopfSp';
+            if (cleanId === 'pitigala tea' || cleanId === 'pitigala') cleanId = 'pitigala';
+            if (cleanId === 't/b' || cleanId === 'tb') cleanId = 'tb';
+            if (cleanId === 'other grades' || cleanTitle === 'other grades') cleanId = 'others';
+
+            // Standardize Sizes
+            if (cleanSize === 'bopf (kg)' || cleanSize === 'kg') cleanSize = 'bopf';
+            if (cleanSize === 'dust (kg)') cleanSize = 'dust';
+            if (cleanSize === 'dust 1 (kg)') cleanSize = 'dust 1';
+
+            // Match DB tea bags to the base sizes
+            if (cleanId === 'tb') {
+                if (cleanSize.includes('25')) cleanSize = '25';
+                if (cleanSize.includes('50')) cleanSize = '50';
+                if (cleanSize.includes('100')) cleanSize = '100';
+            }
+
+            return `${cleanId}_${cleanSize}`;
         };
-    });
 
-    // 💡 4. Initialize Function for Dynamic Database Items
-    const initItem = (categoryId, categoryTitle, size) => {
-        const key = generateKey(categoryId, categoryTitle, size);
-        
-        // If an unknown item comes from the database, push it to 'Other' group
-        if (!dataMap[key]) {
+        // 💡 3. Pre-fill Map with Standard Categories
+        productCategories.forEach(cat => {
+            const key = generateKey(cat.categoryId, cat.name, cat.size);
             dataMap[key] = {
-                categoryId: categoryId || 'Unknown', 
-                displayTitle: categoryTitle || categoryId || 'Unknown Product', 
-                size: size || '-',
-                group: 'Other', // Always classify extra DB items as "Other"
-                openingBalance: 0, 
-                inToday: 0, 
-                cumulativeIn: 0,   
-                outSoldToday: 0, 
-                cumulativeOutSold: 0, 
-                outIssueToday: 0, 
-                cumulativeOutIssue: 0, 
-                issueBreakdown: { labour: 0, staff: 0, free: 0 }, 
-                balanceToDate: 0   
+                categoryId: cat.categoryId,
+                displayTitle: cat.name,
+                size: cat.displaySize || cat.size,
+                group: cat.group,
+                sortOrder: cat.sortOrder, // Add sort order to map
+                openingBalance: 0,
+                inToday: 0,
+                cumulativeIn: 0,
+                outSoldToday: 0,
+                cumulativeOutSold: 0,
+                outIssueToday: 0,
+                cumulativeOutIssue: 0,
+                issueBreakdown: { labour: 0, staff: 0, free: 0 },
+                balanceToDate: 0
             };
-        }
-        return key;
-    };
-
-    const extractItems = (dbResponse) => {
-        if (!dbResponse) return [];
-        if (Array.isArray(dbResponse)) {
-            if (dbResponse[0]?.items && Array.isArray(dbResponse[0].items)) return dbResponse[0].items;
-            return dbResponse;
-        }
-        if (dbResponse.items && Array.isArray(dbResponse.items)) return dbResponse.items;
-        if (dbResponse.data) {
-            if (Array.isArray(dbResponse.data)) {
-                if (dbResponse.data[0]?.items) return dbResponse.data[0].items;
-                return dbResponse.data;
-            }
-            if (dbResponse.data.items && Array.isArray(dbResponse.data.items)) return dbResponse.data.items;
-        }
-        return [];
-    };
-
-    // A. Map Opening Balance
-    const currBalanceItems = extractItems(monthData.currBalances);
-    currBalanceItems.forEach(b => {
-        const key = initItem(b.categoryId, b.categoryTitle, b.size);
-        const val = Number(b.bmStock) || 0; 
-        if (val > 0) {
-            dataMap[key].openingBalance = val;
-        }
-    });
-
-    const insArray = Array.isArray(monthData.ins) ? monthData.ins : (monthData.ins?.data || monthData.ins?.records || []);
-    const outsArray = Array.isArray(monthData.outs) ? monthData.outs : (monthData.outs?.data || monthData.outs?.records || []);
-
-    // B. Map INs and OUTs (Sold)
-    insArray.forEach(daily => {
-        const recordDate = daily.date || '';
-        if (recordDate.startsWith(selectedMonth) && recordDate <= selectedDate) {
-            if (Array.isArray(daily.items)) {
-                daily.items.forEach(item => {
-                    const key = initItem(item.categoryId, item.categoryTitle, item.size);
-                    const inVal = Number(item.in) || 0;
-                    const outVal = Number(item.out) || 0; 
-                    
-                    dataMap[key].cumulativeIn += inVal; 
-                    dataMap[key].cumulativeOutSold += outVal;
-                    
-                    if (recordDate === selectedDate) {
-                        dataMap[key].inToday += inVal;  
-                        dataMap[key].outSoldToday += outVal;
-                    }
-                });
-            }
-        }
-    });
-
-    // C. Map OUTs (Issues)
-    outsArray.forEach(issue => {
-        const recordDate = issue.date || '';
-        if (recordDate.startsWith(selectedMonth) && recordDate <= selectedDate) {
-            const issueTypeStr = (issue.issueType || '').toLowerCase();
-            const isLabour = issueTypeStr.includes('labour') || issueTypeStr.includes('labor');
-            const isStaff = issueTypeStr.includes('staff');
-
-            if (Array.isArray(issue.items)) {
-                issue.items.forEach(item => {
-                    const key = initItem(item.categoryId, item.categoryTitle, item.size);
-                    const val = Number(item.out) || 0;
-
-                    dataMap[key].cumulativeOutIssue += val; 
-
-                    if (recordDate === selectedDate) {
-                        dataMap[key].outIssueToday += val;
-                        if (isLabour) dataMap[key].issueBreakdown.labour += val;
-                        else if (isStaff) dataMap[key].issueBreakdown.staff += val;
-                        else dataMap[key].issueBreakdown.free += val;
-                    }
-                });
-            }
-        }
-    });
-
-    // 💡 5. Calculate Final Balances and Sort
-    // 💡 5. Calculate Final Balances, Filter, and Sort
-    return Object.values(dataMap)
-        .map(row => {
-            row.balanceToDate = row.openingBalance + row.cumulativeIn - row.cumulativeOutSold;
-            return row;
-        })
-        .filter(row => {
-            // 1. Always show Typical Teas
-            if (row.group === 'Main') return true;
-            
-            // 2. For Other Tea Types, only show if they have available stock OR had activity today
-            const hasStock = row.balanceToDate !== 0 || row.openingBalance !== 0;
-            const hasActivity = row.inToday > 0 || row.outSoldToday > 0 || row.outIssueToday > 0;
-            
-            return hasStock || hasActivity;
-        })
-        .sort((a, b) => {
-            if (a.group !== b.group) {
-                return a.group === 'Main' ? -1 : 1; // Typical tea first
-            }
-            return a.displayTitle.localeCompare(b.displayTitle);
         });
 
-}, [selectedDate, monthData]);
+        // 💡 4. Initialize Function for Dynamic Database Items
+        const initItem = (categoryId, categoryTitle, size) => {
+            const key = generateKey(categoryId, categoryTitle, size);
+
+            // If an unknown item comes from the database, push it to 'Other' group
+            if (!dataMap[key]) {
+                dataMap[key] = {
+                    categoryId: categoryId || 'Unknown',
+                    displayTitle: categoryTitle || categoryId || 'Unknown Product',
+                    size: size || '-',
+                    group: 'Other', // Always classify extra DB items as "Other"
+                    sortOrder: 100, // Put unknown items at the very bottom
+                    openingBalance: 0,
+                    inToday: 0,
+                    cumulativeIn: 0,
+                    outSoldToday: 0,
+                    cumulativeOutSold: 0,
+                    outIssueToday: 0,
+                    cumulativeOutIssue: 0,
+                    issueBreakdown: { labour: 0, staff: 0, free: 0 },
+                    balanceToDate: 0
+                };
+            }
+            return key;
+        };
+
+        const extractItems = (dbResponse) => {
+            if (!dbResponse) return [];
+            if (Array.isArray(dbResponse)) {
+                if (dbResponse[0]?.items && Array.isArray(dbResponse[0].items)) return dbResponse[0].items;
+                return dbResponse;
+            }
+            if (dbResponse.items && Array.isArray(dbResponse.items)) return dbResponse.items;
+            if (dbResponse.data) {
+                if (Array.isArray(dbResponse.data)) {
+                    if (dbResponse.data[0]?.items) return dbResponse.data[0].items;
+                    return dbResponse.data;
+                }
+                if (dbResponse.data.items && Array.isArray(dbResponse.data.items)) return dbResponse.data.items;
+            }
+            return [];
+        };
+
+        // A. Map Opening Balance
+        const currBalanceItems = extractItems(monthData.currBalances);
+        currBalanceItems.forEach(b => {
+            const key = initItem(b.categoryId, b.categoryTitle, b.size);
+            const val = Number(b.bmStock) || 0;
+            if (val > 0) {
+                dataMap[key].openingBalance = val;
+            }
+        });
+
+        const insArray = Array.isArray(monthData.ins) ? monthData.ins : (monthData.ins?.data || monthData.ins?.records || []);
+        const outsArray = Array.isArray(monthData.outs) ? monthData.outs : (monthData.outs?.data || monthData.outs?.records || []);
+
+        // B. Map INs and OUTs (Sold)
+        insArray.forEach(daily => {
+            const recordDate = daily.date || '';
+            if (recordDate.startsWith(selectedMonth) && recordDate <= selectedDate) {
+                if (Array.isArray(daily.items)) {
+                    daily.items.forEach(item => {
+                        const key = initItem(item.categoryId, item.categoryTitle, item.size);
+                        const inVal = Number(item.in) || 0;
+                        const outVal = Number(item.out) || 0;
+
+                        dataMap[key].cumulativeIn += inVal;
+                        dataMap[key].cumulativeOutSold += outVal;
+
+                        if (recordDate === selectedDate) {
+                            dataMap[key].inToday += inVal;
+                            dataMap[key].outSoldToday += outVal;
+                        }
+                    });
+                }
+            }
+        });
+
+        // C. Map OUTs (Issues)
+        outsArray.forEach(issue => {
+            const recordDate = issue.date || '';
+            if (recordDate.startsWith(selectedMonth) && recordDate <= selectedDate) {
+                const issueTypeStr = (issue.issueType || '').toLowerCase();
+                const isLabour = issueTypeStr.includes('labour') || issueTypeStr.includes('labor');
+                const isStaff = issueTypeStr.includes('staff');
+
+                if (Array.isArray(issue.items)) {
+                    issue.items.forEach(item => {
+                        const key = initItem(item.categoryId, item.categoryTitle, item.size);
+                        const val = Number(item.out) || 0;
+
+                        dataMap[key].cumulativeOutIssue += val;
+
+                        if (recordDate === selectedDate) {
+                            dataMap[key].outIssueToday += val;
+                            if (isLabour) dataMap[key].issueBreakdown.labour += val;
+                            else if (isStaff) dataMap[key].issueBreakdown.staff += val;
+                            else dataMap[key].issueBreakdown.free += val;
+                        }
+                    });
+                }
+            }
+        });
+
+        // 💡 5. Calculate Final Balances, Filter, and Sort
+        return Object.values(dataMap)
+            .map(row => {
+                row.balanceToDate = row.openingBalance + row.cumulativeIn - row.cumulativeOutSold;
+                return row;
+            })
+            .filter(row => {
+                // 1. Always show Typical Teas
+                if (row.group === 'Main') return true;
+
+                // 2. For Other Tea Types, only show if they have available stock OR had activity today
+                const hasStock = row.balanceToDate !== 0 || row.openingBalance !== 0;
+                const hasActivity = row.inToday > 0 || row.outSoldToday > 0 || row.outIssueToday > 0;
+
+                return hasStock || hasActivity;
+            })
+            .sort((a, b) => {
+                // Group sorting (Main first, then Other)
+                if (a.group !== b.group) {
+                    return a.group === 'Main' ? -1 : 1;
+                }
+                // Use custom sortOrder to bypass alphabetical sorting
+                if (a.sortOrder !== b.sortOrder) {
+                    return a.sortOrder - b.sortOrder;
+                }
+                // Fallback for dynamically generated "Other" items
+                return a.displayTitle.localeCompare(b.displayTitle);
+            });
+
+    }, [selectedDate, monthData]);
 
     const handleSync = () => {
         fetchMonthData(selectedMonth);
@@ -292,10 +306,10 @@ export default function DailyExtendedStockView() {
             if (currentGroup !== row.group) {
                 currentGroup = row.group;
                 rows.push([
-                    { 
-                        content: currentGroup === 'Main' ? 'TEA PACKS' : 'Other Tea Types & Grades', 
-                        colSpan: 7, 
-                        styles: { fillColor: [243, 244, 246], fontStyle: 'bold', textColor: [75, 85, 99], halign: 'left' } 
+                    {
+                        content: currentGroup === 'Main' ? 'TEA PACKS' : 'Other Tea Types & Grades',
+                        colSpan: 7,
+                        styles: { fillColor: [243, 244, 246], fontStyle: 'bold', textColor: [75, 85, 99], halign: 'left' }
                     }
                 ]);
             }
@@ -307,13 +321,13 @@ export default function DailyExtendedStockView() {
                 row.outSoldToday > 0 ? row.outSoldToday.toFixed(2) : '-',
                 row.outIssueToday > 0 ? row.outIssueToday.toFixed(2) : '-',
                 row.inToday > 0 ? row.inToday.toFixed(2) : '-',
-                { 
-                    content: row.balanceToDate.toFixed(2), 
-                    styles: { 
-                        fontStyle: 'bold', 
-                        textColor: row.balanceToDate < 0 ? [220, 38, 38] : [67, 56, 202] 
-                    } 
-                }            
+                {
+                    content: row.balanceToDate.toFixed(2),
+                    styles: {
+                        fontStyle: 'bold',
+                        textColor: row.balanceToDate < 0 ? [220, 38, 38] : [67, 56, 202]
+                    }
+                }
             ]);
         });
         return rows;
@@ -329,16 +343,16 @@ export default function DailyExtendedStockView() {
                 { content: 'SIZE / TYPE', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [107, 114, 128] } },
                 { content: `OPENING BALANCE\n(${getMonthName()} 1st)`, rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [107, 114, 128] } },
                 { content: 'OUT (TODAY)', colSpan: 2, styles: { halign: 'center', textColor: [239, 68, 68] } },
-                { content: 'IN (TODAY)', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [20, 147, 82] } }, 
-                { content: 'BALANCE\nTO DATE', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [67, 56, 202] } } 
+                { content: 'IN (TODAY)', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [20, 147, 82] } },
+                { content: 'BALANCE\nTO DATE', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [67, 56, 202] } }
             ],
             [
                 { content: 'SOLD', styles: { halign: 'center', textColor: [239, 68, 68] } },
                 { content: 'FREE ISSUE', styles: { halign: 'center', textColor: [102, 163, 191] } }
             ]
         ],
-        headStyles: { 
-            fillColor: [217, 239, 189], 
+        headStyles: {
+            fillColor: [217, 239, 189],
             lineColor: [191, 201, 209],
             lineWidth: 0.1,
             fontStyle: 'bold'
@@ -348,11 +362,11 @@ export default function DailyExtendedStockView() {
             cellPadding: 3
         },
         columnStyles: {
-            2: { halign: 'center' }, 
-            3: { halign: 'center', textColor: [220, 38, 38] }, 
-            4: { halign: 'center', textColor: [102, 163, 191] }, 
-            5: { halign: 'center', textColor: [34, 197, 94] }, 
-            6: { halign: 'center' }  
+            2: { halign: 'center' },
+            3: { halign: 'center', textColor: [220, 38, 38] },
+            4: { halign: 'center', textColor: [102, 163, 191] },
+            5: { halign: 'center', textColor: [34, 197, 94] },
+            6: { halign: 'center' }
         }
     };
 
@@ -368,9 +382,9 @@ export default function DailyExtendedStockView() {
                         <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">View daily product records with accurate closing balance.</p>
                     </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
-                    <PDFDownloader 
+                    <PDFDownloader
                         title={`Daily IN/OUT & Balance Report - ${selectedDate}`}
                         subtitle={`Opening Balance as of 1st ${getMonthName()}`}
                         headers={["Category / Title", "Size / Type", "Opening Balance", "OUT (Sold)", "OUT (Free Issue)", "IN", "Balance To Date"]}
@@ -381,7 +395,7 @@ export default function DailyExtendedStockView() {
                         disabled={loading || tableData.length === 0}
                         autoTableOptions={pdfTableConfig}
                     />
-                    <PDFDownloader 
+                    <PDFDownloader
                         isWhatsApp={true}
                         title={`Daily IN/OUT & Balance Report - ${selectedDate}`}
                         subtitle={`Opening Balance as of 1st ${getMonthName()}`}
@@ -403,10 +417,10 @@ export default function DailyExtendedStockView() {
                 <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
                     <Calendar size={16} className="text-green-600" /> Select Date:
                 </label>
-                <input 
-                    type="date" 
-                    value={selectedDate} 
-                    onChange={(e) => setSelectedDate(e.target.value)} 
+                <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
                     className="border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-800 dark:text-gray-200 rounded-md px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-green-500 outline-none transition-all"
                 />
             </div>
@@ -435,7 +449,7 @@ export default function DailyExtendedStockView() {
                                     <th rowSpan="2" className="px-6 py-4 font-black">Category / Title</th>
                                     <th rowSpan="2" className="px-6 py-4 font-black">Size / Type</th>
                                     <th rowSpan="2" className="px-6 py-4 font-black text-center bg-gray-50 dark:bg-zinc-800/50">
-                                        Opening Balance<br/>
+                                        Opening Balance<br />
                                         <span className="text-[9px] font-medium text-gray-400 capitalize">({getMonthName()} 1st)</span>
                                     </th>
                                     <th colSpan="2" className="px-6 py-2 font-black text-center text-red-500 border-b border-gray-200 dark:border-zinc-800">
@@ -443,7 +457,7 @@ export default function DailyExtendedStockView() {
                                     </th>
                                     <th rowSpan="2" className="px-6 py-4 font-black text-center text-green-600 bg-green-50/30 dark:bg-green-900/10">IN (Today)</th>
                                     <th rowSpan="2" className="px-6 py-4 font-black text-center bg-indigo-50/50 dark:bg-indigo-900/10 text-indigo-700 dark:text-indigo-400">
-                                        Balance<br/>To Date
+                                        Balance<br />To Date
                                     </th>
                                 </tr>
                                 <tr className="border-b border-gray-200 dark:border-zinc-800 text-[10px] uppercase text-red-500 tracking-wider">
@@ -454,13 +468,13 @@ export default function DailyExtendedStockView() {
                             <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
                                 {tableData.map((row, idx) => {
                                     const isNewGroup = idx === 0 || tableData[idx - 1].group !== row.group;
-                                    
+
                                     return (
                                         <React.Fragment key={idx}>
                                             {isNewGroup && (
                                                 <tr className="bg-gray-100 dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700">
                                                     <td colSpan="7" className="px-6 py-2.5 text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-widest">
-                                                        {row.group === 'Main' ? 'TEA PACKS' : 'Other Tea Types & Grades'}    
+                                                        {row.group === 'Main' ? 'TEA PACKS' : 'Other Tea Types & Grades'}
                                                     </td>
                                                 </tr>
                                             )}
@@ -471,11 +485,11 @@ export default function DailyExtendedStockView() {
                                                 <td className="px-6 py-4 font-medium text-gray-500 dark:text-gray-400">
                                                     {row.size}
                                                 </td>
-                                                
+
                                                 <td className="px-6 py-4 font-bold text-center bg-gray-50/50 dark:bg-zinc-800/20 text-gray-700 dark:text-gray-300">
                                                     {row.openingBalance !== 0 ? row.openingBalance.toFixed(2) : '-'}
                                                 </td>
-                                                
+
                                                 <td className="px-6 py-4 font-bold text-center text-red-600 bg-red-50/10 dark:bg-red-900/5">
                                                     {row.outSoldToday > 0 ? (
                                                         <span className="bg-red-100 dark:bg-red-900/40 px-2.5 py-1 rounded-md">{row.outSoldToday.toFixed(2)}</span>
@@ -499,11 +513,10 @@ export default function DailyExtendedStockView() {
                                                     {row.inToday > 0 ? row.inToday.toFixed(2) : '-'}
                                                 </td>
 
-                                                <td className={`px-6 py-4 font-black text-center ${
-                                                    row.balanceToDate < 0 
-                                                        ? 'text-red-600 bg-red-50/80 dark:text-red-400 dark:bg-red-900/20' 
+                                                <td className={`px-6 py-4 font-black text-center ${row.balanceToDate < 0
+                                                        ? 'text-red-600 bg-red-50/80 dark:text-red-400 dark:bg-red-900/20'
                                                         : 'text-indigo-700 dark:text-indigo-400 bg-indigo-50/30 dark:bg-indigo-900/10'
-                                                }`}>
+                                                    }`}>
                                                     {row.balanceToDate.toFixed(2)}
                                                 </td>
                                             </tr>
