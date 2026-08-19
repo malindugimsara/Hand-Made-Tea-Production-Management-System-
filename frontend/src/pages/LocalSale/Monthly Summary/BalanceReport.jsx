@@ -19,14 +19,14 @@ const productCategories = [
     { id: 'tb_25', categoryId: 'tb', size: '25', name: 'Pitigala tea 25 bag' },
     { id: 'tb_100', categoryId: 'tb', size: '100', name: 'Pitigala tea 100 bag' },
     { id: 'gt_200g', categoryId: 'gt', size: '200g', name: 'Green tea 200g' },
-    { id: 'gt_t/b 25', categoryId: 'gt', size: 't/b 25', name: 'Green tea 25 bag' },
-    { id: 'others_bopf', categoryId: 'others', size: 'bopf', name: 'BOPF' },
+    { id: 'gt_tb25', categoryId: 'gt', size: 't/b 25', name: 'Green tea 25 bag' },
+    { id: 'others_bopf', categoryId: 'others', size: 'bopf', name: 'BOPF' }, // Bulk BOPF
     { id: 'others_dust', categoryId: 'others', size: 'dust', name: 'DUST' },
-    { id: 'others_dust 1', categoryId: 'others', size: 'dust 1', name: 'DUST 1' },
+    { id: 'others_dust1', categoryId: 'others', size: 'dust 1', name: 'DUST 1' }
 ];
 
 export default function BalanceReport() {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
     const [isLoading, setIsLoading] = useState(false);
@@ -41,37 +41,33 @@ export default function BalanceReport() {
 
     // 💡 Auto-Correction Key Generator (Highly Strict Normalization to fix mapping issues)
     const generateKey = (catId, catTitle, size) => {
-        let idStr = (catId || catTitle || '').toLowerCase().trim();
-        let sizeStr = (size || '').toLowerCase().trim();
+        let cleanId = (catId || '').toLowerCase().trim();
+        let cleanTitle = (catTitle || '').toLowerCase().trim();
+        let cleanSize = (size || '').toLowerCase().trim();
 
-        // 1. Normalize Category IDs
-        if (idStr === 'g/t' || idStr === 'gt' || idStr === 'green tea 25 bag') idStr = 'gt';
-        else if (idStr === 'other grades' || idStr === 'others') idStr = 'others';
-        else if (idStr === 'bopf premium' || idStr === 'bopfpremium') idStr = 'bopfPremium';
-        else if (idStr === 'bopf sp.' || idStr === 'bopfsp' || idStr === 'bopf sp') idStr = 'bopfSp';
-        else if (idStr.includes('pitigala')) idStr = 'pitigala';
-        else if (idStr.includes('athukorala')) idStr = 'athukorala';
-        else if (idStr === 't/b' || idStr === 'tb') idStr = 'tb';
-
-        // 2. Normalize Sizes
-        if (sizeStr === 'bopf (kg)' || sizeStr === 'kg' || sizeStr === 'bopf') sizeStr = 'bopf';
-        else if (sizeStr === 'dust (kg)' || sizeStr === 'dust') sizeStr = 'dust';
-        else if (sizeStr === 'dust 1 (kg)' || sizeStr === 'dust 1') sizeStr = 'dust 1';
-        else if (sizeStr === 't/b 25' || sizeStr === 't/b') sizeStr = 't/b 25';
-        else if (sizeStr === '25') sizeStr = '25';
-        else if (sizeStr === '100') sizeStr = '100';
-        else if (sizeStr === '400g') sizeStr = '400g';
-        else if (sizeStr === '200g') sizeStr = '200g';
-        else if (sizeStr === '100g') sizeStr = '100g';
-
-        // 3. Fallbacks (If Category ID is Unknown, map it based on the Size)
-        if (!idStr || idStr === 'unknown category' || idStr === 'undefined') {
-            if (sizeStr === 't/b 25') idStr = 'gt';
-            else if (sizeStr === 'bopf' || sizeStr === 'dust' || sizeStr === 'dust 1') idStr = 'others';
-            else if (sizeStr === '25' || sizeStr === '100') idStr = 'tb';
+        // ID එකක් නැත්නම් Title එක පාවිච්චි කරනවා
+        if (!cleanId && cleanTitle) {
+            cleanId = cleanTitle; 
         }
 
-        return `${idStr}_${sizeStr}`.toLowerCase();
+        let finalId = catId || cleanId;
+        let finalSize = size || cleanSize;
+
+        // Fix Mismatches (MonthEndSummary එකේ තියෙන විදිහටම)
+        if (cleanId === 'g/t' || cleanTitle === 'g/t' || cleanId === 'green tea') finalId = 'gt';
+        else if (cleanId === 'other grades' || cleanTitle === 'other grades' || cleanId === 'others') finalId = 'others';
+        
+        if (cleanSize === 'bopf (kg)' || cleanSize === 'kg' || cleanSize === 'bopf') finalSize = 'bopf';
+        else if (cleanSize === 'dust (kg)' || cleanSize === 'dust') finalSize = 'dust';
+        else if (cleanSize === 'dust 1 (kg)' || cleanSize === 'dust 1') finalSize = 'dust 1';
+
+        // Green Tea 25 bag fallback
+        if (finalId === 'gt' && (cleanSize.includes('25') || cleanSize === 't/b' || cleanId.includes('25'))) {
+            finalSize = 't/b 25';
+        }
+
+        // 100% ක් match වෙන්න simple අකුරුවලින් return කරනවා
+        return `${finalId}_${finalSize}`.toLowerCase();
     };
 
     const fetchBalanceData = async () => {
@@ -136,15 +132,15 @@ export default function BalanceReport() {
                 });
             }
 
-            // Build final report rows matching productCategories structure
             const formattedData = productCategories.map(cat => {
+                // 💡 මෙතන හරියටම categoryId එකයි size එකයි එකතු කරලා Key එක හදනවා
                 const standardKey = `${cat.categoryId}_${cat.size}`.toLowerCase();
                 
                 const bmStock = bmStockMap[standardKey] || 0;
                 const inQty = inMap[standardKey] || 0;
                 const total = bmStock + inQty;
                 
-                const outQty = (soldOutMap[standardKey] || 0) + (issueOutMap[standardKey] || 0);
+                const outQty = (soldOutMap[standardKey] || 0);
                 const balance = total - outQty;
 
                 const formatNum = (num) => (num % 1 !== 0 ? num.toFixed(2) : num);
@@ -276,7 +272,7 @@ export default function BalanceReport() {
     const uniqueCode = `BAL-REP/${month.replace('-', '')}`;
 
     return (
-        <div className="p-4 sm:p-8 w-full max-w-[1200px] mx-auto font-sans bg-slate-50 dark:bg-zinc-950 min-h-screen">
+        <div className="p-4 sm:p-8 w-full max-w-[1200px] mx-auto font-sans dark:bg-zinc-950 min-h-screen">
             
             {/* HEADER SECTION */}
             <div className="mb-6 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

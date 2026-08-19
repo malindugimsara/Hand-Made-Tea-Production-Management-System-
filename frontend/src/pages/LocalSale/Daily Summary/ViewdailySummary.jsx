@@ -17,6 +17,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import AdminOnly from '@/components/AdminOnly';
+import { useNavigate } from 'react-router-dom';
 
 export default function DailySummaryManageView() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -39,6 +40,8 @@ export default function DailySummaryManageView() {
     in: 0,
     out: 0
   });
+
+  const navigate = useNavigate();
 
   // --- Fetch Data ---
   const fetchSummaries = async () => {
@@ -172,7 +175,7 @@ export default function DailySummaryManageView() {
 
         {/* --- Top Action Buttons --- */}
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          <PDFDownloader
+          {/* <PDFDownloader
             title="Daily IN/OUT Details"
             subtitle={`Records for ${filterDate}`}
             headers={pdfHeaders}
@@ -185,7 +188,7 @@ export default function DailySummaryManageView() {
               theme: 'grid',
               headStyles: { fillColor: [57, 106, 49], textColor: 255 }
             }}
-          />
+          /> */}
 
           {/* <PDFDownloader
             isWhatsApp={true}
@@ -202,6 +205,14 @@ export default function DailySummaryManageView() {
               headStyles: { fillColor: [57, 106, 49], textColor: 255 }
             }}
           /> */}
+          <button 
+            onClick={() => navigate('/localsale/dailyextendedstock')} 
+            className="px-4 py-2.5 bg-blue-500 hover:bg-blue-600 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-white dark:text-gray-300 rounded-xl transition-colors flex items-center justify-center gap-2 font-medium"
+            title="Full Report View"
+          >
+            <FileText size={18} />
+            Full report view
+          </button>
 
           <button 
             onClick={fetchSummaries} 

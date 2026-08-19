@@ -20,7 +20,8 @@ const SYSTEM_SECTIONS = [
     { id: 'localsale', label: 'Local Sale Section' },
     { id: 'handmade', label: 'Handmade Section' },
     { id: 'packing', label: 'Packing Section' },
-    { id: 'factory', label: 'Factory Section' }
+    { id: 'factory', label: 'Factory Section' },
+    { id: 'manufacturer', label: 'Manufacturer Section' }
 ];
 
 export default function ManageUsers() {
@@ -110,6 +111,7 @@ export default function ManageUsers() {
                 else if (user.role === 'HandMade Officer') mappedPaths = ['handmade'];
                 else if (user.role === 'Packing Officer') mappedPaths = ['packing'];
                 else if (user.role === 'Factory Officer') mappedPaths = ['factory'];
+                else if (user.role === 'Manufacturer Officer') mappedPaths = ['manufacturer'];
             }
         }
 
