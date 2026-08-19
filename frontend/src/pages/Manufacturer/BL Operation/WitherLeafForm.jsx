@@ -87,7 +87,7 @@ const WitherLeafForm = () => {
           </svg>
           <h1 className="text-xl font-bold text-green-800 tracking-tight">Wither Leaf Entry</h1>
         </div>
-        <p className="text-sm text-gray-500 mt-1 ml-8">Record Factory, Wither Leaf, and Batching data</p>
+        <p className="text-sm text-gray-500 mt-1 ml-8">Record Factory, Wither Leaf</p>
       </div>
 
       {/* Main Layout Grid */}
