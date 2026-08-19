@@ -2,12 +2,12 @@ import { Route } from "react-router-dom";
 import ManufacturerDashboardLayout from "./Manufacturer/ManufacturerDashbordLayout";
 import ManufacturerDashboard from "./Manufacturer/ManufacturerDashboard";
 import WitherLeafForm from "./Manufacturer/BL Operation/WitherLeafForm";
-import FactoryLoftLeaf from "./Manufacturer/LoftLeaf/FActoryLoftLeaf";
+import FactoryLoftLeaf from "./Manufacturer/LoftLeaf/FactoryLoftLeaf";
 import { View } from "lucide-react";
 import ViewLoftLeafCount from "./Manufacturer/LoftLeaf/ViewFactoryLoftLeaf";
 
 
-export default function   ManufacturerRouter() {
+export default function ManufacturerRouter() {
   return (
     <Route path="/manufacturer" element={<ManufacturerDashboardLayout />}>
       <Route index element={<ManufacturerDashboard />} />
