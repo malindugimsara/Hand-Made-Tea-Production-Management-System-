@@ -293,7 +293,7 @@ export default function DailyExtendedStockView() {
                 currentGroup = row.group;
                 rows.push([
                     { 
-                        content: currentGroup === 'Main' ? '' : 'Other Tea Types & Grades', 
+                        content: currentGroup === 'Main' ? 'TEA PACKS' : 'Other Tea Types & Grades', 
                         colSpan: 7, 
                         styles: { fillColor: [243, 244, 246], fontStyle: 'bold', textColor: [75, 85, 99], halign: 'left' } 
                     }
@@ -460,7 +460,7 @@ export default function DailyExtendedStockView() {
                                             {isNewGroup && (
                                                 <tr className="bg-gray-100 dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700">
                                                     <td colSpan="7" className="px-6 py-2.5 text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-widest">
-                                                        {row.group === 'Main' ? '' : 'Other Tea Types & Grades'}    
+                                                        {row.group === 'Main' ? 'TEA PACKS' : 'Other Tea Types & Grades'}    
                                                     </td>
                                                 </tr>
                                             )}
