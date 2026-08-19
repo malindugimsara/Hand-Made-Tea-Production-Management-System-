@@ -289,7 +289,7 @@ export default function ManufacturerDashboard() {
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-2 text-white tracking-tight drop-shadow-sm">
               Welcome to{" "}
               <span className="text-teal-300 block sm:inline">
-                Manufacturer Dashboard
+                Manufacturing Dashboard
               </span>
             </h1>
 
