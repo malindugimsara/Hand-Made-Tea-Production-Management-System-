@@ -74,6 +74,13 @@ const DATA = {
   ],
   navMain: [
     {
+      title: 'B/L Operations',
+      icon: Store,
+      items: [
+        { title: 'B/L Production', url: '/manufacturer/bl-production/witherLeafForm', nonViewer: true },
+      ],
+    },
+    {
       title: 'Loft Leaf',
       icon: Store,
       items: [
@@ -160,13 +167,13 @@ export default function ManufacturerDashboardLayout() {
   // --- CUSTOM BREADCRUMB FALLBACK LOGIC ---
   const getCustomBreadcrumbTitle = (path) => {
     switch (path) {
-      case '/manufacturer/dailyproduction': return 'Daily Production';
-      case '/manufacturer/dispatchandreturn': return 'Dispatch And Return';
-      case '/manufacturer/labouroutput': return 'Labour Output';
-      case '/manufacturer/factorypacking': return 'Factory Packing';
-      case '/manufacturer/packingsummary': return 'Packing Summary';
-      case '/manufacturer/view': return 'Manufacturer View';
-      case '/manufacturer/labouroutputlist': return 'Labour Output List';
+      case '/manufacturer/bl-production': return 'B/L Production';
+      // case '/manufacturer/dispatchandreturn': return 'Dispatch And Return';
+      // case '/manufacturer/labouroutput': return 'Labour Output';
+      // case '/manufacturer/factorypacking': return 'Factory Packing';
+      // case '/manufacturer/packingsummary': return 'Packing Summary';
+      // case '/manufacturer/view': return 'Manufacturer View';
+      // case '/manufacturer/labouroutputlist': return 'Labour Output List';
       default: return null;
     }
   };
