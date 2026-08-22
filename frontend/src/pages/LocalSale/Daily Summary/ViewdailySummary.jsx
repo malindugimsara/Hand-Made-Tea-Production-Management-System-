@@ -1,10 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, Package, RefreshCw, Edit, Trash2, ArrowUpRight, ArrowDownRight, X, Save, AlertCircle, FileText } from 'lucide-react';
-import { FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
-import PDFDownloader from '@/components/PDFDownloader';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,10 +43,10 @@ export default function DailySummaryManageView() {
   const fetchSummaries = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
+      const token = localStorage.getItem("token");
       const response = await fetch(`${BACKEND_URL}/api/summary`, {
         headers: {
-          'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
+          'Authorization': `Bearer ${token}`
         }
       });
       const data = await response.json();
@@ -79,11 +75,11 @@ export default function DailySummaryManageView() {
     const toastId = toast.loading("Deleting record...");
 
     try {
-      const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
+      const token = localStorage.getItem("token");
       const response = await fetch(`${BACKEND_URL}/api/summary/${recordId}/item/${itemId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
+          'Authorization': `Bearer ${token}`
         }
       });
       const result = await response.json();
@@ -96,7 +92,7 @@ export default function DailySummaryManageView() {
       console.error("Delete Error:", error);
       toast.error(error.message || "Error deleting item.", { id: toastId });
     } finally {
-      setItemToDelete(null); // Modal එක වැසීමට State එක හිස් කිරීම
+      setItemToDelete(null);
     }
   };
 
@@ -105,8 +101,8 @@ export default function DailySummaryManageView() {
     setEditingItem({
       recordId,
       itemId: item._id,
-      categoryTitle: item.categoryTitle || item.categoryId,
-      size: item.size,
+      categoryTitle: item.displayTitle || item.categoryTitle || item.categoryId,
+      size: item.displaySize || item.size,
       in: item.in || 0,
       out: item.out || 0
     });
@@ -117,18 +113,16 @@ export default function DailySummaryManageView() {
     e.preventDefault();
     const toastId = toast.loading("Updating record...");
 
-    // Edit කරන කෙනාගේ නම ලබාගැනීම
     const username = localStorage.getItem('userName') || localStorage.getItem('username') || 'System User';
 
     try {
-      const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
+      const token = localStorage.getItem("token");
       const response = await fetch(`${BACKEND_URL}/api/summary/${editingItem.recordId}/item/${editingItem.itemId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
+          'Authorization': `Bearer ${token}`
         },
-        // Backend එකට editedBy අගය යැවීම
         body: JSON.stringify({
           in: Number(editingItem.in),
           out: Number(editingItem.out),
@@ -148,17 +142,90 @@ export default function DailySummaryManageView() {
     }
   };
 
-  // --- Derived State (Optimized with useMemo) ---
+  // --- Derived State (Optimized & Sorted like Extended Stock View) ---
   const currentRecord = useMemo(() => summaries.find(record => record.date === filterDate), [summaries, filterDate]);
-  const displayItems = useMemo(() => currentRecord?.items || [], [currentRecord]);
+  
+  const displayItems = useMemo(() => {
+    const rawItems = currentRecord?.items || [];
+    
+    if (rawItems.length === 0) return [];
 
-  const pdfHeaders = useMemo(() => [['Category / Title', 'Size / Type', 'OUT (Issued)', 'IN (Received)']], []);
-  const pdfData = useMemo(() => displayItems.map(item => [
-    item.categoryTitle || item.categoryId,
-    item.size,
-    item.out > 0 ? item.out : '-',
-    item.in > 0 ? item.in : '-'
-  ]), [displayItems]);
+    // 💡 1. Exact list with custom 'sortOrder'
+    const productCategories = [
+      { categoryId: 'athukorala', size: '400g', name: 'Athukorala BOPF 400g', group: 'Main', sortOrder: 1 },
+      { categoryId: 'athukorala', size: '200g', name: 'Athukorala BOPF 200g', group: 'Main', sortOrder: 2 },
+      { categoryId: 'athukorala', size: '100g', name: 'Athukorala BOPF 100g', group: 'Main', sortOrder: 3 },
+      { categoryId: 'bopfSp', size: '400g', name: 'Athukorala BOPF SP 400g', group: 'Main', sortOrder: 4 },
+      { categoryId: 'bopfSp', size: '200g', name: 'Athukorala BOPF SP 200g', group: 'Main', sortOrder: 5 },
+      { categoryId: 'bopfPremium', size: '400g', name: 'Athukorala BOPF PREMIUM 400g', group: 'Main', sortOrder: 6 },
+      { categoryId: 'bopfPremium', size: '200g', name: 'Athukorala BOPF PREMIUM 200g', group: 'Main', sortOrder: 7 },
+      { categoryId: 'pitigala', size: '200g', name: 'Pitigala tea 200g', group: 'Main', sortOrder: 8 },
+      { categoryId: 'pitigala', size: '400g', name: 'Pitigala tea 400g', group: 'Main', sortOrder: 9 },
+      { categoryId: 'tb', size: '25', name: 'Pitigala tea 25 bag', displaySize: '50g', group: 'Main', sortOrder: 10 },
+      { categoryId: 'tb', size: '50', name: 'Pitigala tea 50 bag', displaySize: '100g', group: 'Main', sortOrder: 11 },
+      { categoryId: 'tb', size: '100', name: 'Pitigala tea 100 bag', displaySize: '200g', group: 'Main', sortOrder: 12 },
+      { categoryId: 'gt', size: '200g', name: 'Green tea 200g', group: 'Main', sortOrder: 13 },
+      { categoryId: 'gt', size: 'T/B 25', name: 'Green tea 25 bag', displaySize: '50g', group: 'Main', sortOrder: 14 },
+      { categoryId: 'others', size: 'BOPF', name: 'BOPF', displaySize: 'KG', group: 'Other', sortOrder: 99 },
+      { categoryId: 'others', size: 'DUST', name: 'DUST', displaySize: 'KG', group: 'Other', sortOrder: 99 },
+      { categoryId: 'others', size: 'DUST 1', name: 'DUST 1', displaySize: 'KG', group: 'Other', sortOrder: 99 }
+    ];
+
+    // 💡 2. Auto-Correction Key Generator
+    const generateKey = (catId, catTitle, size) => {
+      let cleanId = (catId || '').toLowerCase().trim();
+      let cleanTitle = (catTitle || '').toLowerCase().trim();
+      let cleanSize = (size || '').toLowerCase().trim();
+
+      if (!cleanId && cleanTitle) cleanId = cleanTitle;
+
+      if (cleanId === 'g/t' || cleanTitle === 'g/t' || cleanId.includes('green')) cleanId = 'gt';
+      if (cleanId === 'bopf premium' || cleanId === 'bopfpremium') cleanId = 'bopfPremium';
+      if (cleanId === 'bopf sp' || cleanId === 'bopfsp' || cleanId === 'bopf sp.') cleanId = 'bopfSp';
+      if (cleanId === 'pitigala tea' || cleanId === 'pitigala') cleanId = 'pitigala';
+      if (cleanId === 't/b' || cleanId === 'tb') cleanId = 'tb';
+      if (cleanId === 'other grades' || cleanTitle === 'other grades') cleanId = 'others';
+
+      if (cleanSize === 'bopf (kg)' || cleanSize === 'kg') cleanSize = 'bopf';
+      if (cleanSize === 'dust (kg)') cleanSize = 'dust';
+      if (cleanSize === 'dust 1 (kg)') cleanSize = 'dust 1';
+
+      if (cleanId === 'tb') {
+        if (cleanSize.includes('25')) cleanSize = '25';
+        if (cleanSize.includes('50')) cleanSize = '50';
+        if (cleanSize.includes('100')) cleanSize = '100';
+      }
+
+      return `${cleanId}_${cleanSize}`;
+    };
+
+    const catMap = {};
+    productCategories.forEach(cat => {
+      catMap[generateKey(cat.categoryId, cat.name, cat.size)] = cat;
+    });
+
+    // 💡 3. Map Database Items & Assign Names/Order
+    const processedItems = rawItems.map(item => {
+      const key = generateKey(item.categoryId, item.categoryTitle, item.size);
+      const matchedCat = catMap[key];
+
+      return {
+        ...item,
+        displayTitle: matchedCat ? matchedCat.name : (item.categoryTitle || item.categoryId),
+        displaySize: matchedCat && matchedCat.displaySize ? matchedCat.displaySize : item.size,
+        group: matchedCat ? matchedCat.group : 'Other',
+        sortOrder: matchedCat ? matchedCat.sortOrder : 100
+      };
+    });
+
+    // 💡 4. Sort Items
+    return processedItems.sort((a, b) => {
+      if (a.group !== b.group) return a.group === 'Main' ? -1 : 1;
+      if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+      return a.displayTitle.localeCompare(b.displayTitle);
+    });
+
+  }, [currentRecord]);
 
   return (
     <div className="p-4 sm:p-8 max-w-[1400px] mx-auto font-sans bg-gray-50 dark:bg-zinc-950 transition-colors duration-300 min-h-screen relative">
@@ -173,9 +240,7 @@ export default function DailySummaryManageView() {
           <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium">View, Edit, and Delete your daily product records</p>
         </div>
 
-        {/* --- Top Action Buttons --- */}
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-
           <button
             onClick={fetchSummaries}
             disabled={loading}
@@ -215,7 +280,6 @@ export default function DailySummaryManageView() {
         </div>
       ) : (
         <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-md border border-green-100 dark:border-zinc-800 overflow-hidden">
-
           <div className="bg-green-200/40 dark:bg-zinc-900 border-b border-green-500 dark:border-zinc-800 px-6 py-4 flex items-center gap-2">
             <Package size={20} className="text-green-600 dark:text-green-500" />
             <h3 className="font-bold text-gray-800 dark:text-gray-200 text-base">
@@ -234,18 +298,16 @@ export default function DailySummaryManageView() {
                   <th className="py-4 px-4 w-[20%]">Size / Type</th>
                   <th className="py-4 px-4 text-center text-red-500 w-[15%]">OUT</th>
                   <th className="py-4 px-4 text-center text-green-500 w-[15%]">IN</th>
-                  {/* Action Column Hidden if Viewer */}
                   {!isViewer && <th className="py-4 px-6 text-center w-[20%]">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-zinc-800/60 text-sm">
                 {displayItems.map((item, idx) => (
                   <tr key={item._id || idx} className="hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition-colors">
-
-                    {/* Category Title & Edited By Badge */}
                     <td className="py-3.5 px-6 font-bold text-gray-800 dark:text-gray-200 align-top">
                       <div className="flex flex-col">
-                        <span>{item.categoryTitle || item.categoryId}</span>
+                        {/* 💡 Using the standardized title */}
+                        <span>{item.displayTitle}</span>
                         {item.lastEditedAt && (
                           <span className="mt-1 text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-800/50 w-max leading-relaxed">
                             Edited: {new Date(item.lastEditedAt).toISOString().split('T')[0]} <br />
@@ -256,7 +318,8 @@ export default function DailySummaryManageView() {
                     </td>
 
                     <td className="py-3.5 px-4 text-gray-600 dark:text-gray-400 font-semibold align-top">
-                      {item.size}
+                       {/* 💡 Using the standardized size */}
+                      {item.displaySize}
                     </td>
 
                     <td className="py-3.5 px-4 text-center align-top">
@@ -279,7 +342,6 @@ export default function DailySummaryManageView() {
                       )}
                     </td>
 
-                    {/* Action Column Hidden if Viewer */}
                     {!isViewer && (
                       <td className="py-3.5 px-6 text-center align-top">
                         <div className="flex items-center justify-center gap-2">
@@ -315,11 +377,9 @@ export default function DailySummaryManageView() {
                               </AlertDialogContent>
                             </AlertDialog>
                           </AdminOnly>
-
                         </div>
                       </td>
                     )}
-
                   </tr>
                 ))}
               </tbody>
