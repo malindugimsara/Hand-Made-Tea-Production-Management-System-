@@ -524,7 +524,7 @@ export default function Login() {
                 {allowedSystems.includes('manufacturer') && (
                   <button onClick={() => handleSystemSelection('manufacturer')} className="p-4 bg-white hover:bg-[#f2fcf5] border-2 border-gray-100 hover:border-[#84cc16] rounded-2xl flex items-center gap-4 transition-all duration-300 shadow-sm group">
                     <div className="p-3 bg-lime-50 rounded-xl group-hover:bg-[#84cc16] transition-colors"><ClipboardList className="text-[#65a30d] group-hover:text-white" size={24} /></div>
-                    <span className="font-bold text-gray-800 text-lg">Manufacturer Section</span>
+                    <span className="font-bold text-gray-800 text-lg">Manufacturing Section</span>
                   </button>
                 )}
               </div>

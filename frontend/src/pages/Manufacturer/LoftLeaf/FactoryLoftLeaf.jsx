@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
-import { Leaf, PlusCircle, Trash2, Tag, User, Factory, Users, Edit2, Save, Weight, Calendar, Clock } from "lucide-react"; 
-import { motion, AnimatePresence } from "framer-motion";
+import { Leaf, PlusCircle, Trash2, Tag, User, Factory, Users, Edit2, Save, Weight, Calendar, Clock, Languages } from "lucide-react";import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
 export default function LoftLeafCount() {
@@ -48,6 +47,94 @@ export default function LoftLeafCount() {
     "C1 - MATHTHAKA", "C2 - WALALLAWITA", "C3 - PELAWATHTHA", "C4 - POLGAMPALA",
     "C5 - MANAMPITA", "C7 - GANEGODA", "C8 - THUNDOLA", "FA - FACTORY", "E - ESTATE TEA",
   ];
+
+  // 💡 --- LANGUAGE TOGGLE & TRANSLATIONS ---
+  const [lang, setLang] = useState("EN");
+
+  const t = {
+    title: lang === 'SI' ? "අමු තේ දළු ගුණාත්මය" : "Add Loft Leaf Count",
+    subtitle: lang === 'SI' ? "කර්මාන්තශාලා සහ එකතු කරන්නන්ගේ නියැදි සඳහා දෛනික දළු ප්‍රමාණ ඇතුළත් කරන්න." : "Enter daily leaf quantities for Factory and Collector samples.",
+    facSampleEntry: lang === 'SI' ? "කර්මාන්තශාලා නියැදිය ඇතුළත් කිරීම" : "Factory Sample Entry",
+    colSampleEntry: lang === 'SI' ? "එකතු කරන්නාගේ නියැදිය ඇතුළත් කිරීම" : "Leaf Collector's Sample Entry",
+    route: lang === 'SI' ? "සැපයුම් මාර්ගය" : "Route",
+    arrTime: lang === 'SI' ? "පැමිණි වේලාව" : "Arrival Time",
+    totalKg: lang === 'SI' ? "මුළු අමු දළු ප්‍රමාණය (Kg)" : "Total Leaf Qty (Kg)",
+    bestG: lang === 'SI' ? "ගුණාත්මයෙන් ඉහළ (g)" : "Best (g)",
+    belowBestG: lang === 'SI' ? "ගුණාත්මයෙන් මධ්‍යස්ථ (g)" : "Below Best (g)",
+    poorG: lang === 'SI' ? "ගුණාත්මයෙන් පහළ (g)" : "Poor Leaf (g)",
+    addFac: lang === 'SI' ? "කර්මාන්තශාලා නියැදිය එක් කරන්න" : "Add Factory Sample",
+    addCol: lang === 'SI' ? "එකතු කරන්නාගේ නියැදිය එක් කරන්න" : "Add Collector Sample",
+    autoCalcNote: lang === 'SI' ? "* ගුණාත්මයෙන් පහළ ප්‍රතිශතය ස්වයංක්‍රීයව ගණනය වේ." : "* Poor leaf percentage will be auto-calculated.",
+  };
+
+  // 💡 --- DROPDOWN ARROW KEY NAVIGATION & ENTER KEY TO NEXT INPUT ---
+  const [focusedFacRouteIdx, setFocusedFacRouteIdx] = useState(-1);
+  const [focusedColRouteIdx, setFocusedColRouteIdx] = useState(-1);
+
+  const focusNext = (nextId) => {
+      const el = document.getElementById(nextId);
+      if (el) el.focus();
+  };
+
+  const handleEnterKey = (e, nextId) => {
+      if (e.key === 'Enter') {
+          e.preventDefault();
+          focusNext(nextId);
+      }
+  };
+
+  const handleFacRouteKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setIsFactoryRouteDropdownOpen(true);
+          setFocusedFacRouteIdx((prev) => Math.min(prev + 1, routeOptions.length - 1));
+      } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setFocusedFacRouteIdx((prev) => Math.max(prev - 1, 0));
+      } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (isFactoryRouteDropdownOpen && focusedFacRouteIdx >= 0) {
+              setFactoryForm((p) => ({ ...p, route: routeOptions[focusedFacRouteIdx] }));
+          }
+          setIsFactoryRouteDropdownOpen(false);
+          focusNext('fac-arrivalTime');
+      } else if (e.key === 'Escape') {
+          setIsFactoryRouteDropdownOpen(false);
+      }
+  };
+
+  const handleColRouteKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setIsCollectorRouteDropdownOpen(true);
+          setFocusedColRouteIdx((prev) => Math.min(prev + 1, routeOptions.length - 1));
+      } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setFocusedColRouteIdx((prev) => Math.max(prev - 1, 0));
+      } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (isCollectorRouteDropdownOpen && focusedColRouteIdx >= 0) {
+              setCollectorForm((p) => ({ ...p, route: routeOptions[focusedColRouteIdx] }));
+          }
+          setIsCollectorRouteDropdownOpen(false);
+          focusNext('col-bestQty');
+      } else if (e.key === 'Escape') {
+          setIsCollectorRouteDropdownOpen(false);
+      }
+  };
+
+  // Dropdown Scroll into view
+  useEffect(() => {
+      if (isFactoryRouteDropdownOpen && focusedFacRouteIdx >= 0) {
+          document.getElementById(`fac-route-opt-${focusedFacRouteIdx}`)?.scrollIntoView({ block: 'nearest' });
+      }
+  }, [focusedFacRouteIdx, isFactoryRouteDropdownOpen]);
+
+  useEffect(() => {
+      if (isCollectorRouteDropdownOpen && focusedColRouteIdx >= 0) {
+          document.getElementById(`col-route-opt-${focusedColRouteIdx}`)?.scrollIntoView({ block: 'nearest' });
+      }
+  }, [focusedColRouteIdx, isCollectorRouteDropdownOpen]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -224,7 +311,7 @@ export default function LoftLeafCount() {
       await Promise.all(promises);
       toast.success("All records saved!", { id: toastId });
       setPendingRecords([]);
-      navigate("/manufacturer/factory-view-loft-leaf"); 
+      navigate("/manufacturer/view-factory-loft-leaf"); 
     } catch (error) {
       toast.error("Error saving records.", { id: toastId });
     } finally {
@@ -314,13 +401,22 @@ export default function LoftLeafCount() {
         <div className="p-4 sm:p-8 max-w-[1200px] mx-auto font-sans min-h-screen transition-colors duration-300 relative">
       
       {/* 1. HEADING SECTION */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-[#3f6212] dark:text-lime-500 flex items-center gap-2">
-          <Leaf size={24} /> Add Loft Leaf Count
-        </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Enter daily leaf quantities for Factory and Collector samples.
-        </p>
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-[#3f6212] dark:text-lime-500 flex items-center gap-2">
+            <Leaf size={24} /> {t.title}
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {t.subtitle}
+          </p>
+        </div>
+        <button
+            onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')}
+            className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center gap-2"
+        >
+            <Languages size={18} />
+            {lang === 'EN' ? "සිංහල" : "English"}
+        </button>
       </div>
 
       {/* 2. DATE SELECTOR SECTION */}
@@ -346,21 +442,20 @@ export default function LoftLeafCount() {
         <div>
             <form onSubmit={(e) => handleAddToList(e, 'factory')} className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-sm border-t-4 border-t-[#84cc16] border border-gray-100 dark:border-zinc-800">
             <h3 className="text-lg font-bold text-[#3f6212] dark:text-lime-500 mb-6 flex items-center gap-2 border-b border-gray-100 dark:border-zinc-800 pb-3">
-                <Factory size={20} /> Factory Sample Entry
+                <Factory size={20} /> {t.facSampleEntry}
             </h3>
 
-            {/* 💡 Changed to lg:grid-cols-4 to accommodate the new Time field perfectly */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 
                 {/* Route */}
                 <div className="relative" ref={factoryRouteDropdownRef}>
-                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Tag size={12} /> Route</label>
-                    <input type="text" placeholder="Select route..." name="route" value={factoryForm.route} onChange={(e) => handleInputChange(e, 'factory')} onFocus={() => setIsFactoryRouteDropdownOpen(true)} required className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Tag size={12} /> {t.route}</label>
+                    <input type="text" id="fac-route" placeholder="Select route..." name="route" value={factoryForm.route} onChange={(e) => { handleInputChange(e, 'factory'); setIsFactoryRouteDropdownOpen(true); }} onFocus={() => setIsFactoryRouteDropdownOpen(true)} onKeyDown={handleFacRouteKeyDown} required className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
                     <AnimatePresence>
                         {isFactoryRouteDropdownOpen && (
                         <motion.ul initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                            {routeOptions.map((r) => (
-                            <li key={r} onClick={() => { setFactoryForm((p) => ({ ...p, route: r })); setIsFactoryRouteDropdownOpen(false); }} className="px-4 py-2.5 cursor-pointer text-sm hover:bg-lime-50 dark:hover:bg-zinc-800">
+                            {routeOptions.map((r, idx) => (
+                            <li key={r} id={`fac-route-opt-${idx}`} onClick={() => { setFactoryForm((p) => ({ ...p, route: r })); setIsFactoryRouteDropdownOpen(false); focusNext('fac-arrivalTime'); }} className={`px-4 py-2.5 cursor-pointer text-sm hover:bg-lime-50 dark:hover:bg-zinc-800 ${focusedFacRouteIdx === idx ? "bg-lime-100 dark:bg-zinc-800" : ""}`}>
                                 {r.toUpperCase()}
                             </li>
                             ))}
@@ -369,47 +464,44 @@ export default function LoftLeafCount() {
                     </AnimatePresence>
                 </div>
 
-              
-
-                {/* 💡 Arrival Time Field */}
+                {/* Arrival Time */}
                 <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Clock size={12} /> Arrival Time</label>
-                    <input 
-                        type="time" 
-                        name="arrivalTime" 
-                        value={factoryForm.arrivalTime} 
-                        onChange={(e) => handleInputChange(e, 'factory')}  
-                        className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" 
-                    />
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Clock size={12} /> {t.arrTime}</label>
+                    <input type="time" id="fac-arrivalTime" name="arrivalTime" value={factoryForm.arrivalTime} onChange={(e) => handleInputChange(e, 'factory')} onKeyDown={(e) => handleEnterKey(e, 'fac-totalQty')} className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
                 </div>
 
                 {/* Total Leaf Qty */}
                 <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Weight size={12} /> Total Leaf Qty (Kg)</label>
-                    <input type="number" name="totalLeafQty" placeholder="e.g. 250" value={factoryForm.totalLeafQty} onChange={(e) => handleInputChange(e, 'factory')} required min="0" step="any" className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Weight size={12} /> {t.totalKg}</label>
+                    <input type="number" id="fac-totalQty" name="totalLeafQty" placeholder="e.g. 250" value={factoryForm.totalLeafQty} onChange={(e) => handleInputChange(e, 'factory')} onKeyDown={(e) => handleEnterKey(e, 'fac-bestQty')} required min="0" step="any" className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <div className="p-4 bg-green-50/50 rounded-xl border border-green-100">
-                <label className="block text-xs font-bold text-green-700 mb-2">Best (g)</label>
-                <input type="number" name="bestQty" value={factoryForm.bestQty} onChange={(e) => handleInputChange(e, 'factory')} required className="w-full p-2.5 mb-3 border border-green-200 rounded-lg focus:ring-2 focus:ring-[#8CC63F] outline-none" />
-                <div className="flex items-center gap-1 bg-green-100 px-3 py-2 rounded-lg font-bold text-green-800 justify-center shadow-inner">{factoryStats.bPct}%</div>
+                    <label className="block text-xs font-bold text-green-700 mb-2">{t.bestG}</label>
+                    <input type="number" id="fac-bestQty" name="bestQty" onWheel={(e) => e.target.blur()} value={factoryForm.bestQty} onChange={(e) => handleInputChange(e, 'factory')} onKeyDown={(e) => handleEnterKey(e, 'fac-belowBestQty')} required className="w-full p-2.5 mb-3 border border-green-200 rounded-lg focus:ring-2 focus:ring-[#8CC63F] outline-none" />
+                    <div className="flex items-center gap-1 bg-green-100 px-3 py-2 rounded-lg font-bold text-green-800 justify-center shadow-inner">{factoryStats.bPct}%</div>
                 </div>
-                <div className="p-4 bg-yellow-50/50 rounded-xl border border-yellow-100">
-                <label className="block text-xs font-bold text-yellow-700 mb-2 uppercase">Below Best (g)</label>
-                <input type="number" name="belowBestQty" value={factoryForm.belowBestQty} onChange={(e) => handleInputChange(e, 'factory')} required className="w-full p-2.5 mb-3 border border-yellow-200 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none" />
-                <div className="flex items-center gap-1 bg-yellow-100 px-3 py-2 rounded-lg font-bold text-yellow-800 justify-center shadow-inner">{factoryStats.bbPct}%</div>
-                </div>
-                <div className="p-4 bg-red-50/50 rounded-xl border border-red-100">
-                <label className="block text-xs font-bold text-red-700 mb-2 uppercase">Poor Leaf (g)</label>
-                <input type="number" value={factoryStats.p} disabled className="w-full p-2.5 mb-3 border border-red-200 rounded-lg bg-gray-100 font-bold text-red-700 cursor-not-allowed" />
-                <div className="flex items-center gap-1 bg-red-100 px-3 py-2 rounded-lg font-bold text-red-800 justify-center shadow-inner">{factoryStats.pPct}%</div>
-                </div>
-            </div>
 
-            <button type="submit" className="mt-6 w-full py-3 rounded-xl bg-[#3f6212] text-white font-bold hover:bg-[#4d7c0f] transition-all shadow-md flex items-center justify-center gap-2">
-                <PlusCircle size={18} /> Add Factory Sample
+                <div className="p-4 bg-yellow-50/50 rounded-xl border border-yellow-100">
+                    <label className="block text-xs font-bold text-yellow-700 mb-2 uppercase">{t.belowBestG}</label>
+                    <input type="number" id="fac-belowBestQty" name="belowBestQty" onWheel={(e) => e.target.blur()} value={factoryForm.belowBestQty} onChange={(e) => handleInputChange(e, 'factory')} onKeyDown={(e) => handleEnterKey(e, 'fac-submitBtn')} required className="w-full p-2.5 mb-3 border border-yellow-200 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none bg-white dark:bg-zinc-800" />
+                    <div className="flex items-center gap-1 bg-yellow-100 px-3 py-2 rounded-lg font-bold text-yellow-800 justify-center shadow-inner">{factoryStats.bbPct}%</div>
+                </div>
+
+                <div className="p-4 bg-red-50/50 rounded-xl border border-red-100">
+                    <label className="block text-xs font-bold text-red-700 mb-2 uppercase">{t.poorG}</label>
+                    <input type="number" value={factoryStats.p} disabled className="w-full p-2.5 mb-3 border border-red-200 dark:border-red-900/50 rounded-lg bg-gray-100 dark:bg-zinc-800/80 font-bold text-red-700 dark:text-red-500 cursor-not-allowed outline-none" />
+                    <div className="flex items-center gap-1 bg-red-100 px-3 py-2 rounded-lg font-bold text-red-800 justify-center shadow-inner">{factoryStats.pPct}%</div>
+                </div>
+                
+            </div>
+            
+            <p className="text-xs text-gray-500 mt-3 italic">{t.autoCalcNote}</p>
+
+            <button type="submit" id="fac-submitBtn" className="mt-6 w-full py-3 rounded-xl bg-[#3f6212] text-white font-bold hover:bg-[#4d7c0f] transition-all shadow-md flex items-center justify-center gap-2">
+                <PlusCircle size={18} /> {t.addFac}
             </button>
             </form>
 
@@ -420,18 +512,18 @@ export default function LoftLeafCount() {
         <div>
             <form onSubmit={(e) => handleAddToList(e, 'collector')} className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-sm border-t-4 border-t-[#65a30d] border border-gray-100 dark:border-zinc-800 mt-8">
             <h3 className="text-lg font-bold text-[#65a30d] dark:text-lime-500 mb-6 flex items-center gap-2 border-b border-gray-100 dark:border-zinc-800 pb-3">
-                <Users size={20} /> Leaf Collector's Sample Entry
+                <Users size={20} /> {t.colSampleEntry}
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="relative" ref={collectorRouteDropdownRef}>
-                <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Tag size={12} /> Route</label>
-                <input type="text" placeholder="Select route..." name="route" value={collectorForm.route} onChange={(e) => handleInputChange(e, 'collector')} onFocus={() => setIsCollectorRouteDropdownOpen(true)} required className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
+                <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Tag size={12} /> {t.route}</label>
+                <input type="text" id="col-route" placeholder="Select route..." name="route" value={collectorForm.route} onChange={(e) => { handleInputChange(e, 'collector'); setIsCollectorRouteDropdownOpen(true); }} onFocus={() => setIsCollectorRouteDropdownOpen(true)} onKeyDown={handleColRouteKeyDown} required className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
                 <AnimatePresence>
                     {isCollectorRouteDropdownOpen && (
                     <motion.ul initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                        {routeOptions.map((r) => (
-                        <li key={r} onClick={() => { setCollectorForm((p) => ({ ...p, route: r })); setIsCollectorRouteDropdownOpen(false); }} className="px-4 py-2.5 cursor-pointer text-sm hover:bg-lime-50 dark:hover:bg-zinc-800">
+                        {routeOptions.map((r, idx) => (
+                        <li key={r} id={`col-route-opt-${idx}`} onClick={() => { setCollectorForm((p) => ({ ...p, route: r })); setIsCollectorRouteDropdownOpen(false); focusNext('col-bestQty'); }} className={`px-4 py-2.5 cursor-pointer text-sm hover:bg-lime-50 dark:hover:bg-zinc-800 ${focusedColRouteIdx === idx ? "bg-lime-100 dark:bg-zinc-800" : ""}`}>
                             {r.toUpperCase()}
                         </li>
                         ))}
@@ -443,24 +535,28 @@ export default function LoftLeafCount() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <div className="p-4 bg-green-50/50 rounded-xl border border-green-100">
-                <label className="block text-xs font-bold text-green-700 mb-2">Best (g)</label>
-                <input type="number" name="bestQty" value={collectorForm.bestQty} onChange={(e) => handleInputChange(e, 'collector')} required className="w-full p-2.5 mb-3 border border-green-200 rounded-lg focus:ring-2 focus:ring-[#8CC63F] outline-none" />
-                <div className="flex items-center gap-1 bg-green-100 px-3 py-2 rounded-lg font-bold text-green-800 justify-center shadow-inner">{collectorStats.bPct}%</div>
+                    <label className="block text-xs font-bold text-green-700 mb-2">{t.bestG}</label>
+                    <input type="number" id="col-bestQty" name="bestQty" value={collectorForm.bestQty} onChange={(e) => handleInputChange(e, 'collector')} onWheel={(e) => e.target.blur()} onKeyDown={(e) => handleEnterKey(e, 'col-belowBestQty')} required className="w-full p-2.5 mb-3 border border-green-200 rounded-lg focus:ring-2 focus:ring-[#8CC63F] outline-none" />
+                    <div className="flex items-center gap-1 bg-green-100 px-3 py-2 rounded-lg font-bold text-green-800 justify-center shadow-inner">{collectorStats.bPct}%</div>
                 </div>
+
                 <div className="p-4 bg-yellow-50/50 rounded-xl border border-yellow-100">
-                <label className="block text-xs font-bold text-yellow-700 mb-2 uppercase">Below Best (g)</label>
-                <input type="number" name="belowBestQty" value={collectorForm.belowBestQty} onChange={(e) => handleInputChange(e, 'collector')} required className="w-full p-2.5 mb-3 border border-yellow-200 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none" />
-                <div className="flex items-center gap-1 bg-yellow-100 px-3 py-2 rounded-lg font-bold text-yellow-800 justify-center shadow-inner">{collectorStats.bbPct}%</div>
+                    <label className="block text-xs font-bold text-yellow-700 mb-2 uppercase">{t.belowBestG}</label>
+                    <input type="number" id="col-belowBestQty" name="belowBestQty" value={collectorForm.belowBestQty} onChange={(e) => handleInputChange(e, 'collector')} onWheel={(e) => e.target.blur()} onKeyDown={(e) => handleEnterKey(e, 'col-submitBtn')} required className="w-full p-2.5 mb-3 border border-yellow-200 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none bg-white dark:bg-zinc-800" />
+                    <div className="flex items-center gap-1 bg-yellow-100 px-3 py-2 rounded-lg font-bold text-yellow-800 justify-center shadow-inner">{collectorStats.bbPct}%</div>
                 </div>
+
                 <div className="p-4 bg-red-50/50 rounded-xl border border-red-100">
-                <label className="block text-xs font-bold text-red-700 mb-2 uppercase">Poor Leaf (g)</label>
-                <input type="number" value={collectorStats.p} disabled className="w-full p-2.5 mb-3 border border-red-200 rounded-lg bg-gray-100 font-bold text-red-700 cursor-not-allowed" />
-                <div className="flex items-center gap-1 bg-red-100 px-3 py-2 rounded-lg font-bold text-red-800 justify-center shadow-inner">{collectorStats.pPct}%</div>
+                    <label className="block text-xs font-bold text-red-700 mb-2 uppercase">{t.poorG}</label>
+                    <input type="number" value={collectorStats.p} disabled className="w-full p-2.5 mb-3 border border-red-200 dark:border-red-900/50 rounded-lg bg-gray-100 dark:bg-zinc-800/80 font-bold text-red-700 dark:text-red-500 cursor-not-allowed outline-none" />
+                    <div className="flex items-center gap-1 bg-red-100 px-3 py-2 rounded-lg font-bold text-red-800 justify-center shadow-inner">{collectorStats.pPct}%</div>
                 </div>
             </div>
+            
+            <p className="text-xs text-gray-500 mt-3 italic">{t.autoCalcNote}</p>
 
-            <button type="submit" className="mt-6 w-full py-3 rounded-xl bg-[#65a30d] text-white font-bold hover:bg-[#4d7c0f] transition-all shadow-md flex items-center justify-center gap-2">
-                <PlusCircle size={18} /> Add Collector Sample
+            <button type="submit" id="col-submitBtn" className="mt-6 w-full py-3 rounded-xl bg-[#65a30d] text-white font-bold hover:bg-[#4d7c0f] transition-all shadow-md flex items-center justify-center gap-2">
+                <PlusCircle size={18} /> {t.addCol}
             </button>
             </form>
 
