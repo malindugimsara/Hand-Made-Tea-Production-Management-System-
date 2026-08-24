@@ -5,6 +5,8 @@ import WitherLeafForm from "./Manufacturer/BL Operation/WitherLeafForm";
 import FactoryLoftLeaf from "./Manufacturer/LoftLeaf/FactoryLoftLeaf";
 import { View } from "lucide-react";
 import ViewLoftLeafCount from "./Manufacturer/LoftLeaf/ViewFactoryLoftLeaf";
+import SimpleAverage from "./Manufacturer/LoftLeaf/SimpleAverage";
+import WeightAverage from "./Manufacturer/LoftLeaf/WeightAverage";
 
 
 export default function ManufacturerRouter() {
@@ -14,7 +16,8 @@ export default function ManufacturerRouter() {
       <Route path="bl-production/witherLeafForm" element={<WitherLeafForm />} />
       <Route path="factory-loft-leaf" element={<FactoryLoftLeaf />} />
       <Route path="view-factory-loft-leaf" element={<ViewLoftLeafCount />} />
-
+      <Route path="simple-avg-factory-loft-leaf" element={<SimpleAverage />} />
+      <Route path="weight-avg-factory-loft-leaf" element={<WeightAverage />} />
     </Route>
   );
 }

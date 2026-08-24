@@ -84,8 +84,10 @@ const DATA = {
       title: 'Loft Leaf',
       icon: Store,
       items: [
-        { title: 'Enter Loft Leaf Count', url: '/manufacturer/factory-loft-leaf', nonViewer: true },
-        { title: 'View Loft Leaf Count', url: '/manufacturer/view-factory-loft-leaf', nonViewer: true },
+        { title: 'Enter L/L Count', url: '/manufacturer/factory-loft-leaf', nonViewer: true },
+        { title: 'View L/L Count', url: '/manufacturer/view-factory-loft-leaf'},
+        { title: 'Simple Average', url: '/manufacturer/simple-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
+        { title: 'Weight Average', url: '/manufacturer/weight-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
       ],
     },
   ],
@@ -168,12 +170,11 @@ export default function ManufacturerDashboardLayout() {
   const getCustomBreadcrumbTitle = (path) => {
     switch (path) {
       case '/manufacturer/bl-production': return 'B/L Production';
-      // case '/manufacturer/dispatchandreturn': return 'Dispatch And Return';
-      // case '/manufacturer/labouroutput': return 'Labour Output';
-      // case '/manufacturer/factorypacking': return 'Factory Packing';
-      // case '/manufacturer/packingsummary': return 'Packing Summary';
-      // case '/manufacturer/view': return 'Manufacturer View';
-      // case '/manufacturer/labouroutputlist': return 'Labour Output List';
+      case '/manufacturer/factory-loft-leaf': return 'Enter L/L Count';
+      case '/manufacturer/view-factory-loft-leaf': return 'View L/L Count';
+      case '/manufacturer/simple-avg-factory-loft-leaf': return 'Simple Average';
+      case '/manufacturer/weight-avg-factory-loft-leaf': return 'Weight Average';
+      
       default: return null;
     }
   };

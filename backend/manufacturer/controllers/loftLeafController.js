@@ -83,13 +83,23 @@ export const saveCollectorSample = async (req, res) => {
     }
 };
 
-// 3. Get Daily Report Data
+// 3. Get Daily or Monthly Report Data
 export const getDailyReport = async (req, res) => {
     try {
-        const { date } = req.query;
-        if (!date) return res.status(400).json({ success: false, message: "Date is required" });
+        const { date, month } = req.query;
+        let query = {};
 
-        let records = await LoftLeaf.find({ date }).lean();
+        // 💡 Date එකක් හෝ Month එකක් එව්වොත් ඒ අනුව Query එක හැදේ
+        if (date) {
+            query.date = date;
+        } else if (month) {
+            // මාසයක් නම් (උදා: 2026-08), ඒ මාසයෙන් පටන් ගන්නා සියලුම දින ගනී
+            query.date = { $regex: `^${month}` }; 
+        } else {
+            return res.status(400).json({ success: false, message: "Date or Month is required" });
+        }
+
+        let records = await LoftLeaf.find(query).lean();
 
         // Sort by Factory Best % descending to calculate the Rank
         records.sort((a, b) => (b.factorySample?.bestPct || 0) - (a.factorySample?.bestPct || 0));
@@ -109,7 +119,64 @@ export const getDailyReport = async (req, res) => {
     }
 };
 
-// 4. Delete Record (Delete API)
+// 4. Edit / Update Existing Record 
+export const updateRecord = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { route, arrivalTime, officerName, totalLeafQtyKg, factorySample, collectorSample } = req.body;
+
+        let updateData = { route, arrivalTime, officerName, totalLeafQtyKg: Number(totalLeafQtyKg) || 0 };
+
+        // Recalculate Factory Sample if provided
+        if (factorySample) {
+            const { bestPct, belowBestPct, poorPct } = calculatePercentages(factorySample.bestG, factorySample.belowBestG, factorySample.poorG);
+            const totalKg = updateData.totalLeafQtyKg;
+            
+            updateData.factorySample = {
+                isEntered: true,
+                bestG: Number(factorySample.bestG),
+                belowBestG: Number(factorySample.belowBestG),
+                poorG: Number(factorySample.poorG),
+                bestPct, belowBestPct, poorPct
+            };
+
+            updateData.calculatedKg = {
+                bestKg: Number(((totalKg * bestPct) / 100).toFixed(2)),
+                belowBestKg: Number(((totalKg * belowBestPct) / 100).toFixed(2)),
+                poorKg: Number(((totalKg * poorPct) / 100).toFixed(2))
+            };
+        }
+
+        // Recalculate Collector Sample if provided
+        if (collectorSample) {
+            const { bestPct, belowBestPct, poorPct } = calculatePercentages(collectorSample.bestG, collectorSample.belowBestG, collectorSample.poorG);
+            
+            updateData.collectorSample = {
+                isEntered: true,
+                bestG: Number(collectorSample.bestG),
+                belowBestG: Number(collectorSample.belowBestG),
+                poorG: Number(collectorSample.poorG),
+                bestPct, belowBestPct, poorPct
+            };
+        }
+
+        const updatedRecord = await LoftLeaf.findByIdAndUpdate(
+            id,
+            { $set: updateData },
+            { new: true } // Return the updated document
+        );
+
+        if (!updatedRecord) {
+            return res.status(404).json({ success: false, message: "Record not found" });
+        }
+
+        res.status(200).json({ success: true, message: "Record updated successfully", data: updatedRecord });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// 5. Delete Record
 export const deleteRecord = async (req, res) => {
     try {
         const { id } = req.params;
@@ -125,3 +192,4 @@ export const deleteRecord = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
