@@ -36,7 +36,9 @@ const loftLeafSchema = new mongoose.Schema({
         bestKg: { type: Number, default: 0 },
         belowBestKg: { type: Number, default: 0 },
         poorKg: { type: Number, default: 0 },
-    }
+    },
+
+    editedBy: { type: String, default: null } 
 }, { timestamps: true });
 
 // Ensure only one record per route per day
