@@ -462,31 +462,7 @@ export default function WeightAverage() {
 
         <div className="flex flex-col sm:flex-row items-center gap-3">
           
-          {/* CONDITIONALLY RENDERED PDF BUTTON (SIMPLIFIED ONLY) */}
-          {viewMode === "simplified" && (
-            <button
-              onClick={generateSimplifiedPDF}
-              disabled={loading}
-              className={`px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
-                loading ? "opacity-70 cursor-not-allowed" : "hover:bg-red-700"
-              }`}
-            >
-              <FileDown size={16} /> Download PDF
-            </button>
-          )}
-
-          {/* EXPORT TO EXCEL BUTTON */}
-          {viewMode === "detailed" && (
-          <button
-            onClick={exportToExcel}
-            disabled={loading}
-            className={`px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
-              loading ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700"
-            }`}
-          >
-            <FileSpreadsheet size={16} /> Export Excel
-          </button>
-          )}
+          
 
           {/* VIEW TOGGLE */}
           <div className="flex bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg border border-gray-200 dark:border-zinc-700 shadow-sm">
@@ -525,12 +501,38 @@ export default function WeightAverage() {
           <button
             onClick={fetchRecords}
             disabled={loading}
-            className={`px-4 py-2.5 bg-[#1B6A31] text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
-              loading ? "opacity-70 cursor-not-allowed" : "hover:bg-green-800"
+            className={`px-4 py-2.5 bg-gray-200 text-black rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
+              loading ? "opacity-70 cursor-not-allowed" : "hover:bg-gray-500"
             }`}
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Sync
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> 
           </button>
+
+          {/* CONDITIONALLY RENDERED PDF BUTTON (SIMPLIFIED ONLY) */}
+          {viewMode === "simplified" && (
+            <button
+              onClick={generateSimplifiedPDF}
+              disabled={loading}
+              className={`px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
+                loading ? "opacity-70 cursor-not-allowed" : "hover:bg-red-700"
+              }`}
+            >
+              <FileDown size={16} /> Download PDF
+            </button>
+          )}
+
+          {/* EXPORT TO EXCEL BUTTON */}
+          {viewMode === "detailed" && (
+          <button
+            onClick={exportToExcel}
+            disabled={loading}
+            className={`px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
+              loading ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700"
+            }`}
+          >
+            <FileSpreadsheet size={16} /> Export Excel
+          </button>
+          )}
         </div>
       </div>
 

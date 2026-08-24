@@ -106,10 +106,16 @@ export default function ViewLoftLeafCount() {
 
   // --- EDIT LOGIC ---
   const openEditModal = (record) => {
+      // 💡 12-Hour format එක කොටස් දෙකකට වෙන් කිරීම (Input සහ Dropdown සඳහා)
+      const timeParts = (record.arrivalTime || "").split(" ");
+      const timeVal = timeParts[0] || "";
+      const amPmVal = timeParts[1] || "PM";
+
       setEditForm({
           _id: record._id,
           route: record.route || '',
-          arrivalTime: record.arrivalTime || '',
+          arrivalTime: timeVal,
+          arrivalAmPm: amPmVal, // 💡
           totalLeafQtyKg: record.totalLeafQtyKg || '',
           factoryBest: record.factorySample?.bestG || '',
           factoryBelow: record.factorySample?.belowBestG || '',
@@ -139,11 +145,10 @@ export default function ViewLoftLeafCount() {
 
           const payload = {
               route: editForm.route,
-              arrivalTime: editForm.arrivalTime,
+              arrivalTime: editForm.arrivalTime ? `${editForm.arrivalTime} ${editForm.arrivalAmPm}` : "", // 💡 12-hour Time එක Save කිරීම
               totalLeafQtyKg: editForm.totalLeafQtyKg,
               factorySample: { bestG: fBest, belowBestG: fBelow, poorG: fPoor },
-              collectorSample: { bestG: cBest, belowBestG: cBelow, poorG: cPoor },
-              editedBy: currentUsername // 💡 අලුතින් එක් කළ කොටස (කවුද වෙනස් කළේ යන්න යැවීමට)
+              collectorSample: { bestG: cBest, belowBestG: cBelow, poorG: cPoor }
           };
 
           const response = await fetch(`${BACKEND_URL}/api/factory-loft-leaf/${editForm._id}`, {
@@ -165,36 +170,66 @@ export default function ViewLoftLeafCount() {
   };
 
   // --- CALCULATIONS ---
-  const totals = useMemo(() => {
-    let tQty = 0, bestKg = 0, belowBestKg = 0, poorKg = 0;
-    
-    records.forEach(r => {
-        tQty += Number(r.totalLeafQtyKg) || 0;
-        bestKg += Number(r.calculatedKg?.bestKg) || 0;
-        belowBestKg += Number(r.calculatedKg?.belowBestKg) || 0;
-        poorKg += Number(r.calculatedKg?.poorKg) || 0;
-    });
+  // 💡 DYNAMIC RANKING CALCULATOR
+  // Best % සහ Below Best % වල එකතුව (Good Leaf %) අනුව Rank 1, 2, 3 ලෙස පෙළගැස්වීම.
+  const rankedRecords = useMemo(() => {
+      const processed = records.map(r => {
+          const sample = r.factorySample?.isEntered ? r.factorySample : (r.collectorSample?.isEntered ? r.collectorSample : null);
+          let goodScore = -1;
+          let bestScore = -1;
+          
+          if (sample) {
+              goodScore = Number(sample.bestPct || 0) + Number(sample.belowBestPct || 0);
+              bestScore = Number(sample.bestPct || 0);
+          }
+          return { ...r, _goodScore: goodScore, _bestScore: bestScore };
+      });
 
-    const avgFacBest = tQty > 0 ? ((bestKg / tQty) * 100).toFixed(2) : "0.00";
-    const avgFacBelow = tQty > 0 ? ((belowBestKg / tQty) * 100).toFixed(2) : "0.00";
-    const avgFacPoor = tQty > 0 ? ((poorKg / tQty) * 100).toFixed(2) : "0.00";
+      const sorted = [...processed].sort((a, b) => {
+          if (b._goodScore !== a._goodScore) return b._goodScore - a._goodScore;
+          return b._bestScore - a._bestScore; // ප්‍රතිශත සමාන නම්, Best % වැඩි කෙනාට මුල් තැන දෙයි
+      });
 
-    return {
-        tQty: tQty.toFixed(2), 
-        bestKg: bestKg.toFixed(2),
-        belowBestKg: belowBestKg.toFixed(2),
-        poorKg: poorKg.toFixed(2),
-        avgFacBest,
-        avgFacBelow,
-        avgFacPoor,
-    };
+      let currentRank = 1;
+      sorted.forEach((r, idx) => {
+          if (r._goodScore === -1) {
+              r._calculatedRank = "-";
+          } else {
+              if (idx > 0 && r._goodScore === sorted[idx - 1]._goodScore && r._bestScore === sorted[idx - 1]._bestScore) {
+                  r._calculatedRank = sorted[idx - 1]._calculatedRank; // ප්‍රතිශත හරියටම සමාන නම් එකම Rank එක ලබාදෙයි
+              } else {
+                  r._calculatedRank = currentRank;
+              }
+              currentRank++;
+          }
+      });
+
+      return processed.map(r => {
+          const rankedItem = sorted.find(s => s._id === r._id);
+          return { ...r, _calculatedRank: rankedItem ? rankedItem._calculatedRank : "-" };
+      });
   }, [records]);
 
-  // 💡 TIME CHECK HELPER
+  // 💡 TIME CHECK HELPER (Supports both 12h and 24h formats)
   const isTimeLate = (timeStr) => {
     if (!timeStr || timeStr === "-") return false;
     try {
-        const [hours, minutes] = timeStr.split(':').map(Number);
+        let hours = 0, minutes = 0;
+        const cleanStr = timeStr.toUpperCase().trim();
+        
+        if (cleanStr.includes("PM") || cleanStr.includes("AM")) {
+            const [time, modifier] = cleanStr.split(" ");
+            let [h, m] = time.split(':').map(Number);
+            if (modifier === "PM" && h !== 12) h += 12;
+            if (modifier === "AM" && h === 12) h = 0;
+            hours = h;
+            minutes = m;
+        } else {
+            let [h, m] = cleanStr.split(':').map(Number);
+            hours = h;
+            minutes = m;
+        }
+
         if (hours > 20) return true;
         if (hours === 20 && minutes > 30) return true;
         return false;
@@ -202,7 +237,6 @@ export default function ViewLoftLeafCount() {
         return false;
     }
   };
-
  // 💡 --- DYNAMIC TRANSLATIONS FOR UI & PDF (EN / SI) ---
   const t = {
     title: lang === 'SI' ? "අමු තේ දළු ගුණාත්මය" : "Loft Leaf Quality Summary",
@@ -395,8 +429,7 @@ export default function ViewLoftLeafCount() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-zinc-700 bg-white dark:bg-zinc-950">
-                {records.length > 0 ? records.map((row) => {
-                  // 💡 Route කේතය වෙන් කරගැනීම (E සහ FA හඳුනාගැනීමට)
+                {rankedRecords.length > 0 ? rankedRecords.map((row) => {
                   const routeCode = (row.route || "").split(" - ")[0].toUpperCase();
                   const hideArrivalTime = routeCode === "E" || routeCode === "FA";
                   
@@ -419,7 +452,6 @@ export default function ViewLoftLeafCount() {
                         )}
                     </td>
                     
-                    {/* 💡 LATE ARRIVAL HIGHLIGHT & HIDDEN TIME FOR E/FA */}
                     <td className={`p-2 sm:p-3 border border-gray-200 dark:border-zinc-800 ${isLate ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-bold' : 'text-gray-500 dark:text-gray-400 font-medium'}`}>
                       <div className="flex flex-col items-center justify-center">
                           <span className="flex items-center gap-1">{isLate && <Clock size={12}/>} {displayTime}</span>
@@ -443,15 +475,15 @@ export default function ViewLoftLeafCount() {
                     <td className="p-2 sm:p-3 border border-gray-200 dark:border-zinc-800 font-bold text-gray-700 dark:text-gray-300">{Number(row.calculatedKg?.belowBestKg || 0).toFixed(2)}</td>
                     <td className="p-2 sm:p-3 border border-gray-200 dark:border-zinc-800 font-bold text-gray-700 dark:text-gray-300">{Number(row.calculatedKg?.poorKg || 0).toFixed(2)}</td>
 
+                    {/* 💡 NEW CALCULATED RANK COLUMN */}
                     <td className="p-2 sm:p-3 border border-gray-200 dark:border-zinc-800">
                       <span className="px-3 py-1 rounded-full font-black text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/30 text-[10px] sm:text-sm">
-                          {row.gradeRank}
+                          {row._calculatedRank}
                       </span>
                     </td>
 
                     {!isViewer && (
                       <td className="p-2 sm:p-3 border border-gray-200 dark:border-zinc-800">
-                        {/* Actions buttons */}
                         <div className="flex items-center justify-center gap-2 sm:gap-3">
                           <button
                             onClick={() => openEditModal(row)}
@@ -553,7 +585,34 @@ export default function ViewLoftLeafCount() {
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Arrival Time</label>
-                            <input type="time" name="arrivalTime" value={editForm.arrivalTime} onChange={handleEditChange} required className="w-full p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-gray-50 dark:bg-zinc-800 focus:ring-2 focus:ring-lime-500 outline-none" />
+                            <div className="flex gap-2">
+                                <input 
+                                    type="text" 
+                                    name="arrivalTime" 
+                                    placeholder="08:30"
+                                    maxLength="5"
+                                    value={editForm.arrivalTime} 
+                                    onChange={(e) => {
+                                        let val = e.target.value.replace(/[^0-9:]/g, '');
+                                        if (val.length === 2 && !val.includes(':') && editForm.arrivalTime.length !== 3) {
+                                            val += ':';
+                                        }
+                                        e.target.value = val;
+                                        handleEditChange(e);
+                                    }} 
+                                    required 
+                                    className="w-full p-2.5 text-center border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-gray-50 dark:bg-zinc-800 focus:ring-2 focus:ring-lime-500 outline-none" 
+                                />
+                                <select
+                                    name="arrivalAmPm"
+                                    value={editForm.arrivalAmPm}
+                                    onChange={handleEditChange}
+                                    className="w-20 p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm font-bold bg-gray-50 dark:bg-zinc-800 focus:ring-2 focus:ring-lime-500 outline-none text-center"
+                                >
+                                    <option value="PM">PM</option>
+                                    <option value="AM">AM</option>
+                                </select>
+                            </div>
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Total Qty (Kg)</label>
@@ -638,41 +697,40 @@ export default function ViewLoftLeafCount() {
                     </div>
                 </div>
                 <div className="text-right text-xs text-[#6b7280] flex flex-col gap-1" style={{ fontFamily: 'sans-serif' }}>
-                    <p><strong className="text-[#000000]">{t.docRef}:</strong> {uniqueCode}</p>
-                    <p><strong className="text-[#000000]">{t.generated}:</strong> {generatedDateTime}</p>
+                    <p><strong className="text-[#4b5563]">{t.docRef}:</strong> {uniqueCode}</p>
+                    <p><strong className="text-[#4b5563]">{t.genTime}:</strong> {generatedDateTime}</p>
                 </div>
             </div>
 
             {/* Table matched to your image */}
-            <table className="w-full border-collapse border border-[#000000] text-center text-[12px]" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
+            <table className="w-full border-collapse border border-[#8F8F8F] text-center text-[12px]" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
                 <thead>
                     <tr className="text-[#000000]">
-                        <th rowSpan={3} className="border border-[#000000] p-2 font-bold">{t.route}</th>
-                        <th rowSpan={3} className="border border-[#000000] p-2 font-bold">{t.arrTime}</th>
-                        <th rowSpan={3} className="border border-[#000000] p-2 font-bold">{t.totalKg}</th>
-                        <th colSpan={6} className="border border-[#000000] p-2 font-bold">{t.title}</th>
-                        <th colSpan={3} className="border border-[#000000] p-2 font-bold">{t.calcKg}</th>
-                        <th rowSpan={3} className="border border-[#000000] p-2 font-bold">{t.rank}</th>
+                        <th rowSpan={3} className="border border-[#8F8F8F] p-2 font-bold">{t.route}</th>
+                        <th rowSpan={3} className="border border-[#8F8F8F] p-2 font-bold">{t.arrTime}</th>
+                        <th rowSpan={3} className="border border-[#8F8F8F] p-2 font-bold">{t.totalKg}</th>
+                        <th colSpan={6} className="border border-[#8F8F8F] p-2 font-bold">{t.title}</th>
+                        <th colSpan={3} className="border border-[#8F8F8F] p-2 font-bold">{t.calcKg}</th>
+                        <th rowSpan={3} className="border border-[#8F8F8F] p-2 font-bold">{t.rank}</th>
                     </tr>
                     <tr className="text-[#000000]">
-                        <th colSpan={3} className="border border-[#000000] p-2 font-bold">{t.facSample}</th>
-                        <th colSpan={3} className="border border-[#000000] p-2 font-bold">{t.colSample}</th>
-                        <th rowSpan={2} className="border border-[#000000] p-2 font-bold text-[#087034]">{t.bestKg}</th>
-                        <th rowSpan={2} className="border border-[#000000] p-2 font-bold text-[#CE950E]">{t.belowBestKg}</th>
-                        <th rowSpan={2} className="border border-[#000000] p-2 font-bold text-[#DE2E17]">{t.poorKg}</th>
+                        <th colSpan={3} className="border border-[#8F8F8F] p-2 font-bold">{t.facSample}</th>
+                        <th colSpan={3} className="border border-[#8F8F8F] p-2 font-bold">{t.colSample}</th>
+                        <th rowSpan={2} className="border border-[#8F8F8F] p-2 font-bold text-[#087034]">{t.bestKg}</th>
+                        <th rowSpan={2} className="border border-[#8F8F8F] p-2 font-bold text-[#CE950E]">{t.belowBestKg}</th>
+                        <th rowSpan={2} className="border border-[#8F8F8F] p-2 font-bold text-[#DE2E17]">{t.poorKg}</th>
                     </tr>
                     <tr className="text-[#000000]">
-                        <th className="border border-[#000000] p-2 font-bold text-[#087034]">{t.bestPct}</th>
-                        <th className="border border-[#000000] p-2 font-bold text-[#CE950E]">{t.belowBestPct}</th>
-                        <th className="border border-[#000000] p-2 font-bold text-[#DE2E17]">{t.poorPct}</th>
-                        <th className="border border-[#000000] p-2 font-bold text-[#087034]">{t.bestPct}</th>
-                        <th className="border border-[#000000] p-2 font-bold text-[#CE950E]">{t.belowBestPct}</th>
-                        <th className="border border-[#000000] p-2 font-bold text-[#DE2E17]">{t.poorPct}</th>
+                        <th className="border border-[#8F8F8F] p-2 font-bold text-[#087034]">{t.bestPct}</th>
+                        <th className="border border-[#8F8F8F] p-2 font-bold text-[#CE950E]">{t.belowBestPct}</th>
+                        <th className="border border-[#8F8F8F] p-2 font-bold text-[#DE2E17]">{t.poorPct}</th>
+                        <th className="border border-[#8F8F8F] p-2 font-bold text-[#087034]">{t.bestPct}</th>
+                        <th className="border border-[#8F8F8F] p-2 font-bold text-[#CE950E]">{t.belowBestPct}</th>
+                        <th className="border border-[#8F8F8F] p-2 font-bold text-[#DE2E17]">{t.poorPct}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {records.map((r, idx) => {
-                        // 💡 PDF එකට අදාළව Route කේතය වෙන් කරගැනීම
+                    {rankedRecords.map((r, idx) => {
                         const routeCode = (r.route || "").split(" - ")[0].toUpperCase();
                         const hideArrivalTime = routeCode === "E" || routeCode === "FA";
                         
@@ -681,41 +739,44 @@ export default function ViewLoftLeafCount() {
 
                         return (
                         <tr key={idx}>
-                            <td className="border border-[#000000] p-2 font-bold font-sans text-left">{(r.route || "-").toUpperCase()}</td>
+                            <td className="border border-[#8F8F8F] p-2 font-bold font-sans text-left">{(r.route || "-").toUpperCase()}</td>
                             
-                            {/* 💡 LATE ARRIVAL HIGHLIGHT & HIDDEN TIME FOR E/FA IN PDF */}
-                            <td className={`border border-[#000000] p-2 font-sans ${isLate ? 'text-[#dc2626] font-bold' : ''}`}>
+                            <td className={`border border-[#8F8F8F] p-2 font-sans ${isLate ? 'text-[#dc2626] font-bold' : ''}`}>
                                 {displayTime}
                                 {isLate && <div className="text-[9px] uppercase mt-0.5" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>{t.late}</div>}
                             </td>
 
-                            <td className="border border-[#000000] p-2 font-sans font-bold">{Number(r.totalLeafQtyKg || 0)}</td>
-                            <td className="border border-[#000000] p-2 font-sans text-[#087034] font-bold">{r.factorySample?.isEntered ? r.factorySample.bestPct : "-"}</td>
-                            <td className="border border-[#000000] p-2 font-sans text-[#CE950E] font-bold">{r.factorySample?.isEntered ? r.factorySample.belowBestPct : "-"}</td>
-                            <td className="border border-[#000000] p-2 font-sans text-[#DE2E17] font-bold">{r.factorySample?.isEntered ? r.factorySample.poorPct : "-"}</td>
-                            <td className="border border-[#000000] p-2 font-sans text-[#087034] font-bold">{r.collectorSample?.isEntered ? r.collectorSample.bestPct : "-"}</td>
-                            <td className="border border-[#000000] p-2 font-sans text-[#CE950E] font-bold">{r.collectorSample?.isEntered ? r.collectorSample.belowBestPct : "-"}</td>
-                            <td className="border border-[#000000] p-2 font-sans text-[#DE2E17] font-bold">{r.collectorSample?.isEntered ? r.collectorSample.poorPct : "-"}</td>
-                            <td className="border border-[#000000] p-2 font-sans">{Number(r.calculatedKg?.bestKg || 0).toFixed(2)}</td>
-                            <td className="border border-[#000000] p-2 font-sans">{Number(r.calculatedKg?.belowBestKg || 0).toFixed(2)}</td>
-                            <td className="border border-[#000000] p-2 font-sans">{Number(r.calculatedKg?.poorKg || 0).toFixed(2)}</td>
-                            <td className="border border-[#000000] p-2 font-bold font-sans text-[#1B6A31]">{r.gradeRank || "-"}</td>
+                            <td className="border border-[#8F8F8F] p-2 font-sans font-bold">{Number(r.totalLeafQtyKg || 0)}</td>
+                            <td className="border border-[#8F8F8F] p-2 font-sans text-[#087034] font-bold">{r.factorySample?.isEntered ? r.factorySample.bestPct : "-"}</td>
+                            <td className="border border-[#8F8F8F] p-2 font-sans text-[#CE950E] font-bold">{r.factorySample?.isEntered ? r.factorySample.belowBestPct : "-"}</td>
+                            <td className="border border-[#8F8F8F] p-2 font-sans text-[#DE2E17] font-bold">{r.factorySample?.isEntered ? r.factorySample.poorPct : "-"}</td>
+                            <td className="border border-[#8F8F8F] p-2 font-sans text-[#087034] font-bold">{r.collectorSample?.isEntered ? r.collectorSample.bestPct : "-"}</td>
+                            <td className="border border-[#8F8F8F] p-2 font-sans text-[#CE950E] font-bold">{r.collectorSample?.isEntered ? r.collectorSample.belowBestPct : "-"}</td>
+                            <td className="border border-[#8F8F8F] p-2 font-sans text-[#DE2E17] font-bold">{r.collectorSample?.isEntered ? r.collectorSample.poorPct : "-"}</td>
+                            <td className="border border-[#8F8F8F] p-2 font-sans">{Number(r.calculatedKg?.bestKg || 0).toFixed(2)}</td>
+                            <td className="border border-[#8F8F8F] p-2 font-sans">{Number(r.calculatedKg?.belowBestKg || 0).toFixed(2)}</td>
+                            <td className="border border-[#8F8F8F] p-2 font-sans">{Number(r.calculatedKg?.poorKg || 0).toFixed(2)}</td>
+                            
+                            {/* 💡 NEW CALCULATED RANK COLUMN */}
+                            <td className="border border-[#8F8F8F] p-2 font-bold font-sans text-[#1B6A31]">
+                                {r._calculatedRank}
+                            </td>
                         </tr>
                     )})}
                 </tbody>
                 {records.length > 0 && (
                     <tfoot>
                         <tr className="bg-[#E6F0E6] text-[#1B6A31]">
-                            <td colSpan={2} className="border border-[#000000] p-2 text-right font-bold font-sans">{t.totalAvg}</td>
-                            <td className="border border-[#000000] p-2 font-bold font-sans">{totals.tQty}</td>
-                            <td className="border border-[#000000] p-2 font-bold font-sans">{totals.avgFacBest} %</td>
-                            <td className="border border-[#000000] p-2 font-bold font-sans">{totals.avgFacBelow} %</td>
-                            <td className="border border-[#000000] p-2 font-bold font-sans">{totals.avgFacPoor} %</td>
-                            <td colSpan={3} className="border border-[#000000] p-2"></td>
-                            <td className="border border-[#000000] p-2 font-bold font-sans">{totals.bestKg}</td>
-                            <td className="border border-[#000000] p-2 font-bold font-sans">{totals.belowBestKg}</td>
-                            <td className="border border-[#000000] p-2 font-bold font-sans">{totals.poorKg}</td>
-                            <td className="border border-[#000000] p-2"></td>
+                            <td colSpan={2} className="border border-[#8F8F8F] p-2 text-right font-bold font-sans">{t.totalAvg}</td>
+                            <td className="border border-[#8F8F8F] p-2 font-bold font-sans">{totals.tQty}</td>
+                            <td className="border border-[#8F8F8F] p-2 font-bold font-sans">{totals.avgFacBest} %</td>
+                            <td className="border border-[#8F8F8F] p-2 font-bold font-sans">{totals.avgFacBelow} %</td>
+                            <td className="border border-[#8F8F8F] p-2 font-bold font-sans">{totals.avgFacPoor} %</td>
+                            <td colSpan={3} className="border border-[#8F8F8F] p-2"></td>
+                            <td className="border border-[#8F8F8F] p-2 font-bold font-sans">{totals.bestKg}</td>
+                            <td className="border border-[#8F8F8F] p-2 font-bold font-sans">{totals.belowBestKg}</td>
+                            <td className="border border-[#8F8F8F] p-2 font-bold font-sans">{totals.poorKg}</td>
+                            <td className="border border-[#8F8F8F] p-2"></td>
                         </tr>
                     </tfoot>
                 )}
@@ -724,12 +785,12 @@ export default function ViewLoftLeafCount() {
             {/* 💡 MATCHED FOOTER STYLE */}
             <div className="mt-6 pt-6 flex justify-between items-end text-sm font-bold font-sans text-[#374151]">
                 <div>
-                    <p className="text-[#888C88]">{t.genBy}:</p>
-                    <p className="text-[#000000]">{currentUsername} ({userRole || 'Admin'})</p>
+                    <p className="text-[#4b5563]">{t.genBy}:</p>
+                    <p className="text-[#2C3A3A]">{currentUsername} ({userRole})</p>
                 </div>
                 <div className="text-center">
-                    <p className="text-[#9ca3af] mb-1">.................................................................</p>
-                    <p className="text-[#888C88]">{t.authSig}</p>
+                    <p className="text-[#4b5563] mb-1">.................................................................</p>
+                    <p className="text-[#4b5563]">{t.authSig}</p>
                 </div>
             </div>
       </div>
