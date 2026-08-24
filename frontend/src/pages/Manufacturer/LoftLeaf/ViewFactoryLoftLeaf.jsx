@@ -170,6 +170,31 @@ export default function ViewLoftLeafCount() {
   };
 
   // --- CALCULATIONS ---
+  const totals = useMemo(() => {
+    let tQty = 0, bestKg = 0, belowBestKg = 0, poorKg = 0;
+    
+    records.forEach(r => {
+        tQty += Number(r.totalLeafQtyKg) || 0;
+        bestKg += Number(r.calculatedKg?.bestKg) || 0;
+        belowBestKg += Number(r.calculatedKg?.belowBestKg) || 0;
+        poorKg += Number(r.calculatedKg?.poorKg) || 0;
+    });
+
+    const avgFacBest = tQty > 0 ? ((bestKg / tQty) * 100).toFixed(2) : "0.00";
+    const avgFacBelow = tQty > 0 ? ((belowBestKg / tQty) * 100).toFixed(2) : "0.00";
+    const avgFacPoor = tQty > 0 ? ((poorKg / tQty) * 100).toFixed(2) : "0.00";
+
+    return {
+        tQty: tQty.toFixed(2), 
+        bestKg: bestKg.toFixed(2),
+        belowBestKg: belowBestKg.toFixed(2),
+        poorKg: poorKg.toFixed(2),
+        avgFacBest,
+        avgFacBelow,
+        avgFacPoor,
+    };
+  }, [records]);
+
   // 💡 DYNAMIC RANKING CALCULATOR
   // Best % සහ Below Best % වල එකතුව (Good Leaf %) අනුව Rank 1, 2, 3 ලෙස පෙළගැස්වීම.
   const rankedRecords = useMemo(() => {
@@ -527,6 +552,7 @@ export default function ViewLoftLeafCount() {
                   </tr>
                 )}): null}
               </tbody>
+
               {records.length > 0 && (
                 <tfoot className="bg-gray-100 dark:bg-zinc-800 font-bold text-gray-800 dark:text-gray-200">
                   <tr>
@@ -764,6 +790,7 @@ export default function ViewLoftLeafCount() {
                         </tr>
                     )})}
                 </tbody>
+                
                 {records.length > 0 && (
                     <tfoot>
                         <tr className="bg-[#E6F0E6] text-[#1B6A31]">
