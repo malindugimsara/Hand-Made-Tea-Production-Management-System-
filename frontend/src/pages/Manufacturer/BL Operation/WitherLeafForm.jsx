@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import toast, { Toaster } from 'react-hot-toast';
+import { createPortal } from 'react-dom';
 
 const WitherLeafForm = () => {
   // --- Constants ---
@@ -37,10 +39,9 @@ const WitherLeafForm = () => {
   const [topForm, setTopForm] = useState(initialTopFormState);
   const [bottomForm, setBottomForm] = useState(initialBottomFormState);
   const [pendingQueue, setPendingQueue] = useState([]);
+  const [deleteAlert, setDeleteAlert] = useState({ isOpen: false, batchIndex: null });
 
   // --- Effects for Auto-Calculations ---
-
-  // 1. Auto-calculate Date of Manufacture
   useEffect(() => {
     if (topForm.dateOfCrop) {
       const cropDate = new Date(topForm.dateOfCrop);
@@ -52,7 +53,6 @@ const WitherLeafForm = () => {
     }
   }, [topForm.dateOfCrop]);
 
-  // 2. Auto-calculate Percentage and Weathering Quality
   useEffect(() => {
     const received = parseFloat(topForm.receivedTotalCropKg);
     const withered = parseFloat(topForm.witheredLeafKg);
@@ -62,9 +62,8 @@ const WitherLeafForm = () => {
 
     if (!isNaN(received) && !isNaN(withered) && received > 0) {
       const p = (withered / received) * 100;
-      calcPercentage = p.toFixed(2); // Keep to 2 decimal places
+      calcPercentage = p.toFixed(2);
 
-      // Determine Weathering Quality
       if (p > 60) quality = 'Underwithered';
       else if (p >= 59) quality = 'Softwithered';
       else if (p >= 57) quality = 'Normal';
@@ -79,17 +78,13 @@ const WitherLeafForm = () => {
     }));
   }, [topForm.receivedTotalCropKg, topForm.witheredLeafKg]);
 
-  // 3. Auto-calculate Period
   useEffect(() => {
     if (topForm.startTime && topForm.finishTime) {
       const start = new Date(`1970-01-01T${topForm.startTime}:00`);
       const end = new Date(`1970-01-01T${topForm.finishTime}:00`);
       
       let diffMs = end - start;
-      if (diffMs < 0) {
-        // Handle overnight shifts
-        diffMs += 24 * 60 * 60 * 1000; 
-      }
+      if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000; 
 
       const hrs = Math.floor(diffMs / 3600000);
       const mins = Math.floor((diffMs % 3600000) / 60000);
@@ -114,8 +109,8 @@ const WitherLeafForm = () => {
   const handleAddBatchRecord = () => {
     const kgValue = parseFloat(bottomForm.batchKg);
     
-    if (isNaN(kgValue) || kgValue < 0) {
-      alert("Please enter a valid amount.");
+    if (isNaN(kgValue) || kgValue <= 0) {
+      alert("Please enter a valid amount greater than 0.");
       return;
     }
     if (kgValue > 400) {
@@ -128,15 +123,14 @@ const WitherLeafForm = () => {
     updatedBatches[batchIndex] = kgValue;
 
     setBottomForm((prev) => {
-      // Auto-increment the batch selection, capping at 25
       const currentBatchInt = parseInt(prev.selectedBatch);
       const nextBatch = currentBatchInt < 25 ? String(currentBatchInt + 1) : prev.selectedBatch;
       
       return {
         ...prev,
         batches: updatedBatches,
-        batchKg: '', // Clear input after adding
-        selectedBatch: nextBatch // Set to next batch automatically
+        batchKg: '', 
+        selectedBatch: nextBatch
       };
     });
   };
@@ -149,7 +143,38 @@ const WitherLeafForm = () => {
     }));
   };
 
-  // Section 1 & 2 Actions
+  // --- Deletion Dialog Handlers ---
+  const handleDeleteBatchClick = (index) => {
+    setDeleteAlert({ isOpen: true, batchIndex: index });
+  };
+
+  const confirmDelete = () => {
+    const index = deleteAlert.batchIndex;
+    if (index !== null) {
+      const updatedBatches = [...bottomForm.batches];
+      updatedBatches[index] = 0; // Reset back to 0
+      setBottomForm((prev) => ({ ...prev, batches: updatedBatches }));
+      
+      toast.success(`Batch ${index + 1} data removed successfully`, {
+        style: {
+          borderRadius: '10px',
+          background: '#333',
+          color: '#fff',
+        },
+        iconTheme: {
+          primary: '#4ade80',
+          secondary: '#fff',
+        },
+      });
+    }
+    setDeleteAlert({ isOpen: false, batchIndex: null });
+  };
+
+  const cancelDelete = () => {
+    setDeleteAlert({ isOpen: false, batchIndex: null });
+  };
+  // --------------------------------
+
   const handleSaveTopSections = (e) => {
     e.preventDefault();
     if (!topForm.factory || !topForm.dateOfCrop) {
@@ -162,7 +187,6 @@ const WitherLeafForm = () => {
 
   const handleClearTopSections = () => setTopForm(initialTopFormState);
 
-  // Section 3 Actions
   const handleSaveBottomSection = (e) => {
     e.preventDefault();
     const hasData = bottomForm.batches.some(val => val > 0);
@@ -187,6 +211,11 @@ const WitherLeafForm = () => {
     setPendingQueue([]);
   };
 
+  // Extract active batches to render
+  const activeBatches = bottomForm.batches
+    .map((kg, index) => ({ index, kg }))
+    .filter(batch => batch.kg > 0);
+
   // Reusable Theme Styles
   const inputClass = "w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 block p-2.5 transition-colors";
   const readOnlyClass = "w-full bg-gray-100 border border-gray-200 text-gray-500 text-sm rounded-lg block p-2.5 font-medium";
@@ -195,7 +224,8 @@ const WitherLeafForm = () => {
   const btnClearClass = "bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2.5 px-6 rounded-lg transition-colors shadow-sm text-sm";
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] p-4 md:p-8 font-sans">
+    <div className="min-h-screen bg-[#f8f9fa] p-4 md:p-8 font-sans relative">
+      <Toaster position="bottom-right" reverseOrder={false} />
       
       {/* Page Header */}
       <div className="mb-6 border-b border-gray-200 pb-4">
@@ -225,8 +255,6 @@ const WitherLeafForm = () => {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
-                
-                {/* Subtle Divider for Desktop */}
                 <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-gray-100"></div>
 
                 {/* Left Column */}
@@ -255,10 +283,6 @@ const WitherLeafForm = () => {
 
                 {/* Right Column */}
                 <div className="flex flex-col gap-4 md:pl-4">
-                  <div>
-                    <label className={labelClass}>Date of Manufacture</label>
-                    <input type="date" name="dateOfManufacture" value={topForm.dateOfManufacture} readOnly className={readOnlyClass} />
-                  </div>
                   <div className="grid grid-cols-2 gap-4">
                      <div>
                       <label className={labelClass}>Withered Leaf (Kg)</label>
@@ -284,7 +308,10 @@ const WitherLeafForm = () => {
                       {employeeNames.map(name => <option key={`n2-${name}`} value={name}>{name}</option>)}
                     </select>
                   </div>
-                  
+                  <div>
+                    <label className={labelClass}>Date of Manufacture</label>
+                    <input type="date" name="dateOfManufacture" value={topForm.dateOfManufacture} readOnly className={readOnlyClass} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -326,7 +353,6 @@ const WitherLeafForm = () => {
               </div>
             </div>
 
-            {/* Save/Clear Buttons for Sections 1 & 2 */}
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={handleSaveTopSections} className={btnSaveClass}>Save Sections 1 & 2</button>
               <button type="button" onClick={handleClearTopSections} className={btnClearClass}>Clear</button>
@@ -385,30 +411,47 @@ const WitherLeafForm = () => {
                 </div>
              </div>
 
-             {/* Batch Visual Grid (1 to 25) with Hover/Edit logic */}
-             <div className="grid grid-cols-5 md:grid-cols-10 lg:grid-cols-12 gap-2 mb-8">
-               {bottomForm.batches.map((kg, index) => (
-                 <div 
-                    key={index} 
-                    className="group relative flex flex-col border border-gray-200 rounded-lg overflow-hidden text-center cursor-pointer hover:border-blue-400 transition-colors"
-                    onClick={() => handleEditBatchClick(index)}
-                  >
-                    <div className="bg-gray-100 py-1 text-[10px] font-bold text-gray-500 border-b border-gray-200">
-                      {String(index + 1).padStart(2, '0')}
-                    </div>
-                    <div className={`py-2 text-sm font-bold transition-colors ${kg > 0 ? 'text-green-600 bg-green-50' : 'text-gray-400 bg-white'}`}>
-                      {kg > 0 ? kg : '0'}
-                    </div>
-                    
-                    {/* Hover Overlay for Edit */}
-                    <div className="absolute inset-0 bg-blue-600/90 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                    </div>
-                 </div>
-               ))}
-             </div>
+             {/* Active Batches Visual Grid */}
+             {activeBatches.length === 0 ? (
+               <div className="text-center p-8 bg-gray-50 border border-dashed border-gray-300 rounded-xl mb-8">
+                 <p className="text-gray-500 text-sm font-medium">No batches recorded yet. Select a batch above to add quantities.</p>
+               </div>
+             ) : (
+               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 mb-8">
+                 {activeBatches.map(({ index, kg }) => (
+                   <div 
+                      key={index} 
+                      className="group relative flex flex-col border border-green-200 rounded-lg overflow-hidden text-center shadow-sm"
+                    >
+                      <div className="bg-green-50 py-1.5 text-xs font-bold text-green-700 border-b border-green-200">
+                        Batch {String(index + 1).padStart(2, '0')}
+                      </div>
+                      <div className="py-3 text-lg font-bold text-gray-800 bg-white">
+                        {kg} <span className="text-xs text-gray-400 font-normal">kg</span>
+                      </div>
+                      
+                      {/* Hover Overlay with Action Buttons */}
+                      <div className="absolute inset-0 bg-gray-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-3 transition-opacity duration-200 backdrop-blur-[2px]">
+                        <button 
+                          onClick={() => handleEditBatchClick(index)}
+                          className="p-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-transform hover:scale-110 shadow-sm"
+                          title="Edit Batch"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteBatchClick(index)}
+                          className="p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full transition-transform hover:scale-110 shadow-sm"
+                          title="Remove Batch"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                      </div>
+                   </div>
+                 ))}
+               </div>
+             )}
 
-             {/* Save/Clear Buttons for Section 3 */}
              <div className="flex gap-3 pt-2">
               <button type="button" onClick={handleSaveBottomSection} className={btnSaveClass}>Save Section 3</button>
               <button type="button" onClick={handleClearBottomSection} className={btnClearClass}>Clear</button>
@@ -478,6 +521,44 @@ const WitherLeafForm = () => {
           </div>
         </div>
       </div>
+
+      {/* --- Custom Alert Dialog for Deletion --- */}
+      {deleteAlert.isOpen && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl transform transition-all">
+            
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="p-2 bg-red-100 rounded-full">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Remove Batch Data</h3>
+            </div>
+            
+            <p className="text-sm text-gray-500 mb-6 pl-11">
+              Are you sure you want to remove the data for <strong>Batch {deleteAlert.batchIndex + 1}</strong>? This action cannot be undone.
+            </p>
+            
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={cancelDelete}
+                className="px-4 py-2.5 text-sm font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2.5 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors shadow-sm"
+              >
+                Yes, Remove
+              </button>
+            </div>
+            
+          </div>
+        </div>,
+        document.body // <--- THIS TELLS REACT TO PUT IT OVER EVERYTHING
+      )}
     </div>
   );
 };
