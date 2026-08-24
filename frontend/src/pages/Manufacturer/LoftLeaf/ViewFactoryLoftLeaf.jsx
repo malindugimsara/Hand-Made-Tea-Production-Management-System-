@@ -15,11 +15,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useNavigate } from "react-router-dom";
 
-// JS PDF Imports
+// PDF & HTML to Image Imports
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import { SinhalaBase64 } from "@/SinhalaFont";
-
+import html2canvas from "html2canvas";
 
 export default function ViewLoftLeafCount() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
@@ -115,7 +113,7 @@ export default function ViewLoftLeafCount() {
   }, [records]);
 
   // =======================================================================
-  // --- ADVANCED PDF GENERATOR (SINHALA FORMAT) ---
+  // --- HTML2CANVAS PDF GENERATOR (PERFECT SINHALA RENDERING) ---
   // =======================================================================
   const generatePDFForDate = async () => {
     if (records.length === 0) {
@@ -126,113 +124,27 @@ export default function ViewLoftLeafCount() {
     const toastId = toast.loading("Generating PDF Report...");
 
     try {
-        const doc = new jsPDF('landscape', 'pt', 'a4');
-        const pageWidth = doc.internal.pageSize.getWidth();
-
-        // 💡 1. Font එක PDF එකට Load කිරීම
-        doc.addFileToVFS("SinhalaFont.ttf", SinhalaBase64);
-        doc.addFont("SinhalaFont.ttf", "Sinhala", "normal");
-        // 💡 2. මේක අනිවාර්යයි! (Call addFont to register it)
-        doc.setFont("Sinhala");
-
-        // --- 1. HEADER SECTION ---
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold"); 
-        doc.setTextColor(0, 0, 0); 
+        // Find the hidden print area
+        const printElement = document.getElementById('pdf-print-area');
         
-        doc.text(`TRANSACTION DATE : ${selectedDate.replace(/-/g, '.')}`, pageWidth / 2, 40, { align: 'center' });
-        doc.text("ATHUKORALA GROUP (PVT) LTD", pageWidth / 2, 60, { align: 'center' });
-
-        doc.setFontSize(16);
-        doc.setFont("Sinhala", "normal"); // 💡 3. Title එකට සිංහල Font එක දානවා
-        doc.text("අමු තේ දළු ගුණාත්මක", 40, 90); 
-
-        // --- 2. TABLE BODY DATA ---
-        const body = records.map(r => [
-            (r.route || "-").toUpperCase(),
-            r.arrivalTime || "-",
-            Number(r.totalLeafQtyKg || 0).toString(), 
-            r.factorySample?.isEntered ? r.factorySample.bestPct : "-",
-            r.factorySample?.isEntered ? r.factorySample.belowBestPct : "-",
-            r.factorySample?.isEntered ? r.factorySample.poorPct : "-",
-            r.collectorSample?.isEntered ? r.collectorSample.bestPct : "-",
-            r.collectorSample?.isEntered ? r.collectorSample.belowBestPct : "-",
-            r.collectorSample?.isEntered ? r.collectorSample.poorPct : "-",
-            Number(r.calculatedKg?.bestKg || 0).toFixed(2),
-            Number(r.calculatedKg?.belowBestKg || 0).toFixed(2),
-            Number(r.calculatedKg?.poorKg || 0).toFixed(2),
-            r.gradeRank || "-"
-        ]);
-
-        // --- 3. AUTO TABLE GENERATION ---
-        autoTable(doc, {
-            startY: 100,
-            theme: 'plain', 
-            styles: {
-                font: 'Sinhala', // 💡 4. Table එක ඇතුළේ අකුරු සිංහල Font එකෙන් පෙන්වීම
-                fontSize: 10,
-                textColor: [0, 0, 0],
-                lineColor: [0, 0, 0],
-                lineWidth: 0.5,
-                halign: 'center',
-                valign: 'middle',
-                cellPadding: 4,
-            },
-            headStyles: {
-                fillColor: [255, 255, 255],
-                textColor: [0, 0, 0],
-                fontStyle: 'normal', // 💡 5. සිංහල Font වල Bold නැති නිසා 'normal' දැමීම අත්‍යවශ්‍යයි
-                lineWidth: 1
-            },
-            head: [
-                [
-                    { content: 'කැපුම්\nමාර්ගය', rowSpan: 3 },
-                    { content: 'පැමිණි\nවේලාව', rowSpan: 3 },
-                    { content: 'මුළු අමු\nදළු\nප්‍රමාණය\n(Kg)', rowSpan: 3 },
-                    { content: 'අමු තේ දළු ගුණාත්මක', colSpan: 6 },
-                    { content: 'කිලෝ ප්‍රමාණය (කර්මාන්තශාලාව)', colSpan: 3 },
-                    { content: 'ශ්‍රේණිගත\nකිරීම', rowSpan: 3 }
-                ],
-                [
-                    { content: 'කර්මාන්තශාලා නියැදිය\n(Factory Sample)', colSpan: 3 },
-                    { content: 'එකතුකරන්නාගේ නියැදිය\n(Leaf Collector Sample)', colSpan: 3 },
-                    { content: 'ගුණාත්මයෙන්\nඉහළ\n(Kg)', rowSpan: 2 },
-                    { content: 'ගුණාත්මයෙන්\nමධ්‍යස්ථ\n(Kg)', rowSpan: 2 },
-                    { content: 'ගුණාත්මයෙන්\nපහළ\n(Kg)', rowSpan: 2 }
-                ],
-                [
-                    { content: 'ගුණාත්මයෙන්\nඉහළ\n(%)' },
-                    { content: 'ගුණාත්මයෙන්\nමධ්‍යස්ථ\n(%)' },
-                    { content: 'ගුණාත්මයෙන්\nපහළ\n(%)' },
-                    { content: 'ගුණාත්මයෙන්\nඉහළ\n(%)' },
-                    { content: 'ගුණාත්මයෙන්\nමධ්‍යස්ථ\n(%)' },
-                    { content: 'ගුණාත්මයෙන්\nපහළ\n(%)' }
-                ]
-            ],
-            body: body,
-            foot: [
-                [
-                    { content: 'Total', colSpan: 2, styles: { halign: 'left', fontStyle: 'normal' } },
-                    { content: totals.tQty.toString(), styles: { fontStyle: 'normal' } },
-                    { content: `${totals.avgFacBest} %`, styles: { fontStyle: 'normal' } },
-                    { content: `${totals.avgFacBelow} %`, styles: { fontStyle: 'normal' } },
-                    { content: `${totals.avgFacPoor} %`, styles: { fontStyle: 'normal' } },
-                    { content: "", colSpan: 3 },
-                    { content: totals.bestKg, styles: { fontStyle: 'normal' } },
-                    { content: totals.belowBestKg, styles: { fontStyle: 'normal' } },
-                    { content: totals.poorKg, styles: { fontStyle: 'normal' } },
-                    { content: "" }
-                ]
-            ],
-            footStyles: {
-                fillColor: [255, 255, 255],
-                textColor: [0, 0, 0],
-                fontStyle: 'normal',
-                lineWidth: 1
-            }
+        // Use html2canvas to take a snapshot of the element
+        const canvas = await html2canvas(printElement, { 
+            scale: 2, // High resolution
+            useCORS: true,
+            backgroundColor: "#ffffff"
         });
-
-        doc.save(`Loft_Leaf_Report_${selectedDate}.pdf`);
+        
+        const imgData = canvas.toDataURL('image/png');
+        
+        // Create A4 Landscape PDF
+        const pdf = new jsPDF('landscape', 'pt', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        
+        // Add the image to the PDF
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        
+        pdf.save(`Loft_Leaf_Report_${selectedDate}.pdf`);
         toast.success("Report downloaded successfully!", { id: toastId });
 
     } catch (error) {
@@ -287,7 +199,7 @@ export default function ViewLoftLeafCount() {
         </div>
       </div>
 
-      {/* --- TABLE SECTION --- */}
+      {/* --- UI TABLE SECTION --- */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden">
         {loading ? (
           <div className="p-8 sm:p-12 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center h-48 sm:h-64">
@@ -311,15 +223,12 @@ export default function ViewLoftLeafCount() {
                   {!isViewer && <th rowSpan={2} className="p-3 border border-gray-300 dark:border-zinc-700 font-bold uppercase w-24">Actions</th>}
                 </tr>
                 <tr className="bg-gray-50 dark:bg-zinc-800/80 text-[11px] uppercase text-gray-600 dark:text-gray-400 font-bold">
-                  {/* Factory % */}
                   <th className="p-2 border border-gray-300 dark:border-zinc-700 text-green-600">Best</th>
                   <th className="p-2 border border-gray-300 dark:border-zinc-700 text-yellow-600">Below Best</th>
                   <th className="p-2 border border-gray-300 dark:border-zinc-700 text-red-500">Poor</th>
-                  {/* Collector % */}
                   <th className="p-2 border border-gray-300 dark:border-zinc-700 text-green-600">Best</th>
                   <th className="p-2 border border-gray-300 dark:border-zinc-700 text-yellow-600">Below Best</th>
                   <th className="p-2 border border-gray-300 dark:border-zinc-700 text-red-500">Poor</th>
-                  {/* Calculated KGs */}
                   <th className="p-2 border border-gray-300 dark:border-zinc-700 text-green-600">Best (Kg)</th>
                   <th className="p-2 border border-gray-300 dark:border-zinc-700 text-yellow-600">Below Best (Kg)</th>
                   <th className="p-2 border border-gray-300 dark:border-zinc-700 text-red-500">Poor (Kg)</th>
@@ -334,27 +243,22 @@ export default function ViewLoftLeafCount() {
                       {row.totalLeafQtyKg || '-'}
                     </td>
                     
-                    {/* Factory % */}
                     <td className="p-3 border border-gray-200 dark:border-zinc-800 font-medium">{row.factorySample?.isEntered ? `${row.factorySample.bestPct}%` : '-'}</td>
                     <td className="p-3 border border-gray-200 dark:border-zinc-800 font-medium">{row.factorySample?.isEntered ? `${row.factorySample.belowBestPct}%` : '-'}</td>
                     <td className="p-3 border border-gray-200 dark:border-zinc-800 font-medium">{row.factorySample?.isEntered ? `${row.factorySample.poorPct}%` : '-'}</td>
 
-                    {/* Collector % */}
                     <td className="p-3 border border-gray-200 dark:border-zinc-800 font-medium">{row.collectorSample?.isEntered ? `${row.collectorSample.bestPct}%` : '-'}</td>
                     <td className="p-3 border border-gray-200 dark:border-zinc-800 font-medium">{row.collectorSample?.isEntered ? `${row.collectorSample.belowBestPct}%` : '-'}</td>
                     <td className="p-3 border border-gray-200 dark:border-zinc-800 font-medium">{row.collectorSample?.isEntered ? `${row.collectorSample.poorPct}%` : '-'}</td>
 
-                    {/* Calculated KGs */}
                     <td className="p-3 border border-gray-200 dark:border-zinc-800 font-bold text-gray-700 dark:text-gray-300">{Number(row.calculatedKg?.bestKg || 0).toFixed(2)}</td>
                     <td className="p-3 border border-gray-200 dark:border-zinc-800 font-bold text-gray-700 dark:text-gray-300">{Number(row.calculatedKg?.belowBestKg || 0).toFixed(2)}</td>
                     <td className="p-3 border border-gray-200 dark:border-zinc-800 font-bold text-gray-700 dark:text-gray-300">{Number(row.calculatedKg?.poorKg || 0).toFixed(2)}</td>
 
-                    {/* Rank */}
                     <td className="p-3 border border-gray-200 dark:border-zinc-800 font-black text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10 text-lg">
                       {row.gradeRank}
                     </td>
 
-                    {/* ACTIONS */}
                     {!isViewer && (
                       <td className="p-3 border border-gray-200 dark:border-zinc-800">
                         <div className="flex items-center justify-center gap-3">
@@ -407,24 +311,18 @@ export default function ViewLoftLeafCount() {
                   </tr>
                 )}
               </tbody>
-
-              {/* FOOTER TOTALS */}
               {records.length > 0 && (
                 <tfoot className="bg-gray-100 dark:bg-zinc-800 font-bold text-gray-800 dark:text-gray-200">
                   <tr>
                     <td colSpan={2} className="p-3 border border-gray-300 dark:border-zinc-700 text-left pl-6">TOTAL / AVERAGE</td>
                     <td className="p-3 border border-gray-300 dark:border-zinc-700 text-[#3f6212] dark:text-lime-400">{totals.tQty}</td>
-                    
                     <td className="p-3 border border-gray-300 dark:border-zinc-700 text-green-700 dark:text-green-500">{totals.avgFacBest}%</td>
                     <td className="p-3 border border-gray-300 dark:border-zinc-700 text-yellow-700 dark:text-yellow-500">{totals.avgFacBelow}%</td>
                     <td className="p-3 border border-gray-300 dark:border-zinc-700 text-red-600 dark:text-red-400">{totals.avgFacPoor}%</td>
-                    
                     <td colSpan={3} className="p-3 border border-gray-300 dark:border-zinc-700 bg-gray-200 dark:bg-zinc-700/50 text-gray-400 font-normal">N/A</td>
-                    
                     <td className="p-3 border border-gray-300 dark:border-zinc-700 text-green-700 dark:text-green-500">{totals.bestKg}</td>
                     <td className="p-3 border border-gray-300 dark:border-zinc-700 text-yellow-700 dark:text-yellow-500">{totals.belowBestKg}</td>
                     <td className="p-3 border border-gray-300 dark:border-zinc-700 text-red-600 dark:text-red-400">{totals.poorKg}</td>
-                    
                     <td className="p-3 border border-gray-300 dark:border-zinc-700"></td>
                     {!isViewer && <td className="p-3 border border-gray-300 dark:border-zinc-700"></td>}
                   </tr>
@@ -434,6 +332,95 @@ export default function ViewLoftLeafCount() {
           </div>
         )}
       </div>
+
+      {/* ========================================================================================= */}
+      {/* 💡 HIDDEN PRINT AREA FOR PDF (This matches your exact image requirement with perfect Sinhala) */}
+      {/* ========================================================================================= */}
+      <div className="absolute left-[-9999px] top-[-9999px]">
+        <div id="pdf-print-area" className="bg-white p-10 font-sans text-black" style={{ width: '1122px', minHeight: '793px' }}>
+            
+            {/* Header Text */}
+            <div className="text-center font-bold text-sm mb-2">
+                TRANSACTION DATE : {selectedDate.replace(/-/g, '.')}
+            </div>
+            <div className="text-center font-bold text-lg mb-8">
+                ATHUKORALA GROUP (PVT) LTD
+            </div>
+            <div className="font-bold text-xl mb-4" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
+                අමු තේ දළු ගුණාත්මය
+            </div>
+
+            {/* Table matched to your image */}
+            <table className="w-full border-collapse border border-black text-center text-[12px]" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
+                <thead>
+                    <tr>
+                        <th rowSpan={3} className="border border-black p-2 font-bold">සැපයුම්<br/>මාර්ගය</th>
+                        <th rowSpan={3} className="border border-black p-2 font-bold">පැමිණි<br/>වේලාව</th>
+                        <th rowSpan={3} className="border border-black p-2 font-bold">මුළු අමු<br/>දළු<br/>ප්‍රමාණය<br/>(Kg)</th>
+                        <th colSpan={6} className="border border-black p-2 font-bold">අමු තේ දළු ගුණාත්මය</th>
+                        <th colSpan={3} className="border border-black p-2 font-bold">කිලෝ ප්‍රමාණය (කර්මාන්තශාලාව)</th>
+                        <th rowSpan={3} className="border border-black p-2 font-bold">ශ්‍රේණිගත<br/>කිරීම</th>
+                    </tr>
+                    <tr>
+                        <th colSpan={3} className="border border-black p-2 font-bold">කර්මාන්තශාලා නියැදිය<br/>(Factory Sample)</th>
+                        <th colSpan={3} className="border border-black p-2 font-bold">එකතු කරන්නාගේ නියැදිය<br/>(Leaf Collector Sample)</th>
+                        <th rowSpan={2} className="border border-black p-2 font-bold">ගුණාත්මයෙන්<br/>ඉහළ<br/>(Kg)</th>
+                        <th rowSpan={2} className="border border-black p-2 font-bold">ගුණාත්මයෙන්<br/>මධ්‍යස්ථ<br/>(Kg)</th>
+                        <th rowSpan={2} className="border border-black p-2 font-bold">ගුණාත්මයෙන්<br/>පහළ<br/>(Kg)</th>
+                    </tr>
+                    <tr>
+                        <th className="border border-black p-2 font-bold">ගුණාත්මයෙන්<br/>ඉහළ<br/>(%)</th>
+                        <th className="border border-black p-2 font-bold">ගුණාත්මයෙන්<br/>මධ්‍යස්ථ<br/>(%)</th>
+                        <th className="border border-black p-2 font-bold">ගුණාත්මයෙන්<br/>පහළ<br/>(%)</th>
+                        <th className="border border-black p-2 font-bold">ගුණාත්මයෙන්<br/>ඉහළ<br/>(%)</th>
+                        <th className="border border-black p-2 font-bold">ගුණාත්මයෙන්<br/>මධ්‍යස්ථ<br/>(%)</th>
+                        <th className="border border-black p-2 font-bold">ගුණාත්මයෙන්<br/>පහළ<br/>(%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {records.map((r, idx) => (
+                        <tr key={idx}>
+                            <td className="border border-black p-2 font-bold font-sans">{(r.route || "-").toUpperCase()}</td>
+                            <td className="border border-black p-2 font-sans">{r.arrivalTime || "-"}</td>
+                            <td className="border border-black p-2 font-sans">{Number(r.totalLeafQtyKg || 0)}</td>
+                            <td className="border border-black p-2 font-sans">{r.factorySample?.isEntered ? r.factorySample.bestPct : "-"}</td>
+                            <td className="border border-black p-2 font-sans">{r.factorySample?.isEntered ? r.factorySample.belowBestPct : "-"}</td>
+                            <td className="border border-black p-2 font-sans">{r.factorySample?.isEntered ? r.factorySample.poorPct : "-"}</td>
+                            <td className="border border-black p-2 font-sans">{r.collectorSample?.isEntered ? r.collectorSample.bestPct : "-"}</td>
+                            <td className="border border-black p-2 font-sans">{r.collectorSample?.isEntered ? r.collectorSample.belowBestPct : "-"}</td>
+                            <td className="border border-black p-2 font-sans">{r.collectorSample?.isEntered ? r.collectorSample.poorPct : "-"}</td>
+                            <td className="border border-black p-2 font-sans">{Number(r.calculatedKg?.bestKg || 0).toFixed(2)}</td>
+                            <td className="border border-black p-2 font-sans">{Number(r.calculatedKg?.belowBestKg || 0).toFixed(2)}</td>
+                            <td className="border border-black p-2 font-sans">{Number(r.calculatedKg?.poorKg || 0).toFixed(2)}</td>
+                            <td className="border border-black p-2 font-bold font-sans">{r.gradeRank || "-"}</td>
+                        </tr>
+                    ))}
+                </tbody>
+                {records.length > 0 && (
+                    <tfoot>
+                        <tr>
+                            <td colSpan={2} className="border border-black p-2 text-left font-bold font-sans">Total</td>
+                            <td className="border border-black p-2 font-bold font-sans">{totals.tQty}</td>
+                            <td className="border border-black p-2 font-bold font-sans">{totals.avgFacBest} %</td>
+                            <td className="border border-black p-2 font-bold font-sans">{totals.avgFacBelow} %</td>
+                            <td className="border border-black p-2 font-bold font-sans">{totals.avgFacPoor} %</td>
+                            <td colSpan={3} className="border border-black p-2"></td>
+                            <td className="border border-black p-2 font-bold font-sans">{totals.bestKg}</td>
+                            <td className="border border-black p-2 font-bold font-sans">{totals.belowBestKg}</td>
+                            <td className="border border-black p-2 font-bold font-sans">{totals.poorKg}</td>
+                            <td className="border border-black p-2"></td>
+                        </tr>
+                    </tfoot>
+                )}
+            </table>
+
+            <div className="mt-16 flex justify-between px-10 text-xs font-bold font-sans">
+                <div>Generated By: {currentUsername} ({userRole || 'Admin'})</div>
+                <div className="text-center">.................................................................<br/>Authorized Signature</div>
+            </div>
+        </div>
+      </div>
+
     </div>
   );
 }
