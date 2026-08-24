@@ -15,7 +15,7 @@ const calculatePercentages = (best, belowBest, poor) => {
 // 1. Add or Update Factory Sample
 export const saveFactorySample = async (req, res) => {
     try {
-        const { date, route, arrivalTime, officerName, totalLeafQtyKg, bestG, belowBestG, poorG } = req.body;
+        const { date, route, arrivalTime, totalLeafQtyKg, bestG, belowBestG, poorG } = req.body;
 
         const { bestPct, belowBestPct, poorPct } = calculatePercentages(bestG, belowBestG, poorG);
 
@@ -26,7 +26,6 @@ export const saveFactorySample = async (req, res) => {
 
         const updateData = {
             arrivalTime,
-            officerName,
             totalLeafQtyKg: totalKg,
             factorySample: {
                 isEntered: true,
@@ -123,9 +122,16 @@ export const getDailyReport = async (req, res) => {
 export const updateRecord = async (req, res) => {
     try {
         const { id } = req.params;
-        const { route, arrivalTime, officerName, totalLeafQtyKg, factorySample, collectorSample } = req.body;
+        
+        // 💡 මෙතනට 'editedBy' යන්න අනිවාර්යයෙන්ම එකතු විය යුතුයි 
+        const { route, arrivalTime, totalLeafQtyKg, factorySample, collectorSample, editedBy } = req.body;
 
-        let updateData = { route, arrivalTime, officerName, totalLeafQtyKg: Number(totalLeafQtyKg) || 0 };
+        let updateData = { 
+            route, 
+            arrivalTime,
+            totalLeafQtyKg: Number(totalLeafQtyKg) || 0,
+            editedBy // 💡 Backend එකේ Save වීමට මෙය මෙතනට ලබා දීම
+        };
 
         // Recalculate Factory Sample if provided
         if (factorySample) {
@@ -172,6 +178,7 @@ export const updateRecord = async (req, res) => {
 
         res.status(200).json({ success: true, message: "Record updated successfully", data: updatedRecord });
     } catch (error) {
+        console.error("Update Error:", error); // 💡 Backend Terminal එකේ Error එක හරියටම බලාගන්න මේක උදව් වේවි
         res.status(500).json({ success: false, message: error.message });
     }
 };

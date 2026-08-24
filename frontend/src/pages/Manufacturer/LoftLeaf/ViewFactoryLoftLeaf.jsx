@@ -142,7 +142,8 @@ export default function ViewLoftLeafCount() {
               arrivalTime: editForm.arrivalTime,
               totalLeafQtyKg: editForm.totalLeafQtyKg,
               factorySample: { bestG: fBest, belowBestG: fBelow, poorG: fPoor },
-              collectorSample: { bestG: cBest, belowBestG: cBelow, poorG: cPoor }
+              collectorSample: { bestG: cBest, belowBestG: cBelow, poorG: cPoor },
+              editedBy: currentUsername // 💡 අලුතින් එක් කළ කොටස (කවුද වෙනස් කළේ යන්න යැවීමට)
           };
 
           const response = await fetch(`${BACKEND_URL}/api/factory-loft-leaf/${editForm._id}`, {
@@ -404,8 +405,18 @@ export default function ViewLoftLeafCount() {
 
                   return (
                   <tr key={row._id} className="hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors">
-                    <td className="p-2 sm:p-3 border border-gray-200 dark:border-zinc-800 font-bold text-gray-800 dark:text-gray-200">
-                        {(row.route || "-").toUpperCase()}
+                    <td className="p-2 sm:p-3 border border-gray-200 dark:border-zinc-800 text-left">
+                        <div className="font-bold text-gray-800 dark:text-gray-200">
+                            {(row.route || "-").toUpperCase()}
+                        </div>
+                        {row.editedBy && (
+                            <div className="text-[9px] text-blue-400 dark:text-gray-500 mt-1 leading-tight border-t border-gray-100 dark:border-zinc-800 pt-1">
+                                {lang === 'SI' ? "වෙනස් කළේ:" : "Edited:"} {row.editedBy}<br/>
+                                <span className="text-[8px]">
+                                  {new Date(row.updatedAt || row.date).toLocaleString('en-GB', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                            </div>
+                        )}
                     </td>
                     
                     {/* 💡 LATE ARRIVAL HIGHLIGHT & HIDDEN TIME FOR E/FA */}
