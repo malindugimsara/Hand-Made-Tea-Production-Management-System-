@@ -354,18 +354,6 @@ export default function SimpleAverage() {
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3">
-          {viewMode === "simplified" && (
-            <button onClick={generateSimplifiedPDF} disabled={loading} className="px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-red-700 disabled:opacity-70">
-              <FileDown size={16} /> Download PDF
-            </button>
-          )}
-
-           {viewMode === "detailed" && (
-          <button onClick={exportToExcel} disabled={loading} className="px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-blue-700 disabled:opacity-70">
-            <FileSpreadsheet size={16} /> Export Excel
-          </button>
-          )}
-
           <div className="flex bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg border border-gray-200 dark:border-zinc-700 shadow-sm">
             <button onClick={() => setViewMode("simplified")} className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-md ${viewMode === "simplified" ? "bg-white text-blue-600 shadow" : "text-gray-500 hover:text-gray-700"}`}>
               <LayoutList size={16} /> Simplified
@@ -380,9 +368,20 @@ export default function SimpleAverage() {
             <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="bg-transparent border-none outline-none text-sm font-bold text-gray-700 dark:text-gray-200 p-2 cursor-pointer" />
           </div>
 
-          <button onClick={fetchRecords} disabled={loading} className="px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-blue-800 disabled:opacity-70">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Sync
+          <button onClick={fetchRecords} disabled={loading} className="px-4 py-2.5 bg-gray-200 text-black rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-gray-600 disabled:opacity-70">
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> 
           </button>
+          {viewMode === "simplified" && (
+            <button onClick={generateSimplifiedPDF} disabled={loading} className="px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-red-700 disabled:opacity-70">
+              <FileDown size={16} /> Download PDF
+            </button>
+          )}
+
+           {viewMode === "detailed" && (
+          <button onClick={exportToExcel} disabled={loading} className="px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-blue-700 disabled:opacity-70">
+            <FileSpreadsheet size={16} /> Export Excel
+          </button>
+          )}
         </div>
       </div>
 
