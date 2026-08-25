@@ -215,7 +215,7 @@ export default function GreenLeafForm() {
             selectedWeight: gl ? gl.selectedWeight : 0,
             returnedWeight: gl ? gl.returnedWeight : 0,
             teaType: prod ? prod.teaType || "-" : "-",
-            selectedTeaWeight: prod ? prod.selectedTeaWeight || 0 : 0, // <-- ADDED NEW FIELD MAPPING
+            selectedTeaWeight: prod ? prod.selectedTeaWeight || 0 : 0,
             madeTeaWeight: prod ? prod.madeTeaWeight || 0 : 0,
             dryerName: prod?.dryerDetails?.dryerName || "-",
             meterStart: prod?.dryerDetails?.meterStart ?? "-",
@@ -283,7 +283,7 @@ export default function GreenLeafForm() {
   });
 
   // Calculate Grouped OutTurn % (By Date and Tea Type)
- const outTurnGroups = {};
+  const outTurnGroups = {};
   filteredRecords.forEach((r) => {
     if (r.teaType !== "-" && r.teaType !== "") {
       const key = `${r.date}_${r.teaType}`;
@@ -300,14 +300,11 @@ export default function GreenLeafForm() {
     }
   });
 
+  // Highlight colors updated to gray for shared dryers
   const highlightColors = [
-    { ui: "bg-green-200/80 dark:bg-green-900/40", pdf: "#bbf7d0" },
-    { ui: "bg-yellow-200/80 dark:bg-yellow-900/40", pdf: "#fef08a" },
-    { ui: "bg-purple-200/80 dark:bg-purple-900/40", pdf: "#e9d5ff" },
-    { ui: "bg-blue-200/80 dark:bg-blue-900/40", pdf: "#bfdbfe" },
-    { ui: "bg-pink-200/80 dark:bg-pink-900/40", pdf: "#fbcfe8" },
-    { ui: "bg-orange-200/80 dark:bg-orange-900/40", pdf: "#fed7aa" },
+    { ui: "bg-gray-100 dark:bg-zinc-800/40", pdf: "#f3f4f6" },
   ];
+  
   let colorIndex = 0;
 
   Object.keys(groupMap).forEach((key) => {
@@ -323,7 +320,6 @@ export default function GreenLeafForm() {
   const totalSelectedGL = filteredRecords.reduce((sum, r) => sum + (Number(r.selectedWeight) || 0), 0);
   const totalReturnedGL = filteredRecords.reduce((sum, r) => sum + (Number(r.returnedWeight) || 0), 0);
   
-  // <-- Added calculation for new field -->
   const totalSelectedTeaWeight = filteredRecords.reduce((sum, r) => sum + (Number(r.selectedTeaWeight) || 0), 0);
   
   const totalMadeTea = filteredRecords.reduce((sum, r) => sum + (Number(r.madeTeaWeight) || 0), 0);
@@ -498,7 +494,7 @@ export default function GreenLeafForm() {
         Number(record.selectedWeight) === 0 ? "-" : record.selectedWeight,
         Number(record.returnedWeight) === 0 ? "-" : record.returnedWeight,
         record.teaType,
-        Number(record.selectedTeaWeight) === 0 ? "-" : record.selectedTeaWeight, // <-- Added mapped data
+        Number(record.selectedTeaWeight) === 0 ? "-" : record.selectedTeaWeight,
         Number(record.madeTeaWeight) === 0 ? "-" : record.madeTeaWeight,
         outTurnDisplay,
         pdfDryerName,
@@ -531,7 +527,7 @@ export default function GreenLeafForm() {
         totalSelectedGL === 0 ? "-" : totalSelectedGL.toFixed(2),
         totalReturnedGL === 0 ? "-" : totalReturnedGL.toFixed(2),
         "-",
-        totalSelectedTeaWeight === 0 ? "-" : totalSelectedTeaWeight.toFixed(2), // <-- Added mapped data total
+        totalSelectedTeaWeight === 0 ? "-" : totalSelectedTeaWeight.toFixed(2), 
         totalMadeTea === 0 ? "-" : totalMadeTea.toFixed(3),
         totalOutTurnDisplay,
         "-",
@@ -583,7 +579,7 @@ export default function GreenLeafForm() {
                   "Selected GL",
                   "Return GL",
                   "Tea Type",
-                  "Sel. Tea", // <-- ADDED HEADER
+                  "Sel. Tea",
                   "Made Tea",
                   "Out Turn %",
                   "Dryer",
@@ -719,7 +715,6 @@ export default function GreenLeafForm() {
                         Material
                       </div>
                     </th>
-                    {/* Increased colSpan to 4 to accommodate Sel. Tea */}
                     <th
                       colSpan="4"
                       className="px-3 sm:px-4 py-2 font-bold text-purple-700 dark:text-purple-400 border-r border-gray-200 dark:border-zinc-800 bg-[#f5f0ff] dark:bg-purple-900/20 text-center uppercase tracking-wider text-[10px] sm:text-[11px]"
@@ -770,7 +765,6 @@ export default function GreenLeafForm() {
                     <th className="px-2 sm:px-3 py-2 font-semibold bg-[#f5f0ff]/50 dark:bg-purple-900/10 text-center border-r border-gray-200 dark:border-zinc-800">
                       Type
                     </th>
-                    {/* Added Sel. Tea Header */}
                     <th className="px-2 sm:px-3 py-2 font-semibold bg-[#f5f0ff]/50 dark:bg-purple-900/10 text-center border-r border-gray-200 dark:border-zinc-800">
                       Sel. Tea
                     </th>
@@ -829,6 +823,7 @@ export default function GreenLeafForm() {
 
                               let displayUnits = record.units;
                               let displayRollerPoints = record.rollerPoints;
+                              let isSharedDryer = false;
 
                               if (
                                 record.meterStart !== "-" &&
@@ -840,6 +835,8 @@ export default function GreenLeafForm() {
                                 const groupInfo = groupMap[key];
 
                                 if (groupInfo && groupInfo.count > 1) {
+                                  isSharedDryer = true;
+                                  
                                   const adjustedUnits =
                                     Number(record.units) / groupInfo.count;
                                   displayUnits = Number.isInteger(adjustedUnits)
@@ -885,7 +882,11 @@ export default function GreenLeafForm() {
                               return (
                                 <tr
                                   key={record.productionId || index}
-                                  className={`transition-colors group hover:bg-gray-50/50 dark:hover:bg-zinc-800/20`}
+                                  className={`transition-colors group ${
+                                    isSharedDryer 
+                                      ? "bg-gray-100 dark:bg-zinc-800/40 hover:bg-gray-200/70 dark:hover:bg-zinc-800/60"
+                                      : "hover:bg-gray-50/50 dark:hover:bg-zinc-800/20"
+                                  }`}
                                 >
                                   {index === 0 && (
                                     /* Sticky Date Body */
@@ -1231,4 +1232,4 @@ export default function GreenLeafForm() {
       </div>
     </div>
   );
-} 
+}
