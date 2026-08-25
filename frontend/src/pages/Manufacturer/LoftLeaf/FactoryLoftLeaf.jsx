@@ -202,7 +202,7 @@ export default function LoftLeafCount() {
     });
   };
 
-  const handleAddToList = (e, formType) => {
+const handleAddToList = (e, formType) => {
     e.preventDefault();
     
     const isFactory = formType === 'factory';
@@ -213,13 +213,13 @@ export default function LoftLeafCount() {
       toast.error("Please fill Route and quantities!");
       return;
     }
-    // 💡 Validation: Time එකත් අනිවාර්ය කර ඇත
+    // Validation: Time එකත් අනිවාර්ය කර ඇත
     if (isFactory && (!currentForm.totalLeafQty)) {
       toast.error("Please fill Total Leaf Quantity for Factory sample!");
       return;
     }
 
-    // 💡 12-Hour format එකෙන් Time එක හැදීම
+    // 12-Hour format එකෙන් Time එක හැදීම
     const finalArrivalTime = isFactory && currentForm.arrivalTime 
         ? `${currentForm.arrivalTime} ${currentForm.arrivalAmPm}` 
         : "";
@@ -229,7 +229,7 @@ export default function LoftLeafCount() {
       date: selectedDate,
       sampleType: isFactory ? "Factory" : "LeafCollector",
       route: currentForm.route.split(' - ')[0], 
-      arrivalTime: finalArrivalTime, // 💡 Format කරපු Time එක
+      arrivalTime: finalArrivalTime, 
       totalLeafQty: isFactory ? Number(currentForm.totalLeafQty) : null,
       bestQty: stats.b,
       belowBestQty: stats.bb,
@@ -240,10 +240,13 @@ export default function LoftLeafCount() {
     setPendingRecords([...pendingRecords, newRecord]);
     
     if (isFactory) {
-      // 💡 Reset කිරීමේදී Time එකත් හිස් කරයි
       setFactoryForm({ route: "", arrivalTime: "", arrivalAmPm: "PM", totalLeafQty: "", bestQty: "", belowBestQty: "" });
+      // 💡 Submit කළ පසු නැවතත් Factory Route එකට Focus වීම
+      setTimeout(() => focusNext('fac-route'), 50);
     } else {
       setCollectorForm({ route: "", bestQty: "", belowBestQty: "" });
+      // 💡 Submit කළ පසු නැවතත් Collector Route එකට Focus වීම
+      setTimeout(() => focusNext('col-route'), 50);
     }
     toast.success(`Added ${isFactory ? 'Factory' : 'Collector'} Sample to list!`);
   };
