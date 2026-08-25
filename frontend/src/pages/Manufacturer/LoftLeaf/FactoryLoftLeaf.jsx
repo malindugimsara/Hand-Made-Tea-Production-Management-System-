@@ -1,8 +1,24 @@
 import React, { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
-import { Leaf, PlusCircle, Trash2, Tag, User, Factory, Users, Edit2, Save, Weight, Calendar, Clock, Languages, UserCheck } from "lucide-react";
+import { Leaf, PlusCircle, Trash2, Tag, Factory, Users, Edit2, Save, Weight, Calendar, Clock, Languages, UserCheck, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+
+// 💡 Leaf Collector Name Mapping
+const collectorNameMapping = {
+  "C1": "H. H. Kaluarachchi",
+  "C2": "M. Darmakeerthi",
+  "C3": "K. W. W. P. Kumara",
+  "C4": "W. P. Madushanka",
+  "C5": "J. D. I. Chandrakumara",
+  "C7": "T. M. Jayasinghe",
+  "C8": "K. C. Sampath"
+};
+
+const routeOptions = [
+  "C1 - MATHTHAKA", "C2 - WALALLAWITA", "C3 - PELAWATHTHA", "C4 - POLGAMPALA",
+  "C5 - MANAMPITA", "C7 - GANEGODA", "C8 - THUNDOLA", "FA - FACTORY", "E - ESTATE TEA",
+];
 
 export default function LoftLeafCount() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -34,6 +50,9 @@ export default function LoftLeafCount() {
 
   // 💡 Factory Supervisor Name (Global for the day)
   const [supervisorName, setSupervisorName] = useState(currentUsername);
+  
+  // 💡 State to track the last auto-filled route to avoid overwriting manual edits
+  const [lastAutoFilledRoute, setLastAutoFilledRoute] = useState("");
 
   const [factoryForm, setFactoryForm] = useState({
     route: "",
@@ -46,15 +65,23 @@ export default function LoftLeafCount() {
 
   const [collectorForm, setCollectorForm] = useState({
     route: "",
-    collectorName: "", // 💡 Leaf Collector Name
+    collectorName: "", 
     bestQty: "",
     belowBestQty: "",
   });
 
-  const routeOptions = [
-    "C1 - MATHTHAKA", "C2 - WALALLAWITA", "C3 - PELAWATHTHA", "C4 - POLGAMPALA",
-    "C5 - MANAMPITA", "C7 - GANEGODA", "C8 - THUNDOLA", "FA - FACTORY", "E - ESTATE TEA",
-  ];
+  // 💡 --- AUTO-FILL COLLECTOR NAME LOGIC ---
+  useEffect(() => {
+      const routeCode = collectorForm.route.split('-')[0].trim().toUpperCase();
+      if (collectorNameMapping[routeCode]) {
+          if (lastAutoFilledRoute !== routeCode) {
+              setCollectorForm((prev) => ({ ...prev, collectorName: collectorNameMapping[routeCode] }));
+              setLastAutoFilledRoute(routeCode);
+          }
+      } else if (collectorForm.route === "") {
+          setLastAutoFilledRoute(""); 
+      }
+  }, [collectorForm.route, lastAutoFilledRoute]);
 
   // 💡 --- LANGUAGE TOGGLE & TRANSLATIONS ---
   const [lang, setLang] = useState("EN");
@@ -77,11 +104,9 @@ export default function LoftLeafCount() {
     autoCalcNote: lang === 'SI' ? "* ගුණාත්මයෙන් පහළ ප්‍රතිශතය ස්වයංක්‍රීයව ගණනය වේ." : "* Poor leaf percentage will be auto-calculated.",
   };
 
-  // 💡 --- AUTO SUGGEST FILTER LOGIC ---
   const filteredFactoryRoutes = routeOptions.filter(r => r.toLowerCase().includes(factoryForm.route.toLowerCase()));
   const filteredCollectorRoutes = routeOptions.filter(r => r.toLowerCase().includes(collectorForm.route.toLowerCase()));
 
-  // 💡 --- DROPDOWN ARROW KEY NAVIGATION & ENTER KEY TO NEXT INPUT ---
   const [focusedFacRouteIdx, setFocusedFacRouteIdx] = useState(-1);
   const [focusedColRouteIdx, setFocusedColRouteIdx] = useState(-1);
 
@@ -128,10 +153,11 @@ export default function LoftLeafCount() {
       } else if (e.key === 'Enter') {
           e.preventDefault();
           if (isCollectorRouteDropdownOpen && focusedColRouteIdx >= 0 && filteredCollectorRoutes[focusedColRouteIdx]) {
-              setCollectorForm((p) => ({ ...p, route: filteredCollectorRoutes[focusedColRouteIdx] }));
+              const selectedRoute = filteredCollectorRoutes[focusedColRouteIdx];
+              setCollectorForm((p) => ({ ...p, route: selectedRoute }));
           }
           setIsCollectorRouteDropdownOpen(false);
-          focusNext('col-name'); // 💡 Moved to collector name
+          focusNext('col-name');
       } else if (e.key === 'Escape') {
           setIsCollectorRouteDropdownOpen(false);
       }
@@ -217,7 +243,7 @@ export default function LoftLeafCount() {
       toast.error("Please fill Route and quantities!");
       return;
     }
-    if (isFactory && (!currentForm.totalLeafQty)) {
+    if (isFactory && !currentForm.totalLeafQty) {
       toast.error("Please fill Total Leaf Quantity for Factory sample!");
       return;
     }
@@ -230,9 +256,9 @@ export default function LoftLeafCount() {
       id: Date.now().toString() + Math.random().toString(), 
       date: selectedDate,
       sampleType: isFactory ? "Factory" : "LeafCollector",
-      route: currentForm.route.split(' - ')[0], 
+      route: currentForm.route,
       arrivalTime: finalArrivalTime, 
-      collectorName: isFactory ? null : currentForm.collectorName, // 💡 Collector Name
+      leafCollectorName: !isFactory ? currentForm.collectorName : "", 
       totalLeafQty: isFactory ? Number(currentForm.totalLeafQty) : null,
       bestQty: stats.b,
       belowBestQty: stats.bb,
@@ -246,7 +272,8 @@ export default function LoftLeafCount() {
       setFactoryForm({ route: "", arrivalTime: "", arrivalAmPm: "PM", totalLeafQty: "", bestQty: "", belowBestQty: "" });
       setTimeout(() => focusNext('fac-route'), 50);
     } else {
-      setCollectorForm({ route: "", collectorName: "", bestQty: "", belowBestQty: "" }); // 💡 Reset Collector Name
+      setCollectorForm({ route: "", collectorName: "", bestQty: "", belowBestQty: "" }); 
+      setLastAutoFilledRoute(""); // Reset tracking logic
       setTimeout(() => focusNext('col-route'), 50);
     }
     toast.success(`Added ${isFactory ? 'Factory' : 'Collector'} Sample to list!`);
@@ -314,20 +341,19 @@ export default function LoftLeafCount() {
         const isFactory = record.sampleType === 'Factory';
         const endpoint = isFactory ? '/api/factory-loft-leaf/factory' : '/api/factory-loft-leaf/collector'; 
         
-        // 💡 Append new fields to payload
         const payload = isFactory ? {
             date: record.date, 
             route: record.route, 
             arrivalTime: record.arrivalTime || new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }), 
             totalLeafQtyKg: record.totalLeafQty, 
-            factorySupervisorName: supervisorName, // 💡 Send global supervisor name
+            factorySupervisorName: supervisorName, // Global supervisor name
             bestG: record.bestQty, 
             belowBestG: record.belowBestQty, 
             poorG: record.poorQty
         } : {
             date: record.date, 
             route: record.route, 
-            leafCollectorName: record.collectorName, // 💡 Send specific collector name
+            leafCollectorName: record.leafCollectorName, // Specific collector name
             bestG: record.bestQty, 
             belowBestG: record.belowBestQty, 
             poorG: record.poorQty
@@ -392,9 +418,9 @@ export default function LoftLeafCount() {
                         {sampleType === 'LeafCollector' && (
                             <td className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">
                                 {isEditing ? (
-                                    <input type="text" name="collectorName" value={data.collectorName || ''} onChange={handleEditChange} className="w-full p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded outline-none focus:ring-1 focus:ring-lime-500" />
+                                    <input type="text" name="leafCollectorName" value={data.leafCollectorName || ''} onChange={handleEditChange} className="w-full p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded outline-none focus:ring-1 focus:ring-lime-500" />
                                 ) : (
-                                    <span>{data.collectorName || '-'}</span>
+                                    <span>{data.leafCollectorName || '-'}</span>
                                 )}
                             </td>
                         )}
@@ -456,8 +482,7 @@ export default function LoftLeafCount() {
   };
 
   return (
-        <div className="p-4 sm:p-8 max-w-[1200px] mx-auto font-sans min-h-screen transition-colors duration-300 relative">
-      
+        <div className="p-4 sm:p-8 max-w-[1200px] mx-auto font-sans min-h-screen transition-colors duration-300 relative">     
       {/* 1. HEADING SECTION */}
       <div className="mb-6 flex justify-between items-center">
         <div>
@@ -615,27 +640,69 @@ export default function LoftLeafCount() {
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Route */}
                 <div className="relative" ref={collectorRouteDropdownRef}>
-                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Tag size={12} /> {t.route}</label>
-                    <input type="text" id="col-route" placeholder="Select route..." name="route" value={collectorForm.route} onChange={(e) => { handleInputChange(e, 'collector'); setIsCollectorRouteDropdownOpen(true); }} onFocus={() => setIsCollectorRouteDropdownOpen(true)} onKeyDown={handleColRouteKeyDown} required className="w-full placeholder-gray-400/70 dark:placeholder-zinc-600 p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
-                    <AnimatePresence>
-                        {isCollectorRouteDropdownOpen && filteredCollectorRoutes.length > 0 && (
-                        <motion.ul initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                            {filteredCollectorRoutes.map((r, idx) => (
-                            <li key={r} id={`col-route-opt-${idx}`} onClick={() => { setCollectorForm((p) => ({ ...p, route: r })); setIsCollectorRouteDropdownOpen(false); focusNext('col-name'); }} className={`px-4 py-2.5 cursor-pointer text-sm hover:bg-lime-50 dark:hover:bg-zinc-800 ${focusedColRouteIdx === idx ? "bg-lime-100 dark:bg-zinc-800" : ""}`}>
-                                {r.toUpperCase()}
-                            </li>
-                            ))}
-                        </motion.ul>
-                        )}
-                    </AnimatePresence>
+                <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1">
+                    <Tag size={12} /> {t.route}
+                </label>
+                <input
+                    type="text"
+                    id="col-route"
+                    placeholder="Select route..."
+                    name="route"
+                    value={collectorForm.route}
+                    onChange={(e) => handleInputChange(e, 'collector')}
+                    onFocus={() => setIsCollectorRouteDropdownOpen(true)}
+                    onKeyDown={handleColRouteKeyDown}
+                    required
+                    className="w-full placeholder-gray-400/70 dark:placeholder-zinc-600 p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950"
+                />
+                <AnimatePresence>
+                    {isCollectorRouteDropdownOpen && filteredCollectorRoutes.length > 0 && (
+                    <motion.ul
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl max-h-48 overflow-y-auto custom-scrollbar"
+                    >
+                        {filteredCollectorRoutes.map((r, idx) => (
+                        <li
+                            key={r}
+                            onClick={() => {
+                                const routeCode = r.split('-')[0].trim().toUpperCase();
+                                setCollectorForm((p) => ({ 
+                                    ...p, 
+                                    route: r,
+                                    collectorName: collectorNameMapping[routeCode] || "" 
+                                }));
+                                setLastAutoFilledRoute(routeCode);
+                                setIsCollectorRouteDropdownOpen(false);
+                                setTimeout(() => focusNext('col-name'), 50); 
+                            }}
+                            className={`px-4 py-2.5 cursor-pointer text-sm hover:bg-lime-50 dark:hover:bg-zinc-800 ${focusedColRouteIdx === idx ? "bg-lime-100 dark:bg-zinc-800" : ""}`}
+                        >
+                            {r.toUpperCase()}
+                        </li>
+                        ))}
+                    </motion.ul>
+                    )}
+                </AnimatePresence>
                 </div>
 
-                {/* 💡 Leaf Collector Name */}
+                {/* 💡 Leaf Collector Name Input */}
                 <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><User size={12} /> {t.collectorName}</label>
-                    <input type="text" id="col-name" placeholder="Name..." name="collectorName" value={collectorForm.collectorName} onChange={(e) => handleInputChange(e, 'collector')} onKeyDown={(e) => handleEnterKey(e, 'col-bestQty')} className="w-full placeholder-gray-400/70 dark:placeholder-zinc-600 p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1">
+                        <User size={12} /> {t.collectorName}
+                    </label>
+                    <input
+                        type="text"
+                        id="col-name"
+                        name="collectorName"
+                        placeholder="Enter collector name..."
+                        value={collectorForm.collectorName}
+                        onChange={(e) => handleInputChange(e, 'collector')}
+                        onKeyDown={(e) => handleEnterKey(e, 'col-bestQty')}
+                        className="w-full placeholder-gray-400/70 dark:placeholder-zinc-600 p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950"
+                    />
                 </div>
             </div>
 
