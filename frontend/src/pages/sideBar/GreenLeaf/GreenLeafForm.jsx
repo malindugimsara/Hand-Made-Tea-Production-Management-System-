@@ -13,7 +13,7 @@ export default function NewEntryForm() {
     useEffect(() => {
         const savedTheme = localStorage.getItem('theme');
         const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        
+
         if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
             document.documentElement.classList.add('dark');
             setIsDark(true);
@@ -22,7 +22,7 @@ export default function NewEntryForm() {
 
     const [existingDates, setExistingDates] = useState([]);
     const [lastReadings, setLastReadings] = useState({ 'Dryer 1': '', 'Dryer 2': '' });
-    const [allProductionData, setAllProductionData] = useState([]); 
+    const [allProductionData, setAllProductionData] = useState([]);
 
     // ==========================================
     // ADD NEW RECORD FORM STATES (DAY 1)
@@ -32,16 +32,16 @@ export default function NewEntryForm() {
 
     const getTodayLocalString = () => {
         const today = new Date();
-        return today.getFullYear() + '-' + 
-               String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-               String(today.getDate()).padStart(2, '0');
+        return today.getFullYear() + '-' +
+            String(today.getMonth() + 1).padStart(2, '0') + '-' +
+            String(today.getDate()).padStart(2, '0');
     };
 
     const [formData, setFormData] = useState({
         date: getTodayLocalString(),
         totalWeight: '',
         selectedWeight: '',
-        expectedDryerDate: '', 
+        expectedDryerDate: '',
         workerCount: '',
         rollingType: 'Machine Rolling1',
         rollingWorkerCount: ''
@@ -53,15 +53,15 @@ export default function NewEntryForm() {
     const [pendingDryerTasks, setPendingDryerTasks] = useState([]);
     const [activeTaskIndex, setActiveTaskIndex] = useState(0);
     const [isSubmittingDryer, setIsSubmittingDryer] = useState(false);
-    
+
     const [productionOutputs, setProductionOutputs] = useState([{
         teaType: '',
-        selectedTeaWeight: '', 
+        selectedTeaWeight: '',
         madeTeaWeight: '',
         dryerName: '',
         meterStart: '',
         meterEnd: '',
-        rollerPoints: '' 
+        rollerPoints: ''
     }]);
 
     useEffect(() => {
@@ -99,8 +99,8 @@ export default function NewEntryForm() {
                     };
                 });
 
-                prodData.sort((a, b) => new Date(b.date) - new Date(a.date)); 
-                setAllProductionData(prodData); 
+                prodData.sort((a, b) => new Date(b.date) - new Date(a.date));
+                setAllProductionData(prodData);
 
                 let d1Last = '';
                 let d2Last = '';
@@ -122,7 +122,7 @@ export default function NewEntryForm() {
                 });
 
                 if (tasksNeedingDryer.length > 0) {
-                    setPendingDryerTasks(tasksNeedingDryer.reverse()); 
+                    setPendingDryerTasks(tasksNeedingDryer.reverse());
                 }
             }
         } catch (error) {
@@ -158,21 +158,43 @@ export default function NewEntryForm() {
         }
     };
 
-    // --- UNIFIED MODAL HANDLERS ---
     const handleOutputChange = (index, field, value) => {
         const newOutputs = [...productionOutputs];
         newOutputs[index][field] = value;
+        const currentDryer = newOutputs[index].dryerName;
 
-        if (field === 'dryerName') {
-            newOutputs[index].meterStart = lastReadings[value] !== undefined ? String(lastReadings[value]) : '';
+        // 1. Handle Dryer Selection
+        if (field === 'dryerName' && value !== '') {
+            // Fallback to database last readings first
+            if (lastReadings[value] !== undefined) {
+                newOutputs[index].meterStart = String(lastReadings[value]);
+            }
+
+            // Find if this dryer is already active in another output block
+            const existingBlock = newOutputs.find((out, i) => i !== index && out.dryerName === value);
+            if (existingBlock) {
+                // Auto-sync meter readings from the existing block
+                newOutputs[index].meterStart = existingBlock.meterStart;
+                newOutputs[index].meterEnd = existingBlock.meterEnd;
+            }
         }
+
+        // 2. Handle Meter Updates (Sync across matching dryers)
+        if ((field === 'meterStart' || field === 'meterEnd') && currentDryer) {
+            newOutputs.forEach(out => {
+                if (out.dryerName === currentDryer) {
+                    out[field] = value;
+                }
+            });
+        }
+
         setProductionOutputs(newOutputs);
     };
 
     const addOutput = () => {
-        setProductionOutputs([...productionOutputs, { 
-            teaType: '', selectedTeaWeight: '', madeTeaWeight: '', 
-            dryerName: '', meterStart: '', meterEnd: '', rollerPoints: '' 
+        setProductionOutputs([...productionOutputs, {
+            teaType: '', selectedTeaWeight: '', madeTeaWeight: '',
+            dryerName: '', meterStart: '', meterEnd: '', rollerPoints: ''
         }]);
     };
 
@@ -184,13 +206,13 @@ export default function NewEntryForm() {
         e.preventDefault();
 
         if (existingDates.includes(formData.date)) {
-            toast.error(`A record for ${formData.date} already exists in the database!`); 
+            toast.error(`A record for ${formData.date} already exists in the database!`);
             return;
         }
 
         const isAlreadyInQueue = pendingRecords.some(r => r.date === formData.date);
         if (isAlreadyInQueue) {
-            toast.error(`A record for ${formData.date} is already in the pending list!`); 
+            toast.error(`A record for ${formData.date} is already in the pending list!`);
             return;
         }
 
@@ -210,11 +232,11 @@ export default function NewEntryForm() {
 
         setFormData({
             ...formData,
-            totalWeight: '', 
-            selectedWeight: '', 
-            expectedDryerDate: '', 
-            workerCount: '', 
-            rollingType: 'Machine Rolling1', 
+            totalWeight: '',
+            selectedWeight: '',
+            expectedDryerDate: '',
+            workerCount: '',
+            rollingType: 'Machine Rolling1',
             rollingWorkerCount: ''
         });
     };
@@ -241,7 +263,7 @@ export default function NewEntryForm() {
                 const selected = Number(record.selectedWeight);
 
                 const greenLeafPayload = { date: record.date, totalWeight: total, selectedWeight: selected };
-                const labourPayload = { 
+                const labourPayload = {
                     date: record.date, workerCount: Number(record.workerCount), rollingType: record.rollingType,
                     rollingWorkerCount: record.rollingType === 'Hand Rolling' ? Number(record.rollingWorkerCount) : 0
                 };
@@ -256,15 +278,15 @@ export default function NewEntryForm() {
                     throw new Error(`Failed to save GL or Labour record for ${record.date}`);
                 }
 
-                const productionPayload = { 
-                    date: record.date, 
-                    teaType: "-", 
-                    madeTeaWeight: 0, 
-                    expectedDryerDate: record.expectedDryerDate 
+                const productionPayload = {
+                    date: record.date,
+                    teaType: "-",
+                    madeTeaWeight: 0,
+                    expectedDryerDate: record.expectedDryerDate
                 };
-                
+
                 const prodRes = await fetch(`${BACKEND_URL}/api/production`, { method: 'POST', headers: authHeaders, body: JSON.stringify(productionPayload) });
-                
+
                 if (!prodRes.ok) {
                     if (prodRes.status === 403) throw new Error('Access Denied');
                     throw new Error(`Failed to save Production record for ${record.date}`);
@@ -273,12 +295,12 @@ export default function NewEntryForm() {
 
             toast.success("All records saved successfully!", { id: toastId });
             setExistingDates([...existingDates, ...pendingRecords.map(r => r.date)]);
-            setPendingRecords([]); 
-            
-            setTimeout(() => { 
+            setPendingRecords([]);
+
+            setTimeout(() => {
                 fetchInitialData();
             }, 1000);
-            
+
             navigation('/view-green-leaf');
 
         } catch (error) {
@@ -294,7 +316,7 @@ export default function NewEntryForm() {
 
     const handleModalSubmit = async (e) => {
         e.preventDefault();
-        
+
         const currentTask = pendingDryerTasks[activeTaskIndex];
         let totalSelectedEntered = 0;
 
@@ -305,7 +327,7 @@ export default function NewEntryForm() {
                 return;
             }
             if (Number(out.meterEnd) < Number(out.meterStart)) {
-                toast.error(`End Reading must be greater than Start Reading for ${out.dryerName || 'the dryer'}!`); 
+                toast.error(`End Reading must be greater than Start Reading for ${out.dryerName || 'the dryer'}!`);
                 return;
             }
             totalSelectedEntered += Number(out.selectedTeaWeight);
@@ -328,7 +350,7 @@ export default function NewEntryForm() {
 
             for (let i = 0; i < productionOutputs.length; i++) {
                 const out = productionOutputs[i];
-                
+
                 const payload = {
                     date: currentTask.date,
                     expectedDryerDate: currentTask.expectedDryerDate,
@@ -336,9 +358,9 @@ export default function NewEntryForm() {
                     selectedTeaWeight: Number(out.selectedTeaWeight),
                     madeTeaWeight: Number(out.madeTeaWeight),
                     dryerDetails: {
-                        dryerName: out.dryerName, 
-                        meterStart: Number(out.meterStart), 
-                        meterEnd: Number(out.meterEnd), 
+                        dryerName: out.dryerName,
+                        meterStart: Number(out.meterStart),
+                        meterEnd: Number(out.meterEnd),
                         rollerPoints: Number(out.rollerPoints || 0)
                     }
                 };
@@ -350,8 +372,8 @@ export default function NewEntryForm() {
                     if (!res.ok) throw new Error("Failed to update initial record");
                 } else {
                     extraPromises.push(
-                        fetch(`${BACKEND_URL}/api/production`, { 
-                            method: 'POST', headers: authHeaders, body: JSON.stringify(payload) 
+                        fetch(`${BACKEND_URL}/api/production`, {
+                            method: 'POST', headers: authHeaders, body: JSON.stringify(payload)
                         })
                     );
                 }
@@ -373,7 +395,7 @@ export default function NewEntryForm() {
                 setActiveTaskIndex(prev => prev + 1);
                 setProductionOutputs([{ teaType: '', selectedTeaWeight: '', madeTeaWeight: '', dryerName: '', meterStart: '', meterEnd: '', rollerPoints: '' }]);
             } else {
-                setPendingDryerTasks([]); 
+                setPendingDryerTasks([]);
                 toast.success("All pending dryer tasks complete!");
                 setTimeout(() => { fetchInitialData(); }, 500);
             }
@@ -389,7 +411,7 @@ export default function NewEntryForm() {
 
     return (
         <div className="min-h-screen bg-gray-50/50 dark:bg-zinc-950 transition-colors duration-300 pb-20">
-            
+
             {/* --- TOP HEADER NAVIGATION --- */}
             <div className="sticky top-0 z-40 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl border-b border-gray-200 dark:border-zinc-800 shadow-sm px-8 py-4 mb-8 flex justify-between items-center transition-colors duration-300">
                 <div>
@@ -438,7 +460,7 @@ export default function NewEntryForm() {
                                     <div className="bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/50 rounded-2xl p-5 shadow-sm">
                                         <div className="flex justify-between items-center mb-4">
                                             <h3 className="text-md font-bold text-purple-700 dark:text-purple-400 flex items-center gap-2">
-                                                <div className="p-1.5 bg-purple-100 dark:bg-purple-500/20 rounded-md"><Factory size={16}/></div>
+                                                <div className="p-1.5 bg-purple-100 dark:bg-purple-500/20 rounded-md"><Factory size={16} /></div>
                                                 Production & Dryer Details
                                             </h3>
                                             <button type="button" onClick={addOutput} className="text-xs font-bold text-purple-600 hover:text-purple-800 dark:text-purple-400 flex items-center gap-1 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/30 px-2.5 py-1.5 rounded-lg transition-colors">
@@ -454,7 +476,7 @@ export default function NewEntryForm() {
                                                             <X size={14} />
                                                         </button>
                                                     )}
-                                                    
+
                                                     <h4 className="text-xs font-bold text-gray-500 uppercase mb-3">Tea Output Info</h4>
                                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                                                         <div>
@@ -481,16 +503,16 @@ export default function NewEntryForm() {
                                                                     Max: {pendingDryerTasks[activeTaskIndex]?.glSelectedWeight || 0}kg
                                                                 </span>
                                                             </label>
-                                                            <input 
-                                                                type="number" 
-                                                                step="0.01" 
-                                                                min="0" 
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                min="0"
                                                                 max={pendingDryerTasks[activeTaskIndex]?.glSelectedWeight || ''}
-                                                                value={out.selectedTeaWeight} 
-                                                                onChange={(e) => handleOutputChange(index, 'selectedTeaWeight', e.target.value)} 
-                                                                onWheel={(e) => e.target.blur()} 
-                                                                required 
-                                                                className={inputStyles} 
+                                                                value={out.selectedTeaWeight}
+                                                                onChange={(e) => handleOutputChange(index, 'selectedTeaWeight', e.target.value)}
+                                                                onWheel={(e) => e.target.blur()}
+                                                                required
+                                                                className={inputStyles}
                                                             />
                                                         </div>
                                                         <div>
@@ -500,7 +522,7 @@ export default function NewEntryForm() {
                                                     </div>
 
                                                     <div className="pt-4 border-t border-gray-100 dark:border-zinc-800">
-                                                        <h4 className="text-xs font-bold text-orange-500 uppercase mb-3 flex items-center gap-1"><Zap size={14}/> Dryer Readings</h4>
+                                                        <h4 className="text-xs font-bold text-orange-500 uppercase mb-3 flex items-center gap-1"><Zap size={14} /> Dryer Readings</h4>
                                                         <div className="space-y-4">
                                                             <div>
                                                                 <label className={labelStyles}>Select Dryer</label>
@@ -539,12 +561,12 @@ export default function NewEntryForm() {
                         </div>
                     </div>
                 )}
-                
+
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                    
+
                     {/* --- LEFT SIDE: FORM --- */}
                     <div className="lg:col-span-8 space-y-6">
-                        
+
                         <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div className="flex-1 flex items-center gap-4">
                                 <div className="w-full sm:w-1/2">
@@ -558,12 +580,12 @@ export default function NewEntryForm() {
                         </div>
 
                         <form onSubmit={handleAddToList} className="space-y-6">
-                            
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* 1. GREEN LEAF */}
                                 <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden h-fit">
                                     <div className="bg-green-50/50 dark:bg-green-500/5 p-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-3">
-                                        <div className="p-2 bg-green-100 dark:bg-green-500/20 rounded-lg text-green-700 dark:text-green-400"><Leaf size={18}/></div>
+                                        <div className="p-2 bg-green-100 dark:bg-green-500/20 rounded-lg text-green-700 dark:text-green-400"><Leaf size={18} /></div>
                                         <h3 className="font-bold text-gray-800 dark:text-gray-200">Green Leaf Details</h3>
                                     </div>
                                     <div className="p-5 space-y-5">
@@ -587,7 +609,7 @@ export default function NewEntryForm() {
                                 {/* 2. DRYER SCHEDULE */}
                                 <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden h-fit">
                                     <div className="bg-orange-50/50 dark:bg-orange-500/5 p-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-3">
-                                        <div className="p-2 bg-orange-100 dark:bg-orange-500/20 rounded-lg text-orange-600 dark:text-orange-400"><CalendarClock size={18}/></div>
+                                        <div className="p-2 bg-orange-100 dark:bg-orange-500/20 rounded-lg text-orange-600 dark:text-orange-400"><CalendarClock size={18} /></div>
                                         <h3 className="font-bold text-gray-800 dark:text-gray-200">Dryer Schedule</h3>
                                     </div>
                                     <div className="p-5">
@@ -601,7 +623,7 @@ export default function NewEntryForm() {
                             {/* 3. LABOUR DETAILS */}
                             <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
                                 <div className="bg-blue-50/50 dark:bg-blue-500/5 p-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-3">
-                                    <div className="p-2 bg-blue-100 dark:bg-blue-500/20 rounded-lg text-blue-700 dark:text-blue-400"><Users size={18}/></div>
+                                    <div className="p-2 bg-blue-100 dark:bg-blue-500/20 rounded-lg text-blue-700 dark:text-blue-400"><Users size={18} /></div>
                                     <h3 className="font-bold text-gray-800 dark:text-gray-200">Labour & Workforce</h3>
                                 </div>
                                 <div className="p-6">
@@ -622,18 +644,18 @@ export default function NewEntryForm() {
                                         </div>
                                         <div>
                                             <label className={labelStyles}>Rolling Workers</label>
-                                            <input 
-                                                type="number" 
-                                                name="rollingWorkerCount" 
+                                            <input
+                                                type="number"
+                                                name="rollingWorkerCount"
                                                 step="any"
-                                                min="0" 
-                                                value={formData.rollingWorkerCount} 
-                                                onChange={handleInputChange} 
+                                                min="0"
+                                                value={formData.rollingWorkerCount}
+                                                onChange={handleInputChange}
                                                 disabled={formData.rollingType !== 'Hand Rolling'}
                                                 placeholder={formData.rollingType === 'Hand Rolling' ? "Enter count" : "N/A"}
                                                 required={formData.rollingType === 'Hand Rolling'}
                                                 onKeyDown={(e) => { if (e.key === '-') e.preventDefault(); }}
-                                                className={inputStyles} 
+                                                className={inputStyles}
                                             />
                                         </div>
                                     </div>
@@ -649,7 +671,7 @@ export default function NewEntryForm() {
                     {/* --- RIGHT SIDE: PENDING QUEUE --- */}
                     <div className="lg:col-span-4 flex flex-col h-full max-h-[85vh]">
                         <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 flex-1 flex flex-col overflow-hidden sticky top-24 transition-colors duration-300">
-                            
+
                             <div className="bg-gray-50/80 dark:bg-zinc-950/50 p-5 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between transition-colors">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-white dark:bg-zinc-800 shadow-sm border border-gray-100 dark:border-zinc-700 rounded-lg text-gray-700 dark:text-gray-300">
@@ -675,8 +697,8 @@ export default function NewEntryForm() {
                                     <div className="space-y-3">
                                         {pendingRecords.map((item, index) => (
                                             <div key={index} className="bg-white dark:bg-zinc-900 p-4 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm relative group hover:border-green-300 dark:hover:border-green-700/50 transition-colors">
-                                                
-                                                <button 
+
+                                                <button
                                                     onClick={() => handleRemoveFromList(index)}
                                                     className="absolute top-3 right-3 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 bg-white dark:bg-zinc-900 p-1.5 rounded-md shadow-sm border border-gray-100 dark:border-zinc-700 transition-colors"
                                                     title="Remove"
@@ -694,7 +716,7 @@ export default function NewEntryForm() {
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    
+
                                                     <div className="grid grid-cols-2 gap-2 text-xs font-medium text-gray-600 dark:text-gray-400">
                                                         <div className="bg-gray-50 dark:bg-zinc-950 p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 transition-colors">
                                                             <span className="block text-[10px] uppercase text-gray-400 font-bold mb-1">Leaf</span>
@@ -705,7 +727,7 @@ export default function NewEntryForm() {
                                                         </div>
                                                     </div>
                                                     <div className="flex justify-between items-center pt-2 border-t border-gray-100 dark:border-zinc-800">
-                                                        <span className="text-[10px] uppercase text-gray-400 font-bold flex items-center gap-1"><CalendarClock size={10}/> Dryer Date</span>
+                                                        <span className="text-[10px] uppercase text-gray-400 font-bold flex items-center gap-1"><CalendarClock size={10} /> Dryer Date</span>
                                                         <span className="font-bold text-orange-600 dark:text-orange-400 text-xs">{item.expectedDryerDate}</span>
                                                     </div>
                                                 </div>
@@ -716,14 +738,13 @@ export default function NewEntryForm() {
                             </div>
 
                             <div className="p-5 border-t border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-3 transition-colors">
-                                <button 
+                                <button
                                     onClick={handleSaveAll}
                                     disabled={isSavingAll || pendingRecords.length === 0}
-                                    className={`w-full py-4 rounded-2xl text-white font-black flex justify-center items-center gap-2 transition-all ${
-                                        isSavingAll || pendingRecords.length === 0 
-                                        ? 'bg-gray-300 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500 cursor-not-allowed' 
-                                        : 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 hover:-translate-y-0.5'
-                                    }`}
+                                    className={`w-full py-4 rounded-2xl text-white font-black flex justify-center items-center gap-2 transition-all ${isSavingAll || pendingRecords.length === 0
+                                            ? 'bg-gray-300 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500 cursor-not-allowed'
+                                            : 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 hover:-translate-y-0.5'
+                                        }`}
                                 >
                                     <Save size={18} /> {isSavingAll ? "Saving..." : `Save to Database (${pendingRecords.length})`}
                                 </button>
