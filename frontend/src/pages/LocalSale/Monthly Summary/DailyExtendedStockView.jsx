@@ -461,8 +461,7 @@ export default function DailyExtendedStockView() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <PDFDownloader
+                <div className="flex items-center justify-center w-full sm:w-auto gap-3 pt-2 sm:pt-0">                    <PDFDownloader
                         title={`Daily IN/OUT & Balance Report - ${selectedDate}`}
                         subtitle={`Opening Balance as of 1st ${getMonthName()}`}
                         headers={["Category / Title", "Size / Type", "Opening Balance", "OUT (Sold)", "OUT (Free Issue)", "IN", "Balance To Date"]}
@@ -475,14 +474,13 @@ export default function DailyExtendedStockView() {
                     />
                     
                     {/* 💡 WhatsApp Share Dropdown Button */}
-                    {/* 💡 WhatsApp Share Dropdown Button */}
                     <div className="relative flex-1 sm:flex-none" ref={waMenuRef}>
                         <button
                             onClick={() => setIsWaMenuOpen(!isWaMenuOpen)}
                             disabled={loading || tableData.length === 0}
                             className="w-full h-full p-2.5 px-3 sm:px-4 justify-center bg-[#25D366] hover:bg-[#128C7E] text-white rounded-lg transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
                         >
-                            <FaWhatsapp size={18} /> <span className="font-bold text-xs sm:text-sm hidden sm:inline">Share WhatsApp</span>
+                            <FaWhatsapp size={18} /> Share WhatsApp
                         </button>
                         
                         {isWaMenuOpen && (

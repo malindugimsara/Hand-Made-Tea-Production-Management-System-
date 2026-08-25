@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
-import { Leaf, RefreshCw, AlertCircle, FileDown, Calendar, Factory, FileSpreadsheet, X, Save, Clock, Languages, Image, FileText, UserCheck, User } from "lucide-react";
+import { Leaf, RefreshCw, AlertCircle, FileDown, Calendar, Factory, FileSpreadsheet, X, Save, Clock, Languages, Image, FileText, UserCheck, User, Info } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
 import {
@@ -60,7 +60,7 @@ export default function ViewLoftLeafCount() {
   const [editForm, setEditForm] = useState({
       _id: '', route: '', arrivalTime: '', arrivalAmPm: 'PM', totalLeafQtyKg: '',
       factoryBest: '', factoryBelow: '', collectorBest: '', collectorBelow: '',
-      factorySupervisorName: '', leafCollectorName: '' // 💡 New Fields Added
+      factorySupervisorName: '', leafCollectorName: ''
   });
 
   useEffect(() => {
@@ -135,8 +135,8 @@ export default function ViewLoftLeafCount() {
           factoryBelow: record.factorySample?.belowBestG || '',
           collectorBest: record.collectorSample?.bestG || '',
           collectorBelow: record.collectorSample?.belowBestG || '',
-          factorySupervisorName: record.factorySupervisorName || '', // 💡 Map Supervisor
-          leafCollectorName: record.leafCollectorName || '', // 💡 Map Collector
+          factorySupervisorName: record.factorySupervisorName || '', 
+          leafCollectorName: record.leafCollectorName || '', 
       });
       setIsEditModalOpen(true);
   };
@@ -163,8 +163,8 @@ export default function ViewLoftLeafCount() {
               route: editForm.route,
               arrivalTime: editForm.arrivalTime ? `${editForm.arrivalTime} ${editForm.arrivalAmPm}` : "", 
               totalLeafQtyKg: editForm.totalLeafQtyKg,
-              factorySupervisorName: editForm.factorySupervisorName, // 💡 Add to payload
-              leafCollectorName: editForm.leafCollectorName, // 💡 Add to payload
+              factorySupervisorName: editForm.factorySupervisorName, 
+              leafCollectorName: editForm.leafCollectorName, 
               factorySample: { bestG: fBest, belowBestG: fBelow, poorG: fPoor },
               collectorSample: { bestG: cBest, belowBestG: cBelow, poorG: cPoor },
               editedBy: currentUsername 
@@ -322,7 +322,11 @@ export default function ViewLoftLeafCount() {
 
     shareWhatsapp: lang === 'SI' ? "WhatsApp යවන්න" : "Share WhatsApp",
     sharePDF: lang === 'SI' ?  "PDF යවන්න" : "Share PDF",
-    shareImage: lang === 'SI' ? "පින්තූරය යවන්න" : "Share Image"
+    shareImage: lang === 'SI' ? "පින්තූරය යවන්න" : "Share Image",
+
+    // 💡 Legend Translations
+    legendTime: lang === 'SI' ? "ප.ව 8.30 ට පසු පැමිණීම" : "Arrived after 8:30 PM",
+    legendDiff: lang === 'SI' ? "නියැදි Best ප්‍රතිශතයන් අතර වෙනස 5% වඩා වැඩි වූ විට" : "Difference > 5% between sample Best %",
   };
 
   const now = new Date();
@@ -401,7 +405,6 @@ export default function ViewLoftLeafCount() {
       try {
           const printElement = document.getElementById('pdf-print-area');
           
-          // 💡 Image එකක් නම් පමණක් අදාළ Image Footer එක පෙන්වන්න
           const imgFooter = document.getElementById('sys-image-footer');
           if (format === 'image' && imgFooter) imgFooter.style.display = 'block';
 
@@ -417,7 +420,7 @@ export default function ViewLoftLeafCount() {
           });
 
           printElement.style.display = "none"; 
-          if (imgFooter) imgFooter.style.display = 'none'; // 💡 ආපසු සැඟවීම
+          if (imgFooter) imgFooter.style.display = 'none';
 
           let file;
           let fileName = `Loft_Leaf_Report_${selectedDate}`;
@@ -430,7 +433,7 @@ export default function ViewLoftLeafCount() {
               
               const margin = 20; 
               const maxW = pdfWidth - (margin * 2);
-              const maxH = pdf.internal.pageSize.getHeight() - (margin * 2); // Corrected height boundary
+              const maxH = pdf.internal.pageSize.getHeight() - (margin * 2); 
 
               let finalW = maxW;
               let finalH = (canvas.height * finalW) / canvas.width;
@@ -444,7 +447,6 @@ export default function ViewLoftLeafCount() {
               
               pdf.addImage(imgData, 'JPEG', x, y, finalW, finalH);
 
-              // 💡 PDF Footer එක එකතු කිරීම
               const actualPageHeight = pdf.internal.pageSize.getHeight();
               const pageCount = pdf.internal.getNumberOfPages();
               for (let i = 1; i <= pageCount; i++) {
@@ -462,12 +464,25 @@ export default function ViewLoftLeafCount() {
           }
 
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
-              await navigator.share({
-                  title: 'Loft Leaf Report',
-                  text: `Loft Leaf Quality Report - ${selectedDate}`,
-                  files: [file]
-              });
-              toast.success("Shared successfully!", { id: toastId });
+              try {
+                  await navigator.share({
+                      title: 'Loft Leaf Report',
+                      text: `Loft Leaf Quality Report - ${selectedDate}`,
+                      files: [file]
+                  });
+                  toast.success("Shared successfully!", { id: toastId });
+              } catch (shareError) {
+                  console.warn("Web Share API error:", shareError);
+                  const fileUrl = URL.createObjectURL(file);
+                  const a = document.createElement('a');
+                  a.href = fileUrl;
+                  a.download = file.name;
+                  a.click();
+                  URL.revokeObjectURL(fileUrl);
+                  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`Here is the Loft Leaf Quality Report for ${selectedDate}. Please attach the downloaded file.`)}`;
+                  window.open(whatsappUrl, '_blank');
+                  toast.success("File downloaded. Please attach it in WhatsApp.", { id: toastId });
+              }
           } else {
               const fileUrl = URL.createObjectURL(file);
               const a = document.createElement('a');
@@ -475,7 +490,6 @@ export default function ViewLoftLeafCount() {
               a.download = file.name;
               a.click();
               URL.revokeObjectURL(fileUrl);
-              
               const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`Here is the Loft Leaf Quality Report for ${selectedDate}. Please attach the downloaded file.`)}`;
               window.open(whatsappUrl, '_blank');
               toast.success("File downloaded. Please attach it in WhatsApp.", { id: toastId });
@@ -537,7 +551,7 @@ export default function ViewLoftLeafCount() {
               <button
                 onClick={() => setIsWaMenuOpen(!isWaMenuOpen)}
                 disabled={loading || records.length === 0}
-                className="w-full h-full p-2.5 px-3 sm:px-4 justify-center bg-[#25D366] hover:bg-green-600 text-white rounded-lg transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+                className="w-full h-full p-2.5 px-3 sm:px-4 justify-center bg-[#25D366] hover:bg-[#128C7E] text-white rounded-lg transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
               >
                 <FaWhatsapp size={18} /> <span className="font-bold text-xs sm:text-sm hidden sm:inline">{t.shareWhatsapp}</span>
               </button>
@@ -567,14 +581,28 @@ export default function ViewLoftLeafCount() {
         </div>
       </div>
 
-      {/* 💡 SUPERVISOR BANNER */}
-      {!loading && records.length > 0 && (
-          <div className="mb-4 bg-lime-50 dark:bg-lime-900/10 border border-lime-200 dark:border-lime-900/50 p-4 rounded-xl shadow-sm flex items-center gap-3">
-              <UserCheck className="text-lime-600 dark:text-lime-400" size={20} />
-              <span className="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">{t.supervisorHeader}</span>
-              <span className="text-base font-black text-lime-800 dark:text-lime-400">{daySupervisorName}</span>
-          </div>
-      )}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+          {/* 💡 SUPERVISOR BANNER */}
+          {!loading && records.length > 0 && (
+              <div className="bg-lime-50 dark:bg-lime-900/10 border border-lime-200 dark:border-lime-900/50 p-3 px-4 rounded-xl shadow-sm flex items-center gap-3">
+                  <UserCheck className="text-lime-600 dark:text-lime-400" size={20} />
+                  <span className="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider">{t.supervisorHeader}</span>
+                  <span className="text-base font-black text-lime-800 dark:text-lime-400">{daySupervisorName}</span>
+              </div>
+          )}
+
+          {/* 💡 COLOR LEGEND FOR UI */}
+          {!loading && records.length > 0 && (
+              <div className="flex items-center gap-4 bg-white dark:bg-zinc-900 p-2.5 px-4 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm text-xs font-bold text-gray-500 dark:text-gray-400">
+                  <span className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-red-500 block"></span> {t.legendTime}
+                  </span>
+                  <span className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-[#dcfce7] dark:bg-lime-900/50 border border-green-300 block"></span> {t.legendDiff}
+                  </span>
+              </div>
+          )}
+      </div>
 
       {/* --- UI TABLE SECTION --- */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden">
@@ -630,7 +658,6 @@ export default function ViewLoftLeafCount() {
                   const displayTime = hideArrivalTime ? "-" : (row.arrivalTime || "-");
                   const isLate = !hideArrivalTime && isTimeLate(row.arrivalTime);
 
-                  // 💡 Highlight logic (Diff > 5%)
                   const facBest = row.factorySample?.isEntered ? Number(row.factorySample.bestPct) : 0;
                   const colBest = row.collectorSample?.isEntered ? Number(row.collectorSample.bestPct) : 0;
                   const showHighlight = (row.factorySample?.isEntered && row.collectorSample?.isEntered && Math.abs(facBest - colBest) > 5);
@@ -651,7 +678,6 @@ export default function ViewLoftLeafCount() {
                         )}
                     </td>
                     
-                    {/* 💡 Collector Name Column */}
                     <td className="p-2 sm:p-3 border border-gray-200 dark:border-zinc-800 font-medium text-gray-700 dark:text-gray-300">
                         {row.leafCollectorName || "-"}
                     </td>
@@ -733,23 +759,23 @@ export default function ViewLoftLeafCount() {
               )}
               </tbody>
 
-              {records.length > 0 && (
-                <tfoot className="bg-gray-100 dark:bg-zinc-800 font-bold text-gray-800 dark:text-gray-200">
-                  <tr>
-                    <td colSpan={3} className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 text-left pl-4 sm:pl-6">{t.totalAvg}</td>
-                    <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 text-[#3f6212] dark:text-lime-400">{totals.tQty}</td>
-                    <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 text-green-700 dark:text-green-500">{totals.avgFacBest}%</td>
-                    <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 text-yellow-700 dark:text-yellow-500">{totals.avgFacBelow}%</td>
-                    <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 text-red-600 dark:text-red-400">{totals.avgFacPoor}%</td>
-                    <td colSpan={3} className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 bg-gray-200 dark:bg-zinc-700/50 text-gray-400 font-normal"></td>
-                    <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 text-green-700 dark:text-green-500">{totals.bestKg}</td>
-                    <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 text-yellow-700 dark:text-yellow-500">{totals.belowBestKg}</td>
-                    <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 text-red-600 dark:text-red-400">{totals.poorKg}</td>
-                    <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700"></td>
-                    {!isViewer && <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700"></td>}
-                  </tr>
-                </tfoot>
-              )}
+                {records.length > 0 && (
+                    <tfoot>
+                        <tr className="bg-gray-100 dark:bg-zinc-800 font-bold text-gray-800 dark:text-gray-200">
+                            <td colSpan={3} className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 text-left pl-4 sm:pl-6">{t.totalAvg}</td>
+                            <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 text-[#3f6212] dark:text-lime-400">{totals.tQty}</td>
+                            <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 text-green-700 dark:text-green-500">{totals.avgFacBest}%</td>
+                            <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 text-yellow-700 dark:text-yellow-500">{totals.avgFacBelow}%</td>
+                            <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 text-red-600 dark:text-red-400">{totals.avgFacPoor}%</td>
+                            <td colSpan={3} className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 bg-gray-200 dark:bg-zinc-700/50 text-gray-400 font-normal"></td>
+                            <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 text-green-700 dark:text-green-500">{totals.bestKg}</td>
+                            <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 text-yellow-700 dark:text-yellow-500">{totals.belowBestKg}</td>
+                            <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700 text-red-600 dark:text-red-400">{totals.poorKg}</td>
+                            <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700"></td>
+                            {!isViewer && <td className="p-2 sm:p-3 border border-gray-300 dark:border-zinc-700"></td>}
+                        </tr>
+                    </tfoot>
+                )}
             </table>
           </div>
         )}
@@ -790,7 +816,6 @@ export default function ViewLoftLeafCount() {
                             </select>
                         </div>
                         
-                        {/* 💡 Edit Collector Name */}
                         <div>
                             <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Collector Name</label>
                             <input type="text" name="leafCollectorName" value={editForm.leafCollectorName} onChange={handleEditChange} placeholder="Optional" className="w-full p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-gray-50 dark:bg-zinc-800 focus:ring-2 focus:ring-lime-500 outline-none" />
@@ -834,7 +859,6 @@ export default function ViewLoftLeafCount() {
                         </div>
                     </div>
 
-                    {/* 💡 Edit Supervisor Name */}
                     <div className="mb-6 border-t border-b py-4 border-gray-100 dark:border-zinc-800">
                          <label className="block text-xs font-bold text-gray-500 mb-2 uppercase">Factory Supervisor Name</label>
                          <input type="text" name="factorySupervisorName" value={editForm.factorySupervisorName} onChange={handleEditChange} className="w-full max-w-sm p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-gray-50 dark:bg-zinc-800 focus:ring-2 focus:ring-lime-500 outline-none" />
@@ -921,9 +945,15 @@ export default function ViewLoftLeafCount() {
                 </div>
             </div>
 
-            {/* 💡 SUPERVISOR HEADER IN PDF */}
-            <div className="mb-4 text-[14px]" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
-                <strong>{t.supervisorHeader}</strong> {daySupervisorName}
+            {/* 💡 SUPERVISOR HEADER & LEGEND IN PDF */}
+            <div className="flex justify-between items-end mb-4">
+                <div className="text-[14px]" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
+                    <strong>{t.supervisorHeader}</strong> {daySupervisorName}
+                </div>
+                <div className="text-[10px] text-[#4b5563] flex gap-4" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
+                    <span className="flex items-center gap-1"><span className="text-[#dc2626] font-bold">*</span> {t.legendTime}</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#dcfce7] inline-block border border-[#4ade80]"></span> {t.legendDiff}</span>
+                </div>
             </div>
 
             <table className="w-full border-collapse border border-[#8F8F8F] text-center text-[12px]" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
@@ -1030,12 +1060,6 @@ export default function ViewLoftLeafCount() {
                     <p className="text-[#4b5563]">{t.authSig}</p>
                 </div>
             </div>
-
-            {/* 💡 IMAGE FOOTER (Shows only when generating WhatsApp Image) */}
-            <div id="sys-image-footer" className="mt-12 text-center text-[11px] text-[#6b7280] font-sans" style={{ display: 'none' }}>
-                - Generated by Unified Management System -
-            </div>
-
       </div>
 
     </div>

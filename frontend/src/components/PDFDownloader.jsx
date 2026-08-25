@@ -257,7 +257,7 @@ export default function PDFDownloader({
 
     return (
         <button onClick={handleAction} disabled={disabled} className={`px-4 py-2.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all hover:bg-blue-100 dark:hover:bg-blue-900/50 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}>
-            <FileDown size={18} /> Download PDF
+            <FileDown size={18} /><span className="font-bold text-xs sm:text-sm hidden sm:inline"> Download PDF </span>
         </button>
     );
 }
