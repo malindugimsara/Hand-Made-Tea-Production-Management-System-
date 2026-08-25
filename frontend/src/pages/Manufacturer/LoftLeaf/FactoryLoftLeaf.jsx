@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
-import { Leaf, PlusCircle, Trash2, Tag, User, Factory, Users, Edit2, Save, Weight, Calendar, Clock, Languages } from "lucide-react";import { motion, AnimatePresence } from "framer-motion";
+import { Leaf, PlusCircle, Trash2, Tag, User, Factory, Users, Edit2, Save, Weight, Calendar, Clock, Languages, UserCheck } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
 export default function LoftLeafCount() {
@@ -15,15 +16,14 @@ export default function LoftLeafCount() {
       return `${year}-${month}-${day}`;
   };
   
+  const currentUsername = localStorage.getItem("username") || "";
+
   const [selectedDate, setSelectedDate] = useState(getLocalTodayDate());
   
   // Pending records and Edit State
   const [pendingRecords, setPendingRecords] = useState([]);
   const [editingId, setEditingId] = useState(null); 
-  const [editForm, setEditForm] = useState({
-      _id: '', route: '', arrivalTime: '', arrivalAmPm: 'PM', totalLeafQtyKg: '', // 💡 arrivalAmPm එක් කළා
-      factoryBest: '', factoryBelow: '', collectorBest: '', collectorBelow: ''
-  });  
+  const [editFormData, setEditFormData] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   
   const [isFactoryRouteDropdownOpen, setIsFactoryRouteDropdownOpen] = useState(false);
@@ -32,10 +32,13 @@ export default function LoftLeafCount() {
   const factoryRouteDropdownRef = useRef(null);
   const collectorRouteDropdownRef = useRef(null);
 
+  // 💡 Factory Supervisor Name (Global for the day)
+  const [supervisorName, setSupervisorName] = useState(currentUsername);
+
   const [factoryForm, setFactoryForm] = useState({
     route: "",
-    arrivalTime: "", // 💡 අලුතින් එකතු කළ Arrival Time State එක
-    arrivalAmPm: "PM", // 💡 අලුතින් එක් කළා (Default PM)
+    arrivalTime: "",
+    arrivalAmPm: "PM",
     totalLeafQty: "", 
     bestQty: "",
     belowBestQty: "",
@@ -43,6 +46,7 @@ export default function LoftLeafCount() {
 
   const [collectorForm, setCollectorForm] = useState({
     route: "",
+    collectorName: "", // 💡 Leaf Collector Name
     bestQty: "",
     belowBestQty: "",
   });
@@ -60,6 +64,8 @@ export default function LoftLeafCount() {
     subtitle: lang === 'SI' ? "කර්මාන්තශාලා සහ එකතු කරන්නන්ගේ නියැදි සඳහා දෛනික දළු ප්‍රමාණ ඇතුළත් කරන්න." : "Enter daily leaf quantities for Factory and Collector samples.",
     facSampleEntry: lang === 'SI' ? "කර්මාන්තශාලා නියැදිය ඇතුළත් කිරීම" : "Factory Sample Entry",
     colSampleEntry: lang === 'SI' ? "එකතු කරන්නාගේ නියැදිය ඇතුළත් කිරීම" : "Leaf Collector's Sample Entry",
+    supervisorName: lang === 'SI' ? "කර්මාන්තශාලා අධීක්ෂකගේ නම" : "Factory Supervisor Name",
+    collectorName: lang === 'SI' ? "දළු එකතු කරන්නාගේ නම (විකල්ප)" : "Leaf Collector Name (Optional)",
     route: lang === 'SI' ? "සැපයුම් මාර්ගය" : "Route",
     arrTime: lang === 'SI' ? "පැමිණි වේලාව" : "Arrival Time",
     totalKg: lang === 'SI' ? "මුළු අමු දළු ප්‍රමාණය (Kg)" : "Total Leaf Qty (Kg)",
@@ -125,13 +131,12 @@ export default function LoftLeafCount() {
               setCollectorForm((p) => ({ ...p, route: filteredCollectorRoutes[focusedColRouteIdx] }));
           }
           setIsCollectorRouteDropdownOpen(false);
-          focusNext('col-bestQty');
+          focusNext('col-name'); // 💡 Moved to collector name
       } else if (e.key === 'Escape') {
           setIsCollectorRouteDropdownOpen(false);
       }
   };
 
-  // Dropdown Scroll into view
   useEffect(() => {
       if (isFactoryRouteDropdownOpen && focusedFacRouteIdx >= 0) {
           document.getElementById(`fac-route-opt-${focusedFacRouteIdx}`)?.scrollIntoView({ block: 'nearest' });
@@ -178,7 +183,6 @@ export default function LoftLeafCount() {
     const { name, value } = e.target;
     const setForm = formType === 'factory' ? setFactoryForm : setCollectorForm;
     
-    // 💡 Type කරද්දී Suggestion Box එක Open වීම සහ Arrow Key Index එක Reset වීම
     if (name === 'route') {
         if (formType === 'factory') {
             setFocusedFacRouteIdx(-1);
@@ -202,7 +206,7 @@ export default function LoftLeafCount() {
     });
   };
 
-const handleAddToList = (e, formType) => {
+  const handleAddToList = (e, formType) => {
     e.preventDefault();
     
     const isFactory = formType === 'factory';
@@ -213,13 +217,11 @@ const handleAddToList = (e, formType) => {
       toast.error("Please fill Route and quantities!");
       return;
     }
-    // Validation: Time එකත් අනිවාර්ය කර ඇත
     if (isFactory && (!currentForm.totalLeafQty)) {
       toast.error("Please fill Total Leaf Quantity for Factory sample!");
       return;
     }
 
-    // 12-Hour format එකෙන් Time එක හැදීම
     const finalArrivalTime = isFactory && currentForm.arrivalTime 
         ? `${currentForm.arrivalTime} ${currentForm.arrivalAmPm}` 
         : "";
@@ -230,6 +232,7 @@ const handleAddToList = (e, formType) => {
       sampleType: isFactory ? "Factory" : "LeafCollector",
       route: currentForm.route.split(' - ')[0], 
       arrivalTime: finalArrivalTime, 
+      collectorName: isFactory ? null : currentForm.collectorName, // 💡 Collector Name
       totalLeafQty: isFactory ? Number(currentForm.totalLeafQty) : null,
       bestQty: stats.b,
       belowBestQty: stats.bb,
@@ -241,11 +244,9 @@ const handleAddToList = (e, formType) => {
     
     if (isFactory) {
       setFactoryForm({ route: "", arrivalTime: "", arrivalAmPm: "PM", totalLeafQty: "", bestQty: "", belowBestQty: "" });
-      // 💡 Submit කළ පසු නැවතත් Factory Route එකට Focus වීම
       setTimeout(() => focusNext('fac-route'), 50);
     } else {
-      setCollectorForm({ route: "", bestQty: "", belowBestQty: "" });
-      // 💡 Submit කළ පසු නැවතත් Collector Route එකට Focus වීම
+      setCollectorForm({ route: "", collectorName: "", bestQty: "", belowBestQty: "" }); // 💡 Reset Collector Name
       setTimeout(() => focusNext('col-route'), 50);
     }
     toast.success(`Added ${isFactory ? 'Factory' : 'Collector'} Sample to list!`);
@@ -311,19 +312,25 @@ const handleAddToList = (e, formType) => {
       
       const promises = pendingRecords.map((record) => {
         const isFactory = record.sampleType === 'Factory';
-        const endpoint = isFactory ? '/api/factory-loft-leaf/factory' : '/api/factory-loft-leaf/collector'; // 💡 Endpoint Fixed
+        const endpoint = isFactory ? '/api/factory-loft-leaf/factory' : '/api/factory-loft-leaf/collector'; 
         
-        // 💡 Payload එකට record එකේ arrivalTime එක අදාළ කරයි
+        // 💡 Append new fields to payload
         const payload = isFactory ? {
             date: record.date, 
             route: record.route, 
             arrivalTime: record.arrivalTime || new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }), 
             totalLeafQtyKg: record.totalLeafQty, 
+            factorySupervisorName: supervisorName, // 💡 Send global supervisor name
             bestG: record.bestQty, 
             belowBestG: record.belowBestQty, 
             poorG: record.poorQty
         } : {
-            date: record.date, route: record.route, bestG: record.bestQty, belowBestG: record.belowBestQty, poorG: record.poorQty
+            date: record.date, 
+            route: record.route, 
+            leafCollectorName: record.collectorName, // 💡 Send specific collector name
+            bestG: record.bestQty, 
+            belowBestG: record.belowBestQty, 
+            poorG: record.poorQty
         };
 
         return fetch(`${BACKEND_URL}${endpoint}`, {
@@ -361,9 +368,9 @@ const handleAddToList = (e, formType) => {
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-zinc-800 dark:text-gray-400">
                   <tr>
                     <th className="px-4 py-3">Route</th>
+                    {sampleType === 'LeafCollector' && <th className="px-4 py-3">Collector Name</th>}
                     {sampleType === 'Factory' && (
                         <>
-                            <th className="px-4 py-3">Officer</th>
                             <th className="px-4 py-3 text-center">Time</th>
                             <th className="px-4 py-3 text-center">Total (Kg)</th>
                         </>
@@ -381,9 +388,33 @@ const handleAddToList = (e, formType) => {
                       return (
                       <tr key={item.id} className="bg-white border-b dark:bg-zinc-900 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800/50">
                         <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">{data.route.toUpperCase()}</td>
+                        
+                        {sampleType === 'LeafCollector' && (
+                            <td className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">
+                                {isEditing ? (
+                                    <input type="text" name="collectorName" value={data.collectorName || ''} onChange={handleEditChange} className="w-full p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded outline-none focus:ring-1 focus:ring-lime-500" />
+                                ) : (
+                                    <span>{data.collectorName || '-'}</span>
+                                )}
+                            </td>
+                        )}
+
                         {sampleType === 'Factory' && (
                             <>
-                                <td className="px-4 py-3 text-center font-mono text-xs">{data.arrivalTime || '-'}</td>
+                                <td className="px-4 py-3 text-center">
+                                    {isEditing ? (
+                                        <input 
+                                            type="text" 
+                                            name="arrivalTime" 
+                                            value={data.arrivalTime || ''} 
+                                            onChange={handleEditChange} 
+                                            placeholder="08:30 PM"
+                                            className="w-20 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-1 focus:ring-lime-500 font-mono text-xs" 
+                                        />
+                                    ) : (
+                                        <span className="font-mono text-xs">{data.arrivalTime || '-'}</span>
+                                    )}
+                                </td>                                
                                 <td className="px-4 py-3 text-center">
                                     {isEditing ? (
                                         <input type="number" name="totalLeafQty" value={data.totalLeafQty || ''} onChange={handleEditChange} className="w-20 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-1 focus:ring-lime-500" />
@@ -410,8 +441,8 @@ const handleAddToList = (e, formType) => {
                                 </div>
                             ) : (
                                 <div className="flex items-center justify-center gap-3">
-                                    <button onClick={() => handleEditClick(item.id)} className="text-blue-500 hover:text-blue-700"><Edit2 size={16} /></button>
-                                    <button onClick={() => handleRemoveFromList(item.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
+                                    <button type="button" onClick={() => handleEditClick(item.id)} className="text-blue-500 hover:text-blue-700"><Edit2 size={16} /></button>
+                                    <button type="button" onClick={() => handleRemoveFromList(item.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
                                 </div>
                             )}
                         </td>
@@ -472,6 +503,19 @@ const handleAddToList = (e, formType) => {
                 <Factory size={20} /> {t.facSampleEntry}
             </h3>
 
+            {/* 💡 SUPERVISOR NAME (GLOBAL FOR FACTORY) */}
+            <div className="mb-6 bg-lime-50/50 dark:bg-lime-900/10 p-4 rounded-xl border border-lime-100 dark:border-lime-900/50 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <label className="text-sm font-bold text-lime-800 dark:text-lime-400 min-w-max flex items-center gap-2">
+                    <UserCheck size={16} /> {t.supervisorName}:
+                </label>
+                <input 
+                    type="text" 
+                    value={supervisorName} 
+                    onChange={(e) => setSupervisorName(e.target.value)} 
+                    className="w-full max-w-sm p-2 border border-gray-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-2 focus:ring-lime-500 bg-white dark:bg-zinc-950 font-bold text-gray-700 dark:text-gray-300"
+                />
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 
                 {/* Route */}
@@ -492,7 +536,6 @@ const handleAddToList = (e, formType) => {
                 </div>
 
                 {/* Arrival Time */}
-                {/* 💡 Arrival Time (12-Hour Format with PM default) */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Clock size={12} /> {t.arrTime}</label>
                     <div className="flex gap-2">
@@ -504,7 +547,6 @@ const handleAddToList = (e, formType) => {
                             maxLength="5"
                             value={factoryForm.arrivalTime} 
                             onChange={(e) => {
-                                // 💡 Auto-format HH:MM
                                 let val = e.target.value.replace(/[^0-9:]/g, '');
                                 if (val.length === 2 && !val.includes(':') && factoryForm.arrivalTime.length !== 3) {
                                     val += ':';
@@ -572,21 +614,28 @@ const handleAddToList = (e, formType) => {
                 <Users size={20} /> {t.colSampleEntry}
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Route */}
                 <div className="relative" ref={collectorRouteDropdownRef}>
-                <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Tag size={12} /> {t.route}</label>
-                <input type="text" id="col-route" placeholder="Select route..." name="route" value={collectorForm.route} onChange={(e) => { handleInputChange(e, 'collector'); setIsCollectorRouteDropdownOpen(true); }} onFocus={() => setIsCollectorRouteDropdownOpen(true)} onKeyDown={handleColRouteKeyDown} required className="w-full placeholder-gray-400/70 dark:placeholder-zinc-600 p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
-                <AnimatePresence>
-                    {isCollectorRouteDropdownOpen && filteredCollectorRoutes.length > 0 && (
-                    <motion.ul initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                        {filteredCollectorRoutes.map((r, idx) => (
-                        <li key={r} id={`col-route-opt-${idx}`} onClick={() => { setCollectorForm((p) => ({ ...p, route: r })); setIsCollectorRouteDropdownOpen(false); focusNext('col-bestQty'); }} className={`px-4 py-2.5 cursor-pointer text-sm hover:bg-lime-50 dark:hover:bg-zinc-800 ${focusedColRouteIdx === idx ? "bg-lime-100 dark:bg-zinc-800" : ""}`}>
-                            {r.toUpperCase()}
-                        </li>
-                        ))}
-                    </motion.ul>
-                    )}
-                </AnimatePresence>
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Tag size={12} /> {t.route}</label>
+                    <input type="text" id="col-route" placeholder="Select route..." name="route" value={collectorForm.route} onChange={(e) => { handleInputChange(e, 'collector'); setIsCollectorRouteDropdownOpen(true); }} onFocus={() => setIsCollectorRouteDropdownOpen(true)} onKeyDown={handleColRouteKeyDown} required className="w-full placeholder-gray-400/70 dark:placeholder-zinc-600 p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
+                    <AnimatePresence>
+                        {isCollectorRouteDropdownOpen && filteredCollectorRoutes.length > 0 && (
+                        <motion.ul initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                            {filteredCollectorRoutes.map((r, idx) => (
+                            <li key={r} id={`col-route-opt-${idx}`} onClick={() => { setCollectorForm((p) => ({ ...p, route: r })); setIsCollectorRouteDropdownOpen(false); focusNext('col-name'); }} className={`px-4 py-2.5 cursor-pointer text-sm hover:bg-lime-50 dark:hover:bg-zinc-800 ${focusedColRouteIdx === idx ? "bg-lime-100 dark:bg-zinc-800" : ""}`}>
+                                {r.toUpperCase()}
+                            </li>
+                            ))}
+                        </motion.ul>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                {/* 💡 Leaf Collector Name */}
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><User size={12} /> {t.collectorName}</label>
+                    <input type="text" id="col-name" placeholder="Name..." name="collectorName" value={collectorForm.collectorName} onChange={(e) => handleInputChange(e, 'collector')} onKeyDown={(e) => handleEnterKey(e, 'col-bestQty')} className="w-full placeholder-gray-400/70 dark:placeholder-zinc-600 p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
                 </div>
             </div>
 
