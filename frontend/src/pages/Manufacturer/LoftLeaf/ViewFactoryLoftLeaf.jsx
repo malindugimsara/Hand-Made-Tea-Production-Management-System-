@@ -598,7 +598,7 @@ export default function ViewLoftLeafCount() {
                       <span className="w-3 h-3 rounded-full bg-red-500 block"></span> {t.legendTime}
                   </span>
                   <span className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full bg-[#dcfce7] dark:bg-lime-900/50 border border-green-300 block"></span> {t.legendDiff}
+                      <span className="w-3 h-3 rounded-full bg-green-400 dark:bg-lime-900/50 border border-green-300 block"></span> {t.legendDiff}
                   </span>
               </div>
           )}
@@ -951,11 +951,15 @@ export default function ViewLoftLeafCount() {
                     <strong>{t.supervisorHeader}</strong> {daySupervisorName}
                 </div>
                 <div className="text-[10px] text-[#4b5563] flex gap-4" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
-                    <span className="flex items-center gap-1"><span className="text-[#dc2626] font-bold">*</span> {t.legendTime}</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 bg-[#dcfce7] inline-block border border-[#4ade80]"></span> {t.legendDiff}</span>
+                    <span className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-[#E60202] block"></span> {t.legendTime}
+                  </span>
+                  <span className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-[#1AF475]"></span> {t.legendDiff}
+                  </span>
                 </div>
             </div>
-
+              
             <table className="w-full border-collapse border border-[#8F8F8F] text-center text-[12px]" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
                 <thead>
                     <tr className="text-[#000000]">
