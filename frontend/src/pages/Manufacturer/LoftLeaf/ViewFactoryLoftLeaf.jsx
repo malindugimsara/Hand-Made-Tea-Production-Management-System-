@@ -320,7 +320,7 @@ export default function ViewLoftLeafCount() {
     supervisorHeader: lang === 'SI' ? "කර්මාන්තශාලා අධීක්ෂක :" : "Factory Supervisor :",
     colName: lang === 'SI' ? "දළු එකතු කරන්නාගේ\nනම" : "Collector\nName",
 
-    shareWhatsapp: lang === 'SI' ? "Whatsapp යවන්න" : "Share Whatsapp",
+    shareWhatsapp: lang === 'SI' ? "WhatsApp යවන්න" : "Share WhatsApp",
     sharePDF: lang === 'SI' ?  "PDF යවන්න" : "Share PDF",
     shareImage: lang === 'SI' ? "පින්තූරය යවන්න" : "Share Image"
   };

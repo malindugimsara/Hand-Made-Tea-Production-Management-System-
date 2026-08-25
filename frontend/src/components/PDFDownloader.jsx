@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileDown } from "lucide-react";
-import { FaWhatsapp } from "react-icons/fa"; // <-- WhatsApp icon එකට
+import { FaWhatsapp } from "react-icons/fa"; 
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -18,10 +18,15 @@ export default function PDFDownloader({
     userName,
     userRole,
     autoTableOptions = {},
-    isWhatsApp = false // <-- NEW PROP: WhatsApp Share කිරීම සඳහා
+    isWhatsApp = false,
+    customButton = null,       // <-- NEW: Dropdown Items සඳහා Custom UI එකක් ලබා දීමට
+    onActionStart = () => {}   // <-- NEW: Action එක පටන් ගන්නා විට Menu close කිරීමට
 }) {
 
-    const handleAction = async () => {
+    const handleAction = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        onActionStart(); // Trigger action start (e.g. close dropdown)
+
         if (!data || data.length === 0) {
             toast.error("No data available to process.");
             return;
@@ -231,7 +236,17 @@ export default function PDFDownloader({
         }
     };
 
-    // Render different buttons based on isWhatsApp prop
+    // Render Custom Button if provided
+    if (customButton) {
+        return React.cloneElement(customButton, {
+            onClick: (e) => {
+                if (customButton.props.onClick) customButton.props.onClick(e);
+                handleAction(e);
+            },
+            disabled: disabled || customButton.props.disabled
+        });
+    }
+
     if (isWhatsApp) {
         return (
             <button onClick={handleAction} disabled={disabled} className={`px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed ${className}`}>

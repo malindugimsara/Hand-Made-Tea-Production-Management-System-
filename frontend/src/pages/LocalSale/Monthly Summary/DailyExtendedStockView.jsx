@@ -1,7 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { Calendar, Share2, RefreshCw, FileText, Box, SearchX } from 'lucide-react';
+import { Calendar, Share2, RefreshCw, FileText, Box, SearchX, Image, FileDown } from 'lucide-react';
+import { FaWhatsapp } from "react-icons/fa";
 import PDFDownloader from '@/components/PDFDownloader';
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 export default function DailyExtendedStockView() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -14,6 +17,20 @@ export default function DailyExtendedStockView() {
         ins: null,
         outs: null
     });
+
+    // 💡 WhatsApp Dropdown State & Ref
+    const [isWaMenuOpen, setIsWaMenuOpen] = useState(false);
+    const waMenuRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (waMenuRef.current && !waMenuRef.current.contains(event.target)) {
+                setIsWaMenuOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     const selectedMonth = selectedDate.substring(0, 7); // YYYY-MM
 
@@ -289,6 +306,67 @@ export default function DailyExtendedStockView() {
         fetchMonthData(selectedMonth);
     };
 
+    // 💡 --- DIRECT SHARE ON WHATSAPP (ONLY IMAGE NOW) ---
+    // මෙහි PDF share කිරීමේ කොටස ඉවත් කර ඇත. PDF share කිරීම සඳහා PDFDownloader භාවිතා වේ.
+    const shareImageOnWhatsApp = async () => {
+        setIsWaMenuOpen(false);
+        if (tableData.length === 0) {
+            toast.error("No records available to share.");
+            return;
+        }
+
+        const toastId = toast.loading(`Preparing IMAGE for WhatsApp...`);
+
+        try {
+            const printElement = document.getElementById('stock-print-area');
+            const imgFooter = document.getElementById('sys-image-footer');
+            if (imgFooter) imgFooter.style.display = 'block';
+
+            printElement.style.display = "block";
+            printElement.style.position = "absolute";
+            printElement.style.top = "-9999px";
+
+            const canvas = await html2canvas(printElement, { 
+                scale: 3, 
+                useCORS: true,
+                backgroundColor: "#ffffff",
+                logging: false
+            });
+
+            printElement.style.display = "none"; 
+            if (imgFooter) imgFooter.style.display = 'none'; // ආපසු සැඟවීම
+
+            let file;
+            let fileName = `Daily_Stock_${selectedDate}`;
+
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+            file = new File([blob], `${fileName}.jpg`, { type: 'image/jpeg' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    title: 'Daily Stock Report',
+                    text: `Daily IN/OUT & Balance Report - ${selectedDate}`,
+                    files: [file]
+                });
+                toast.success("Shared successfully!", { id: toastId });
+            } else {
+                const fileUrl = URL.createObjectURL(file);
+                const a = document.createElement('a');
+                a.href = fileUrl;
+                a.download = file.name;
+                a.click();
+                URL.revokeObjectURL(fileUrl);
+                
+                const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`Here is the Daily Stock Report for ${selectedDate}. Please attach the downloaded file.`)}`;
+                window.open(whatsappUrl, '_blank');
+                toast.success("File downloaded. Please attach it in WhatsApp.", { id: toastId });
+            }
+        } catch (error) {
+            console.error("WhatsApp Share Error: ", error);
+            toast.error("Failed to share file.", { id: toastId });
+        }
+    };
+
     const getMonthName = () => {
         const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         if (!selectedMonth) return "Month";
@@ -395,18 +473,47 @@ export default function DailyExtendedStockView() {
                         disabled={loading || tableData.length === 0}
                         autoTableOptions={pdfTableConfig}
                     />
-                    <PDFDownloader
-                        isWhatsApp={true}
-                        title={`Daily IN/OUT & Balance Report - ${selectedDate}`}
-                        subtitle={`Opening Balance as of 1st ${getMonthName()}`}
-                        headers={["Category / Title", "Size / Type", "Opening Balance", "OUT (Sold)", "OUT (Free Issue)", "IN", "Balance To Date"]}
-                        data={getPdfData()}
-                        uniqueCode={uniqueCode}
-                        fileName={`Daily_Stock_${selectedDate}.pdf`}
-                        orientation="portrait"
-                        disabled={loading || tableData.length === 0}
-                        autoTableOptions={pdfTableConfig}
-                    />
+                    
+                    {/* 💡 WhatsApp Share Dropdown Button */}
+                    {/* 💡 WhatsApp Share Dropdown Button */}
+                    <div className="relative flex-1 sm:flex-none" ref={waMenuRef}>
+                        <button
+                            onClick={() => setIsWaMenuOpen(!isWaMenuOpen)}
+                            disabled={loading || tableData.length === 0}
+                            className="w-full h-full p-2.5 px-3 sm:px-4 justify-center bg-[#25D366] hover:bg-[#128C7E] text-white rounded-lg transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+                        >
+                            <FaWhatsapp size={18} /> <span className="font-bold text-xs sm:text-sm hidden sm:inline">Share WhatsApp</span>
+                        </button>
+                        
+                        {isWaMenuOpen && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-gray-100 dark:border-zinc-700 overflow-hidden z-50 animate-in slide-in-from-top-2">
+                            <button onClick={shareImageOnWhatsApp} className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-3">
+                                <Image size={18} className="text-[#25D366]" /> Share Image
+                            </button>
+                            
+                            {/* 💡 අලුත් Share PDF ක්‍රමය (PDFDownloader භාවිතා කර ඇත) */}
+                            <PDFDownloader
+                                title={`Daily IN/OUT & Balance Report - ${selectedDate}`}
+                                subtitle={`Opening Balance as of 1st ${getMonthName()}`}
+                                headers={["Category / Title", "Size / Type", "Opening Balance", "OUT (Sold)", "OUT (Free Issue)", "IN", "Balance To Date"]}
+                                data={getPdfData()}
+                                uniqueCode={uniqueCode}
+                                fileName={`Daily_Stock_${selectedDate}.pdf`}
+                                orientation="portrait"
+                                disabled={loading || tableData.length === 0}
+                                autoTableOptions={pdfTableConfig}
+                                isWhatsApp={true} // <-- WhatsApp වලට යැවීමට
+                                onActionStart={() => setIsWaMenuOpen(false)} // <-- Menu එක Close කිරීමට
+                                customButton={ // <-- Dropdown style Button එකක් ලබා දීමට
+                                    <button className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-3 border-t border-gray-100 dark:border-zinc-700">
+                                        <FileText size={18} className="text-red-500" /> Share PDF
+                                    </button>
+                                }
+                            />
+                            </div>
+                        )}
+                    </div>
+
                     <button onClick={handleSync} className="p-2 border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-lg transition-colors dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-300">
                         <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
                     </button>
@@ -528,6 +635,106 @@ export default function DailyExtendedStockView() {
                     </div>
                 )}
             </div>
+
+            {/* 💡 HIDDEN PRINT AREA (100% MATCHED TO PDF DESIGN) */}
+            <div id="stock-print-area" className="bg-[#ffffff] p-10 font-sans text-[#000000]" style={{ width: '1000px', display: 'none' }}>
+                
+                {/* --- PDF Header Section Match --- */}
+                <div className="flex justify-between items-start mb-6">
+                    <div className="flex items-start gap-4">
+                        {/* Logo */}
+                        <img src="/logo.png" alt="Logo" className="w-[85px] h-[85px] object-contain mt-1" onError={(e) => e.target.style.display = 'none'} />
+                        <div className="mt-2">
+                            {/* PDF Titles */}
+                            <h1 className="text-[22px] text-[#1B6A31]">Daily IN/OUT & Balance Report - {selectedDate}</h1>
+                            <h2 className="text-[14px] text-[#646464] mt-1">Opening Balance as of 1st {getMonthName()}</h2>
+                        </div>
+                    </div>
+                    {/* PDF Document Ref Details */}
+                    <div className="text-right text-[12px] text-[#969696] mt-2 font-semibold">
+                        <p>Doc Ref: {uniqueCode}</p>
+                        <p>Generated: {new Date().toLocaleString()}</p>
+                    </div>
+                </div>
+
+                {/* --- PDF Table Match --- */}
+                <table className="w-full border-collapse border border-[#BFC9D1] text-[12px]">
+                    <thead className="bg-[#D9EFBD]">
+                        {/* Top Header Row matched to autoTable options */}
+                        <tr className="text-[#6B7280]">
+                            <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold uppercase">Category / Title</th>
+                            <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold uppercase">Size / Type</th>
+                            <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold uppercase">Opening Balance<br/>({getMonthName()} 1st)</th>
+                            <th colSpan={2} className="border border-[#BFC9D1] p-2 text-center font-bold text-[#EF4444] uppercase">OUT (Today)</th>
+                            <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold text-[#149352] uppercase">IN (Today)</th>
+                            <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold text-[#4338CA] uppercase">Balance<br/>To Date</th>
+                        </tr>
+                        <tr>
+                            <th className="border border-[#BFC9D1] p-2 text-center font-bold text-[#EF4444] uppercase">Sold</th>
+                            <th className="border border-[#BFC9D1] p-2 text-center font-bold text-[#66A3BF] uppercase">Free Issue</th>
+                        </tr>
+                    </thead>
+                    <tbody className="text-center">
+                        {tableData.map((row, idx) => {
+                            const isNewGroup = idx === 0 || tableData[idx - 1].group !== row.group;
+                            return (
+                                <React.Fragment key={idx}>
+                                    {/* Separator Row inside PDF */}
+                                    {isNewGroup && (
+                                        <tr className="bg-[#F3F4F6]">
+                                            <td colSpan="7" className="border border-[#BFC9D1] p-2 text-left font-bold text-[#4B5563] uppercase">
+                                                {row.group === 'Main' ? 'TEA PACKS' : 'Other Tea Types & Grades'}
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {/* Data Row */}
+                                    <tr>
+                                        <td className="border border-[#BFC9D1] p-2 text-left font-bold text-[#000000]">{row.displayTitle}</td>
+                                        <td className="border border-[#BFC9D1] p-2 text-[#000000]">{row.size}</td>
+                                        <td className="border border-[#BFC9D1] p-2 text-[#000000]">{row.openingBalance !== 0 ? row.openingBalance.toFixed(2) : '-'}</td>
+                                        
+                                        <td className="border border-[#BFC9D1] p-2 text-[#DC2626]">
+                                            {row.outSoldToday > 0 ? row.outSoldToday.toFixed(2) : '-'}
+                                        </td>
+                                        
+                                        <td className="border border-[#BFC9D1] p-2 text-[#66A3BF]">
+                                            {row.outIssueToday > 0 ? row.outIssueToday.toFixed(2) : '-'}
+                                        </td>
+                                        
+                                        <td className="border border-[#BFC9D1] p-2 text-[#22C55E]">
+                                            {row.inToday > 0 ? row.inToday.toFixed(2) : '-'}
+                                        </td>
+                                        
+                                        <td className={`border border-[#BFC9D1] p-2 font-bold ${row.balanceToDate < 0 ? 'text-[#DC2626]' : 'text-[#4338CA]'}`}>
+                                            {row.balanceToDate.toFixed(2)}
+                                        </td>
+                                    </tr>
+                                </React.Fragment>
+                            );
+                        })}
+                    </tbody>
+                </table>
+
+                {/* --- PDF Signature Section Match --- */}
+                <div className="mt-14 flex justify-between items-end text-[13px]">
+                    <div>
+                        <p className="text-[#646464]">Generated By:</p>
+                        <p className="font-bold text-[#1E1E1E] mt-1">
+                            {localStorage.getItem('username') || localStorage.getItem('userName') || 'System User'} ({localStorage.getItem('userRole') || localStorage.getItem('role') || 'Authorized User'})
+                        </p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-[#646464]">.................................................................</p>
+                        <p className="text-[#1E1E1E] mt-1 pr-6 font-semibold">Checked By / Signature</p>
+                    </div>
+                </div>
+                
+                {/* PDF Footer Match */}
+                <div id="sys-image-footer" className="mt-10 text-center text-[10px] text-[#808080] font-sans" style={{ display: 'none' }}>
+                    Page 1 of 1 - Generated by Unified Management System
+                </div>
+            </div>
+
         </div>
     );
 }
