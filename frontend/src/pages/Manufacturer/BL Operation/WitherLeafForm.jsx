@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { createPortal } from 'react-dom';
+import { Languages } from 'lucide-react'; // <-- Imported Languages Icon
 
 const getYesterdayDate = () => {
   const date = new Date();
@@ -46,6 +47,58 @@ const WitherLeafForm = () => {
   const [topForm, setTopForm] = useState(initialTopFormState);
   const [bottomForm, setBottomForm] = useState(initialBottomFormState);
   const [deleteAlert, setDeleteAlert] = useState({ isOpen: false, batchIndex: null });
+  
+  // 💡 Language Toggle State ("EN" or "SI")
+  const [lang, setLang] = useState("EN");
+
+  // 💡 --- DYNAMIC TRANSLATIONS ---
+  const t = {
+    title: lang === 'SI' ? "අමු තේ දළු ඇතුළත් කිරීම" : "Wither Leaf Entry",
+    subtitle: lang === 'SI' ? "කර්මාන්තශාලා, මැලවූ දළු සහ කාණ්ඩ විස්තර දත්ත ගබඩාවට එක් කරන්න." : "Record Factory, Wither Leaf & Batch Details directly to the database.",
+    
+    sec1Title: lang === 'SI' ? "කොටස 1: අමු තේ දළු විස්තර" : "Section 1: Wither Leaf Details",
+    factory: lang === 'SI' ? "කර්මාන්තශාලාව" : "Factory",
+    selectFactory: lang === 'SI' ? "කර්මාන්තශාලාව තෝරන්න..." : "Select Factory...",
+    dateOfCrop: lang === 'SI' ? "අස්වැන්න දිනය" : "Date of Crop",
+    recTotalCrop: lang === 'SI' ? "ලැබුණු මුළු දළු (Kg)" : "Received Total Crop (Kg)",
+    totalEmp: lang === 'SI' ? "මුළු සේවක සංඛ්‍යාව" : "Total Employee",
+    witheredLeaf: lang === 'SI' ? "මැලවූ දළු (Kg)" : "Withered Leaf (Kg)",
+    percentage: lang === 'SI' ? "ප්‍රතිශතය %" : "Percentage %",
+    auto: lang === 'SI' ? "ස්වයංක්‍රීය" : "Auto",
+    name1: lang === 'SI' ? "නම 1" : "Name 1",
+    selectName1: lang === 'SI' ? "නම 1 තෝරන්න..." : "Select Name 1...",
+    name2: lang === 'SI' ? "නම 2" : "Name 2",
+    selectName2: lang === 'SI' ? "නම 2 තෝරන්න..." : "Select Name 2...",
+    dom: lang === 'SI' ? "නිෂ්පාදිත දිනය" : "Date of Manufacture",
+
+    sec2Title: lang === 'SI' ? "කොටස 2: කාණ්ඩ කාලසටහන" : "Section 2: Batching Schedule",
+    startTime: lang === 'SI' ? "ආරම්භක වේලාව" : "Start Time",
+    finishTime: lang === 'SI' ? "අවසන් වේලාව" : "Finish Time",
+    period: lang === 'SI' ? "කාල සීමාව" : "Period",
+    day: lang === 'SI' ? "දිනය" : "Day",
+    noOfBatchers: lang === 'SI' ? "කාණ්ඩ සේවකයින් ගණන" : "No. of Batchers",
+    weatherQuality: lang === 'SI' ? "මැලවීමේ ගුණාත්මය" : "Weathering Quality",
+
+    sec3Title: lang === 'SI' ? "කොටස 3: නිෂ්පාදන ප්‍රමාණ" : "Section 3: Manufacture Quantities",
+    awaitingDom: lang === 'SI' ? "අස්වැන්න දිනය බලාපොරොත්තුවෙන්..." : "Awaiting Date of Crop...",
+    selectBatch: lang === 'SI' ? "කාණ්ඩය තෝරන්න" : "Select Batch",
+    batch: lang === 'SI' ? "කාණ්ඩය" : "Batch",
+    qty: lang === 'SI' ? "ප්‍රමාණය (උපරිම 400kg)" : "Quantity (Max 400kg)",
+    enterKg: lang === 'SI' ? "Kg ඇතුලත් කරන්න..." : "Enter Kg...",
+    addBatch: lang === 'SI' ? "කාණ්ඩය එක් කරන්න" : "Add Batch",
+    noBatches: lang === 'SI' ? "තවමත් කාණ්ඩ වාර්තා කර නොමැත. ප්‍රමාණ එකතු කිරීමට ඉහළින් කාණ්ඩයක් තෝරන්න." : "No batches recorded yet. Select a batch above to add quantities.",
+
+    saveSec12: lang === 'SI' ? "කොටස් 1 සහ 2 සුරකින්න" : "Save Sections 1 & 2",
+    clearSec: lang === 'SI' ? "කොටස් මකන්න" : "Clear Sections",
+    saveSec3: lang === 'SI' ? "කොටස 3 සුරකින්න" : "Save Section 3",
+    clearBatches: lang === 'SI' ? "කාණ්ඩ මකන්න" : "Clear Batches",
+
+    removeTitle: lang === 'SI' ? "කාණ්ඩ දත්ත ඉවත් කරන්න" : "Remove Batch Data",
+    removeDesc1: lang === 'SI' ? "ඔබට විශ්වාසද " : "Are you sure you want to remove the data for ",
+    removeDesc2: lang === 'SI' ? " ඉවත් කිරීමට අවශ්‍ය බව? මෙය ආපසු හැරවිය නොහැක." : "? This action cannot be undone.",
+    cancelBtn: lang === 'SI' ? "අවලංගු කරන්න" : "Cancel",
+    removeBtn: lang === 'SI' ? "ඔව්, ඉවත් කරන්න" : "Yes, Remove"
+  };
 
   // 1. Fetch Total Crop
   useEffect(() => {
@@ -138,11 +191,11 @@ const WitherLeafForm = () => {
   const handleAddBatchRecord = () => {
     const kgValue = parseFloat(bottomForm.batchKg);
     if (isNaN(kgValue) || kgValue <= 0) {
-      toast.error("Please enter a valid amount greater than 0.");
+      toast.error(lang === 'SI' ? "කරුණාකර නිවැරදි ප්‍රමාණයක් ඇතුලත් කරන්න." : "Please enter a valid amount greater than 0.");
       return;
     }
     if (kgValue > 400) {
-      toast.error("Maximum allowed weight per batch is 400kg.");
+      toast.error(lang === 'SI' ? "උපරිම බර 400kg වේ." : "Maximum allowed weight per batch is 400kg.");
       return;
     }
 
@@ -175,7 +228,7 @@ const WitherLeafForm = () => {
       const updatedBatches = [...bottomForm.batches];
       updatedBatches[index] = 0;
       setBottomForm((prev) => ({ ...prev, batches: updatedBatches }));
-      toast.success(`Batch ${index + 1} removed successfully`);
+      toast.success(lang === 'SI' ? `කාණ්ඩය ${index + 1} සාර්ථකව ඉවත් කරන ලදී` : `Batch ${index + 1} removed successfully`);
     }
     setDeleteAlert({ isOpen: false, batchIndex: null });
   };
@@ -200,31 +253,28 @@ const WitherLeafForm = () => {
   // ==========================================
   const handleSaveTopSections = async (e) => {
     e.preventDefault();
-    const loadingToast = toast.loading("Saving Sections 1 & 2...");
+    const loadingToast = toast.loading(lang === 'SI' ? "කොටස් 1 සහ 2 සුරකිමින්..." : "Saving Sections 1 & 2...");
 
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(`${BACKEND_URL}/api/wither-leaf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(topForm) // ONLY sending topForm data
+        body: JSON.stringify(topForm)
       });
 
       const result = await response.json();
       if (response.ok && result.success) {
-        toast.success("Sections 1 & 2 saved successfully!", { id: loadingToast });
+        toast.success(lang === 'SI' ? "සාර්ථකව සුරකින ලදී!" : "Sections 1 & 2 saved successfully!", { id: loadingToast });
         handleClearTopSections();
       } else {
-        toast.error("Failed to save Sections 1 & 2.", { id: loadingToast });
+        toast.error(lang === 'SI' ? "සුරැකීම අසාර්ථකයි." : "Failed to save Sections 1 & 2.", { id: loadingToast });
       }
     } catch (error) {
-      toast.error("Server connection error.", { id: loadingToast });
+      toast.error(lang === 'SI' ? "සේවාදායක දෝෂයකි." : "Server connection error.", { id: loadingToast });
     }
   };
 
-  // ==========================================
-  // INDEPENDENT SAVE: SECTION 3
-  // ==========================================
   // ==========================================
   // INDEPENDENT SAVE: SECTION 3
   // ==========================================
@@ -233,16 +283,14 @@ const WitherLeafForm = () => {
 
     const hasData = bottomForm.batches.some(val => val > 0);
     if (!hasData) {
-      toast.error("Please add data to at least one batch before saving.");
+      toast.error(lang === 'SI' ? "කරුණාකර අවම වශයෙන් එක් කාණ්ඩයක් හෝ එක් කරන්න." : "Please add data to at least one batch before saving.");
       return;
     }
 
-    const loadingToast = toast.loading("Saving Section 3...");
+    const loadingToast = toast.loading(lang === 'SI' ? "කොටස 3 සුරකිමින්..." : "Saving Section 3...");
 
     try {
       const token = localStorage.getItem("token");
-
-      // FIX: Send the dates along with the batches so they link together!
       const payload = {
         dateOfCrop: topForm.dateOfCrop,
         dateOfManufacture: topForm.dateOfManufacture,
@@ -257,13 +305,13 @@ const WitherLeafForm = () => {
 
       const result = await response.json();
       if (response.ok && result.success) {
-        toast.success("Section 3 saved successfully!", { id: loadingToast });
+        toast.success(lang === 'SI' ? "සාර්ථකව සුරකින ලදී!" : "Section 3 saved successfully!", { id: loadingToast });
         handleClearBottomSection();
       } else {
-        toast.error("Failed to save Section 3.", { id: loadingToast });
+        toast.error(lang === 'SI' ? "සුරැකීම අසාර්ථකයි." : "Failed to save Section 3.", { id: loadingToast });
       }
     } catch (error) {
-      toast.error("Server connection error.", { id: loadingToast });
+      toast.error(lang === 'SI' ? "සේවාදායක දෝෂයකි." : "Server connection error.", { id: loadingToast });
     }
   };
 
@@ -273,21 +321,34 @@ const WitherLeafForm = () => {
   const inputClass = "w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 block p-2.5 transition-colors";
   const readOnlyClass = "w-full bg-gray-100 border border-gray-200 text-gray-500 text-sm rounded-lg block p-2.5 font-medium";
   const labelClass = "block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2";
-  const btnSaveClass = "bg-[#34a853] hover:bg-green-700 text-white font-bold py-2.5 px-6 rounded-lg transition-colors shadow-sm text-sm";
-  const btnClearClass = "bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2.5 px-6 rounded-lg transition-colors shadow-sm text-sm";
+  const btnSaveClass = "bg-[#34a853] hover:bg-green-700 text-white font-bold py-2.5 px-6 rounded-lg transition-colors shadow-sm text-sm w-full sm:w-auto";
+  const btnClearClass = "bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2.5 px-6 rounded-lg transition-colors shadow-sm text-sm w-full sm:w-auto";
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] p-4 md:p-8 font-sans relative">
       <Toaster position="bottom-right" reverseOrder={false} />
 
-      <div className="mb-6 border-b border-gray-200 pb-4 max-w-5xl mx-auto">
-        <div className="flex items-center space-x-2">
-          <svg className="w-6 h-6 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 19s1-7 8-7 8 7 8 7M3 19c0-5.523 4.477-10 10-10s10 4.477 10 10M12 9c0-3.314-2.686-6-6-6S0 5.686 0 9"></path>
-          </svg>
-          <h1 className="text-xl font-bold text-green-800 tracking-tight">Wither Leaf Entry</h1>
+      {/* --- HEADER --- */}
+      <div className="mb-6 border-b border-gray-200 pb-4 max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <div className="flex items-center space-x-2">
+            <svg className="w-6 h-6 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 19s1-7 8-7 8 7 8 7M3 19c0-5.523 4.477-10 10-10s10 4.477 10 10M12 9c0-3.314-2.686-6-6-6S0 5.686 0 9"></path>
+            </svg>
+            <h1 className="text-xl font-bold text-green-800 tracking-tight">{t.title}</h1>
+          </div>
+          <p className="text-sm text-gray-500 mt-1 ml-8">{t.subtitle}</p>
         </div>
-        <p className="text-sm text-gray-500 mt-1 ml-8">Record Factory, Wither Leaf & Batch Details directly to the database.</p>
+        
+        {/* 💡 LANGUAGE TOGGLE BUTTON */}
+        <button
+          onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')}
+          className="p-2.5 px-4 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center gap-2"
+          title="Toggle Language"
+        >
+          <Languages size={18} />
+          {lang === 'EN' ? "සිංහල" : "English"}
+        </button>
       </div>
 
       <div className="w-full max-w-5xl mx-auto flex flex-col gap-6">
@@ -299,7 +360,7 @@ const WitherLeafForm = () => {
               <div className="p-1.5 bg-green-50 rounded-lg">
                 <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd"></path></svg>
               </div>
-              <h2 className="text-sm font-bold text-gray-800">Section 1: Wither Leaf Details</h2>
+              <h2 className="text-sm font-bold text-gray-800">{t.sec1Title}</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
@@ -307,23 +368,23 @@ const WitherLeafForm = () => {
 
               <div className="flex flex-col gap-4 md:pr-4">
                 <div>
-                  <label className={labelClass}>Factory</label>
+                  <label className={labelClass}>{t.factory}</label>
                   <select name="factory" value={topForm.factory} onChange={handleTopChange} className={inputClass}>
-                    <option value="">Select Factory...</option>
+                    <option value="">{t.selectFactory}</option>
                     <option value="ATHUKORALA TEA FACTORY - MF1398">ATHUKORALA TEA FACTORY - MF1398</option>
                     <option value="ATHUKORALA HANDMADE TEA FACTORY - HT0049">ATHUKORALA HANDMADE TEA FACTORY - HT0049</option>
                   </select>
                 </div>
                 <div>
-                  <label className={labelClass}>Date of Crop</label>
+                  <label className={labelClass}>{t.dateOfCrop}</label>
                   <input type="date" name="dateOfCrop" value={topForm.dateOfCrop} onChange={handleTopChange} className={inputClass} />
                 </div>
                 <div>
-                  <label className={labelClass}>Received Total Crop (Kg)</label>
+                  <label className={labelClass}>{t.recTotalCrop}</label>
                   <input type="number" name="receivedTotalCropKg" value={topForm.receivedTotalCropKg} onChange={handleTopChange} className={inputClass} />
                 </div>
                 <div>
-                  <label className={labelClass}>Total Employee</label>
+                  <label className={labelClass}>{t.totalEmp}</label>
                   <input type="number" name="totalEmployee" value={topForm.totalEmployee} onChange={handleTopChange} className={inputClass} />
                 </div>
               </div>
@@ -331,31 +392,31 @@ const WitherLeafForm = () => {
               <div className="flex flex-col gap-4 md:pl-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className={labelClass}>Withered Leaf (Kg)</label>
+                    <label className={labelClass}>{t.witheredLeaf}</label>
                     <input type="number" name="witheredLeafKg" value={topForm.witheredLeafKg} onChange={handleTopChange} className={inputClass} />
                   </div>
                   <div>
-                    <label className={labelClass}>Percentage %</label>
-                    <input type="text" name="percentage" value={topForm.percentage} readOnly className={readOnlyClass} placeholder="Auto" />
+                    <label className={labelClass}>{t.percentage}</label>
+                    <input type="text" name="percentage" value={topForm.percentage} readOnly className={readOnlyClass} placeholder={t.auto} />
                   </div>
                 </div>
 
                 <div>
-                  <label className={labelClass}>Name 1</label>
+                  <label className={labelClass}>{t.name1}</label>
                   <select name="name1" value={topForm.name1} onChange={handleTopChange} className={inputClass}>
-                    <option value="">Select Name 1...</option>
+                    <option value="">{t.selectName1}</option>
                     {employeeNames.map(name => <option key={`n1-${name}`} value={name}>{name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className={labelClass}>Name 2</label>
+                  <label className={labelClass}>{t.name2}</label>
                   <select name="name2" value={topForm.name2} onChange={handleTopChange} className={inputClass}>
-                    <option value="">Select Name 2...</option>
+                    <option value="">{t.selectName2}</option>
                     {employeeNames.map(name => <option key={`n2-${name}`} value={name}>{name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className={labelClass}>Date of Manufacture</label>
+                  <label className={labelClass}>{t.dom}</label>
                   <input type="date" name="dateOfManufacture" value={topForm.dateOfManufacture} readOnly className={readOnlyClass} />
                 </div>
               </div>
@@ -368,40 +429,40 @@ const WitherLeafForm = () => {
               <div className="p-1.5 bg-orange-50 rounded-lg">
                 <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
               </div>
-              <h2 className="text-sm font-bold text-gray-800">Section 2: Batching Schedule</h2>
+              <h2 className="text-sm font-bold text-gray-800">{t.sec2Title}</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className={labelClass}>Start Time</label>
+                <label className={labelClass}>{t.startTime}</label>
                 <input type="time" name="startTime" value={topForm.startTime} onChange={handleTopChange} className={inputClass} />
               </div>
               <div>
-                <label className={labelClass}>Finish Time</label>
+                <label className={labelClass}>{t.finishTime}</label>
                 <input type="time" name="finishTime" value={topForm.finishTime} onChange={handleTopChange} className={inputClass} />
               </div>
               <div>
-                <label className={labelClass}>Period</label>
-                <input type="text" name="period" value={topForm.period} readOnly placeholder="Auto calc" className={readOnlyClass} />
+                <label className={labelClass}>{t.period}</label>
+                <input type="text" name="period" value={topForm.period} readOnly placeholder={t.auto} className={readOnlyClass} />
               </div>
               <div>
-                <label className={labelClass}>Day</label>
+                <label className={labelClass}>{t.day}</label>
                 <input type="date" name="day" value={topForm.day} onChange={handleTopChange} className={inputClass} />
               </div>
               <div>
-                <label className={labelClass}>No. of Batchers</label>
+                <label className={labelClass}>{t.noOfBatchers}</label>
                 <input type="number" name="noOfBatchers" value={topForm.noOfBatchers} onChange={handleTopChange} className={inputClass} />
               </div>
               <div>
-                <label className={labelClass}>Weathering Quality</label>
-                <input type="text" name="weatheringQuality" value={topForm.weatheringQuality} readOnly placeholder="Auto calc" className={`${readOnlyClass} capitalize text-green-700`} />
+                <label className={labelClass}>{t.weatherQuality}</label>
+                <input type="text" name="weatheringQuality" value={topForm.weatheringQuality} readOnly placeholder={t.auto} className={`${readOnlyClass} capitalize text-green-700`} />
               </div>
             </div>
           </div>
 
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={handleSaveTopSections} className={btnSaveClass}>Save Sections 1 & 2</button>
-            <button type="button" onClick={handleClearTopSections} className={btnClearClass}>Clear Sections</button>
+          <div className="flex gap-3 pt-2 flex-wrap">
+            <button type="button" onClick={handleSaveTopSections} className={btnSaveClass}>{t.saveSec12}</button>
+            <button type="button" onClick={handleClearTopSections} className={btnClearClass}>{t.clearSec}</button>
           </div>
         </div>
 
@@ -412,28 +473,28 @@ const WitherLeafForm = () => {
               <div className="p-1.5 bg-blue-50 rounded-lg">
                 <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
               </div>
-              <h2 className="text-sm font-bold text-gray-800">Section 3: Manufacture Quantities</h2>
+              <h2 className="text-sm font-bold text-gray-800">{t.sec3Title}</h2>
             </div>
           </div>
 
           <div className="mb-6">
-            <label className={labelClass}>Date of Manufacture</label>
+            <label className={labelClass}>{t.dom}</label>
             <div className="w-full md:w-1/3 bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm text-gray-600 font-semibold h-10 flex items-center">
-              {topForm.dateOfManufacture || 'Awaiting Date of Crop...'}
+              {topForm.dateOfManufacture || t.awaitingDom}
             </div>
           </div>
 
           <div className="flex flex-col md:flex-row gap-4 items-end mb-8 bg-gray-50 p-4 rounded-xl border border-gray-100">
             <div className="w-full md:w-1/3">
-              <label className={labelClass}>Select Batch</label>
+              <label className={labelClass}>{t.selectBatch}</label>
               <select name="selectedBatch" value={bottomForm.selectedBatch} onChange={handleBottomChange} className={inputClass}>
                 {Array.from({ length: 25 }, (_, i) => (
-                  <option key={i + 1} value={i + 1}>Batch {String(i + 1).padStart(2, '0')}</option>
+                  <option key={i + 1} value={i + 1}>{t.batch} {String(i + 1).padStart(2, '0')}</option>
                 ))}
               </select>
             </div>
             <div className="w-full md:w-1/3">
-              <label className={labelClass}>Quantity (Max 400kg)</label>
+              <label className={labelClass}>{t.qty}</label>
               <input
                 type="number"
                 name="batchKg"
@@ -441,7 +502,7 @@ const WitherLeafForm = () => {
                 onKeyDown={handleBatchKeyDown}
                 value={bottomForm.batchKg}
                 onChange={handleBottomChange}
-                placeholder="Enter Kg..."
+                placeholder={t.enterKg}
                 className={inputClass}
               />
             </div>
@@ -452,21 +513,21 @@ const WitherLeafForm = () => {
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-10 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-                Add Batch
+                {t.addBatch}
               </button>
             </div>
           </div>
 
           {activeBatches.length === 0 ? (
             <div className="text-center p-8 bg-gray-50 border border-dashed border-gray-300 rounded-xl mb-8">
-              <p className="text-gray-500 text-sm font-medium">No batches recorded yet. Select a batch above to add quantities.</p>
+              <p className="text-gray-500 text-sm font-medium">{t.noBatches}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 mb-8">
               {activeBatches.map(({ index, kg }) => (
                 <div key={index} className="group relative flex flex-col border border-green-200 rounded-lg overflow-hidden text-center shadow-sm">
                   <div className="bg-green-50 py-1.5 text-xs font-bold text-green-700 border-b border-green-200">
-                    Batch {String(index + 1).padStart(2, '0')}
+                    {t.batch} {String(index + 1).padStart(2, '0')}
                   </div>
                   <div className="py-3 text-lg font-bold text-gray-800 bg-white">
                     {kg} <span className="text-xs text-gray-400 font-normal">kg</span>
@@ -484,9 +545,9 @@ const WitherLeafForm = () => {
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={handleSaveBottomSection} className={btnSaveClass}>Save Section 3</button>
-            <button type="button" onClick={handleClearBottomSection} className={btnClearClass}>Clear Batches</button>
+          <div className="flex gap-3 pt-2 flex-wrap">
+            <button type="button" onClick={handleSaveBottomSection} className={btnSaveClass}>{t.saveSec3}</button>
+            <button type="button" onClick={handleClearBottomSection} className={btnClearClass}>{t.clearBatches}</button>
           </div>
         </div>
       </div>
@@ -498,14 +559,14 @@ const WitherLeafForm = () => {
               <div className="p-2 bg-red-100 rounded-full">
                 <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
               </div>
-              <h3 className="text-lg font-bold text-gray-900">Remove Batch Data</h3>
+              <h3 className="text-lg font-bold text-gray-900">{t.removeTitle}</h3>
             </div>
             <p className="text-sm text-gray-500 mb-6 pl-11">
-              Are you sure you want to remove the data for <strong>Batch {deleteAlert.batchIndex + 1}</strong>? This action cannot be undone.
+              {t.removeDesc1} <strong>{t.batch} {deleteAlert.batchIndex + 1}</strong>{t.removeDesc2}
             </p>
             <div className="flex justify-end gap-3">
-              <button onClick={cancelDelete} className="px-4 py-2.5 text-sm font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">Cancel</button>
-              <button onClick={confirmDelete} className="px-4 py-2.5 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors shadow-sm">Yes, Remove</button>
+              <button onClick={cancelDelete} className="px-4 py-2.5 text-sm font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">{t.cancelBtn}</button>
+              <button onClick={confirmDelete} className="px-4 py-2.5 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors shadow-sm">{t.removeBtn}</button>
             </div>
           </div>
         </div>,
