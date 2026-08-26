@@ -146,6 +146,38 @@ export default function ViewLoftLeafCount() {
       setEditForm(prev => ({ ...prev, [name]: value }));
   };
 
+  // ==============================================================
+  // 💡 අලුතින් එකතු කළ යුතු TIME VALIDATION FUNCTION එක (මෙතනින් දාන්න)
+  // ==============================================================
+  const formatTime12Hour = (value) => {
+      let raw = value.replace(/\D/g, ''); 
+      raw = raw.substring(0, 4); 
+
+      if (raw.length === 0) return '';
+
+      let hours = raw.substring(0, 2);
+      let minutes = raw.substring(2, 4);
+
+      if (hours.length === 2) {
+          let h = parseInt(hours, 10);
+          if (h > 12) hours = '12'; 
+          if (h === 0) hours = '12'; 
+      } else if (hours.length === 1 && parseInt(hours, 10) > 1) {
+          hours = `0${hours}`; 
+      }
+
+      if (minutes.length === 2) {
+          let m = parseInt(minutes, 10);
+          if (m > 59) minutes = '59'; 
+      }
+
+      if (raw.length >= 3) {
+          return `${hours}:${minutes}`;
+      } else {
+          return hours;
+      }
+  };
+  
   const handleEditSubmit = async (e) => {
       e.preventDefault();
       const toastId = toast.loading("Updating record...");
@@ -345,27 +377,33 @@ export default function ViewLoftLeafCount() {
         printElement.style.position = "absolute";
         printElement.style.top = "-9999px";
 
+        // Use a high scale for quality, but ensure the container doesn't force a wrap
+        printElement.style.width = '1400px'; 
+
         const canvas = await html2canvas(printElement, { 
-            scale: 2.5, 
+            scale: 2, 
             useCORS: true,
             backgroundColor: "#ffffff",
-            logging: false
+            logging: false,
+            windowWidth: 1400
         });
 
         printElement.style.display = "none"; 
+        printElement.style.width = ''; // reset
         
-        const imgData = canvas.toDataURL('image/jpeg', 0.85); 
+        const imgData = canvas.toDataURL('image/jpeg', 1.0); 
         const pdf = new jsPDF('landscape', 'pt', 'a4');
         const pdfPageWidth = pdf.internal.pageSize.getWidth();
         const pdfPageHeight = pdf.internal.pageSize.getHeight();
         
-        const margin = 20; 
+        const margin = 15; // Reduced margin slightly to maximize space
         const maxW = pdfPageWidth - (margin * 2);
         const maxH = pdfPageHeight - (margin * 2);
 
         let finalW = maxW;
         let finalH = (canvas.height * finalW) / canvas.width;
 
+        // If height exceeds page height, scale down further based on height
         if (finalH > maxH) {
             finalH = maxH;
             finalW = (canvas.width * finalH) / canvas.height;
@@ -411,32 +449,35 @@ export default function ViewLoftLeafCount() {
           printElement.style.display = "block";
           printElement.style.position = "absolute";
           printElement.style.top = "-9999px";
+          printElement.style.width = '1400px';
 
           const canvas = await html2canvas(printElement, { 
-              scale: 3, 
+              scale: 2.5, 
               useCORS: true,
               backgroundColor: "#ffffff",
-              logging: false
+              logging: false,
+              windowWidth: 1400
           });
 
           printElement.style.display = "none"; 
+          printElement.style.width = '';
           if (imgFooter) imgFooter.style.display = 'none';
 
           let file;
           let fileName = `Loft_Leaf_Report_${selectedDate}`;
 
           if (format === 'pdf') {
-              const imgData = canvas.toDataURL('image/jpeg', 0.85); 
+              const imgData = canvas.toDataURL('image/jpeg', 1.0); 
               const pdf = new jsPDF('landscape', 'pt', 'a4');
               const pdfWidth = pdf.internal.pageSize.getWidth();
-              const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
               
-              const margin = 20; 
+              const margin = 15; 
               const maxW = pdfWidth - (margin * 2);
               const maxH = pdf.internal.pageSize.getHeight() - (margin * 2); 
 
               let finalW = maxW;
               let finalH = (canvas.height * finalW) / canvas.width;
+              
               if (finalH > maxH) {
                   finalH = maxH;
                   finalW = (canvas.width * finalH) / canvas.height;
@@ -498,7 +539,7 @@ export default function ViewLoftLeafCount() {
           console.error("WhatsApp Share Error: ", error);
           toast.error("Failed to share file.", { id: toastId });
       }
-  };
+  }; 
 
   return (
     <div className="p-3 sm:p-5 md:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
@@ -831,12 +872,8 @@ export default function ViewLoftLeafCount() {
                                     maxLength="5"
                                     value={editForm.arrivalTime} 
                                     onChange={(e) => {
-                                        let val = e.target.value.replace(/[^0-9:]/g, '');
-                                        if (val.length === 2 && !val.includes(':') && editForm.arrivalTime.length !== 3) {
-                                            val += ':';
-                                        }
-                                        e.target.value = val;
-                                        handleEditChange(e);
+                                        const formattedTime = formatTime12Hour(e.target.value);
+                                        setEditForm(prev => ({ ...prev, arrivalTime: formattedTime }));
                                     }} 
                                     required 
                                     className="w-full p-2.5 text-center border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-gray-50 dark:bg-zinc-800 focus:ring-2 focus:ring-lime-500 outline-none" 

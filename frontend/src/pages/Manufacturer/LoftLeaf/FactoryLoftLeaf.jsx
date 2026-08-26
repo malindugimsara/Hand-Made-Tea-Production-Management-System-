@@ -205,6 +205,39 @@ export default function LoftLeafCount() {
   const factoryStats = calculateStats(factoryForm.bestQty, factoryForm.belowBestQty);
   const collectorStats = calculateStats(collectorForm.bestQty, collectorForm.belowBestQty);
 
+  // 💡 --- TIME FORMATTER & VALIDATOR (12-Hour) ---
+  const formatTime12Hour = (value) => {
+      let raw = value.replace(/\D/g, ''); // අංක පමණක් වෙන් කර ගැනීම
+      raw = raw.substring(0, 4); // උපරිම ඉලක්කම් 4කට සීමා කිරීම
+
+      if (raw.length === 0) return '';
+
+      let hours = raw.substring(0, 2);
+      let minutes = raw.substring(2, 4);
+
+      // පැය (Hours) වල නිවැරදිතාවය පරීක්ෂා කිරීම (01-12)
+      if (hours.length === 2) {
+          let h = parseInt(hours, 10);
+          if (h > 12) hours = '12'; // 12ට වඩා ටයිප් කළොත් 12 බවට පත් වේ
+          if (h === 0) hours = '12'; // 00 ලෙස ටයිප් කළොත් 12 බවට පත් වේ
+      } else if (hours.length === 1 && parseInt(hours, 10) > 1) {
+          hours = `0${hours}`; // 2-9 අතර ඉලක්කමක් මුලින් ගැහුවොත් ඉබේම '0' එකක් මුලට වැටේ
+      }
+
+      // මිනිත්තු (Minutes) වල නිවැරදිතාවය පරීක්ෂා කිරීම (00-59)
+      if (minutes.length === 2) {
+          let m = parseInt(minutes, 10);
+          if (m > 59) minutes = '59'; // 59ට වඩා ටයිප් කළොත් 59 බවට පත් වේ
+      }
+
+      // Output එකට ':' එක් කිරීම
+      if (raw.length >= 3) {
+          return `${hours}:${minutes}`;
+      } else {
+          return hours;
+      }
+  };
+
   const handleInputChange = (e, formType) => {
     const { name, value } = e.target;
     const setForm = formType === 'factory' ? setFactoryForm : setCollectorForm;
@@ -559,7 +592,7 @@ export default function LoftLeafCount() {
                         )}
                     </AnimatePresence>
                 </div>
-
+                
                 {/* Arrival Time */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Clock size={12} /> {t.arrTime}</label>
@@ -572,12 +605,8 @@ export default function LoftLeafCount() {
                             maxLength="5"
                             value={factoryForm.arrivalTime} 
                             onChange={(e) => {
-                                let val = e.target.value.replace(/[^0-9:]/g, '');
-                                if (val.length === 2 && !val.includes(':') && factoryForm.arrivalTime.length !== 3) {
-                                    val += ':';
-                                }
-                                e.target.value = val;
-                                handleInputChange(e, 'factory');
+                                const formattedTime = formatTime12Hour(e.target.value);
+                                setFactoryForm(prev => ({ ...prev, arrivalTime: formattedTime }));
                             }} 
                             onKeyDown={(e) => handleEnterKey(e, 'fac-totalQty')} 
                             className="placeholder-gray-400/70 dark:placeholder-zinc-600 w-full p-2.5 text-center border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" 
