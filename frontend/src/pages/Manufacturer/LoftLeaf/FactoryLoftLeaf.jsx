@@ -696,6 +696,7 @@ export default function LoftLeafCount() {
                         {filteredCollectorRoutes.map((r, idx) => (
                         <li
                             key={r}
+                            id={`col-route-opt-${idx}`}
                             onClick={() => {
                                 const routeCode = r.split('-')[0].trim().toUpperCase();
                                 setCollectorForm((p) => ({ 
