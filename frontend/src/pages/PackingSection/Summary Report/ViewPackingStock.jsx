@@ -107,7 +107,6 @@ export default function ViewPackingStock() {
                     let totalIssue = 0;
                     let sources = new Set();
 
-                    // BUG FIX: Prevent Double Counting TransIn and Issue Amount
                     if (product.stockBySource && product.stockBySource.length > 0) {
                         product.stockBySource.forEach(src => {
                             totalTransIn += (Number(src.transInAmount) || 0);
@@ -115,7 +114,6 @@ export default function ViewPackingStock() {
                             if (src.sourceName) sources.add(src.sourceName);
                         });
                     } else {
-                        // Only use root totals if no sources exist to avoid double counting
                         totalTransIn = Number(product.transInAmount) || 0;
                         totalIssue = Number(product.issueAmount) || 0;
                         if (product.source) sources.add(product.source);
@@ -123,11 +121,8 @@ export default function ViewPackingStock() {
 
                     const sourceText = sources.size > 1 ? "Multiple Sources" : (Array.from(sources)[0] || "Unknown");
                     const currentStock = Number(product.totalBulkStockKg) || Number(product.bulkStockKg) || 0;
-
-                    // 2. Calculate Manual Adjustments (Exposes Database Corrections & Bugs)
                     const manualAdjustments = currentStock - (totalTransIn - totalIssue);
 
-                    // 👇 මෙතැන තමයි වෙනස් කළේ: current stock එක 0 ට වඩා වැඩිනම් විතරක් ප්‍රධාන ලිස්ට් එකට දානවා. නැත්නම් 0 ලිස්ට් එකට යවනවා
                     if (currentStock > 0) {
                         flatData.push({
                             id: product._id,
@@ -196,7 +191,7 @@ export default function ViewPackingStock() {
         const pName = stock.productName || '';
         const matchesSearch = !searchQuery || pName.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesSource = !sourceFilter || stock.source === sourceFilter || (stock.source === 'Multiple Sources' && !sourceFilter);
-        const hasStock = Number(stock.currentStock) > 0; // 👇 මෙතැනත් 0 වුණොත් filter එකෙන් අයින් වෙන්න හැදුවා
+        const hasStock = Number(stock.currentStock) > 0;
         return matchesSearch && matchesSource && hasStock;
     });
 
@@ -233,7 +228,6 @@ export default function ViewPackingStock() {
             return qtyB - qtyA;
         });
 
-    // --- ZERO STOCKS FILTERING ---
     const filteredZeroTeaStocks = zeroTeaStocks.filter(stock => !searchQuery || stock.productName?.toLowerCase().includes(searchQuery.toLowerCase()));
     const filteredZeroFlavorStocks = zeroFlavorStocks.filter(rm => !searchQuery || rm.materialName?.toLowerCase().includes(searchQuery.toLowerCase()));
     const filteredZeroPackingStocks = zeroPackingStocks.filter(rm => !searchQuery || rm.materialName?.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -294,16 +288,12 @@ export default function ViewPackingStock() {
             filteredFlavorStocks.forEach(rm => {
                 tableRows.push([
                     { content: rm.materialName || 'Unknown', styles: { ...getPdfColor(rm.materialName, 'raw'), fontStyle: 'bold' } },
-                    `${formatQty(rm.transInAmount, rm.unit)}`,
-                    `${formatQty(rm.issueAmount, rm.unit)}`,
                     { content: `${formatQty(rm.totalQuantity, rm.unit)}`, styles: { fontStyle: 'bold' } },
                     rm.unit || '-'
                 ]);
             });
             tableRows.push([
                 { content: "GRAND TOTALS", styles: { fontStyle: 'bold', halign: 'right' } },
-                { content: `${grandTotalFlavorTransIn.toFixed(2)}`, styles: { fontStyle: 'bold', textColor: [29, 78, 216] } },
-                { content: `${grandTotalFlavorIssue.toFixed(2)}`, styles: { fontStyle: 'bold', textColor: [180, 83, 9] } },
                 { content: `${grandTotalFlavorStock.toFixed(2)}`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } },
                 ""
             ]);
@@ -311,16 +301,12 @@ export default function ViewPackingStock() {
             filteredPackingStocks.forEach(rm => {
                 tableRows.push([
                     { content: rm.materialName || 'Unknown', styles: { ...getPdfColor(rm.materialName, 'raw'), fontStyle: 'bold' } },
-                    `${formatQty(rm.transInAmount, rm.unit)}`,
-                    `${formatQty(rm.issueAmount, rm.unit)}`,
                     { content: `${formatQty(rm.totalQuantity, rm.unit)}`, styles: { fontStyle: 'bold' } },
                     rm.unit || '-'
                 ]);
             });
             tableRows.push([
                 { content: "GRAND TOTALS", styles: { fontStyle: 'bold', halign: 'right' } },
-                { content: `${grandTotalPackingTransIn.toString()}`, styles: { fontStyle: 'bold', textColor: [29, 78, 216] } },
-                { content: `${grandTotalPackingIssue.toString()}`, styles: { fontStyle: 'bold', textColor: [180, 83, 9] } },
                 { content: `${grandTotalPackingStock.toString()}`, styles: { fontStyle: 'bold', textColor: [15, 118, 110] } },
                 ""
             ]);
@@ -349,7 +335,7 @@ export default function ViewPackingStock() {
     let previousProductName = null;
 
     return (
-        <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen transition-colors duration-300  dark:bg-zinc-950">
+        <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen transition-colors duration-300 dark:bg-zinc-950">
             
             {/* --- HEADER --- */}
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -367,7 +353,7 @@ export default function ViewPackingStock() {
                         headers={
                             activeTab === 'tea' ? ["Product Name", "Source", "Trans-In Amount", "Issue Amount", "Current Stock"] 
                             : activeTab === 'zero' ? ["Item Name", "Category", "Last Updated"]
-                            : ["Material Name", "Trans-In Qty", "Issue Qty", "Current Stock", "Unit"]
+                            : ["Material Name", "Current Stock", "Unit"]
                         }
                         data={getPdfData()}
                         uniqueCode={uniqueCode}
@@ -616,8 +602,6 @@ export default function ViewPackingStock() {
                                 <thead>
                                     <tr className="bg-blue-50/50 dark:bg-blue-950/30 text-blue-800 dark:text-blue-300 uppercase text-xs tracking-wider border-b border-blue-200 dark:border-blue-800">
                                         <th className="px-6 py-4 font-bold border-r border-blue-100 dark:border-blue-800 min-w-[250px]">Spicy Name</th>
-                                        <th className="px-6 py-4 font-bold text-blue-700 dark:text-blue-500 border-r border-blue-100 dark:border-blue-800 text-center"><ArrowDownToLine size={14} className="inline mr-1"/> Trans-In Amount</th>
-                                        <th className="px-6 py-4 font-bold text-amber-700 dark:text-amber-500 border-r border-blue-100 dark:border-blue-800 text-center"><ArrowUpFromLine size={14} className="inline mr-1"/> Issue Amount</th>
                                         <th className="px-6 py-4 font-bold text-blue-700 dark:text-blue-400 text-center border-r border-blue-100 dark:border-blue-800 bg-blue-100/30 dark:bg-blue-950/30"><Warehouse size={14} className="inline mr-1"/> Current Stock</th>
                                         <th className="px-6 py-4 font-bold text-center">Unit</th>
                                     </tr>
@@ -631,12 +615,6 @@ export default function ViewPackingStock() {
                                                         {rm.materialName || 'Unknown Material'}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 text-center bg-blue-50/10 dark:bg-blue-950/5">
-                                                    <span className="font-bold text-blue-700 dark:text-blue-500 text-base">{formatQty(rm.transInAmount, rm.unit)}</span>
-                                                </td>
-                                                <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 text-center bg-amber-50/10 dark:bg-amber-950/5">
-                                                    <span className="font-bold text-amber-700 dark:text-amber-500 text-base">{formatQty(rm.issueAmount, rm.unit)}</span>
-                                                </td>
                                                 <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 text-center bg-blue-50/10 dark:bg-blue-950/10">
                                                     <span className="font-black text-blue-700 dark:text-blue-400 text-lg">{formatQty(rm.totalQuantity, rm.unit)}</span>
                                                 </td>
@@ -646,7 +624,7 @@ export default function ViewPackingStock() {
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr><td colSpan="5" className="p-16 text-center text-gray-400"><p>No spicy records found</p></td></tr>
+                                        <tr><td colSpan="3" className="p-16 text-center text-gray-400"><p>No spicy records found</p></td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -669,8 +647,6 @@ export default function ViewPackingStock() {
                                 <thead>
                                     <tr className="bg-orange-50/50 dark:bg-orange-950/30 text-orange-800 dark:text-orange-300 uppercase text-xs tracking-wider border-b border-orange-200 dark:border-orange-800">
                                         <th className="px-6 py-4 font-bold border-r border-orange-100 dark:border-orange-800 min-w-[250px]">Material Name</th>
-                                        <th className="px-6 py-4 font-bold text-blue-700 dark:text-blue-500 border-r border-orange-100 dark:border-orange-800 text-center bg-blue-50/50 dark:bg-blue-950/20"><ArrowDownToLine size={14} className="inline mr-1"/> Trans-In Amount</th>
-                                        <th className="px-6 py-4 font-bold text-amber-700 dark:text-amber-500 border-r border-orange-100 dark:border-orange-800 text-center bg-amber-50/50 dark:bg-amber-950/20"><ArrowUpFromLine size={14} className="inline mr-1"/> Issue Amount</th>
                                         <th className="px-6 py-4 font-bold text-orange-700 dark:text-orange-400 text-center border-r border-orange-100 dark:border-orange-800 bg-orange-100/30 dark:bg-orange-950/30"><Warehouse size={14} className="inline mr-1"/> Current Stock</th>
                                         <th className="px-6 py-4 font-bold text-center">Unit</th>
                                     </tr>
@@ -684,12 +660,6 @@ export default function ViewPackingStock() {
                                                         {rm.materialName || 'Unknown Material'}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 text-center bg-blue-50/10 dark:bg-blue-950/5">
-                                                    <span className="font-bold text-blue-700 dark:text-blue-500 text-base">{formatQty(rm.transInAmount, rm.unit)}</span>
-                                                </td>
-                                                <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 text-center bg-amber-50/10 dark:bg-amber-950/5">
-                                                    <span className="font-bold text-amber-700 dark:text-amber-500 text-base">{formatQty(rm.issueAmount, rm.unit)}</span>
-                                                </td>
                                                 <td className="px-6 py-4 border-r border-gray-200 dark:border-zinc-700 text-center bg-orange-50/10 dark:bg-orange-950/10">
                                                     <span className="font-black text-orange-700 dark:text-orange-400 text-lg">{formatQty(rm.totalQuantity, rm.unit)}</span>
                                                 </td>
@@ -699,7 +669,7 @@ export default function ViewPackingStock() {
                                             </tr>
                                         ))
                                     ) : (
-                                        <tr><td colSpan="5" className="p-16 text-center text-gray-400"><p>No packing material records found</p></td></tr>
+                                        <tr><td colSpan="3" className="p-16 text-center text-gray-400"><p>No packing material records found</p></td></tr>
                                     )}
                                 </tbody>
                             </table>
