@@ -8,6 +8,7 @@ import ViewLoftLeafCount from "./Manufacturer/LoftLeaf/ViewFactoryLoftLeaf";
 import SimpleAverage from "./Manufacturer/LoftLeaf/SimpleAverage";
 import WeightAverage from "./Manufacturer/LoftLeaf/WeightAverage";
 import WitherLeafSummary from "./Manufacturer/BL Operation/WitherLeafSummary";
+import DhoolRollingSection from "./Manufacturer/BL Operation/DhoolRollingSection";
 
 
 export default function ManufacturerRouter() {
@@ -16,6 +17,7 @@ export default function ManufacturerRouter() {
       <Route index element={<ManufacturerDashboard />} />
       <Route path="bl-production/witherLeafForm" element={<WitherLeafForm />} />
       <Route path="bl-production/witherLeafSummary" element={<WitherLeafSummary />} />
+      <Route path="bl-production/dhoolRollingSection" element={<DhoolRollingSection />} />
 
       <Route path="factory-loft-leaf" element={<FactoryLoftLeaf />} />
       <Route path="view-factory-loft-leaf" element={<ViewLoftLeafCount />} />

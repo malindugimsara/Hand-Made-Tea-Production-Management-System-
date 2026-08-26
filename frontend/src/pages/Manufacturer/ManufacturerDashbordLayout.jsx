@@ -77,8 +77,9 @@ const DATA = {
       title: 'B/L Operations',
       icon: Store,
       items: [
-        { title: 'B/L Production', url: '/manufacturer/bl-production/witherLeafForm', nonViewer: true },
-        { title: 'wither Leaf Summary', url: '/manufacturer/bl-production/witherLeafSummary' },
+        { title: 'Enter Wither Leaf', url: '/manufacturer/bl-production/witherLeafForm', nonViewer: true },
+        { title: 'Wither Leaf Summary', url: '/manufacturer/bl-production/witherLeafSummary' },
+        { title: "Enter Dhool Rolling", url: "/manufacturer/bl-production/dhoolRollingSection", nonViewer: true },
       ],
     },
     {

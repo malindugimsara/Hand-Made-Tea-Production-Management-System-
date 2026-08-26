@@ -49,6 +49,7 @@ import monthlyBalanceRouter from './localsale/routes/monthlyBalanceRoutes.js';
 // Manufacturer Section Routes
 import factoryLoftLeafRouter from './manufacturer/routes/loftLeafRoutes.js';
 import WitherLeafRouter from './manufacturer/routes/witherLeafRouter.js';
+import rollingRouter from './manufacturer/routes/rollingRoomSheetRoutes.js';
 
 dotenv.config();
 const app = express();
@@ -159,6 +160,7 @@ app.use('/api/monthly-balance', monthlyBalanceRouter);
 // Manufacturer Section Routes
 app.use('/api/factory-loft-leaf', factoryLoftLeafRouter);
 app.use('/api/wither-leaf', WitherLeafRouter);
+app.use('/api/rolling-room-sheet', rollingRouter); 
 
 app.listen(3000, () => {
   console.log('Server is running on port 3000');
