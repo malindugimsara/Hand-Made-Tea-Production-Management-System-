@@ -9,10 +9,11 @@ import {
   X,
   Package,
   Activity,
-  Info
+  Info,
+  Download
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
-import PDFDownloader from "@/components/PDFDownloader";
+import * as htmlToImage from 'html-to-image'; // <-- MODERN IMAGE LIBRARY
 
 // Utility to chunk arrays into smaller arrays for multiple rows
 const chunkArray = (arr, size) => {
@@ -23,13 +24,23 @@ const chunkArray = (arr, size) => {
   return chunked;
 };
 
+// Helper to get local date in YYYY-MM-DD format for default filter
+const getTodayDate = () => {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 const WitherLeafSummary = () => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
   
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState({});
-  const [filterDate, setFilterDate] = useState("");
+  const [filterDate, setFilterDate] = useState(getTodayDate());
+  const [downloadingImage, setDownloadingImage] = useState(false);
 
   const fetchRecords = async () => {
     setLoading(true);
@@ -91,85 +102,41 @@ const WitherLeafSummary = () => {
     return new Date(dateB) - new Date(dateA);
   });
 
-  // ==========================================
-  // --- PDF EXPORT (Modern Table Layout) ---
-  // ==========================================
-  const getPdfData = () => {
-    const tableRows = [];
+  // =========================================================
+  // --- IMAGE EXPORT LOGIC (NO PDF CODE) ---
+  // =========================================================
+  const handleDownloadImage = async (groupKey, cropDateStr) => {
+    const element = document.getElementById(`report-card-${groupKey}`);
+    if (!element) return;
 
-    sortedGroupKeys.forEach((groupKey) => {
-      const dayRecords = groupedRecords[groupKey];
-      const [cropDateStr, mfDateStr] = groupKey.split('|');
+    setDownloadingImage(true);
+    const toastId = toast.loading("Generating High-Quality Image...");
 
-      const consolidated = dayRecords.reduce((acc, curr) => {
-        if (curr.factory) acc.factory = curr.factory;
-        if (curr.receivedTotalCropKg) acc.receivedTotalCropKg = curr.receivedTotalCropKg;
-        if (curr.witheredLeafKg) acc.witheredLeafKg = curr.witheredLeafKg;
-        if (curr.percentage) acc.percentage = curr.percentage;
-        if (curr.weatheringQuality) acc.weatheringQuality = curr.weatheringQuality;
-        if (curr.startTime) acc.startTime = curr.startTime;
-        if (curr.finishTime) acc.finishTime = curr.finishTime;
-        if (curr.period) acc.period = curr.period;
-        if (curr.totalEmployee) acc.totalEmployee = curr.totalEmployee;
-        if (curr.noOfBatchers) acc.noOfBatchers = curr.noOfBatchers;
-        if (curr.batches) {
-          curr.batches.forEach((val, i) => {
-            if (val > 0) acc.batches[i] += val;
-          });
+    try {
+      // Use html-to-image to bypass the CSS parsing bugs of html2canvas
+      const dataUrl = await htmlToImage.toPng(element, {
+        quality: 1,
+        pixelRatio: 2, // High resolution (Retina quality)
+        backgroundColor: '#ffffff',
+        style: {
+          margin: '0',
+          borderRadius: '0' // Optional: removes border radius on the final image if preferred
         }
-        return acc;
-      }, { batches: Array(25).fill(0) });
-
-      // Shorten factory name so it doesn't break PDF lines
-      let shortFactory = '-';
-      if (consolidated.factory) {
-        shortFactory = consolidated.factory
-          .replace('ATHUKORALA TEA FACTORY', 'ATF')
-          .replace('ATHUKORALA HANDMADE TEA FACTORY', 'AHTF');
-      }
-
-      const activeBatches = consolidated.batches
-        .map((kg, i) => ({ index: i, kg }))
-        .filter(b => b.kg > 0);
-
-      const batchTotal = activeBatches.reduce((sum, b) => sum + b.kg, 0);
-
-      // --- FORMAT BATCHES AS A TEXT TABLE FOR PDF ---
-      let batchCol = '';
-      if (activeBatches.length === 0) {
-        batchCol = 'No batches recorded';
-      } else {
-        // Chunk into 7 items per row to fit perfectly inside the PDF cell
-        const chunkedPdfBatches = chunkArray(activeBatches, 7); 
-        batchCol = chunkedPdfBatches.map(chunk => {
-          const batchNos = chunk.map(b => String(b.index + 1).padStart(2, '0')).join('  |  ');
-          const batchKgs = chunk.map(b => String(b.kg).padStart(2, ' ')).join('  |  ');
-          return `Batch No :   ${batchNos}\nKg       :   ${batchKgs}`;
-        }).join('\n\n- - - - - - - - - - - - - - - - - - - - - - - -\n\n'); 
-        
-        batchCol += `\n\nOverall Batch Total: ${batchTotal} kg`;
-      }
-
-      // --- FORMAT DETAILS SECTION ---
-      const detailsCol = [
-        `Crop Date : ${cropDateStr}   |   M/F Date : ${mfDateStr}`,
-        `\nFactory   : ${shortFactory}`,
-        `\nGreen leaf: ${consolidated.receivedTotalCropKg || 0} kg   |   Wither leaf: ${consolidated.witheredLeafKg || 0} kg`,
-        `Withering : ${consolidated.percentage || 0}%      |   Quality    : ${consolidated.weatheringQuality || '-'}`,
-        `\nOps Period: ${consolidated.startTime || '-'} to ${consolidated.finishTime || '-'} (${consolidated.period || '-'})`,
-        `Employees : ${consolidated.totalEmployee || 0}         |   Batchers   : ${consolidated.noOfBatchers || 0}`
-      ].join('\n');
-
-      tableRows.push({
-        data: [detailsCol, batchCol]
       });
-    });
 
-    return tableRows;
+      const link = document.createElement('a');
+      link.download = `Wither_Leaf_Report_${cropDateStr}.png`;
+      link.href = dataUrl;
+      link.click();
+
+      toast.success("Image downloaded successfully!", { id: toastId });
+    } catch (error) {
+      console.error("Error generating image:", error);
+      toast.error("Failed to generate image.", { id: toastId });
+    } finally {
+      setDownloadingImage(false);
+    }
   };
-
-  const uniqueCode = `WL/SUM/${new Date().toLocaleString("default", { month: "long" }).toUpperCase()}.${new Date().getFullYear()}`;
-  const pdfHeaders = ["Production Summary", "Batch Quantities"];
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] p-4 md:p-8 font-sans">
@@ -185,29 +152,14 @@ const WitherLeafSummary = () => {
           <p className="text-sm text-gray-500 mt-1 ml-9">Daily consolidated report of all wither leaf and batch data.</p>
         </div>
         
-        <div className="flex flex-row flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 w-full md:w-auto">
-          <div className="flex-1 sm:flex-none min-w-[140px]">
-            <PDFDownloader
-              title="Wither Leaf Summary Report"
-              subtitle={`Filter Applied: ${filterDate ? `Date - ${filterDate}` : "All Records"}`}
-              headers={pdfHeaders}
-              data={getPdfData()}
-              uniqueCode={uniqueCode}
-              fileName={`Wither_Leaf_Summary_${new Date().toISOString().split("T")[0]}.pdf`}
-              orientation="landscape"
-              disabled={loading || sortedGroupKeys.length === 0}
-            />
-          </div>
-
-          <button 
-            onClick={fetchRecords} 
-            disabled={loading}
-            className="flex-1 sm:flex-none justify-center bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold py-2 sm:py-2.5 px-4 rounded-lg shadow-sm flex items-center gap-2 transition-colors text-sm"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Refreshing...' : 'Sync'}
-          </button>
-        </div>
+        <button 
+          onClick={fetchRecords} 
+          disabled={loading}
+          className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold py-2 sm:py-2.5 px-4 rounded-lg shadow-sm flex items-center gap-2 transition-colors text-sm"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? 'Refreshing...' : 'Sync'}
+        </button>
       </div>
 
       {/* Filter Bar */}
@@ -286,12 +238,16 @@ const WitherLeafSummary = () => {
               return acc;
             }, { batches: Array(25).fill(0) });
 
-            const activeBatches = consolidated.batches.map((kg, i) => ({ index: i, kg })).filter(b => b.kg > 0);
+            const activeBatches = consolidated.batches.map((kg, i) => ({ num: String(i + 1).padStart(2, '0'), kg })).filter(b => b.kg > 0);
             const hasBatches = activeBatches.length > 0;
             const totalReceived = consolidated.receivedTotalCropKg || 0;
             
             return (
-              <div key={groupKey} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all duration-300">
+              <div 
+                key={groupKey} 
+                id={`report-card-${groupKey}`} // <--- ID FOR IMAGE TARGET
+                className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all duration-300"
+              >
                 
                 {/* Header Container */}
                 <div 
@@ -315,13 +271,30 @@ const WitherLeafSummary = () => {
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-6 w-full sm:w-auto mt-3 sm:mt-0">
+                  <div className="flex items-center gap-4 w-full sm:w-auto mt-3 sm:mt-0">
                     {totalReceived > 0 && (
                       <div className="hidden sm:block text-right mr-2">
                         <p className="text-[10px] uppercase font-bold text-gray-400">Total Crop</p>
                         <p className="text-sm font-bold text-gray-800">{Number(totalReceived).toFixed(2)} kg</p>
                       </div>
                     )}
+                    
+                    {/* --- IMAGE DOWNLOAD BUTTON --- */}
+                    {isExpanded && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation(); 
+                          handleDownloadImage(groupKey, formattedCropDate.replace(/\//g, '-'));
+                        }}
+                        disabled={downloadingImage}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg font-bold text-xs transition-colors border border-green-200"
+                        title="Download as Image"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        PNG
+                      </button>
+                    )}
+
                     <button className="p-1.5 bg-gray-50 border border-gray-200 rounded-full text-gray-500 hover:bg-gray-100 ml-auto sm:ml-0 transition-colors">
                       {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </button>
@@ -342,34 +315,31 @@ const WitherLeafSummary = () => {
                       </div>
 
                       {hasBatches ? (
-                        // Chunking the array by 15 items per row
                         chunkArray(activeBatches, 15).map((chunk, chunkIdx) => (
                           <table key={`table-${chunkIdx}`} className="w-full min-w-max border-collapse border border-gray-200 mb-6 bg-white shadow-sm rounded-lg overflow-hidden">
                             <thead className="bg-gray-50 border-b border-gray-200">
                               <tr>
-                                {/* Explicit Row Header */}
                                 <th className="border-r border-gray-200 text-gray-500 font-bold text-[11px] uppercase px-4 py-2 text-left w-24">
                                   Batch No
                                 </th>
                                 {chunk.map(batch => (
                                   <th 
-                                    key={`th-${batch.index}`} 
+                                    key={`th-${batch.num}`} 
                                     className="border-r border-gray-200 text-blue-600 font-bold text-[13px] px-3 py-2 text-center min-w-[55px] last:border-r-0"
                                   >
-                                    {String(batch.index + 1).padStart(2, '0')}
+                                    {batch.num}
                                   </th>
                                 ))}
                               </tr>
                             </thead>
                             <tbody>
                               <tr>
-                                {/* Explicit Row Header */}
                                 <td className="border-r border-gray-200 bg-gray-50 text-gray-500 font-bold text-[11px] uppercase px-4 py-3 text-left w-24">
                                   Kg
                                 </td>
                                 {chunk.map(batch => (
                                   <td 
-                                    key={`td-${batch.index}`} 
+                                    key={`td-${batch.num}`} 
                                     className="border-r border-gray-200 text-gray-800 font-bold text-sm px-3 py-3 text-center last:border-r-0"
                                   >
                                     {batch.kg}
