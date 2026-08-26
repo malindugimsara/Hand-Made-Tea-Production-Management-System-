@@ -491,7 +491,7 @@ const WitherLeafSummary = () => {
                 )}
 
                 {/* ========================================================= */}
-                {/* --- BEAUTIFIED HIDDEN PDF TEMPLATE --- */}
+                {/* --- BEAUTIFIED HIDDEN PDF TEMPLATE (MATCHING REFERENCE UI) --- */}
                 {/* ========================================================= */}
                 <div 
                   id={`pdf-print-area-${groupKey}`}
@@ -553,44 +553,47 @@ const WitherLeafSummary = () => {
                     )}
                   </div>
 
-                  {/* Bottom: Production Summary */}
-                  <div style={{ marginBottom: '40px' }}>
-                    <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#15803d', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {/* Bottom: Production Summary (Clean 2-Column List Style matching reference image) */}
+                  <div style={{ marginBottom: '40px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px' }}>
+                    <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#15803d', textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ display: 'inline-block', width: '8px', height: '8px', backgroundColor: '#16a34a', borderRadius: '50%' }}></span>
                       {t.prodSummary}
                     </h3>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #cbd5e1', fontSize: '13px', borderRadius: '8px', overflow: 'hidden' }}>
-                      <tbody>
-                        <tr>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '12px 16px', fontWeight: '700', color: '#475569', backgroundColor: '#f8fafc', width: '22%' }}>Crop Date</td>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '12px 16px', fontWeight: '600', color: '#0f172a', width: '28%' }}>{formattedCropDate}</td>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '12px 16px', fontWeight: '700', color: '#475569', backgroundColor: '#f8fafc', width: '22%' }}>M/F Date</td>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '12px 16px', fontWeight: '600', color: '#0f172a', width: '28%' }}>{formattedMFDate}</td>
-                        </tr>
-                        <tr>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '12px 16px', fontWeight: '700', color: '#475569', backgroundColor: '#f8fafc' }}>Green Leaf</td>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '12px 16px', fontWeight: '800', color: '#2563eb' }}>{consolidated.receivedTotalCropKg || 0} kg</td>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '12px 16px', fontWeight: '700', color: '#475569', backgroundColor: '#f8fafc' }}>Wither Leaf</td>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '12px 16px', fontWeight: '800', color: '#16a34a' }}>{consolidated.witheredLeafKg || 0} kg</td>
-                        </tr>
-                        <tr>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '12px 16px', fontWeight: '700', color: '#475569', backgroundColor: '#f8fafc' }}>Withering (P)</td>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '12px 16px', fontWeight: '600', color: '#0f172a' }}>{consolidated.percentage || 0}%</td>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '12px 16px', fontWeight: '700', color: '#475569', backgroundColor: '#f8fafc' }}>Quality</td>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '12px 16px', fontWeight: '800', color: '#ea580c' }}>{consolidated.weatheringQuality || '-'}</td>
-                        </tr>
-                        <tr>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '12px 16px', fontWeight: '700', color: '#475569', backgroundColor: '#f8fafc' }}>Factory</td>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '12px 16px', fontWeight: '600', color: '#0f172a' }} colSpan={3}>{consolidated.factory || '-'}</td>
-                        </tr>
-                        <tr>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '12px 16px', fontWeight: '700', color: '#475569', backgroundColor: '#f8fafc' }}>Ops Period</td>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '12px 16px', fontWeight: '600', color: '#0f172a' }} colSpan={3}>
-                            {consolidated.startTime || '-'} to {consolidated.finishTime || '-'} ({consolidated.period || '-'})
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 32px', fontSize: '14px', color: '#334155' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                        <span style={{ fontWeight: '500', color: '#64748b' }}>Crop Date</span>
+                        <span style={{ fontWeight: '700', color: '#0f172a' }}>{formattedCropDate}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                        <span style={{ fontWeight: '500', color: '#64748b' }}>M/F Date</span>
+                        <span style={{ fontWeight: '700', color: '#0f172a' }}>{formattedMFDate}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                        <span style={{ fontWeight: '500', color: '#64748b' }}>Green Leaf</span>
+                        <span style={{ fontWeight: '800', color: '#2563eb' }}>{consolidated.receivedTotalCropKg || 0} kg</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                        <span style={{ fontWeight: '500', color: '#64748b' }}>Wither Leaf</span>
+                        <span style={{ fontWeight: '800', color: '#16a34a' }}>{consolidated.witheredLeafKg || 0} kg</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                        <span style={{ fontWeight: '500', color: '#64748b' }}>Withering (P)</span>
+                        <span style={{ fontWeight: '700', color: '#0f172a' }}>{consolidated.percentage || 0}%</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                        <span style={{ fontWeight: '500', color: '#64748b' }}>Quality</span>
+                        <span style={{ fontWeight: '800', color: '#ea580c' }}>{consolidated.weatheringQuality || '-'}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                        <span style={{ fontWeight: '500', color: '#64748b' }}>Factory</span>
+                        <span style={{ fontWeight: '700', color: '#0f172a' }}>{consolidated.factory || '-'}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                        <span style={{ fontWeight: '500', color: '#64748b' }}>Ops Period</span>
+                        <span style={{ fontWeight: '700', color: '#0f172a' }}>{consolidated.startTime || '-'} to {consolidated.finishTime || '-'} ({consolidated.period || '-'})</span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Footer */}
