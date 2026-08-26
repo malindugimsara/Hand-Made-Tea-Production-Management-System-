@@ -130,7 +130,7 @@ const WitherLeafForm = () => {
   // --- Batch Handling ---
   const handleBatchKeyDown = (e) => {
     if (e.key === 'Enter') {
-      e.preventDefault(); 
+      e.preventDefault();
       handleAddBatchRecord();
     }
   };
@@ -173,7 +173,7 @@ const WitherLeafForm = () => {
     const index = deleteAlert.batchIndex;
     if (index !== null) {
       const updatedBatches = [...bottomForm.batches];
-      updatedBatches[index] = 0; 
+      updatedBatches[index] = 0;
       setBottomForm((prev) => ({ ...prev, batches: updatedBatches }));
       toast.success(`Batch ${index + 1} removed successfully`);
     }
@@ -185,7 +185,7 @@ const WitherLeafForm = () => {
   const handleClearTopSections = () => {
     setTopForm(prev => ({
       ...initialTopFormState,
-      factory: prev.factory, 
+      factory: prev.factory,
       dateOfCrop: prev.dateOfCrop,
       receivedTotalCropKg: prev.receivedTotalCropKg,
       dateOfManufacture: prev.dateOfManufacture,
@@ -225,23 +225,34 @@ const WitherLeafForm = () => {
   // ==========================================
   // INDEPENDENT SAVE: SECTION 3
   // ==========================================
+  // ==========================================
+  // INDEPENDENT SAVE: SECTION 3
+  // ==========================================
   const handleSaveBottomSection = async (e) => {
     e.preventDefault();
-    
+
     const hasData = bottomForm.batches.some(val => val > 0);
     if (!hasData) {
-        toast.error("Please add data to at least one batch before saving.");
-        return;
+      toast.error("Please add data to at least one batch before saving.");
+      return;
     }
 
     const loadingToast = toast.loading("Saving Section 3...");
 
     try {
       const token = localStorage.getItem("token");
+
+      // FIX: Send the dates along with the batches so they link together!
+      const payload = {
+        dateOfCrop: topForm.dateOfCrop,
+        dateOfManufacture: topForm.dateOfManufacture,
+        batches: bottomForm.batches
+      };
+
       const response = await fetch(`${BACKEND_URL}/api/wither-leaf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ batches: bottomForm.batches }) // ONLY sending batch data
+        body: JSON.stringify(payload)
       });
 
       const result = await response.json();
@@ -426,8 +437,8 @@ const WitherLeafForm = () => {
               <input
                 type="number"
                 name="batchKg"
-                ref={quantityInputRef} 
-                onKeyDown={handleBatchKeyDown} 
+                ref={quantityInputRef}
+                onKeyDown={handleBatchKeyDown}
                 value={bottomForm.batchKg}
                 onChange={handleBottomChange}
                 placeholder="Enter Kg..."

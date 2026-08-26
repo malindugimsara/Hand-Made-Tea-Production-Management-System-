@@ -78,6 +78,7 @@ const DATA = {
       icon: Store,
       items: [
         { title: 'B/L Production', url: '/manufacturer/bl-production/witherLeafForm', nonViewer: true },
+        { title: 'wither Leaf Summary', url: '/manufacturer/bl-production/witherLeafSummary' },
       ],
     },
     {
