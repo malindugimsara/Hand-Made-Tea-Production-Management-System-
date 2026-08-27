@@ -80,6 +80,7 @@ const DATA = {
         { title: 'Enter Wither Leaf', url: '/manufacturer/bl-production/witherLeafForm', nonViewer: true },
         { title: 'Wither Leaf Summary', url: '/manufacturer/bl-production/witherLeafSummary' },
         { title: "Enter Dhool Rolling", url: "/manufacturer/bl-production/dhoolRollingSection", nonViewer: true },
+        { title: "Dhool Rolling Summary", url: "/manufacturer/bl-production/dhoolRollingSummary" },
       ],
     },
     {

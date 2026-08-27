@@ -9,12 +9,10 @@ import {
   Trash2, 
   FileSpreadsheet, 
   Languages,
-  Layers
+  Layers,
+  Settings2
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
-
-// Constant Batch Capacity Divisor
-const STANDARD_BATCH_KG = 560;
 
 // Helper to get yesterday's date in YYYY-MM-DD
 const getYesterdayDate = () => {
@@ -23,7 +21,7 @@ const getYesterdayDate = () => {
   return date.toISOString().split('T')[0];
 };
 
-// Calculate time duration between HH:MM strings
+// Calculate duration between HH:MM strings
 const calculateDuration = (start, end) => {
   if (!start || !end) return '';
   const [startH, startM] = start.split(':').map(Number);
@@ -33,6 +31,23 @@ const calculateDuration = (start, end) => {
   const hrs = Math.floor(diffMinutes / 60);
   const mins = diffMinutes % 60;
   return `${hrs}h ${mins}m`;
+};
+
+// Helper to compute percentage with dynamic standard batch divisor
+const computePercentage = (kg, standardBatchKg) => {
+  const kgVal = parseFloat(kg);
+  const divisor = parseFloat(standardBatchKg) || 560;
+  if (!isNaN(kgVal) && kgVal > 0 && divisor > 0) {
+    return ((kgVal / divisor) * 100).toFixed(2);
+  }
+  return '';
+};
+
+// 💡 Helper to prevent negative signs & exponential notations on numeric inputs
+const preventNegativeKeys = (e) => {
+  if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+    e.preventDefault();
+  }
 };
 
 const initialBatchRow = (batchNum = 1) => ({
@@ -48,6 +63,9 @@ const RollingRoomSheetForm = () => {
   // 💡 Language State
   const [lang, setLang] = useState('EN');
 
+  // 💡 Configurable Standard Batch Weight (Default: 560 kg, strictly >= 0)
+  const [standardBatchKg, setStandardBatchKg] = useState(560);
+
   // Header & Operations Metadata
   const [meta, setMeta] = useState({
     cropDate: getYesterdayDate(),
@@ -58,14 +76,12 @@ const RollingRoomSheetForm = () => {
     rollingEndTime: '',
     totalRollingHours: '',
     dayType: 'Same Day',
-    noOfBatches: 3
+    noOfBatches: 1
   });
 
-  // Batch Rows Array
+  // Default shows ONLY ONE batch in the table
   const [batches, setBatches] = useState([
-    initialBatchRow(1),
-    initialBatchRow(2),
-    initialBatchRow(3)
+    initialBatchRow(1)
   ]);
 
   // 💡 Translations
@@ -87,6 +103,7 @@ const RollingRoomSheetForm = () => {
     sameDay: lang === 'SI' ? "එම දිනය (Same Day)" : "Same Day",
     nextDay: lang === 'SI' ? "ඊළඟ දිනය (Next Day)" : "Next Day",
     noOfBatches: lang === 'SI' ? "කාණ්ඩ ගණන" : "No of Batches",
+    standardBatch: lang === 'SI' ? "සම්මත කාණ්ඩ බර (Kg)" : "Standard Batch (Kg)",
     
     // Table Headers
     badgeNo: lang === 'SI' ? "කාණ්ඩ අංකය" : "BADGE NO",
@@ -99,7 +116,7 @@ const RollingRoomSheetForm = () => {
     
     startTime: lang === 'SI' ? "ආරම්භය" : "START TIME",
     endTime: lang === 'SI' ? "අවසානය" : "END TIME",
-    wetDhool: lang === 'SI' ? "තෙත් ධූල් (WET DHOOL)" : "WET DHOOL",
+    wetDhool: lang === 'SI' ? "තෙත් ධූල්" : "WET DHOOL",
     kg: "KG",
     pct: "%",
     total: lang === 'SI' ? "එකතුව" : "TOTAL",
@@ -127,31 +144,52 @@ const RollingRoomSheetForm = () => {
     }
   }, [meta.rollingStartTime, meta.rollingEndTime]);
 
-  // 3. Keep No of Batches in sync with batch list length
+  // 3. Auto-sync No. of Batches with the table row count
   useEffect(() => {
     setMeta(prev => ({ ...prev, noOfBatches: batches.length }));
   }, [batches.length]);
 
-  // Handle Meta Change
+  // 4. Dynamically recalculate all batch percentages whenever standardBatchKg changes
+  useEffect(() => {
+    setBatches(prev => prev.map(b => ({
+      ...b,
+      dhool1: { ...b.dhool1, percentage: computePercentage(b.dhool1.wetDhoolKg, standardBatchKg) },
+      dhool2: { ...b.dhool2, percentage: computePercentage(b.dhool2.wetDhoolKg, standardBatchKg) },
+      bigBulk: { ...b.bigBulk, percentage: computePercentage(b.bigBulk.wetDhoolKg, standardBatchKg) }
+    })));
+  }, [standardBatchKg]);
+
+  // Handle Meta Change (Strictly disallows negative values for kg fields)
   const handleMetaChange = (e) => {
     const { name, value } = e.target;
+    if (['cropKg', 'otherLeafKg'].includes(name) && value !== '') {
+      const num = parseFloat(value);
+      if (num < 0) return; // Disallow negative
+    }
     setMeta(prev => ({ ...prev, [name]: value }));
   };
 
-  // Handle Batch Cell Input Change with (Kg ÷ 560) × 100 Formula
+  // Handle Standard Batch Input Change (Strictly >= 0)
+  const handleStandardBatchChange = (e) => {
+    const val = e.target.value;
+    if (val !== '' && parseFloat(val) < 0) return;
+    setStandardBatchKg(val);
+  };
+
+  // Handle Batch Cell Input Change (Strictly disallows negative values)
   const handleBatchCellChange = (index, sectionKey, field, value) => {
+    if (field === 'wetDhoolKg' && value !== '') {
+      const num = parseFloat(value);
+      if (num < 0) return; // Disallow negative
+    }
+
     setBatches(prev => {
       const updated = [...prev];
       const targetSection = { ...updated[index][sectionKey], [field]: value };
       
-      // 💡 Exact formula: % = (Wet Dhool Kg / 560) * 100
+      // Auto % calculation: (Wet Dhool Kg / standardBatchKg) * 100
       if (field === 'wetDhoolKg') {
-        const kgVal = parseFloat(value);
-        if (!isNaN(kgVal) && kgVal > 0) {
-          targetSection.percentage = ((kgVal / STANDARD_BATCH_KG) * 100).toFixed(2);
-        } else {
-          targetSection.percentage = '';
-        }
+        targetSection.percentage = computePercentage(value, standardBatchKg);
       }
 
       updated[index] = { ...updated[index], [sectionKey]: targetSection };
@@ -186,9 +224,10 @@ const RollingRoomSheetForm = () => {
       rollingEndTime: '',
       totalRollingHours: '',
       dayType: 'Same Day',
-      noOfBatches: 3
+      noOfBatches: 1
     });
-    setBatches([initialBatchRow(1), initialBatchRow(2), initialBatchRow(3)]);
+    setStandardBatchKg(560);
+    setBatches([initialBatchRow(1)]);
     toast.success("Form reset to initial state.");
   };
 
@@ -201,6 +240,7 @@ const RollingRoomSheetForm = () => {
       const token = localStorage.getItem("token");
       const payload = {
         ...meta,
+        standardBatchKg: parseFloat(standardBatchKg) || 560,
         batches
       };
 
@@ -231,8 +271,8 @@ const RollingRoomSheetForm = () => {
   const sumBBKg = batches.reduce((sum, b) => sum + (parseFloat(b.bigBulk.wetDhoolKg) || 0), 0);
   const grandTotalWetDhool = sumD1Kg + sumD2Kg + sumBBKg;
 
-  // Overall Total Capacity for All Batches
-  const totalCapacityKg = batches.length * STANDARD_BATCH_KG;
+  // Overall Total Capacity Calculation
+  const totalCapacityKg = batches.length * (parseFloat(standardBatchKg) || 560);
   const avgD1Pct = totalCapacityKg > 0 ? ((sumD1Kg / totalCapacityKg) * 100).toFixed(2) : '0.00';
   const avgD2Pct = totalCapacityKg > 0 ? ((sumD2Kg / totalCapacityKg) * 100).toFixed(2) : '0.00';
   const avgBBPct = totalCapacityKg > 0 ? ((sumBBKg / totalCapacityKg) * 100).toFixed(2) : '0.00';
@@ -251,7 +291,7 @@ const RollingRoomSheetForm = () => {
       {/* Main Container */}
       <div className="max-w-7xl mx-auto flex flex-col gap-6">
 
-        {/* --- Top Bar & Language Toggle --- */}
+        {/* --- Top Bar & Controls --- */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-green-50 text-green-700 rounded-xl">
@@ -265,14 +305,35 @@ const RollingRoomSheetForm = () => {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')}
-            className="p-2 px-4 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors font-bold text-xs flex items-center gap-2"
-          >
-            <Languages size={16} />
-            {lang === 'EN' ? "සිංහල" : "English"}
-          </button>
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-start sm:justify-end">
+            
+            {/* 💡 Standard Batch Input Box (No Negative Allowed) */}
+            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg">
+              <Settings2 className="w-4 h-4 text-gray-500" />
+              <label className="text-[11px] font-bold text-gray-600 uppercase whitespace-nowrap">
+                {t.standardBatch}:
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={standardBatchKg}
+                onKeyDown={preventNegativeKeys}
+                onChange={handleStandardBatchChange}
+                className="w-20 bg-white border border-gray-300 text-gray-900 font-bold text-xs rounded px-2 py-1 outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+
+            {/* Language Toggle */}
+            <button
+              type="button"
+              onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')}
+              className="p-2 px-4 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors font-bold text-xs flex items-center gap-2"
+            >
+              <Languages size={16} />
+              {lang === 'EN' ? "සිංහල" : "English"}
+            </button>
+          </div>
         </div>
 
         {/* --- Section 1: Header Parameters & Operations --- */}
@@ -308,24 +369,32 @@ const RollingRoomSheetForm = () => {
                 />
               </div>
 
+              {/* 💡 Crop Kg (No Negative Allowed) */}
               <div>
                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">{t.cropKg}</label>
                 <input 
                   type="number" 
                   name="cropKg" 
+                  min="0"
+                  step="any"
                   value={meta.cropKg} 
+                  onKeyDown={preventNegativeKeys}
                   onChange={handleMetaChange} 
                   placeholder="0.00" 
                   className={inputBase} 
                 />
               </div>
 
+              {/* 💡 Other Leaf Kg (No Negative Allowed) */}
               <div>
                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">{t.otherLeafKg}</label>
                 <input 
                   type="number" 
                   name="otherLeafKg" 
+                  min="0"
+                  step="any"
                   value={meta.otherLeafKg} 
+                  onKeyDown={preventNegativeKeys}
                   onChange={handleMetaChange} 
                   placeholder="0.00" 
                   className={inputBase} 
@@ -342,6 +411,8 @@ const RollingRoomSheetForm = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              
+              {/* Native Rolling Start Time */}
               <div>
                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">{t.rollingStartTime}</label>
                 <input 
@@ -353,6 +424,7 @@ const RollingRoomSheetForm = () => {
                 />
               </div>
 
+              {/* Native Rolling End Time */}
               <div>
                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">{t.rollingEndTime}</label>
                 <input 
@@ -388,6 +460,7 @@ const RollingRoomSheetForm = () => {
                 </select>
               </div>
 
+              {/* Automatically calculated No of Batches */}
               <div>
                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">{t.noOfBatches}</label>
                 <input 
@@ -410,8 +483,8 @@ const RollingRoomSheetForm = () => {
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-green-700" />
               <h2 className="text-xs font-bold uppercase tracking-wider text-gray-700">Batch Rolling Grid</h2>
-              <span className="text-[11px] font-semibold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                Formula: (Wet Dhool Kg ÷ 560) × 100
+              <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-md border border-gray-200">
+                Formula: (Wet Dhool Kg ÷ {standardBatchKg}) × 100
               </span>
             </div>
 
@@ -454,20 +527,20 @@ const RollingRoomSheetForm = () => {
                 {/* Level 3 Header: Sub-Columns */}
                 <tr className="bg-gray-50 text-[10px] text-gray-600 font-bold uppercase tracking-wider border border-gray-300">
                   {/* 1st Dhool Sub-headers */}
-                  <th className="border border-gray-300 p-1.5 w-20">{t.startTime}</th>
-                  <th className="border border-gray-300 p-1.5 w-20">{t.endTime}</th>
+                  <th className="border border-gray-300 p-1.5 w-24">{t.startTime}</th>
+                  <th className="border border-gray-300 p-1.5 w-24">{t.endTime}</th>
                   <th className="border border-gray-300 p-1.5 w-20">{t.kg}</th>
                   <th className="border border-gray-300 p-1.5 w-16">{t.pct}</th>
 
                   {/* 2nd Dhool Sub-headers */}
-                  <th className="border border-gray-300 p-1.5 w-20">{t.startTime}</th>
-                  <th className="border border-gray-300 p-1.5 w-20">{t.endTime}</th>
+                  <th className="border border-gray-300 p-1.5 w-24">{t.startTime}</th>
+                  <th className="border border-gray-300 p-1.5 w-24">{t.endTime}</th>
                   <th className="border border-gray-300 p-1.5 w-20">{t.kg}</th>
                   <th className="border border-gray-300 p-1.5 w-16">{t.pct}</th>
 
                   {/* Big Bulk Sub-headers */}
-                  <th className="border border-gray-300 p-1.5 w-20">{t.startTime}</th>
-                  <th className="border border-gray-300 p-1.5 w-20">{t.endTime}</th>
+                  <th className="border border-gray-300 p-1.5 w-24">{t.startTime}</th>
+                  <th className="border border-gray-300 p-1.5 w-24">{t.endTime}</th>
                   <th className="border border-gray-300 p-1.5 w-20">{t.kg}</th>
                   <th className="border border-gray-300 p-1.5 w-16">{t.pct}</th>
                 </tr>
@@ -500,11 +573,14 @@ const RollingRoomSheetForm = () => {
                       />
                     </td>
                     <td className="border border-gray-300 p-1">
+                      {/* 💡 Wet Dhool Kg (No Negative Allowed) */}
                       <input 
                         type="number" 
+                        min="0"
                         step="any"
                         placeholder="0.0" 
                         value={batch.dhool1.wetDhoolKg} 
+                        onKeyDown={preventNegativeKeys}
                         onChange={(e) => handleBatchCellChange(index, 'dhool1', 'wetDhoolKg', e.target.value)} 
                         className={`${tableInput} font-bold text-blue-700`} 
                       />
@@ -537,11 +613,14 @@ const RollingRoomSheetForm = () => {
                       />
                     </td>
                     <td className="border border-gray-300 p-1">
+                      {/* 💡 Wet Dhool Kg (No Negative Allowed) */}
                       <input 
                         type="number" 
+                        min="0"
                         step="any"
                         placeholder="0.0" 
                         value={batch.dhool2.wetDhoolKg} 
+                        onKeyDown={preventNegativeKeys}
                         onChange={(e) => handleBatchCellChange(index, 'dhool2', 'wetDhoolKg', e.target.value)} 
                         className={`${tableInput} font-bold text-emerald-700`} 
                       />
@@ -574,11 +653,14 @@ const RollingRoomSheetForm = () => {
                       />
                     </td>
                     <td className="border border-gray-300 p-1">
+                      {/* 💡 Wet Dhool Kg (No Negative Allowed) */}
                       <input 
                         type="number" 
+                        min="0"
                         step="any"
                         placeholder="0.0" 
                         value={batch.bigBulk.wetDhoolKg} 
+                        onKeyDown={preventNegativeKeys}
                         onChange={(e) => handleBatchCellChange(index, 'bigBulk', 'wetDhoolKg', e.target.value)} 
                         className={`${tableInput} font-bold text-amber-700`} 
                       />
@@ -678,4 +760,4 @@ const RollingRoomSheetForm = () => {
   );
 };
 
-export default RollingRoomSheetForm;
+export default RollingRoomSheetForm;    
