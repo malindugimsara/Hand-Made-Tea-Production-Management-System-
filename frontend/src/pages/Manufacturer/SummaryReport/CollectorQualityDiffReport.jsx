@@ -195,7 +195,7 @@ export default function CollectorQualityDiffReport() {
     }
   };
 
-  return (
+return (
     <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans min-h-screen flex flex-col transition-colors duration-300">
       
       {/* --- HEADER --- */}
@@ -205,68 +205,68 @@ export default function CollectorQualityDiffReport() {
             <FileSpreadsheet size={24} /> {t.pageTitle}
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {t.dateRange} <span className="font-bold text-[#65a30d]">{weekDates[0]}</span> to <span className="font-bold text-[#65a30d]">{weekDates[6]}</span>
+            {t.dateRange} <span className="font-bold text-[#65a30d] dark:text-lime-400">{weekDates[0]}</span> to <span className="font-bold text-[#65a30d] dark:text-lime-400">{weekDates[6]}</span>
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <button onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')} className="p-2.5 px-4 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg font-bold text-sm flex items-center gap-2">
+          <button onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')} className="p-2.5 px-4 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors">
             <Languages size={18} /> {lang === 'EN' ? "සිංහල" : "English"}
           </button>
           
           <div className="relative">
-            <Calendar size={18} className="absolute left-3 top-3 text-[#65a30d]" />
+            <Calendar size={18} className="absolute left-3 top-3 text-[#65a30d] dark:text-lime-500" />
             <input 
               type="date" 
               value={selectedDate} 
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="pl-10 pr-4 py-2.5 border border-lime-200 rounded-lg text-sm font-bold outline-none bg-lime-50/30 text-[#3f6212] cursor-pointer"
+              className="pl-10 pr-4 py-2.5 border border-lime-200 dark:border-zinc-700 rounded-lg text-sm font-bold outline-none bg-lime-50/30 dark:bg-zinc-800 text-[#3f6212] dark:text-lime-400 cursor-pointer transition-colors"
             />
           </div>
 
-          <button onClick={generatePDF} disabled={loading || processedTable.length === 0} className="p-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm disabled:opacity-50 flex items-center gap-2">
+          <button onClick={generatePDF} disabled={loading || processedTable.length === 0} className="p-2.5 px-4 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg font-bold text-sm disabled:opacity-50 flex items-center gap-2 transition-colors">
             <FileDown size={18} /> Download PDF
           </button>
 
-          <button onClick={fetchWeekData} disabled={loading} className="p-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg">
+          <button onClick={fetchWeekData} disabled={loading} className="p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-600 dark:text-gray-300 rounded-lg transition-colors">
             <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
       </div>
 
       {/* --- UI VIEW (Screen) --- */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-200 overflow-x-auto p-1 custom-scrollbar">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-x-auto p-1 custom-scrollbar transition-colors duration-300">
         {loading ? (
-            <div className="p-16 text-center text-gray-500 font-bold">Loading Data...</div>
+            <div className="p-16 text-center text-gray-500 dark:text-gray-400 font-bold">Loading Data...</div>
         ) : (
             <div className="p-2">
-                <table className="w-full border-collapse border border-[#cbd5e1] text-center text-[12px] sm:text-[14px]">
+                <table className="w-full border-collapse border border-gray-300 dark:border-zinc-700 text-center text-[12px] sm:text-[14px]">
                    <thead>
                        <tr>
-                           <th rowSpan={2} className="text-center border border-[#cbd5e1] p-1.5 font-bold bg-[#D8FDE4] text-[#374151] w-[12%]">
-                               {t.monthDate}<br/><hr className="my-1 border-[#cbd5e1]"/>{t.supplier}
+                           <th rowSpan={2} className="text-center border border-gray-300 dark:border-zinc-700 p-1.5 font-bold bg-[#D8FDE4] dark:bg-green-900/30 text-gray-800 dark:text-gray-200 w-[12%] transition-colors">
+                               {t.monthDate}<br/><hr className="my-1 border-gray-300 dark:border-zinc-600"/>{t.supplier}
                            </th>
                            {weekDates.map(date => (
-                               <th key={date} colSpan={4} className="border border-[#cbd5e1] p-1.5 font-bold bg-[#D8FDE4] text-[#1d4ed8]">
+                               <th key={date} colSpan={4} className="border border-gray-300 dark:border-zinc-700 p-1.5 font-bold bg-[#D8FDE4] dark:bg-green-900/30 text-blue-700 dark:text-blue-400 transition-colors">
                                    {date.split('-').slice(1).join('/')}
                                </th>
                            ))}
                        </tr>
-                       <tr className="bg-[#e5e7eb]">
+                       <tr className="bg-gray-200 dark:bg-zinc-800 transition-colors">
                            {weekDates.map((_, i) => (
                                <React.Fragment key={i}>
-                                   <th className="border border-[#cbd5e1] bg-[#D8FDE4] p-1 font-bold text-[#16a34a]">B</th>
-                                   <th className="border border-[#cbd5e1] bg-[#D8FDE4] p-1 font-bold text-[#ca8a04]">B/B</th>
-                                   <th className="border border-[#cbd5e1] bg-[#D8FDE4] p-1 font-bold text-[#1f2937]">P</th>
-                                   <th className="border border-[#cbd5e1] bg-[#fee2e2] p-1 font-bold text-[#dc2626]">{t.diff}</th>
+                                   <th className="border border-gray-300 dark:border-zinc-700 bg-[#D8FDE4] dark:bg-green-900/20 p-1 font-bold text-green-700 dark:text-green-400">B</th>
+                                   <th className="border border-gray-300 dark:border-zinc-700 bg-[#D8FDE4] dark:bg-green-900/20 p-1 font-bold text-yellow-600 dark:text-yellow-500">B/B</th>
+                                   <th className="border border-gray-300 dark:border-zinc-700 bg-[#D8FDE4] dark:bg-green-900/20 p-1 font-bold text-gray-800 dark:text-gray-300">P</th>
+                                   <th className="border border-gray-300 dark:border-zinc-700 bg-[#FFEBEB] dark:bg-red-900/20 p-1 font-bold text-red-600 dark:text-red-400">{t.diff}</th>
                                </React.Fragment>
                            ))}
                        </tr>
                    </thead>
-                   <tbody className="bg-white dark:bg-zinc-950">
+                   <tbody className="bg-white dark:bg-zinc-950 transition-colors">
                        {processedTable.map((route, idx) => (
-                               <tr key={idx} className="hover:bg-gray-50">
-                                   <td className="border border-[#cbd5e1] p-1.5 text-left bg-[#f8fafc] text-[#000000] truncate">
+                               <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                   <td className="border border-gray-300 dark:border-zinc-700 p-1.5 text-left bg-gray-50 dark:bg-zinc-900/40 text-gray-900 dark:text-gray-200 truncate">
                                        {route.fullName}
                                    </td>
                                    {weekDates.map(date => {
@@ -277,7 +277,7 @@ export default function CollectorQualityDiffReport() {
                                        if (isWeekendEmpty) {
                                            if (idx === 0) {
                                                return (
-                                                   <td key={date} rowSpan={processedTable.length} colSpan={4} className="border border-[#cbd5e1] p-2 text-center font-bold text-[#6b7280] bg-[#f8fafc] text-[13px] tracking-widest align-middle">
+                                                   <td key={date} rowSpan={processedTable.length} colSpan={4} className="border border-gray-300 dark:border-zinc-700 p-2 text-center font-bold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-zinc-900/30 text-[13px] tracking-widest align-middle">
                                                        {dayOfWeek === 6 ? t.saturday : t.holiday}
                                                    </td>
                                                );
@@ -288,20 +288,20 @@ export default function CollectorQualityDiffReport() {
                                        if (!d) {
                                            return (
                                                <React.Fragment key={date}>
-                                                   <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#9ca3af]">-</td>
-                                                   <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#9ca3af]">-</td>
-                                                   <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#9ca3af]">-</td>
-                                                   <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#9ca3af]">-</td>
+                                                   <td className="border border-gray-300 dark:border-zinc-700 p-1.5 font-bold text-gray-400 dark:text-zinc-600">-</td>
+                                                   <td className="border border-gray-300 dark:border-zinc-700 p-1.5 font-bold text-gray-400 dark:text-zinc-600">-</td>
+                                                   <td className="border border-gray-300 dark:border-zinc-700 p-1.5 font-bold text-gray-400 dark:text-zinc-600">-</td>
+                                                   <td className="border border-gray-300 dark:border-zinc-700 p-1.5 font-bold text-gray-400 dark:text-zinc-600">-</td>
                                                </React.Fragment>
                                            );
                                        }
 
                                        return (
                                            <React.Fragment key={date}>
-                                               <td className="border border-[#cbd5e1] p-1.5 text-[#1f2937]">{d.b}</td>
-                                               <td className="border border-[#cbd5e1] p-1.5 text-[#1f2937]">{d.bb}</td>
-                                               <td className="border border-[#cbd5e1] p-1.5 text-[#1f2937]">{d.p}</td>
-                                               <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#dc2626] bg-[#fef2f2]">{d.diff}</td>
+                                               <td className="border border-gray-300 dark:border-zinc-700 p-1.5 text-gray-800 dark:text-gray-300">{d.b}</td>
+                                               <td className="border border-gray-300 dark:border-zinc-700 p-1.5 text-gray-800 dark:text-gray-300">{d.bb}</td>
+                                               <td className="border border-gray-300 dark:border-zinc-700 p-1.5 text-gray-800 dark:text-gray-300">{d.p}</td>
+                                               <td className="border border-gray-300 dark:border-zinc-700 p-1.5 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 font-bold">{d.diff}</td>
                                            </React.Fragment>
                                        );
                                    })}
@@ -314,7 +314,7 @@ export default function CollectorQualityDiffReport() {
       </div>
 
       {/* ========================================================================================= */}
-      {/* 💡 HIDDEN PRINT AREA FOR PDF DIRECT DOWNLOAD */}
+      {/* 💡 HIDDEN PRINT AREA FOR PDF DIRECT DOWNLOAD (STAYS LIGHT MODE) */}
       {/* ========================================================================================= */}
       <div id="pdf-print-area" ref={printAreaRef} style={{ display: 'none' }}>
           <div className="bg-[#ffffff] p-8 font-sans text-[#000000] flex flex-col justify-between" style={{ minHeight: '1000px' }}>

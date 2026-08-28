@@ -344,7 +344,7 @@ export default function WeeklyLoftLeafSummary() {
     }
   };
 
-  return (
+ return (
     <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans min-h-screen flex flex-col transition-colors duration-300">
       
       {/* --- HEADER --- */}
@@ -354,26 +354,26 @@ export default function WeeklyLoftLeafSummary() {
             <FileSpreadsheet size={24} /> {t.pageTitle}
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {t.dateRange} <span className="font-bold text-[#65a30d]">{weekDates[0]}</span> to <span className="font-bold text-[#65a30d]">{weekDates[6]}</span>
+            {t.dateRange} <span className="font-bold text-[#65a30d] dark:text-lime-400">{weekDates[0]}</span> to <span className="font-bold text-[#65a30d] dark:text-lime-400">{weekDates[6]}</span>
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <button onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')} className="p-2.5 px-4 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors">
+          <button onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')} className="p-2.5 px-4 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors">
             <Languages size={18} /> {lang === 'EN' ? "සිංහල" : "English"}
           </button>
           
           <div className="relative">
-            <Calendar size={18} className="absolute left-3 top-3 text-[#65a30d]" />
+            <Calendar size={18} className="absolute left-3 top-3 text-[#65a30d] dark:text-lime-500" />
             <input 
               type="date" 
               value={selectedDate} 
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="pl-10 pr-4 py-2.5 border border-lime-200 dark:border-zinc-700 rounded-lg text-sm font-bold focus:ring-2 focus:ring-[#84cc16] outline-none bg-lime-50/30 dark:bg-zinc-800 text-[#3f6212] dark:text-lime-400 cursor-pointer"
+              className="pl-10 pr-4 py-2.5 border border-lime-200 dark:border-zinc-700 rounded-lg text-sm font-bold focus:ring-2 focus:ring-[#84cc16] dark:focus:ring-lime-600 outline-none bg-lime-50/30 dark:bg-zinc-800 text-[#3f6212] dark:text-lime-400 cursor-pointer"
             />
           </div>
 
-          <button onClick={generatePDF} disabled={loading || processedTable.length === 0} className="p-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-bold text-sm disabled:opacity-50 flex items-center gap-2 shadow-sm">
+          <button onClick={generatePDF} disabled={loading || processedTable.length === 0} className="p-2.5 px-4 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg transition-colors font-bold text-sm disabled:opacity-50 flex items-center gap-2 shadow-sm">
             <FileDown size={18} /> Download PDF
           </button>
 
@@ -393,44 +393,44 @@ export default function WeeklyLoftLeafSummary() {
         </div>
 
         {loading ? (
-            <div className="p-16 text-center text-gray-500 font-bold">Loading Week Data...</div>
+            <div className="p-16 text-center text-gray-500 dark:text-gray-400 font-bold">Loading Week Data...</div>
         ) : (
             <div className="p-2">
-                <table className="w-full table-fixed border-collapse border border-[#cbd5e1] text-center text-[14px]">
+                <table className="w-full table-fixed border-collapse border border-[#cbd5e1] dark:border-zinc-700 text-center text-[14px]">
                    <thead>
                        <tr>
-                           <th rowSpan={2} className="text-center border border-[#cbd5e1] p-1.5 font-bold bg-[#f3f4f6] text-[#000000] w-[15%]">
-                               {t.monthDate}<br/><hr className="my-1 border-[#cbd5e1]"/>{t.supplier}
+                           <th rowSpan={2} className="text-center border border-[#cbd5e1] dark:border-zinc-700 p-1.5 font-bold bg-[#f3f4f6] dark:bg-zinc-800 text-[#000000] dark:text-gray-200 w-[15%]">
+                               {t.monthDate}<br/><hr className="my-1 border-[#cbd5e1] dark:border-zinc-600"/>{t.supplier}
                            </th>
                            {weekDates.map(date => (
-                               <th key={date} colSpan={3} className="border border-[#cbd5e1] p-1.5 font-bold bg-[#eff6ff] text-[#1d4ed8]">
+                               <th key={date} colSpan={3} className="border border-[#cbd5e1] dark:border-zinc-700 p-1.5 font-bold bg-[#eff6ff] dark:bg-blue-900/20 text-[#1d4ed8] dark:text-blue-400">
                                    {date.split('-').slice(1).join('/')}
                                </th>
                            ))}
-                           <th colSpan={3} className="border border-[#cbd5e1] p-1.5 font-bold bg-[#f0fdf4] text-[#15803d] whitespace-nowrap">
+                           <th colSpan={3} className="border border-[#cbd5e1] dark:border-zinc-700 p-1.5 font-bold bg-[#f0fdf4] dark:bg-green-900/20 text-[#15803d] dark:text-green-500 whitespace-nowrap">
                                {t.weeklyAvg}
                            </th>
-                           <th rowSpan={2} className="border border-[#cbd5e1] p-1.5 font-bold bg-[#f3f4f6] text-[#1d4ed8] w-[6%]">
+                           <th rowSpan={2} className="border border-[#cbd5e1] dark:border-zinc-700 p-1.5 font-bold bg-[#f3f4f6] dark:bg-zinc-800 text-[#1d4ed8] dark:text-blue-400 w-[6%]">
                                {t.rank}
                            </th>
                        </tr>
-                       <tr className="bg-[#e5e7eb]">
+                       <tr className="bg-[#e5e7eb] dark:bg-zinc-800/80">
                            {weekDates.map((_, i) => (
                                <React.Fragment key={i}>
-                                   <th className="border border-[#cbd5e1] bg-[#eff6ff] p-1 font-bold text-[#16a34a] w-[3.1%]">B</th>
-                                   <th className="border border-[#cbd5e1] bg-[#eff6ff] p-1 font-bold text-[#ca8a04] w-[3.1%]">B/B</th>
-                                   <th className="border border-[#cbd5e1] bg-[#eff6ff] p-1 font-bold text-[#dc2626] w-[3.1%]">P</th>
+                                   <th className="border border-[#cbd5e1] dark:border-zinc-700 bg-[#eff6ff] dark:bg-blue-900/20 p-1 font-bold text-[#16a34a] dark:text-green-500 w-[3.1%]">B</th>
+                                   <th className="border border-[#cbd5e1] dark:border-zinc-700 bg-[#eff6ff] dark:bg-blue-900/20 p-1 font-bold text-[#ca8a04] dark:text-yellow-500 w-[3.1%]">B/B</th>
+                                   <th className="border border-[#cbd5e1] dark:border-zinc-700 bg-[#eff6ff] dark:bg-blue-900/20 p-1 font-bold text-[#dc2626] dark:text-red-500 w-[3.1%]">P</th>
                                </React.Fragment>
                            ))}
-                           <th className="border border-[#cbd5e1] bg-[#f0fdf4] p-1 font-bold text-[#16a34a] w-[3.1%]">B</th>
-                           <th className="border border-[#cbd5e1] bg-[#f0fdf4] p-1 font-bold text-[#ca8a04] w-[3.1%]">B/B</th>
-                           <th className="border border-[#cbd5e1] bg-[#f0fdf4] p-1 font-bold text-[#dc2626] w-[3.1%]">P</th>
+                           <th className="border border-[#cbd5e1] dark:border-zinc-700 bg-[#f0fdf4] dark:bg-green-900/20 p-1 font-bold text-[#16a34a] dark:text-green-500 w-[3.1%]">B</th>
+                           <th className="border border-[#cbd5e1] dark:border-zinc-700 bg-[#f0fdf4] dark:bg-green-900/20 p-1 font-bold text-[#ca8a04] dark:text-yellow-500 w-[3.1%]">B/B</th>
+                           <th className="border border-[#cbd5e1] dark:border-zinc-700 bg-[#f0fdf4] dark:bg-green-900/20 p-1 font-bold text-[#dc2626] dark:text-red-500 w-[3.1%]">P</th>
                        </tr>
                    </thead>
                    <tbody className="bg-white dark:bg-zinc-950">
                        {processedTable.map((route, idx) => (
-                               <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-zinc-900">
-                                   <td className="border border-[#cbd5e1] p-1.5 text-left bg-[#f8fafc] text-[#000000] truncate">
+                               <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors">
+                                   <td className="border border-[#cbd5e1] dark:border-zinc-700 p-1.5 text-left bg-[#f8fafc] dark:bg-zinc-900/50 text-[#000000] dark:text-gray-200 truncate">
                                        {route.fullName}
                                    </td>
                                    {weekDates.map(date => {
@@ -446,7 +446,7 @@ export default function WeeklyLoftLeafSummary() {
                                                        key={date} 
                                                        rowSpan={processedTable.length} 
                                                        colSpan={3} 
-                                                       className="border border-[#cbd5e1] p-2 text-center font-bold text-[#6b7280] bg-[#f8fafc] text-[13px] tracking-widest align-middle"
+                                                       className="border border-[#cbd5e1] dark:border-zinc-700 p-2 text-center font-bold text-[#6b7280] dark:text-gray-500 bg-[#f8fafc] dark:bg-zinc-900/30 text-[13px] tracking-widest align-middle"
                                                    >
                                                        {dayOfWeek === 6 ? t.saturday : t.holiday}
                                                    </td>
@@ -459,49 +459,49 @@ export default function WeeklyLoftLeafSummary() {
                                        if (!d) {
                                            return (
                                                <React.Fragment key={date}>
-                                                   <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#9ca3af]">-</td>
-                                                   <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#9ca3af]">-</td>
-                                                   <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#9ca3af]">-</td>
+                                                   <td className="border border-[#cbd5e1] dark:border-zinc-700 p-1.5 font-bold text-[#9ca3af] dark:text-zinc-600">-</td>
+                                                   <td className="border border-[#cbd5e1] dark:border-zinc-700 p-1.5 font-bold text-[#9ca3af] dark:text-zinc-600">-</td>
+                                                   <td className="border border-[#cbd5e1] dark:border-zinc-700 p-1.5 font-bold text-[#9ca3af] dark:text-zinc-600">-</td>
                                                </React.Fragment>
                                            );
                                        }
                                        
-                                       const styleB = d.b < 55 ? "bg-[#fee2e2] text-[#dc2626]" : "text-[#1f2937]";
-                                       const styleBB = d.bb > 5 ? "bg-[#dcfce7] text-[#16a34a]" : "text-[#1f2937]";
-                                       const styleP = d.p > 45 ? "bg-[#fef08a] text-[#ca8a04]" : "text-[#1f2937]";
+                                       const styleB = d.b < 55 ? "bg-[#fee2e2] dark:bg-red-900/20 text-[#dc2626] dark:text-red-500" : "text-[#1f2937] dark:text-gray-300";
+                                       const styleBB = d.bb > 5 ? "bg-[#dcfce7] dark:bg-green-900/20 text-[#16a34a] dark:text-green-500" : "text-[#1f2937] dark:text-gray-300";
+                                       const styleP = d.p > 45 ? "bg-[#fef08a] dark:bg-yellow-900/20 text-[#ca8a04] dark:text-yellow-500" : "text-[#1f2937] dark:text-gray-300";
 
                                        return (
                                            <React.Fragment key={date}>
-                                               <td className={`border border-[#cbd5e1] p-1.5  ${d.b ? styleB : 'text-[#9ca3af]'}`}>{d.b || "-"}</td>
-                                               <td className={`border border-[#cbd5e1] p-1.5  ${d.bb ? styleBB : 'text-[#9ca3af]'}`}>{d.bb || "-"}</td>
-                                               <td className={`border border-[#cbd5e1] p-1.5  ${d.p ? styleP : 'text-[#9ca3af]'}`}>{d.p || "-"}</td>
+                                               <td className={`border border-[#cbd5e1] dark:border-zinc-700 p-1.5  ${d.b ? styleB : 'text-[#9ca3af] dark:text-zinc-600'}`}>{d.b || "-"}</td>
+                                               <td className={`border border-[#cbd5e1] dark:border-zinc-700 p-1.5  ${d.bb ? styleBB : 'text-[#9ca3af] dark:text-zinc-600'}`}>{d.bb || "-"}</td>
+                                               <td className={`border border-[#cbd5e1] dark:border-zinc-700 p-1.5  ${d.p ? styleP : 'text-[#9ca3af] dark:text-zinc-600'}`}>{d.p || "-"}</td>
                                            </React.Fragment>
                                        );
                                    })}
                                    
                                    {/* Averages */}
-                                   <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#1f2937]">{route.avg.b || "-"}</td>
-                                   <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#1f2937]">{route.avg.bb || "-"}</td>
-                                   <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#1f2937]">{route.avg.p || "-"}</td>
+                                   <td className="border border-[#cbd5e1] dark:border-zinc-700 p-1.5 font-bold text-[#1f2937] dark:text-gray-300">{route.avg.b || "-"}</td>
+                                   <td className="border border-[#cbd5e1] dark:border-zinc-700 p-1.5 font-bold text-[#1f2937] dark:text-gray-300">{route.avg.bb || "-"}</td>
+                                   <td className="border border-[#cbd5e1] dark:border-zinc-700 p-1.5 font-bold text-[#1f2937] dark:text-gray-300">{route.avg.p || "-"}</td>
                                    
                                    {/* Rank */}
-                                   <td className="border border-[#cbd5e1] border-l-0 p-1.5 font-bold text-[#dc2626] bg-[#ffffff]">
+                                   <td className="border border-[#cbd5e1] dark:border-zinc-700 border-l-0 p-1.5 font-bold text-[#dc2626] dark:text-red-500 bg-[#ffffff] dark:bg-zinc-950">
                                        {route.rank !== "-" ? route.rank : ""}
                                    </td>
                                </tr>
                        ))}
 
-                        <tr className="bg-[#f0fdf4]">
-                            <td className="border border-[#cbd5e1] p-1.5 text-left font-bold bg-[#D7EEF7] text-[#374151] truncate">
+                        <tr className="bg-[#f0fdf4] dark:bg-green-900/20">
+                            <td className="border border-[#cbd5e1] dark:border-zinc-700 p-1.5 text-left font-bold bg-[#D7EEF7] dark:bg-blue-900/30 text-[#374151] dark:text-gray-200 truncate">
                                 {t.grandAvgLabel}
                             </td>
                             {Array.from({ length: 21 }).map((_, i) => (
-                                <td key={`empty-avg-${i}`} className="border border-[#cbd5e1] p-1 bg-[#D7EEF7]"></td>
+                                <td key={`empty-avg-${i}`} className="border border-[#cbd5e1] dark:border-zinc-700 p-1 bg-[#D7EEF7] dark:bg-blue-900/30"></td>
                             ))}
-                            <td className="border border-[#cbd5e1] p-1 font-bold text-[#1f2937] bg-[#D7EEF7]">{grandAverages.b}</td>
-                            <td className="border border-[#cbd5e1] p-1 font-bold text-[#1f2937] bg-[#D7EEF7]">{grandAverages.bb}</td>
-                            <td className="border border-[#cbd5e1] p-1 font-bold text-[#1f2937] bg-[#D7EEF7]">{grandAverages.p}</td>
-                            <td className="border border-[#cbd5e1] border-l-0 p-1 bg-[#D7EEF7]"></td>
+                            <td className="border border-[#cbd5e1] dark:border-zinc-700 p-1 font-bold text-[#1f2937] dark:text-gray-200 bg-[#D7EEF7] dark:bg-blue-900/30">{grandAverages.b}</td>
+                            <td className="border border-[#cbd5e1] dark:border-zinc-700 p-1 font-bold text-[#1f2937] dark:text-gray-200 bg-[#D7EEF7] dark:bg-blue-900/30">{grandAverages.bb}</td>
+                            <td className="border border-[#cbd5e1] dark:border-zinc-700 p-1 font-bold text-[#1f2937] dark:text-gray-200 bg-[#D7EEF7] dark:bg-blue-900/30">{grandAverages.p}</td>
+                            <td className="border border-[#cbd5e1] dark:border-zinc-700 border-l-0 p-1 bg-[#D7EEF7] dark:bg-blue-900/30"></td>
                         </tr>
                    </tbody>
                 </table>
@@ -512,29 +512,29 @@ export default function WeeklyLoftLeafSummary() {
                     {/* Previous Week Table */}
                     <div className="flex flex-col items-center">
                         <h3 className="sm:text-xs lg:text-sm font-bold mb-3 flex items-center gap-2 text-gray-800 dark:text-gray-200 w-full justify-center">
-                            <History size={18} className="text-gray-500" /> {t.prevRankTableTitle} <span className="font-semibold italic">({prevWeekDates[0]} - {prevWeekDates[6]})</span>
+                            <History size={18} className="text-gray-500 dark:text-gray-400" /> {t.prevRankTableTitle} <span className="font-semibold italic">({prevWeekDates[0]} - {prevWeekDates[6]})</span>
                         </h3>
                         <table className="border-collapse border border-gray-300 dark:border-zinc-700 sm:text-xs lg:text-sm text-center">
                             <thead className="bg-gray-100 dark:bg-zinc-800 text-gray-800 dark:text-gray-200">
                                 <tr>
                                     <th className="border border-gray-300 dark:border-zinc-700 p-2 w-16">{t.rank}</th>
                                     <th className="border border-gray-300 dark:border-zinc-700 p-2 pl-3 w-32">{t.route}</th>
-                                    <th className="border border-gray-300 dark:border-zinc-700 p-2 w-20 text-green-700 dark:text-green-400">{t.avgBest}</th>
-                                    <th className="border border-gray-300 dark:border-zinc-700 p-2 w-20 text-yellow-600 dark:text-yellow-400">{t.avgBelowBest}</th>
-                                    <th className="border border-gray-300 dark:border-zinc-700 p-2 w-20 text-red-600 dark:text-red-400">{t.avgPoor}</th>
+                                    <th className="border border-gray-300 dark:border-zinc-700 p-2 w-20 text-green-700 dark:text-green-500">{t.avgBest}</th>
+                                    <th className="border border-gray-300 dark:border-zinc-700 p-2 w-20 text-yellow-600 dark:text-yellow-500">{t.avgBelowBest}</th>
+                                    <th className="border border-gray-300 dark:border-zinc-700 p-2 w-20 text-red-600 dark:text-red-500">{t.avgPoor}</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white dark:bg-zinc-950">
                                 {prevRankTableData.map((r, i) => (
-                                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-zinc-900">
-                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-black text-gray-500">{r.rank}</td>
-                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-bold text-left pl-3 text-gray-500">{r.name}</td>
-                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-bold text-gray-500">{r.avg.b}</td>
-                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-bold text-gray-500">{r.avg.bb}</td>
-                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-bold text-gray-500">{r.avg.p}</td>
+                                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-zinc-900/50 transition-colors">
+                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-black text-gray-500 dark:text-gray-400">{r.rank}</td>
+                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-bold text-left pl-3 text-gray-500 dark:text-gray-400">{r.name}</td>
+                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-bold text-gray-500 dark:text-gray-400">{r.avg.b}</td>
+                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-bold text-gray-500 dark:text-gray-400">{r.avg.bb}</td>
+                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-bold text-gray-500 dark:text-gray-400">{r.avg.p}</td>
                                     </tr>
                                 ))}
-                                {/* 💡 අලුත් Average Rows 2 */}
+                                {/* 💡 Average Rows 2 */}
                                 <tr className="bg-[#eef2ff] dark:bg-blue-900/30">
                                     <td colSpan={2} className="border border-gray-300 dark:border-zinc-700 p-2 font-bold text-gray-600 dark:text-gray-300 text-right pr-4">{t.withestate} (Avg)</td>
                                     <td className="border border-gray-300 dark:border-zinc-700 p-2 font-black text-gray-600 dark:text-gray-300">{avgPrevWithE.b}</td>
@@ -561,22 +561,22 @@ export default function WeeklyLoftLeafSummary() {
                                 <tr>
                                     <th className="border border-gray-300 dark:border-zinc-700 p-2 w-16">{t.rank}</th>
                                     <th className="border border-gray-300 dark:border-zinc-700 p-2 pl-3 w-32">{t.route}</th>
-                                    <th className="border border-gray-300 dark:border-zinc-700 p-2 w-20 text-green-700 dark:text-green-400">{t.avgBest}</th>
-                                    <th className="border border-gray-300 dark:border-zinc-700 p-2 w-20 text-yellow-600 dark:text-yellow-400">{t.avgBelowBest}</th>
-                                    <th className="border border-gray-300 dark:border-zinc-700 p-2 w-20 text-red-600 dark:text-red-400">{t.avgPoor}</th>
+                                    <th className="border border-gray-300 dark:border-zinc-700 p-2 w-20 text-green-700 dark:text-green-500">{t.avgBest}</th>
+                                    <th className="border border-gray-300 dark:border-zinc-700 p-2 w-20 text-yellow-600 dark:text-yellow-500">{t.avgBelowBest}</th>
+                                    <th className="border border-gray-300 dark:border-zinc-700 p-2 w-20 text-red-600 dark:text-red-500">{t.avgPoor}</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white dark:bg-zinc-950">
                                 {rankTableData.map((r, i) => (
-                                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-zinc-900">
+                                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-zinc-900/50 transition-colors">
                                         <td className="border border-gray-300 dark:border-zinc-700 p-2 font-black text-blue-600 dark:text-blue-400">{r.rank}</td>
-                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-bold text-left pl-3">{r.name}</td>
-                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-bold">{r.avg.b}</td>
-                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-bold">{r.avg.bb}</td>
-                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-bold">{r.avg.p}</td>
+                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-bold text-left pl-3 dark:text-gray-300">{r.name}</td>
+                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-bold dark:text-gray-300">{r.avg.b}</td>
+                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-bold dark:text-gray-300">{r.avg.bb}</td>
+                                        <td className="border border-gray-300 dark:border-zinc-700 p-2 font-bold dark:text-gray-300">{r.avg.p}</td>
                                     </tr>
                                 ))}
-                                {/* 💡 අලුත් Average Rows 2 */}
+                                {/* 💡 Average Rows 2 */}
                                 <tr className="bg-[#eef2ff] dark:bg-blue-900/30">
                                     <td colSpan={2} className="border border-gray-300 dark:border-zinc-700 p-2 font-bold text-gray-600 dark:text-gray-300 text-right pr-4">{t.withestate} (Avg)</td>
                                     <td className="border border-gray-300 dark:border-zinc-700 p-2 font-black text-gray-600 dark:text-gray-300">{avgCurrentWithE.b}</td>
@@ -598,7 +598,7 @@ export default function WeeklyLoftLeafSummary() {
         )}
       </div>
 
-     {/* ========================================================================================= */}
+      {/* ========================================================================================= */}
       {/* 💡 HIDDEN PRINT AREA FOR PDF DIRECT DOWNLOAD (NOW 2 PAGES) */}
       {/* ========================================================================================= */}
       <div 
@@ -694,16 +694,10 @@ export default function WeeklyLoftLeafSummary() {
                                       const dayOfWeek = new Date(date).getDay();
                                       const isWeekendEmpty = (dayOfWeek === 6 || dayOfWeek === 0) && !processedTable.some(r => r.days[date]);
 
-                                      // 💡 PDF එකේ සෙනසුරාදා / ඉරිදා සඳහා එකවර rowSpan එකක් මඟින් තනි වරක් පෙන්වීම
                                       if (isWeekendEmpty) {
                                           if (idx === 0) {
                                               return (
-                                                  <td 
-                                                      key={date} 
-                                                      rowSpan={processedTable.length} 
-                                                      colSpan={3} 
-                                                      className="border border-[#cbd5e1] p-2 text-center font-bold text-[#6b7280] bg-[#f8fafc] text-[14px] tracking-widest align-middle"
-                                                  >
+                                                  <td key={date} rowSpan={processedTable.length} colSpan={3} className="border border-[#cbd5e1] p-2 text-center text-[#000000] bg-[#f8fafc] text-[16px] tracking-widest align-middle">
                                                       {dayOfWeek === 6 ? t.saturday : t.holiday}
                                                   </td>
                                               );
@@ -721,9 +715,9 @@ export default function WeeklyLoftLeafSummary() {
                                           );
                                       }
 
-                                      const styleB = d.b < 55 ? "bg-[#fee2e2] text-[#00000] " : "text-[#00000] ";
-                                      const styleBB = d.bb > 5 ? "bg-[#dcfce7] text-[#00000] " : "text-[#00000] ";
-                                      const styleP = d.p > 45 ? "bg-[#fef08a] text-[#00000] " : "text-[#00000] ";
+                                      const styleB = d.b < 55 ? "bg-[#fee2e2] text-[#000000] " : "text-[#000000] ";
+                                      const styleBB = d.bb > 5 ? "bg-[#dcfce7] text-[#000000] " : "text-[#000000] ";
+                                      const styleP = d.p > 45 ? "bg-[#fef08a] text-[#000000] " : "text-[#000000] ";
 
                                       return (
                                           <React.Fragment key={date}>
@@ -775,11 +769,11 @@ export default function WeeklyLoftLeafSummary() {
                   {t.footerText}
               </div>
 
-              {/* FOOTER SIGNATURES Page 2 */}
+              {/* FOOTER SIGNATURES Page 1 */}
               <div className="mt-auto pt-16 pb-12 w-full flex flex-row justify-between px-16 items-end text-[16px] font-bold font-sans text-[#374151]">                  
                   <div className="text-center">
                       <p className="text-[#4b5563] font-sans mb-2">{t.signGen}</p>
-                      <p className="text-[#2C3A3A] font-sans">{currentUsername}</p>
+                      <p className="text-[#2C3A3A] font-sans">{currentUsername} ({userRole})</p>
                   </div>
                   <div className="text-center">
                       <p className="text-[#4b5563] mb-2">.............................................................</p>
@@ -836,7 +830,7 @@ export default function WeeklyLoftLeafSummary() {
                                       <td className="border border-[#cbd5e1] p-3 font-bold text-[#4b5563]">{r.avg.p}</td>
                                   </tr>
                               ))}
-                              {/* 💡 අලුත් Average Rows 2 */}
+                              {/* Average Rows 2 */}
                               <tr className="bg-[#f1f5f9]">
                                   <td colSpan={2} className="border border-[#cbd5e1] p-3 font-bold text-[#4b5563] text-right pr-6">{t.withestate} (Avg)</td>
                                   <td className="border border-[#cbd5e1] p-3 font-black text-[#4b5563]">{avgPrevWithE.b}</td>
@@ -876,7 +870,7 @@ export default function WeeklyLoftLeafSummary() {
                                       <td className="border border-[#cbd5e1] p-3 font-bold">{r.avg.p}</td>
                                   </tr>
                               ))}
-                              {/* 💡 අලුත් Average Rows 2 */}
+                              {/* Average Rows 2 */}
                               <tr className="bg-[#f1f5f9]">
                                   <td colSpan={2} className="border border-[#cbd5e1] p-3 font-bold text-[#4b5563] text-right pr-6">{t.withestate} (Avg)</td>
                                   <td className="border border-[#cbd5e1] p-3 font-black text-[#4b5563]">{avgCurrentWithE.b}</td>
@@ -899,7 +893,7 @@ export default function WeeklyLoftLeafSummary() {
               <div className="mt-auto pt-16 pb-12 w-full flex flex-row justify-between px-16 items-end text-[16px] font-bold font-sans text-[#374151]">                  
                   <div className="text-center">
                       <p className="text-[#4b5563] font-sans mb-2">{t.signGen}</p>
-                      <p className="text-[#2C3A3A] font-sans">{currentUsername}</p>
+                      <p className="text-[#2C3A3A] font-sans">{currentUsername} ({userRole})</p>
                   </div>
                   <div className="text-center">
                       <p className="text-[#4b5563] mb-2">.............................................................</p>
@@ -910,6 +904,7 @@ export default function WeeklyLoftLeafSummary() {
                       <p className="text-[#4b5563]">{t.signChair}</p>
                   </div>
               </div>
+
           </div>
       </div>
     </div>
