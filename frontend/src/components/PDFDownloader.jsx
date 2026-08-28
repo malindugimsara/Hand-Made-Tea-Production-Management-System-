@@ -19,8 +19,8 @@ export default function PDFDownloader({
     userRole,
     autoTableOptions = {},
     isWhatsApp = false,
-    customButton = null,       // <-- NEW: Dropdown Items සඳහා Custom UI එකක් ලබා දීමට
-    onActionStart = () => {}   // <-- NEW: Action එක පටන් ගන්නා විට Menu close කිරීමට
+    customButton = null,       
+    onActionStart = () => {}   
 }) {
 
     const handleAction = async (e) => {

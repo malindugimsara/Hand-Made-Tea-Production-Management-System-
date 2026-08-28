@@ -95,7 +95,9 @@ export default function WeeklyLoftLeafSummary() {
     registeredProducer: lang === 'SI' ? "ලියාපදිංචි තේ නිෂ්පාදක" : "Registered Tea Producer",
     footerText: lang === 'SI' ? "(මෙය සතිපතා තොරතුරු ලබා ගැනීම සඳහා දිනපතා සම්පූර්ණ කළයුතු ආකෘතියකි)" : "(This format must be completed daily to obtain weekly information)",
     grandAvgLabel: lang === 'SI' ? "කමහලේ දිනයේ සාමාන්‍ය අගය" : "Factory Daily Average",
-  };
+    saturday: lang === 'SI' ? "සෙනසුරාදා" : "Saturday",
+    holiday: lang === 'SI' ? "නිවාඩු" : "Holiday",
+};
 
   const now = new Date();
   const generatedDateTime = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase()}`;
@@ -380,18 +382,18 @@ export default function WeeklyLoftLeafSummary() {
                 <table className="w-full table-fixed border-collapse border border-[#cbd5e1] text-center text-[14px]">
                    <thead>
                        <tr>
-                           <th rowSpan={2} className="text-center border border-[#cbd5e1] p-1.5 font-extrabold bg-[#f3f4f6] text-[#374151] w-[15%]">
+                           <th rowSpan={2} className="text-center border border-[#cbd5e1] p-1.5 font-bold bg-[#f3f4f6] text-[#000000] w-[15%]">
                                {t.monthDate}<br/><hr className="my-1 border-[#cbd5e1]"/>{t.supplier}
                            </th>
                            {weekDates.map(date => (
-                               <th key={date} colSpan={3} className="border border-[#cbd5e1] p-1.5 font-extrabold bg-[#eff6ff] text-[#1d4ed8]">
+                               <th key={date} colSpan={3} className="border border-[#cbd5e1] p-1.5 font-bold bg-[#eff6ff] text-[#1d4ed8]">
                                    {date.split('-').slice(1).join('/')}
                                </th>
                            ))}
-                           <th colSpan={3} className="border border-[#cbd5e1] p-1.5 font-extrabold bg-[#f0fdf4] text-[#15803d] whitespace-nowrap">
+                           <th colSpan={3} className="border border-[#cbd5e1] p-1.5 font-bold bg-[#f0fdf4] text-[#15803d] whitespace-nowrap">
                                {t.weeklyAvg}
                            </th>
-                           <th rowSpan={2} className="border border-[#cbd5e1] p-1.5 font-extrabold bg-[#f3f4f6] text-[#1d4ed8] w-[6%]">
+                           <th rowSpan={2} className="border border-[#cbd5e1] p-1.5 font-bold bg-[#f3f4f6] text-[#1d4ed8] w-[6%]">
                                {t.rank}
                            </th>
                        </tr>
@@ -410,32 +412,63 @@ export default function WeeklyLoftLeafSummary() {
                    </thead>
                    <tbody className="bg-white dark:bg-zinc-950">
                        {processedTable.map((route, idx) => (
-                               <tr>
+                               <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-zinc-900">
                                    <td className="border border-[#cbd5e1] p-1.5 text-left bg-[#f8fafc] text-[#000000] truncate">
                                        {route.fullName}
                                    </td>
                                    {weekDates.map(date => {
                                        const d = route.days[date];
-                                       const styleB = d?.b < 55 ? "bg-[#fee2e2]  text-[#dc2626]" : "text-[#1f2937]";
-                                       const styleBB = d?.bb > 5 ? "bg-[#dcfce7]  text-[#16a34a]" : "text-[#1f2937]";
-                                       const styleP = d?.p > 45 ? "bg-[#fef08a] text-[#ca8a04]" : "text-[#1f2937]";
+                                       const dayOfWeek = new Date(date).getDay();
+                                       const isWeekendEmpty = (dayOfWeek === 6 || dayOfWeek === 0) && !processedTable.some(r => r.days[date]);
+
+                                       // 💡 මුළු දවසටම දත්ත නැති සෙනසුරාදා / ඉරිදා සඳහා එකවර rowSpan එකක් මඟින් තනි වරක් පෙන්වීම
+                                       if (isWeekendEmpty) {
+                                           if (idx === 0) {
+                                               return (
+                                                   <td 
+                                                       key={date} 
+                                                       rowSpan={processedTable.length} 
+                                                       colSpan={3} 
+                                                       className="border border-[#cbd5e1] p-2 text-center font-bold text-[#6b7280] bg-[#f8fafc] text-[13px] tracking-widest align-middle"
+                                                   >
+                                                       {dayOfWeek === 6 ? t.saturday : t.holiday}
+                                                   </td>
+                                               );
+                                           }
+                                           return null; // පළමු පේළිය හැර අනෙක් පේළි වලදී මෙම cell එක skip කරයි
+                                       }
+
+                                       // සාමාන්‍ය දිනවල දත්ත නොමැති විට "-" පෙන්වීම
+                                       if (!d) {
+                                           return (
+                                               <React.Fragment key={date}>
+                                                   <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#9ca3af]">-</td>
+                                                   <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#9ca3af]">-</td>
+                                                   <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#9ca3af]">-</td>
+                                               </React.Fragment>
+                                           );
+                                       }
+                                       
+                                       const styleB = d.b < 55 ? "bg-[#fee2e2] text-[#dc2626]" : "text-[#1f2937]";
+                                       const styleBB = d.bb > 5 ? "bg-[#dcfce7] text-[#16a34a]" : "text-[#1f2937]";
+                                       const styleP = d.p > 45 ? "bg-[#fef08a] text-[#ca8a04]" : "text-[#1f2937]";
 
                                        return (
                                            <React.Fragment key={date}>
-                                               <td className={`border border-[#cbd5e1] p-1 ${d?.b ? styleB : ''}`}>{d?.b || ""}</td>
-                                               <td className={`border border-[#cbd5e1] p-1 ${d?.bb ? styleBB : ''}`}>{d?.bb || ""}</td>
-                                               <td className={`border border-[#cbd5e1] p-1 ${d?.p ? styleP : ''}`}>{d?.p || ""}</td>
+                                               <td className={`border border-[#cbd5e1] p-1.5  ${d.b ? styleB : 'text-[#9ca3af]'}`}>{d.b || "-"}</td>
+                                               <td className={`border border-[#cbd5e1] p-1.5  ${d.bb ? styleBB : 'text-[#9ca3af]'}`}>{d.bb || "-"}</td>
+                                               <td className={`border border-[#cbd5e1] p-1.5  ${d.p ? styleP : 'text-[#9ca3af]'}`}>{d.p || "-"}</td>
                                            </React.Fragment>
                                        );
                                    })}
                                    
                                    {/* Averages */}
-                                   <td className="border border-[#cbd5e1] p-1 font-bold text-[#1f2937]">{route.avg.b || ""}</td>
-                                   <td className="border border-[#cbd5e1] p-1 font-bold text-[#1f2937]">{route.avg.bb || ""}</td>
-                                   <td className="border border-[#cbd5e1] p-1 font-bold text-[#1f2937]">{route.avg.p || ""}</td>
+                                   <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#1f2937]">{route.avg.b || "-"}</td>
+                                   <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#1f2937]">{route.avg.bb || "-"}</td>
+                                   <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#1f2937]">{route.avg.p || "-"}</td>
                                    
                                    {/* Rank */}
-                                   <td className="border border-[#cbd5e1] border-l-0 p-1 font-bold text-[#dc2626] text-[13px] bg-[#ffffff]">
+                                   <td className="border border-[#cbd5e1] border-l-0 p-1.5 font-bold text-[#dc2626] bg-[#ffffff]">
                                        {route.rank !== "-" ? route.rank : ""}
                                    </td>
                                </tr>
@@ -610,27 +643,57 @@ export default function WeeklyLoftLeafSummary() {
                       <tbody className="text-center">
                           {processedTable.map((route, idx) => (
                               <tr key={idx}>
-                                  <td className="border border-[#cbd5e1] p-2 text-left bg-[#f8fafc] text-[#000000] font-bold truncate">
+                                  <td className="border border-[#cbd5e1] p-2 text-left bg-[#f8fafc] text-[#000000] truncate">
                                       {route.fullName}
                                   </td>
                                   {weekDates.map(date => {
                                       const d = route.days[date];
-                                      const styleB = d?.b < 55 ? "bg-[#fee2e2] text-[#000000]" : "text-[#000000]";
-                                      const styleBB = d?.bb > 5 ? "bg-[#dcfce7] text-[#000000]" : "text-[#000000]";
-                                      const styleP = d?.p > 45 ? "bg-[#fef08a] text-[#000000] " : "text-[#000000]";
+                                      const dayOfWeek = new Date(date).getDay();
+                                      const isWeekendEmpty = (dayOfWeek === 6 || dayOfWeek === 0) && !processedTable.some(r => r.days[date]);
+
+                                      // 💡 PDF එකේ සෙනසුරාදා / ඉරිදා සඳහා එකවර rowSpan එකක් මඟින් තනි වරක් පෙන්වීම
+                                      if (isWeekendEmpty) {
+                                          if (idx === 0) {
+                                              return (
+                                                  <td 
+                                                      key={date} 
+                                                      rowSpan={processedTable.length} 
+                                                      colSpan={3} 
+                                                      className="border border-[#cbd5e1] p-2 text-center font-bold text-[#6b7280] bg-[#f8fafc] text-[14px] tracking-widest align-middle"
+                                                  >
+                                                      {dayOfWeek === 6 ? t.saturday : t.holiday}
+                                                  </td>
+                                              );
+                                          }
+                                          return null;
+                                      }
+
+                                      if (!d) {
+                                          return (
+                                              <React.Fragment key={date}>
+                                                  <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#9ca3af]">-</td>
+                                                  <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#9ca3af]">-</td>
+                                                  <td className="border border-[#cbd5e1] p-1.5 font-bold text-[#9ca3af]">-</td>
+                                              </React.Fragment>
+                                          );
+                                      }
+
+                                      const styleB = d.b < 55 ? "bg-[#fee2e2] text-[#00000] " : "text-[#00000] ";
+                                      const styleBB = d.bb > 5 ? "bg-[#dcfce7] text-[#00000] " : "text-[#00000] ";
+                                      const styleP = d.p > 45 ? "bg-[#fef08a] text-[#00000] " : "text-[#00000] ";
 
                                       return (
                                           <React.Fragment key={date}>
-                                              <td className={`border border-[#cbd5e1] p-1.5 ${d?.b ? styleB : ''}`}>{d?.b || ""}</td>
-                                              <td className={`border border-[#cbd5e1] p-1.5 ${d?.bb ? styleBB : ''}`}>{d?.bb || ""}</td>
-                                              <td className={`border border-[#cbd5e1] p-1.5 ${d?.p ? styleP : ''}`}>{d?.p || ""}</td>
+                                              <td className={`border border-[#cbd5e1] p-1.5 ${d.b ? styleB : 'text-[#000000]'}`}>{d.b || "-"}</td>
+                                              <td className={`border border-[#cbd5e1] p-1.5 ${d.bb ? styleBB : 'text-[#000000]'}`}>{d.bb || "-"}</td>
+                                              <td className={`border border-[#cbd5e1] p-1.5 ${d.p ? styleP : 'text-[#000000]'}`}>{d.p || "-"}</td>
                                           </React.Fragment>
                                       );
                                   })}
                                   
-                                  <td className="border border-[#cbd5e1] p-1.5 font-black text-[#1f2937]">{route.avg.b || ""}</td>
-                                  <td className="border border-[#cbd5e1] p-1.5 font-black text-[#1f2937]">{route.avg.bb || ""}</td>
-                                  <td className="border border-[#cbd5e1] p-1.5 font-black text-[#1f2937]">{route.avg.p || ""}</td>
+                                  <td className="border border-[#cbd5e1] p-1.5 font-black text-[#1f2937]">{route.avg.b || "-"}</td>
+                                  <td className="border border-[#cbd5e1] p-1.5 font-black text-[#1f2937]">{route.avg.bb || "-"}</td>
+                                  <td className="border border-[#cbd5e1] p-1.5 font-black text-[#1f2937]">{route.avg.p || "-"}</td>
                                   
                                   <td className="border border-[#cbd5e1] border-l-0 p-1.5 font-black text-[#dc2626] text-[15px] bg-[#ffffff]">
                                       {route.rank !== "-" ? route.rank : ""}
@@ -639,16 +702,16 @@ export default function WeeklyLoftLeafSummary() {
                           ))}
 
                           <tr>
-                              <td className="border border-[#cbd5e1] p-2 text-left font-bold bg-[#CDFAD8]">
+                              <td className="border border-[#cbd5e1] p-2 text-left font-bold bg-[#f0fdf4]">
                                   {t.grandAvgLabel}
                               </td>
                               {Array.from({ length: 21 }).map((_, i) => (
-                                  <td key={`pdf-empty-avg-${i}`} className="border border-[#cbd5e1] p-1.5 bg-[#CDFAD8]"></td>
+                                  <td key={`pdf-empty-avg-${i}`} className="border border-[#cbd5e1] p-1.5 bg-[#f0fdf4]"></td>
                               ))}
-                              <td className="border border-[#cbd5e1] p-1.5 font-black bg-[#CDFAD8]">{grandAverages.b}</td>
-                              <td className="border border-[#cbd5e1] p-1.5 font-black bg-[#CDFAD8]">{grandAverages.bb}</td>
-                              <td className="border border-[#cbd5e1] p-1.5 font-black bg-[#CDFAD8]">{grandAverages.p}</td>
-                              <td className="border border-[#cbd5e1] border-l-0 p-1.5 bg-[#CDFAD8]"></td>
+                              <td className="border border-[#cbd5e1] p-1.5 font-black bg-[#f0fdf4]">{grandAverages.b}</td>
+                              <td className="border border-[#cbd5e1] p-1.5 font-black bg-[#f0fdf4]">{grandAverages.bb}</td>
+                              <td className="border border-[#cbd5e1] p-1.5 font-black bg-[#f0fdf4]">{grandAverages.p}</td>
+                              <td className="border border-[#cbd5e1] border-l-0 p-1.5 bg-[#f0fdf4]"></td>
                           </tr>
 
                           {/* EXTRA ROWS */}

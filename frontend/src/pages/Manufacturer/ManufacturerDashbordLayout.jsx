@@ -86,16 +86,16 @@ const DATA = {
       items: [
         { title: 'Enter L/L Count', url: '/manufacturer/factory-loft-leaf', nonViewer: true },
         { title: 'View L/L Count', url: '/manufacturer/view-factory-loft-leaf'},
-        { title: 'Simple Average', url: '/manufacturer/simple-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
-        { title: 'Weight Average', url: '/manufacturer/weight-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
-        { title: 'Weekly L/L Summary', url: '/manufacturer/weekly-loft-leaf-summary'},
+        
       ],
     },
     {
-      title: 'Summary Report',
-      icon: Store,
+      title: ' L/L Summary Report',
+      icon: LineChart,
       items: [
         { title: 'Weekly L/L Summary', url: '/manufacturer/weekly-loft-leaf-summary'},
+        { title: 'Simple Average', url: '/manufacturer/simple-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
+        { title: 'Weight Average', url: '/manufacturer/weight-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
       ],
     },
   ],
