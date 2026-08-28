@@ -12,6 +12,8 @@ import DhoolRollingSection from "./Manufacturer/BL Operation/DhoolRollingSection
 import DhoolRollingSummary from "./Manufacturer/BL Operation/DhoolRollingSummary";
 import WeeklyLoftLeafSummary from "./Manufacturer/SummaryReport/WeeklyLoftLeafSummary";
 import CollectorQualityDiffReport from "./Manufacturer/SummaryReport/CollectorQualityDiffReport";
+import FiringSectionForm from "./Manufacturer/BL Operation/FiringSectionForm";
+import FiringSectionSummary from "./Manufacturer/BL Operation/FiringSectionSummary";
 
 
 export default function ManufacturerRouter() {
@@ -22,6 +24,8 @@ export default function ManufacturerRouter() {
       <Route path="bl-production/witherLeafSummary" element={<WitherLeafSummary />} />
       <Route path="bl-production/dhoolRollingSection" element={<DhoolRollingSection />} />
       <Route path="bl-production/dhoolRollingSummary" element={<DhoolRollingSummary />} />
+      <Route path="bl-production/firingSection" element={<FiringSectionForm />} />
+      <Route path="bl-production/firingSectionSummary" element={<FiringSectionSummary />} />
 
       <Route path="factory-loft-leaf" element={<FactoryLoftLeaf />} />
       <Route path="view-factory-loft-leaf" element={<ViewLoftLeafCount />} />
