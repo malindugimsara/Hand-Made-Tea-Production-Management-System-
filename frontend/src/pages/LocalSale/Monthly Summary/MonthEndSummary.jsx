@@ -289,6 +289,7 @@ export default function MonthEndSummary() {
     };
 
     // --- EXPORT EXCEL LOGIC ---
+    // --- EXPORT EXCEL LOGIC ---
     const exportToExcel = async () => {
         try {
             const workbook = new ExcelJS.Workbook();
@@ -296,6 +297,7 @@ export default function MonthEndSummary() {
 
             let totalCols = 1 + flatColumns.length;
 
+            // 1. Title & Headers
             const titleRow = worksheet.addRow([`MONTH END SUMMARY - ${getMonthName()}`]);
             worksheet.mergeCells(1, 1, 1, totalCols);
             titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEAF5EC' } };
@@ -333,6 +335,7 @@ export default function MonthEndSummary() {
             });
             worksheet.mergeCells('A2:A4'); 
 
+            // Style Headers
             [catRow, sizeRow, outInRow].forEach(row => {
                 row.eachCell((cell, cIdx) => {
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEBF5ED' } };
@@ -346,14 +349,25 @@ export default function MonthEndSummary() {
                 });
             });
 
+            // 2. Data Rows
+            const startDataRow = 5;
+            let currentRow = startDataRow;
+
             filteredDates.forEach(date => {
-                const rowData = [date];
-                flatColumns.forEach(col => {
+                const dataRow = worksheet.addRow([date]);
+                
+                flatColumns.forEach((col, idx) => {
                     const val = dailyDataMap[date]?.[`${col.catId}_${col.size}`]?.[col.type];
-                    rowData.push(val && val > 0 ? Number(val) : '-');
+                    const cell = dataRow.getCell(idx + 2);
+                    
+                    // 💡 අගයන් අංක (Numbers) ලෙසම ලබා දීම (Formulas නිසිලෙස ක්‍රියා කිරීමට මෙය අත්‍යවශ්‍යයි)
+                    if (val && Number(val) > 0) {
+                        cell.value = Number(val);
+                    } else {
+                        cell.value = ''; // හිස් අගයන් හිස්ව තැබීම (Excel SUM සඳහා)
+                    }
                 });
                 
-                const dataRow = worksheet.addRow(rowData);
                 dataRow.eachCell((cell, cIdx) => {
                     cell.alignment = { horizontal: 'center', vertical: 'middle' };
                     cell.border = { top: { style: 'thin', color: { argb: 'FFDCEBDC' } }, bottom: { style: 'thin', color: { argb: 'FFDCEBDC' } }, left: { style: 'thin', color: { argb: 'FFDCEBDC' } }, right: { style: 'thin', color: { argb: 'FFDCEBDC' } } };
@@ -361,52 +375,94 @@ export default function MonthEndSummary() {
                     else if (cIdx % 2 === 0) cell.font = { color: { argb: 'FFEF4444' } }; 
                     else cell.font = { color: { argb: 'FF22C55E' } }; 
                 });
+                currentRow++;
             });
 
             // ADD EMPTY SPACER ROW TO EXCEL
             worksheet.addRow([]);
+            currentRow++;
 
-            const addFooterRow = (title, type, isNetSale = false, isTransIn = false) => {
-                const rowData = [title];
-                flatColumns.forEach(col => {
-                    const key = `${col.catId}_${col.size}`;
-                    const isOut = col.type === 'out';
+            // 3. 💡 FOOTER SUMMARY ROWS (WITH EXCEL FORMULAS)
+            const endDataRow = startDataRow + filteredDates.length - 1;
 
-                    if (isNetSale) {
-                        if(isOut) {
-                            const net = (currentTotals.out[key] || 0) - (currentTotals.free[key] || 0) - (currentTotals.labour[key] || 0) - (currentTotals.staff[key] || 0);
-                            rowData.push(net && net > 0 ? Number(net) : '-'); 
-                        } else rowData.push('-'); 
-                    } else if (isTransIn) {
-                        if(isOut) rowData.push('-'); 
-                        else {
-                            const inVal = currentTotals.in[key];
-                            rowData.push(inVal && inVal > 0 ? Number(inVal) : '-'); 
-                        }
-                    } else {
-                        if(isOut) {
-                            const outVal = currentTotals[type][key];
-                            rowData.push(outVal && outVal > 0 ? Number(outVal) : '-'); 
-                        } else rowData.push('-'); 
-                    }
-                });
-                const ftRow = worksheet.addRow(rowData);
-                ftRow.eachCell((cell, cIdx) => {
+            const fTotalRow = worksheet.addRow(['TOTAL ISSUED']);
+            const fFreeRow = worksheet.addRow(['FREE ISSUED']);
+            const fLabourRow = worksheet.addRow(['LABOUR ISS.']);
+            const fStaffRow = worksheet.addRow(['STAFF ISS.']);
+            const fNetRow = worksheet.addRow(['NET SALE']);
+            const fTransInRow = worksheet.addRow(['TRANSFER IN']);
+
+            const trIdx = currentRow;     // TOTAL ISSUED Row Index
+            const frIdx = trIdx + 1;      // FREE Row Index
+            const lrIdx = trIdx + 2;      // LABOUR Row Index
+            const srIdx = trIdx + 3;      // STAFF Row Index
+
+            const footerRows = [fTotalRow, fFreeRow, fLabourRow, fStaffRow, fNetRow, fTransInRow];
+
+            // Column Letter Converter (e.g. 1 -> B, 2 -> C)
+            const numToCol = (n) => {
+                let s = "";
+                while(n >= 0) {
+                    s = String.fromCharCode((n % 26) + 65) + s;
+                    n = Math.floor(n / 26) - 1;
+                }
+                return s;
+            };
+
+            flatColumns.forEach((col, idx) => {
+                const colIdx = idx + 2;
+                const colLetter = numToCol(colIdx - 1);
+                const key = `${col.catId}_${col.size}`;
+                const isOut = col.type === 'out';
+
+                const cTotal = fTotalRow.getCell(colIdx);
+                const cFree = fFreeRow.getCell(colIdx);
+                const cLabour = fLabourRow.getCell(colIdx);
+                const cStaff = fStaffRow.getCell(colIdx);
+                const cNet = fNetRow.getCell(colIdx);
+                const cTransIn = fTransInRow.getCell(colIdx);
+
+                if (isOut) {
+                    // TOTAL ISSUED Formula -> SUM(B5:B10)
+                    cTotal.value = filteredDates.length > 0 ? { formula: `SUM(${colLetter}${startDataRow}:${colLetter}${endDataRow})` } : '';
+                    
+                    // Static existing values
+                    cFree.value = currentTotals.free[key] > 0 ? Number(currentTotals.free[key]) : '';
+                    cLabour.value = currentTotals.labour[key] > 0 ? Number(currentTotals.labour[key]) : '';
+                    cStaff.value = currentTotals.staff[key] > 0 ? Number(currentTotals.staff[key]) : '';
+                    
+                    // NET SALE Formula -> B16 - SUM(B17:B19) [Total - Sum of Free, Labour, Staff]
+                    cNet.value = { formula: `${colLetter}${trIdx}-SUM(${colLetter}${frIdx}:${colLetter}${srIdx})` };
+                    cTransIn.value = '-';
+                } else {
+                    // IN columns
+                    cTotal.value = '-';
+                    cFree.value = '-';
+                    cLabour.value = '-';
+                    cStaff.value = '-';
+                    cNet.value = '-';
+                    // TRANSFER IN Formula -> SUM(C5:C10)
+                    cTransIn.value = filteredDates.length > 0 ? { formula: `SUM(${colLetter}${startDataRow}:${colLetter}${endDataRow})` } : '';
+                }
+            });
+
+            // Style the footer rows
+            footerRows.forEach(row => {
+                row.eachCell((cell, cIdx) => {
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4F5F5' } };
                     cell.alignment = { horizontal: 'center', vertical: 'middle' };
                     cell.border = { top: { style: 'thin', color: { argb: 'FFDCEBDC' } }, bottom: { style: 'thin', color: { argb: 'FFDCEBDC' } }, right: { style: 'thin', color: { argb: 'FFDCEBDC' } }, left: { style: 'thin', color: { argb: 'FFDCEBDC' } } };
+                    
                     if(cIdx === 1) cell.font = { bold: true, color: { argb: 'FF111827' } };
                     else if (cIdx % 2 === 0) cell.font = { bold: true, color: { argb: 'FFDC2626' } }; 
                     else cell.font = { bold: true, color: { argb: 'FF16A34A' } }; 
+                    
+                    // Dash ('-') අගයන් ලා අළු පැහැයෙන් පෙන්වීමට
+                    if (cell.value === '-') {
+                        cell.font = { bold: true, color: { argb: 'FF9CA3AF' } }; 
+                    }
                 });
-            };
-
-            addFooterRow("TOTAL ISSUED", "out"); 
-            addFooterRow("FREE ISSUED", "free"); 
-            addFooterRow("LABOUR ISS.", "labour");
-            addFooterRow("STAFF ISS.", "staff");
-            addFooterRow("NET SALE", "netSale", true, false); 
-            addFooterRow("TRANSFER IN", "transferIn", false, true); 
+            });
 
             worksheet.getColumn(1).width = 15;
             for (let i = 2; i <= totalCols; i++) worksheet.getColumn(i).width = 8;

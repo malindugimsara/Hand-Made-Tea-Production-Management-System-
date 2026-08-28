@@ -7,6 +7,9 @@ const loftLeafSchema = new mongoose.Schema({
     officerName: { type: String },
     totalLeafQtyKg: { type: Number, default: 0 },
 
+    factorySupervisorName: { type: String, default: null },
+    leafCollectorName: { type: String, default: null },
+
     // Factory Sample Data
     factorySample: {
         isEntered: { type: Boolean, default: false },

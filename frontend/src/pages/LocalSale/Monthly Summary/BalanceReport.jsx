@@ -242,29 +242,72 @@ export default function BalanceReport() {
                 cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
             });
 
-            reportData.forEach(row => {
-                const dataRow = worksheet.addRow([row.name, row.bmStock, row.inQty, row.total, row.outQty, row.balance]);
+            reportData.forEach((row, index) => {
+                const rowIndex = index + 3; // Row 1: Title, Row 2: Headers, Data starts at Row 3
+                
+                // String අගයන් Number බවට පත් කිරීම (Formula සඳහා අත්‍යවශ්‍යයි)
+                const bmVal = Number(row.bmStock) || 0;
+                const inVal = Number(row.inQty) || 0;
+                const outVal = Number(row.outQty) || 0;
+
+                // 💡 Static අගයන් වෙනුවට Excel Formulas යොදා ඇත
+                const dataRow = worksheet.addRow([
+                    row.name, 
+                    bmVal, 
+                    inVal, 
+                    { formula: `B${rowIndex}+C${rowIndex}` }, // Total = B/M + IN
+                    outVal, 
+                    { formula: `D${rowIndex}-E${rowIndex}` }  // Balance = Total - Out
+                ]);
+
                 dataRow.eachCell((cell, colNumber) => {
                     cell.border = { top: { style: 'thin', color: { argb: 'FFCCCCCC' } }, bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } }, left: { style: 'thin', color: { argb: 'FFCCCCCC' } }, right: { style: 'thin', color: { argb: 'FFCCCCCC' } } };
                     cell.alignment = { horizontal: colNumber === 1 ? 'left' : 'right', vertical: 'middle' };
-                    if (colNumber === 6) {
-                        cell.font = { bold: true, color: { argb: row.rawBalance < 0 ? 'FFDC2626' : 'FF2563EB' } };
+                    
+                    // ඉලක්කම් දශමස්ථාන දෙකකින් පෙන්වීමට
+                    if (colNumber > 1) {
+                        cell.numFmt = '#,##0.00';
+                    }
+
+                    // Total සහ Balance තීරු Bold කිරීම
+                    if (colNumber === 4 || colNumber === 6) {
+                        cell.font = { bold: true };
                     }
                 });
+            });
+
+            // 💡 Excel Conditional Formatting (Balance එක < 0 නම් රතු, නැතිනම් නිල්)
+            worksheet.addConditionalFormatting({
+                ref: `F3:F${reportData.length + 2}`,
+                rules: [
+                    {
+                        type: 'cellIs',
+                        operator: 'lessThan',
+                        formulae: ['0'],
+                        style: { font: { color: { argb: 'FFDC2626' }, bold: true } } // Red color
+                    },
+                    {
+                        type: 'cellIs',
+                        operator: 'greaterThanOrEqual',
+                        formulae: ['0'],
+                        style: { font: { color: { argb: 'FF2563EB' }, bold: true } } // Blue color
+                    }
+                ]
             });
 
             worksheet.getColumn(1).width = 35; 
             worksheet.getColumn(2).width = 12; 
             worksheet.getColumn(3).width = 10; 
-            worksheet.getColumn(4).width = 10; 
+            worksheet.getColumn(4).width = 12; 
             worksheet.getColumn(5).width = 10; 
-            worksheet.getColumn(6).width = 12; 
+            worksheet.getColumn(6).width = 15; 
 
             const buffer = await workbook.xlsx.writeBuffer();
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             saveAs(blob, `Balance_Report_${month}.xlsx`);
             toast.success("Excel downloaded successfully!");
         } catch (error) {
+            console.error(error);
             toast.error("Failed to download Excel file.");
         }
     };
