@@ -79,14 +79,19 @@ export default function WeightAverage() {
     const day = parseInt(r.date.split("-")[2], 10); // Extract day from "YYYY-MM-DD"
 
     if (matrixData[recordRouteKey] && matrixData[recordRouteKey][day]) {
-      const dailyTotalKg = Number(r.totalLeafQtyKg) || 0;
+      
+      // 💡 DB එකේ මුළු බරින් 3% ක් අඩු කිරීම (Net Weight)
+      const originalTotalKg = Number(r.totalLeafQtyKg) || 0;
+      const netDailyTotalKg = originalTotalKg * 0.97; // උදා: 100kg * 0.97 = 97kg
 
-      // 💡 අලුත් Schema එකෙන් කෙලින්ම ගණනය කරපු Kg ටික ගන්නවා
-      const bestProd = Number(r.calculatedKg?.bestKg) || 0;
-      const belowBestProd = Number(r.calculatedKg?.belowBestKg) || 0;
-      const poorProd = Number(r.calculatedKg?.poorKg) || 0;
+      // 💡 Total Kg එක 3% කින් අඩු කළ විට, ඊට අදාළව ගණනය වූ Best, B/B, Poor Kg අගයන්ද 
+      // එම සමානුපාතයෙන්ම (0.97 න් ගුණ කර) අඩු කළ යුතුය. එසේ නොකළහොත් අවසන් ප්‍රතිශත ගණනය වැරදි වේ.
+      const bestProd = (Number(r.calculatedKg?.bestKg) || 0) * 0.97;
+      const belowBestProd = (Number(r.calculatedKg?.belowBestKg) || 0) * 0.97;
+      const poorProd = (Number(r.calculatedKg?.poorKg) || 0) * 0.97;
 
-      matrixData[recordRouteKey][day].totalLeafQty += dailyTotalKg;
+      // නව අගයන් Matrix එකට එකතු කිරීම
+      matrixData[recordRouteKey][day].totalLeafQty += netDailyTotalKg;
       matrixData[recordRouteKey][day].bestProd += bestProd;
       matrixData[recordRouteKey][day].belowBestProd += belowBestProd;
       matrixData[recordRouteKey][day].poorProd += poorProd;
