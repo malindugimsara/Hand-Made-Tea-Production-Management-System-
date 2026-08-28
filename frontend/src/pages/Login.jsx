@@ -413,7 +413,7 @@ export default function Login() {
               className="flex items-center justify-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border font-bold text-[11px] sm:text-sm backdrop-blur-md cursor-default select-none transition-colors duration-300"
               style={{ borderColor: THEMES.manufacturer.badgeBorder, backgroundColor: THEMES.manufacturer.badgeBg, color: THEMES.manufacturer.badgeText }}
             >
-              <ClipboardList size={14} className="opacity-80" /> Manufacturer Section
+              <ClipboardList size={14} className="opacity-80" /> Manufacturing Section
             </motion.div>
           </div>
         </div>

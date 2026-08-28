@@ -1,7 +1,24 @@
 import React, { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
-import { Leaf, PlusCircle, Trash2, Tag, User, Factory, Users, Edit2, Save, Weight, Calendar, Clock, Languages } from "lucide-react";import { motion, AnimatePresence } from "framer-motion";
+import { Leaf, PlusCircle, Trash2, Tag, Factory, Users, Edit2, Save, Weight, Calendar, Clock, Languages, UserCheck, User } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+
+// 💡 Leaf Collector Name Mapping
+const collectorNameMapping = {
+  "C1": "H. H. Kaluarachchi",
+  "C2": "M. Darmakeerthi",
+  "C3": "K. W. W. P. Kumara",
+  "C4": "W. P. Madushanka",
+  "C5": "J. D. I. Chandrakumara",
+  "C7": "T. M. Jayasinghe",
+  "C8": "K. C. Sampath"
+};
+
+const routeOptions = [
+  "C1 - MATHTHAKA", "C2 - WALALLAWITA", "C3 - PELAWATHTHA", "C4 - POLGAMPALA",
+  "C5 - MANAMPITA", "C7 - GANEGODA", "C8 - THUNDOLA", "FA - FACTORY", "E - ESTATE TEA",
+];
 
 export default function LoftLeafCount() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -15,6 +32,8 @@ export default function LoftLeafCount() {
       return `${year}-${month}-${day}`;
   };
   
+  const currentUsername = localStorage.getItem("username") || "";
+
   const [selectedDate, setSelectedDate] = useState(getLocalTodayDate());
   
   // Pending records and Edit State
@@ -29,9 +48,16 @@ export default function LoftLeafCount() {
   const factoryRouteDropdownRef = useRef(null);
   const collectorRouteDropdownRef = useRef(null);
 
+  // 💡 Factory Supervisor Name (Global for the day)
+  const [supervisorName, setSupervisorName] = useState(currentUsername);
+  
+  // 💡 State to track the last auto-filled route to avoid overwriting manual edits
+  const [lastAutoFilledRoute, setLastAutoFilledRoute] = useState("");
+
   const [factoryForm, setFactoryForm] = useState({
     route: "",
-    arrivalTime: "", // 💡 අලුතින් එකතු කළ Arrival Time State එක
+    arrivalTime: "",
+    arrivalAmPm: "PM",
     totalLeafQty: "", 
     bestQty: "",
     belowBestQty: "",
@@ -39,14 +65,23 @@ export default function LoftLeafCount() {
 
   const [collectorForm, setCollectorForm] = useState({
     route: "",
+    collectorName: "", 
     bestQty: "",
     belowBestQty: "",
   });
 
-  const routeOptions = [
-    "C1 - MATHTHAKA", "C2 - WALALLAWITA", "C3 - PELAWATHTHA", "C4 - POLGAMPALA",
-    "C5 - MANAMPITA", "C7 - GANEGODA", "C8 - THUNDOLA", "FA - FACTORY", "E - ESTATE TEA",
-  ];
+  // 💡 --- AUTO-FILL COLLECTOR NAME LOGIC ---
+  useEffect(() => {
+      const routeCode = collectorForm.route.split('-')[0].trim().toUpperCase();
+      if (collectorNameMapping[routeCode]) {
+          if (lastAutoFilledRoute !== routeCode) {
+              setCollectorForm((prev) => ({ ...prev, collectorName: collectorNameMapping[routeCode] }));
+              setLastAutoFilledRoute(routeCode);
+          }
+      } else if (collectorForm.route === "") {
+          setLastAutoFilledRoute(""); 
+      }
+  }, [collectorForm.route, lastAutoFilledRoute]);
 
   // 💡 --- LANGUAGE TOGGLE & TRANSLATIONS ---
   const [lang, setLang] = useState("EN");
@@ -56,6 +91,8 @@ export default function LoftLeafCount() {
     subtitle: lang === 'SI' ? "කර්මාන්තශාලා සහ එකතු කරන්නන්ගේ නියැදි සඳහා දෛනික දළු ප්‍රමාණ ඇතුළත් කරන්න." : "Enter daily leaf quantities for Factory and Collector samples.",
     facSampleEntry: lang === 'SI' ? "කර්මාන්තශාලා නියැදිය ඇතුළත් කිරීම" : "Factory Sample Entry",
     colSampleEntry: lang === 'SI' ? "එකතු කරන්නාගේ නියැදිය ඇතුළත් කිරීම" : "Leaf Collector's Sample Entry",
+    supervisorName: lang === 'SI' ? "කර්මාන්තශාලා අධීක්ෂකගේ නම" : "Factory Supervisor Name",
+    collectorName: lang === 'SI' ? "දළු එකතු කරන්නාගේ නම (විකල්ප)" : "Leaf Collector Name (Optional)",
     route: lang === 'SI' ? "සැපයුම් මාර්ගය" : "Route",
     arrTime: lang === 'SI' ? "පැමිණි වේලාව" : "Arrival Time",
     totalKg: lang === 'SI' ? "මුළු අමු දළු ප්‍රමාණය (Kg)" : "Total Leaf Qty (Kg)",
@@ -67,7 +104,9 @@ export default function LoftLeafCount() {
     autoCalcNote: lang === 'SI' ? "* ගුණාත්මයෙන් පහළ ප්‍රතිශතය ස්වයංක්‍රීයව ගණනය වේ." : "* Poor leaf percentage will be auto-calculated.",
   };
 
-  // 💡 --- DROPDOWN ARROW KEY NAVIGATION & ENTER KEY TO NEXT INPUT ---
+  const filteredFactoryRoutes = routeOptions.filter(r => r.toLowerCase().includes(factoryForm.route.toLowerCase()));
+  const filteredCollectorRoutes = routeOptions.filter(r => r.toLowerCase().includes(collectorForm.route.toLowerCase()));
+
   const [focusedFacRouteIdx, setFocusedFacRouteIdx] = useState(-1);
   const [focusedColRouteIdx, setFocusedColRouteIdx] = useState(-1);
 
@@ -87,14 +126,14 @@ export default function LoftLeafCount() {
       if (e.key === 'ArrowDown') {
           e.preventDefault();
           setIsFactoryRouteDropdownOpen(true);
-          setFocusedFacRouteIdx((prev) => Math.min(prev + 1, routeOptions.length - 1));
+          setFocusedFacRouteIdx((prev) => Math.min(prev + 1, filteredFactoryRoutes.length - 1));
       } else if (e.key === 'ArrowUp') {
           e.preventDefault();
           setFocusedFacRouteIdx((prev) => Math.max(prev - 1, 0));
       } else if (e.key === 'Enter') {
           e.preventDefault();
-          if (isFactoryRouteDropdownOpen && focusedFacRouteIdx >= 0) {
-              setFactoryForm((p) => ({ ...p, route: routeOptions[focusedFacRouteIdx] }));
+          if (isFactoryRouteDropdownOpen && focusedFacRouteIdx >= 0 && filteredFactoryRoutes[focusedFacRouteIdx]) {
+              setFactoryForm((p) => ({ ...p, route: filteredFactoryRoutes[focusedFacRouteIdx] }));
           }
           setIsFactoryRouteDropdownOpen(false);
           focusNext('fac-arrivalTime');
@@ -107,23 +146,23 @@ export default function LoftLeafCount() {
       if (e.key === 'ArrowDown') {
           e.preventDefault();
           setIsCollectorRouteDropdownOpen(true);
-          setFocusedColRouteIdx((prev) => Math.min(prev + 1, routeOptions.length - 1));
+          setFocusedColRouteIdx((prev) => Math.min(prev + 1, filteredCollectorRoutes.length - 1));
       } else if (e.key === 'ArrowUp') {
           e.preventDefault();
           setFocusedColRouteIdx((prev) => Math.max(prev - 1, 0));
       } else if (e.key === 'Enter') {
           e.preventDefault();
-          if (isCollectorRouteDropdownOpen && focusedColRouteIdx >= 0) {
-              setCollectorForm((p) => ({ ...p, route: routeOptions[focusedColRouteIdx] }));
+          if (isCollectorRouteDropdownOpen && focusedColRouteIdx >= 0 && filteredCollectorRoutes[focusedColRouteIdx]) {
+              const selectedRoute = filteredCollectorRoutes[focusedColRouteIdx];
+              setCollectorForm((p) => ({ ...p, route: selectedRoute }));
           }
           setIsCollectorRouteDropdownOpen(false);
-          focusNext('col-bestQty');
+          focusNext('col-name');
       } else if (e.key === 'Escape') {
           setIsCollectorRouteDropdownOpen(false);
       }
   };
 
-  // Dropdown Scroll into view
   useEffect(() => {
       if (isFactoryRouteDropdownOpen && focusedFacRouteIdx >= 0) {
           document.getElementById(`fac-route-opt-${focusedFacRouteIdx}`)?.scrollIntoView({ block: 'nearest' });
@@ -166,10 +205,53 @@ export default function LoftLeafCount() {
   const factoryStats = calculateStats(factoryForm.bestQty, factoryForm.belowBestQty);
   const collectorStats = calculateStats(collectorForm.bestQty, collectorForm.belowBestQty);
 
+  // 💡 --- TIME FORMATTER & VALIDATOR (12-Hour) ---
+  const formatTime12Hour = (value) => {
+      let raw = value.replace(/\D/g, ''); // අංක පමණක් වෙන් කර ගැනීම
+      raw = raw.substring(0, 4); // උපරිම ඉලක්කම් 4කට සීමා කිරීම
+
+      if (raw.length === 0) return '';
+
+      let hours = raw.substring(0, 2);
+      let minutes = raw.substring(2, 4);
+
+      // පැය (Hours) වල නිවැරදිතාවය පරීක්ෂා කිරීම (01-12)
+      if (hours.length === 2) {
+          let h = parseInt(hours, 10);
+          if (h > 12) hours = '12'; // 12ට වඩා ටයිප් කළොත් 12 බවට පත් වේ
+          if (h === 0) hours = '12'; // 00 ලෙස ටයිප් කළොත් 12 බවට පත් වේ
+      } else if (hours.length === 1 && parseInt(hours, 10) > 1) {
+          hours = `0${hours}`; // 2-9 අතර ඉලක්කමක් මුලින් ගැහුවොත් ඉබේම '0' එකක් මුලට වැටේ
+      }
+
+      // මිනිත්තු (Minutes) වල නිවැරදිතාවය පරීක්ෂා කිරීම (00-59)
+      if (minutes.length === 2) {
+          let m = parseInt(minutes, 10);
+          if (m > 59) minutes = '59'; // 59ට වඩා ටයිප් කළොත් 59 බවට පත් වේ
+      }
+
+      // Output එකට ':' එක් කිරීම
+      if (raw.length >= 3) {
+          return `${hours}:${minutes}`;
+      } else {
+          return hours;
+      }
+  };
+
   const handleInputChange = (e, formType) => {
     const { name, value } = e.target;
     const setForm = formType === 'factory' ? setFactoryForm : setCollectorForm;
     
+    if (name === 'route') {
+        if (formType === 'factory') {
+            setFocusedFacRouteIdx(-1);
+            setIsFactoryRouteDropdownOpen(true);
+        } else {
+            setFocusedColRouteIdx(-1);
+            setIsCollectorRouteDropdownOpen(true);
+        }
+    }
+
     setForm(prev => {
         const newValue = { ...prev, [name]: value };
         if (name === "bestQty" || name === "belowBestQty") {
@@ -194,18 +276,22 @@ export default function LoftLeafCount() {
       toast.error("Please fill Route and quantities!");
       return;
     }
-    // 💡 Validation: Time එකත් අනිවාර්ය කර ඇත
-    if (isFactory && (!currentForm.totalLeafQty)) {
+    if (isFactory && !currentForm.totalLeafQty) {
       toast.error("Please fill Total Leaf Quantity for Factory sample!");
       return;
     }
+
+    const finalArrivalTime = isFactory && currentForm.arrivalTime 
+        ? `${currentForm.arrivalTime} ${currentForm.arrivalAmPm}` 
+        : "";
 
     const newRecord = {
       id: Date.now().toString() + Math.random().toString(), 
       date: selectedDate,
       sampleType: isFactory ? "Factory" : "LeafCollector",
-      route: currentForm.route.split(' - ')[0], 
-      arrivalTime: isFactory ? currentForm.arrivalTime : "", // 💡
+      route: currentForm.route,
+      arrivalTime: finalArrivalTime, 
+      leafCollectorName: !isFactory ? currentForm.collectorName : "", 
       totalLeafQty: isFactory ? Number(currentForm.totalLeafQty) : null,
       bestQty: stats.b,
       belowBestQty: stats.bb,
@@ -216,10 +302,12 @@ export default function LoftLeafCount() {
     setPendingRecords([...pendingRecords, newRecord]);
     
     if (isFactory) {
-      // 💡 Reset කිරීමේදී Time එකත් හිස් කරයි
-      setFactoryForm({ route: "", arrivalTime: "", totalLeafQty: "", bestQty: "", belowBestQty: "" });
+      setFactoryForm({ route: "", arrivalTime: "", arrivalAmPm: "PM", totalLeafQty: "", bestQty: "", belowBestQty: "" });
+      setTimeout(() => focusNext('fac-route'), 50);
     } else {
-      setCollectorForm({ route: "", bestQty: "", belowBestQty: "" });
+      setCollectorForm({ route: "", collectorName: "", bestQty: "", belowBestQty: "" }); 
+      setLastAutoFilledRoute(""); // Reset tracking logic
+      setTimeout(() => focusNext('col-route'), 50);
     }
     toast.success(`Added ${isFactory ? 'Factory' : 'Collector'} Sample to list!`);
   };
@@ -284,19 +372,24 @@ export default function LoftLeafCount() {
       
       const promises = pendingRecords.map((record) => {
         const isFactory = record.sampleType === 'Factory';
-        const endpoint = isFactory ? '/api/factory-loft-leaf/factory' : '/api/factory-loft-leaf/collector'; // 💡 Endpoint Fixed
+        const endpoint = isFactory ? '/api/factory-loft-leaf/factory' : '/api/factory-loft-leaf/collector'; 
         
-        // 💡 Payload එකට record එකේ arrivalTime එක අදාළ කරයි
         const payload = isFactory ? {
             date: record.date, 
             route: record.route, 
             arrivalTime: record.arrivalTime || new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }), 
             totalLeafQtyKg: record.totalLeafQty, 
+            factorySupervisorName: supervisorName, // Global supervisor name
             bestG: record.bestQty, 
             belowBestG: record.belowBestQty, 
             poorG: record.poorQty
         } : {
-            date: record.date, route: record.route, bestG: record.bestQty, belowBestG: record.belowBestQty, poorG: record.poorQty
+            date: record.date, 
+            route: record.route, 
+            leafCollectorName: record.leafCollectorName, // Specific collector name
+            bestG: record.bestQty, 
+            belowBestG: record.belowBestQty, 
+            poorG: record.poorQty
         };
 
         return fetch(`${BACKEND_URL}${endpoint}`, {
@@ -334,9 +427,9 @@ export default function LoftLeafCount() {
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-zinc-800 dark:text-gray-400">
                   <tr>
                     <th className="px-4 py-3">Route</th>
+                    {sampleType === 'LeafCollector' && <th className="px-4 py-3">Collector Name</th>}
                     {sampleType === 'Factory' && (
                         <>
-                            <th className="px-4 py-3">Officer</th>
                             <th className="px-4 py-3 text-center">Time</th>
                             <th className="px-4 py-3 text-center">Total (Kg)</th>
                         </>
@@ -354,9 +447,33 @@ export default function LoftLeafCount() {
                       return (
                       <tr key={item.id} className="bg-white border-b dark:bg-zinc-900 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800/50">
                         <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">{data.route.toUpperCase()}</td>
+                        
+                        {sampleType === 'LeafCollector' && (
+                            <td className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">
+                                {isEditing ? (
+                                    <input type="text" name="leafCollectorName" value={data.leafCollectorName || ''} onChange={handleEditChange} className="w-full p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded outline-none focus:ring-1 focus:ring-lime-500" />
+                                ) : (
+                                    <span>{data.leafCollectorName || '-'}</span>
+                                )}
+                            </td>
+                        )}
+
                         {sampleType === 'Factory' && (
                             <>
-                                <td className="px-4 py-3 text-center font-mono text-xs">{data.arrivalTime || '-'}</td>
+                                <td className="px-4 py-3 text-center">
+                                    {isEditing ? (
+                                        <input 
+                                            type="text" 
+                                            name="arrivalTime" 
+                                            value={data.arrivalTime || ''} 
+                                            onChange={handleEditChange} 
+                                            placeholder="08:30 PM"
+                                            className="w-20 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-1 focus:ring-lime-500 font-mono text-xs" 
+                                        />
+                                    ) : (
+                                        <span className="font-mono text-xs">{data.arrivalTime || '-'}</span>
+                                    )}
+                                </td>                                
                                 <td className="px-4 py-3 text-center">
                                     {isEditing ? (
                                         <input type="number" name="totalLeafQty" value={data.totalLeafQty || ''} onChange={handleEditChange} className="w-20 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-1 focus:ring-lime-500" />
@@ -383,8 +500,8 @@ export default function LoftLeafCount() {
                                 </div>
                             ) : (
                                 <div className="flex items-center justify-center gap-3">
-                                    <button onClick={() => handleEditClick(item.id)} className="text-blue-500 hover:text-blue-700"><Edit2 size={16} /></button>
-                                    <button onClick={() => handleRemoveFromList(item.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
+                                    <button type="button" onClick={() => handleEditClick(item.id)} className="text-blue-500 hover:text-blue-700"><Edit2 size={16} /></button>
+                                    <button type="button" onClick={() => handleRemoveFromList(item.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
                                 </div>
                             )}
                         </td>
@@ -398,8 +515,7 @@ export default function LoftLeafCount() {
   };
 
   return (
-        <div className="p-4 sm:p-8 max-w-[1200px] mx-auto font-sans min-h-screen transition-colors duration-300 relative">
-      
+        <div className="p-4 sm:p-8 max-w-[1200px] mx-auto font-sans min-h-screen transition-colors duration-300 relative">     
       {/* 1. HEADING SECTION */}
       <div className="mb-6 flex justify-between items-center">
         <div>
@@ -445,16 +561,29 @@ export default function LoftLeafCount() {
                 <Factory size={20} /> {t.facSampleEntry}
             </h3>
 
+            {/* 💡 SUPERVISOR NAME (GLOBAL FOR FACTORY) */}
+            <div className="mb-6 bg-lime-50/50 dark:bg-lime-900/10 p-4 rounded-xl border border-lime-100 dark:border-lime-900/50 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <label className="text-sm font-bold text-lime-800 dark:text-lime-400 min-w-max flex items-center gap-2">
+                    <UserCheck size={16} /> {t.supervisorName}:
+                </label>
+                <input 
+                    type="text" 
+                    value={supervisorName} 
+                    onChange={(e) => setSupervisorName(e.target.value)} 
+                    className="w-full max-w-sm p-2 border border-gray-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-2 focus:ring-lime-500 bg-white dark:bg-zinc-950 font-bold text-gray-700 dark:text-gray-300"
+                />
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 
                 {/* Route */}
                 <div className="relative" ref={factoryRouteDropdownRef}>
                     <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Tag size={12} /> {t.route}</label>
-                    <input type="text" id="fac-route" placeholder="Select route..." name="route" value={factoryForm.route} onChange={(e) => { handleInputChange(e, 'factory'); setIsFactoryRouteDropdownOpen(true); }} onFocus={() => setIsFactoryRouteDropdownOpen(true)} onKeyDown={handleFacRouteKeyDown} required className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
+                    <input type="text" id="fac-route" placeholder="Select route..." name="route" value={factoryForm.route} onChange={(e) => { handleInputChange(e, 'factory'); setIsFactoryRouteDropdownOpen(true); }} onFocus={() => setIsFactoryRouteDropdownOpen(true)} onKeyDown={handleFacRouteKeyDown} required className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950 placeholder-gray-400/70 dark:placeholder-zinc-600" />
                     <AnimatePresence>
-                        {isFactoryRouteDropdownOpen && (
+                        {isFactoryRouteDropdownOpen && filteredFactoryRoutes.length > 0 && (
                         <motion.ul initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                            {routeOptions.map((r, idx) => (
+                            {filteredFactoryRoutes.map((r, idx) => (
                             <li key={r} id={`fac-route-opt-${idx}`} onClick={() => { setFactoryForm((p) => ({ ...p, route: r })); setIsFactoryRouteDropdownOpen(false); focusNext('fac-arrivalTime'); }} className={`px-4 py-2.5 cursor-pointer text-sm hover:bg-lime-50 dark:hover:bg-zinc-800 ${focusedFacRouteIdx === idx ? "bg-lime-100 dark:bg-zinc-800" : ""}`}>
                                 {r.toUpperCase()}
                             </li>
@@ -463,23 +592,47 @@ export default function LoftLeafCount() {
                         )}
                     </AnimatePresence>
                 </div>
-
+                
                 {/* Arrival Time */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Clock size={12} /> {t.arrTime}</label>
-                    <input type="time" id="fac-arrivalTime" name="arrivalTime" value={factoryForm.arrivalTime} onChange={(e) => handleInputChange(e, 'factory')} onKeyDown={(e) => handleEnterKey(e, 'fac-totalQty')} className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
+                    <div className="flex gap-2">
+                        <input 
+                            type="text" 
+                            id="fac-arrivalTime" 
+                            name="arrivalTime" 
+                            placeholder="08:30"
+                            maxLength="5"
+                            value={factoryForm.arrivalTime} 
+                            onChange={(e) => {
+                                const formattedTime = formatTime12Hour(e.target.value);
+                                setFactoryForm(prev => ({ ...prev, arrivalTime: formattedTime }));
+                            }} 
+                            onKeyDown={(e) => handleEnterKey(e, 'fac-totalQty')} 
+                            className="placeholder-gray-400/70 dark:placeholder-zinc-600 w-full p-2.5 text-center border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" 
+                        />
+                        <select
+                            name="arrivalAmPm"
+                            value={factoryForm.arrivalAmPm}
+                            onChange={(e) => handleInputChange(e, 'factory')}
+                            className="w-20 p-2.5 border border-gray-200 dark:border-zinc-700 rounded-lg font-bold focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950 text-center"
+                        >
+                            <option value="PM">PM</option>
+                            <option value="AM">AM</option>
+                        </select>
+                    </div>
                 </div>
 
                 {/* Total Leaf Qty */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Weight size={12} /> {t.totalKg}</label>
-                    <input type="number" id="fac-totalQty" name="totalLeafQty" placeholder="e.g. 250" value={factoryForm.totalLeafQty} onChange={(e) => handleInputChange(e, 'factory')} onKeyDown={(e) => handleEnterKey(e, 'fac-bestQty')} required min="0" step="any" className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
+                    <input type="number" id="fac-totalQty" name="totalLeafQty" placeholder="e.g. 250" value={factoryForm.totalLeafQty} onChange={(e) => handleInputChange(e, 'factory')} onKeyDown={(e) => handleEnterKey(e, 'fac-bestQty')} required min="0" step="any" className="w-full p-2.5 placeholder-gray-400/70 dark:placeholder-zinc-600 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <div className="p-4 bg-green-50/50 rounded-xl border border-green-100">
-                    <label className="block text-xs font-bold text-green-700 mb-2">{t.bestG}</label>
+                    <label className="block text-xs font-bold text-green-700 mb-2 uppercase">{t.bestG}</label>
                     <input type="number" id="fac-bestQty" name="bestQty" onWheel={(e) => e.target.blur()} value={factoryForm.bestQty} onChange={(e) => handleInputChange(e, 'factory')} onKeyDown={(e) => handleEnterKey(e, 'fac-belowBestQty')} required className="w-full p-2.5 mb-3 border border-green-200 rounded-lg focus:ring-2 focus:ring-[#8CC63F] outline-none" />
                     <div className="flex items-center gap-1 bg-green-100 px-3 py-2 rounded-lg font-bold text-green-800 justify-center shadow-inner">{factoryStats.bPct}%</div>
                 </div>
@@ -515,15 +668,48 @@ export default function LoftLeafCount() {
                 <Users size={20} /> {t.colSampleEntry}
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="relative" ref={collectorRouteDropdownRef}>
-                <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Tag size={12} /> {t.route}</label>
-                <input type="text" id="col-route" placeholder="Select route..." name="route" value={collectorForm.route} onChange={(e) => { handleInputChange(e, 'collector'); setIsCollectorRouteDropdownOpen(true); }} onFocus={() => setIsCollectorRouteDropdownOpen(true)} onKeyDown={handleColRouteKeyDown} required className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
+                <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1">
+                    <Tag size={12} /> {t.route}
+                </label>
+                <input
+                    type="text"
+                    id="col-route"
+                    placeholder="Select route..."
+                    name="route"
+                    value={collectorForm.route}
+                    onChange={(e) => handleInputChange(e, 'collector')}
+                    onFocus={() => setIsCollectorRouteDropdownOpen(true)}
+                    onKeyDown={handleColRouteKeyDown}
+                    required
+                    className="w-full placeholder-gray-400/70 dark:placeholder-zinc-600 p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950"
+                />
                 <AnimatePresence>
-                    {isCollectorRouteDropdownOpen && (
-                    <motion.ul initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                        {routeOptions.map((r, idx) => (
-                        <li key={r} id={`col-route-opt-${idx}`} onClick={() => { setCollectorForm((p) => ({ ...p, route: r })); setIsCollectorRouteDropdownOpen(false); focusNext('col-bestQty'); }} className={`px-4 py-2.5 cursor-pointer text-sm hover:bg-lime-50 dark:hover:bg-zinc-800 ${focusedColRouteIdx === idx ? "bg-lime-100 dark:bg-zinc-800" : ""}`}>
+                    {isCollectorRouteDropdownOpen && filteredCollectorRoutes.length > 0 && (
+                    <motion.ul
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl max-h-48 overflow-y-auto custom-scrollbar"
+                    >
+                        {filteredCollectorRoutes.map((r, idx) => (
+                        <li
+                            key={r}
+                            id={`col-route-opt-${idx}`}
+                            onClick={() => {
+                                const routeCode = r.split('-')[0].trim().toUpperCase();
+                                setCollectorForm((p) => ({ 
+                                    ...p, 
+                                    route: r,
+                                    collectorName: collectorNameMapping[routeCode] || "" 
+                                }));
+                                setLastAutoFilledRoute(routeCode);
+                                setIsCollectorRouteDropdownOpen(false);
+                                setTimeout(() => focusNext('col-name'), 50); 
+                            }}
+                            className={`px-4 py-2.5 cursor-pointer text-sm hover:bg-lime-50 dark:hover:bg-zinc-800 ${focusedColRouteIdx === idx ? "bg-lime-100 dark:bg-zinc-800" : ""}`}
+                        >
                             {r.toUpperCase()}
                         </li>
                         ))}
@@ -531,11 +717,28 @@ export default function LoftLeafCount() {
                     )}
                 </AnimatePresence>
                 </div>
+
+                {/* 💡 Leaf Collector Name Input */}
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1">
+                        <User size={12} /> {t.collectorName}
+                    </label>
+                    <input
+                        type="text"
+                        id="col-name"
+                        name="collectorName"
+                        placeholder="Enter collector name..."
+                        value={collectorForm.collectorName}
+                        onChange={(e) => handleInputChange(e, 'collector')}
+                        onKeyDown={(e) => handleEnterKey(e, 'col-bestQty')}
+                        className="w-full placeholder-gray-400/70 dark:placeholder-zinc-600 p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950"
+                    />
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <div className="p-4 bg-green-50/50 rounded-xl border border-green-100">
-                    <label className="block text-xs font-bold text-green-700 mb-2">{t.bestG}</label>
+                    <label className="block text-xs font-bold text-green-700 mb-2 uppercase">{t.bestG}</label>
                     <input type="number" id="col-bestQty" name="bestQty" value={collectorForm.bestQty} onChange={(e) => handleInputChange(e, 'collector')} onWheel={(e) => e.target.blur()} onKeyDown={(e) => handleEnterKey(e, 'col-belowBestQty')} required className="w-full p-2.5 mb-3 border border-green-200 rounded-lg focus:ring-2 focus:ring-[#8CC63F] outline-none" />
                     <div className="flex items-center gap-1 bg-green-100 px-3 py-2 rounded-lg font-bold text-green-800 justify-center shadow-inner">{collectorStats.bPct}%</div>
                 </div>

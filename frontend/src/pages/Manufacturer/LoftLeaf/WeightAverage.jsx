@@ -79,14 +79,19 @@ export default function WeightAverage() {
     const day = parseInt(r.date.split("-")[2], 10); // Extract day from "YYYY-MM-DD"
 
     if (matrixData[recordRouteKey] && matrixData[recordRouteKey][day]) {
-      const dailyTotalKg = Number(r.totalLeafQtyKg) || 0;
+      
+      // 💡 DB එකේ මුළු බරින් 3% ක් අඩු කිරීම (Net Weight)
+      const originalTotalKg = Number(r.totalLeafQtyKg) || 0;
+      const netDailyTotalKg = originalTotalKg * 0.97; // උදා: 100kg * 0.97 = 97kg
 
-      // 💡 අලුත් Schema එකෙන් කෙලින්ම ගණනය කරපු Kg ටික ගන්නවා
-      const bestProd = Number(r.calculatedKg?.bestKg) || 0;
-      const belowBestProd = Number(r.calculatedKg?.belowBestKg) || 0;
-      const poorProd = Number(r.calculatedKg?.poorKg) || 0;
+      // 💡 Total Kg එක 3% කින් අඩු කළ විට, ඊට අදාළව ගණනය වූ Best, B/B, Poor Kg අගයන්ද 
+      // එම සමානුපාතයෙන්ම (0.97 න් ගුණ කර) අඩු කළ යුතුය. එසේ නොකළහොත් අවසන් ප්‍රතිශත ගණනය වැරදි වේ.
+      const bestProd = (Number(r.calculatedKg?.bestKg) || 0) * 0.97;
+      const belowBestProd = (Number(r.calculatedKg?.belowBestKg) || 0) * 0.97;
+      const poorProd = (Number(r.calculatedKg?.poorKg) || 0) * 0.97;
 
-      matrixData[recordRouteKey][day].totalLeafQty += dailyTotalKg;
+      // නව අගයන් Matrix එකට එකතු කිරීම
+      matrixData[recordRouteKey][day].totalLeafQty += netDailyTotalKg;
       matrixData[recordRouteKey][day].bestProd += bestProd;
       matrixData[recordRouteKey][day].belowBestProd += belowBestProd;
       matrixData[recordRouteKey][day].poorProd += poorProd;
@@ -214,6 +219,7 @@ export default function WeightAverage() {
   };
 
   // --- EXCEL EXPORT LOGIC ---
+  // --- EXCEL EXPORT LOGIC ---
   const exportToExcel = () => {
     if (Object.keys(matrixData).length === 0) {
       toast.error("No data to export!");
@@ -265,36 +271,69 @@ export default function WeightAverage() {
         header2.push({ v: "Sum Total Kg", s: subHeaderStyle }, { v: "Sum Prod Kg", s: subHeaderStyle }, { v: "Final Avg %", s: subHeaderStyle });
         aoa.push(header2);
 
+        // Utility to convert number to Excel Column Letter (0 = A, 1 = B, ..., 26 = AA)
+        const numToCol = (n) => {
+            let ordA = 'A'.charCodeAt(0);
+            let ordZ = 'Z'.charCodeAt(0);
+            let len = ordZ - ordA + 1;
+            let s = "";
+            while(n >= 0) {
+                s = String.fromCharCode(n % len + ordA) + s;
+                n = Math.floor(n / len) - 1;
+            }
+            return s;
+        };
+
+        // Data Rows start at Excel row index 6 (because array push starts at 0, and we pushed 5 rows)
+        let currentRow = 6; 
+
         Object.keys(matrixData).forEach(routeKey => {
           const data = matrixData[routeKey];
           const row = [{ v: data.fullName, s: boldCell }];
-          let rowSumTotalQty = 0;
-          let rowSumProduct = 0;
+          
+          let sumTotalKgCells = [];
+          let sumProdKgCells = [];
+          
+          let currentColIndex = 1; // "Total Kg" starts at index 1 (Column B)
 
           daysArray.forEach(day => {
             const dayData = data[day];
             const totalQty = dayData.totalLeafQty;
             const specificQty = dayData[dataKey];
             
-            rowSumTotalQty += totalQty;
-            rowSumProduct += specificQty; 
-
-            const pct = totalQty > 0 ? (specificQty / totalQty) * 100 : 0;
+            // Collect Cell references for Summation
+            const colTotalLetter = numToCol(currentColIndex);
+            const colProdLetter = numToCol(currentColIndex + 2);
             
+            sumTotalKgCells.push(`${colTotalLetter}${currentRow}`);
+            sumProdKgCells.push(`${colProdLetter}${currentRow}`);
+
+            // Write static numbers (editable by user) or Formulas
             row.push(
-              { v: totalQty > 0 ? totalQty.toFixed(2) : "-", s: cellStyle },
-              { v: totalQty > 0 ? `${Math.round(pct)}%` : "-", s: { ...cellStyle, font: { bold: true, color: { rgb: themeColor } } } },
-              { v: totalQty > 0 ? specificQty.toFixed(2) : "-", s: cellStyle }
+              { v: totalQty > 0 ? Number(totalQty.toFixed(2)) : 0, t: 'n', s: cellStyle }, // Number type
+              // 💡 FORMULA: (Prod Kg / Total Kg) * 100
+              { f: `IF(${colTotalLetter}${currentRow}>0, (${colProdLetter}${currentRow}/${colTotalLetter}${currentRow}), 0)`, s: { ...cellStyle, numFmt: "0%", font: { bold: true, color: { rgb: themeColor } } } },
+              { v: totalQty > 0 ? Number(specificQty.toFixed(2)) : 0, t: 'n', s: cellStyle } // Number type
             );
+            
+            currentColIndex += 3;
           });
 
-          const finalAvgPct = rowSumTotalQty > 0 ? (rowSumProduct / rowSumTotalQty) * 100 : 0;
+          // 💡 Summary Formulas
+          const sumTotalColLetter = numToCol(currentColIndex);
+          const sumProdColLetter = numToCol(currentColIndex + 1);
+
           row.push(
-            { v: rowSumTotalQty > 0 ? rowSumTotalQty.toFixed(2) : "-", s: summaryCell },
-            { v: rowSumTotalQty > 0 ? rowSumProduct.toFixed(2) : "-", s: summaryCell },
-            { v: rowSumTotalQty > 0 ? `${Math.round(finalAvgPct)}%` : "-", s: { ...summaryCell, font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: themeColor } } } }
+            // Sum of all 'Total Kg'
+            { f: `SUM(${sumTotalKgCells.join(',')})`, s: summaryCell },
+            // Sum of all 'Prod Kg'
+            { f: `SUM(${sumProdKgCells.join(',')})`, s: summaryCell },
+            // Final Average %
+            { f: `IF(${sumTotalColLetter}${currentRow}>0, (${sumProdColLetter}${currentRow}/${sumTotalColLetter}${currentRow}), 0)`, s: { ...summaryCell, numFmt: "0%", font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: themeColor } } } }
           );
+          
           aoa.push(row);
+          currentRow++;
         });
 
         const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -462,31 +501,7 @@ export default function WeightAverage() {
 
         <div className="flex flex-col sm:flex-row items-center gap-3">
           
-          {/* CONDITIONALLY RENDERED PDF BUTTON (SIMPLIFIED ONLY) */}
-          {viewMode === "simplified" && (
-            <button
-              onClick={generateSimplifiedPDF}
-              disabled={loading}
-              className={`px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
-                loading ? "opacity-70 cursor-not-allowed" : "hover:bg-red-700"
-              }`}
-            >
-              <FileDown size={16} /> Download PDF
-            </button>
-          )}
-
-          {/* EXPORT TO EXCEL BUTTON */}
-          {viewMode === "detailed" && (
-          <button
-            onClick={exportToExcel}
-            disabled={loading}
-            className={`px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
-              loading ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700"
-            }`}
-          >
-            <FileSpreadsheet size={16} /> Export Excel
-          </button>
-          )}
+          
 
           {/* VIEW TOGGLE */}
           <div className="flex bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg border border-gray-200 dark:border-zinc-700 shadow-sm">
@@ -525,12 +540,38 @@ export default function WeightAverage() {
           <button
             onClick={fetchRecords}
             disabled={loading}
-            className={`px-4 py-2.5 bg-[#1B6A31] text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
-              loading ? "opacity-70 cursor-not-allowed" : "hover:bg-green-800"
+            className={`px-4 py-2.5 bg-gray-200 text-black rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
+              loading ? "opacity-70 cursor-not-allowed" : "hover:bg-gray-500"
             }`}
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Sync
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> 
           </button>
+
+          {/* CONDITIONALLY RENDERED PDF BUTTON (SIMPLIFIED ONLY) */}
+          {viewMode === "simplified" && (
+            <button
+              onClick={generateSimplifiedPDF}
+              disabled={loading}
+              className={`px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
+                loading ? "opacity-70 cursor-not-allowed" : "hover:bg-red-700"
+              }`}
+            >
+              <FileDown size={16} /> Download PDF
+            </button>
+          )}
+
+          {/* EXPORT TO EXCEL BUTTON */}
+          {viewMode === "detailed" && (
+          <button
+            onClick={exportToExcel}
+            disabled={loading}
+            className={`px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${
+              loading ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700"
+            }`}
+          >
+            <FileSpreadsheet size={16} /> Export Excel
+          </button>
+          )}
         </div>
       </div>
 
