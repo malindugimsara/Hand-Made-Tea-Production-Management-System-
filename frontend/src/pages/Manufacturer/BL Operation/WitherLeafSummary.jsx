@@ -48,10 +48,10 @@ const WitherLeafSummary = () => {
   const userRole = localStorage.getItem("userRole") || "Admin";
   const currentUsername = localStorage.getItem("username") || "admin";
 
-  // 💡 Language Toggle State ("EN" or "SI")
+  // Language Toggle State ("EN" or "SI")
   const [lang, setLang] = useState("EN");
 
-  // 💡 --- DYNAMIC TRANSLATIONS ---
+  // DYNAMIC TRANSLATIONS
   const t = {
     title: lang === 'SI' ? "මැලවූ දළු සාරාංශ වාර්තාව" : "Wither Leaf Summary Report",
     subtitle: lang === 'SI' ? "දෛනික මැලවූ දළු සහ කාණ්ඩ විස්තර වාර්තාව." : "Daily consolidated report of all wither leaf and batch data.",
@@ -211,24 +211,24 @@ const WitherLeafSummary = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] p-4 md:p-8 font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8 font-sans transition-colors duration-200">
       <Toaster position="bottom-right" />
       
       {/* Page Header */}
       <div className="max-w-6xl mx-auto mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <div className="flex items-center space-x-2">
-            <Leaf className="w-7 h-7 text-green-700" />
-            <h1 className="text-2xl font-bold text-green-800 tracking-tight">{t.title}</h1>
+            <Leaf className="w-7 h-7 text-emerald-700 dark:text-emerald-500" />
+            <h1 className="text-2xl font-bold text-emerald-800 dark:text-emerald-400 tracking-tight">{t.title}</h1>
           </div>
-          <p className="text-sm text-gray-500 mt-1 ml-9">{t.subtitle}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 ml-9">{t.subtitle}</p>
         </div>
         
         <div className="flex flex-row flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 w-full md:w-auto">
-          {/* 💡 LANGUAGE TOGGLE BUTTON */}
+          {/* LANGUAGE TOGGLE BUTTON */}
           <button
             onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')}
-            className="p-2.5 px-4 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center gap-2"
+            className="p-2.5 px-4 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 rounded-xl transition-colors shadow-sm font-bold text-sm flex items-center gap-2 cursor-pointer"
             title="Toggle Language"
           >
             <Languages size={18} />
@@ -238,7 +238,7 @@ const WitherLeafSummary = () => {
           <button 
             onClick={fetchRecords} 
             disabled={loading}
-            className="flex-1 sm:flex-none justify-center bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold py-2 sm:py-2.5 px-4 rounded-lg shadow-sm flex items-center gap-2 transition-colors text-sm"
+            className="flex-1 sm:flex-none justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold py-2 sm:py-2.5 px-4 rounded-xl shadow-sm flex items-center gap-2 transition-colors text-sm cursor-pointer"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             {loading ? t.refreshing : t.sync}
@@ -247,25 +247,25 @@ const WitherLeafSummary = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="max-w-6xl mx-auto mb-8 bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
-        <div className="flex items-center gap-2 text-gray-700 font-semibold text-sm">
-          <Filter className="w-4 h-4 text-green-600" />
+      <div className="max-w-6xl mx-auto mb-8 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 transition-colors duration-200">
+        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold text-sm">
+          <Filter className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           {t.filterDay}
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
-            <label className="text-[10px] font-bold text-gray-500 uppercase">{t.cropDate}</label>
+            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">{t.cropDate}</label>
             <input 
               type="date" 
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
-              className="bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none p-2"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-sm rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none p-2 transition-colors"
             />
           </div>
           {filterDate && (
             <button 
               onClick={clearFilter}
-              className="flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-lg transition-colors"
+              className="flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100/70 border border-rose-200/60 dark:border-rose-900/40 px-3 py-2 rounded-xl transition-colors cursor-pointer"
             >
               <X className="w-3.5 h-3.5" /> {t.clear}
             </button>
@@ -276,15 +276,15 @@ const WitherLeafSummary = () => {
       {/* UI Content Generation */}
       <div className="max-w-6xl mx-auto flex flex-col gap-6">
         {loading && records.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl border border-gray-200 shadow-sm">
-            <div className="w-10 h-10 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-500 font-medium">{t.loading}</p>
+          <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="w-10 h-10 border-4 border-emerald-200 dark:border-emerald-800 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">{t.loading}</p>
           </div>
         ) : sortedGroupKeys.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl border border-gray-200 shadow-sm">
-            <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <h3 className="text-lg font-bold text-gray-700">{t.noRecords}</h3>
-            <p className="text-gray-500 text-sm">{t.noRecordsDesc}</p>
+          <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <Package className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">{t.noRecords}</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">{t.noRecordsDesc}</p>
           </div>
         ) : (
           sortedGroupKeys.map((groupKey) => {
@@ -332,27 +332,27 @@ const WitherLeafSummary = () => {
             return (
               <div 
                 key={groupKey} 
-                className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all duration-300"
+                className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden transition-all duration-300"
               >
                 
                 {/* Header Container */}
                 <div 
                   onClick={() => toggleGroup(groupKey)}
-                  className="bg-white hover:bg-green-50/30 p-5 cursor-pointer flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors"
+                  className="bg-white dark:bg-slate-900 hover:bg-emerald-50/30 dark:hover:bg-slate-800/50 p-5 cursor-pointer flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="p-2.5 bg-green-100/50 text-green-600 rounded-lg">
+                    <div className="p-2.5 bg-emerald-100/50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-xl">
                       <Calendar className="w-5 h-5" />
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6">
                       <div className="flex flex-col">
-                         <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{t.cropDate}</span>
-                         <span className="text-lg font-black text-gray-800">{formattedCropDate}</span>
+                         <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">{t.cropDate}</span>
+                         <span className="text-lg font-black text-slate-800 dark:text-slate-100">{formattedCropDate}</span>
                       </div>
-                      <span className="hidden sm:block text-gray-300">|</span>
+                      <span className="hidden sm:block text-slate-300 dark:text-slate-700">|</span>
                       <div className="flex flex-col">
-                         <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{t.mfDate}</span>
-                         <span className="text-lg font-black text-gray-800">{formattedMFDate}</span>
+                         <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">{t.mfDate}</span>
+                         <span className="text-lg font-black text-slate-800 dark:text-slate-100">{formattedMFDate}</span>
                       </div>
                     </div>
                   </div>
@@ -360,12 +360,12 @@ const WitherLeafSummary = () => {
                   <div className="flex items-center gap-4 w-full sm:w-auto mt-3 sm:mt-0">
                     {totalReceived > 0 && (
                       <div className="hidden sm:block text-right mr-2">
-                        <p className="text-[10px] uppercase font-bold text-gray-400">{t.totalCrop}</p>
-                        <p className="text-sm font-bold text-gray-800">{Number(totalReceived).toFixed(2)} kg</p>
+                        <p className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">{t.totalCrop}</p>
+                        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{Number(totalReceived).toFixed(2)} kg</p>
                       </div>
                     )}
                     
-                    {/* --- PDF DOWNLOAD BUTTON --- */}
+                    {/* PDF DOWNLOAD BUTTON */}
                     {isExpanded && (
                       <button 
                         onClick={(e) => {
@@ -373,7 +373,7 @@ const WitherLeafSummary = () => {
                           handleDownloadPDF(groupKey);
                         }}
                         disabled={generatingPdf}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-xs transition-colors shadow-sm"
+                        className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-colors shadow-sm cursor-pointer"
                         title="Download PDF"
                       >
                         <FileDown className="w-4 h-4" />
@@ -381,7 +381,7 @@ const WitherLeafSummary = () => {
                       </button>
                     )}
 
-                    <button className="p-1.5 bg-gray-50 border border-gray-200 rounded-full text-gray-500 hover:bg-gray-100 ml-auto sm:ml-0 transition-colors">
+                    <button className="p-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 ml-auto sm:ml-0 transition-colors">
                       {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </button>
                   </div>
@@ -391,27 +391,27 @@ const WitherLeafSummary = () => {
                 {/* --- MODERN UI CONTENT --- */}
                 {/* ======================================= */}
                 {isExpanded && (
-                  <div className="border-t border-gray-100 bg-gray-50/30 p-6 md:p-8">
+                  <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/40 p-6 md:p-8">
                     
                     {/* --- TOP SECTION: Batch Table --- */}
                     <div className="mb-10 w-full overflow-x-auto custom-scrollbar pb-2">
                       <div className="flex items-center gap-2 mb-4">
                         <Activity className="w-4 h-4 text-blue-500" />
-                        <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">{t.batchQty}</h4>
+                        <h4 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t.batchQty}</h4>
                       </div>
 
                       {hasBatches ? (
                         chunkArray(activeBatches, 15).map((chunk, chunkIdx) => (
-                          <table key={`table-${chunkIdx}`} className="w-full min-w-max border-collapse border border-gray-200 mb-6 bg-white shadow-sm rounded-lg overflow-hidden">
-                            <thead className="bg-gray-50 border-b border-gray-200">
+                          <table key={`table-${chunkIdx}`} className="w-full min-w-max border-collapse border border-slate-200 dark:border-slate-800 mb-6 bg-white dark:bg-slate-900 shadow-xs rounded-xl overflow-hidden">
+                            <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800">
                               <tr>
-                                <th className="border-r border-gray-200 text-gray-500 font-bold text-[11px] uppercase px-4 py-2 text-left w-24">
+                                <th className="border-r border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold text-[11px] uppercase px-4 py-2.5 text-left w-24">
                                   {t.batchNo}
                                 </th>
                                 {chunk.map(batch => (
                                   <th 
                                     key={`th-${batch.num}`} 
-                                    className="border-r border-gray-200 text-blue-600 font-bold text-[13px] px-3 py-2 text-center min-w-[55px] last:border-r-0"
+                                    className="border-r border-slate-200 dark:border-slate-800 text-blue-600 dark:text-blue-400 font-bold text-[13px] px-3 py-2.5 text-center min-w-[55px] last:border-r-0"
                                   >
                                     {batch.num}
                                   </th>
@@ -420,13 +420,13 @@ const WitherLeafSummary = () => {
                             </thead>
                             <tbody>
                               <tr>
-                                <td className="border-r border-gray-200 bg-gray-50 text-gray-500 font-bold text-[11px] uppercase px-4 py-3 text-left w-24">
+                                <td className="border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 font-bold text-[11px] uppercase px-4 py-3 text-left w-24">
                                   {t.kg}
                                 </td>
                                 {chunk.map(batch => (
                                   <td 
                                     key={`td-${batch.num}`} 
-                                    className="border-r border-gray-200 text-gray-800 font-bold text-sm px-3 py-3 text-center last:border-r-0"
+                                    className="border-r border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 font-bold text-sm px-3 py-3 text-center last:border-r-0"
                                   >
                                     {batch.kg}
                                   </td>
@@ -436,51 +436,51 @@ const WitherLeafSummary = () => {
                           </table>
                         ))
                       ) : (
-                        <div className="bg-white border border-dashed border-gray-300 rounded-lg p-6 text-center w-full max-w-md">
-                          <p className="text-gray-500 font-medium text-sm">{t.noBatches}</p>
+                        <div className="bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-6 text-center w-full max-w-md">
+                          <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">{t.noBatches}</p>
                         </div>
                       )}
                     </div>
 
                     {/* --- BOTTOM SECTION: Info List --- */}
-                    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                      <div className="flex items-center gap-2 mb-6 border-b border-gray-100 pb-4">
-                        <Info className="w-4 h-4 text-green-600" />
-                        <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">{t.prodSummary}</h4>
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
+                      <div className="flex items-center gap-2 mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+                        <Info className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <h4 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t.prodSummary}</h4>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 text-sm text-gray-700">
-                        <div className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                          <span className="font-medium text-gray-500">{t.cropDate}</span>
-                          <span className="font-bold text-gray-900">{formattedCropDate}</span>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 text-sm text-slate-700 dark:text-slate-300">
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800/60">
+                          <span className="font-medium text-slate-500 dark:text-slate-400">{t.cropDate}</span>
+                          <span className="font-bold text-slate-900 dark:text-slate-100">{formattedCropDate}</span>
                         </div>
-                        <div className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                          <span className="font-medium text-gray-500">{t.mfDate}</span>
-                          <span className="font-bold text-gray-900">{formattedMFDate}</span>
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800/60">
+                          <span className="font-medium text-slate-500 dark:text-slate-400">{t.mfDate}</span>
+                          <span className="font-bold text-slate-900 dark:text-slate-100">{formattedMFDate}</span>
                         </div>
-                        <div className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                          <span className="font-medium text-gray-500">{t.greenLeaf}</span>
-                          <span className="font-bold text-blue-600">{consolidated.receivedTotalCropKg || 0} kg</span>
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800/60">
+                          <span className="font-medium text-slate-500 dark:text-slate-400">{t.greenLeaf}</span>
+                          <span className="font-bold text-blue-600 dark:text-blue-400">{consolidated.receivedTotalCropKg || 0} kg</span>
                         </div>
-                        <div className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                          <span className="font-medium text-gray-500">{t.witherLeaf}</span>
-                          <span className="font-bold text-green-600">{consolidated.witheredLeafKg || 0} kg</span>
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800/60">
+                          <span className="font-medium text-slate-500 dark:text-slate-400">{t.witherLeaf}</span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">{consolidated.witheredLeafKg || 0} kg</span>
                         </div>
-                        <div className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                          <span className="font-medium text-gray-500">{t.witheringP}</span>
-                          <span className="font-bold text-gray-900">{consolidated.percentage || 0}%</span>
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800/60">
+                          <span className="font-medium text-slate-500 dark:text-slate-400">{t.witheringP}</span>
+                          <span className="font-bold text-slate-900 dark:text-slate-100">{consolidated.percentage || 0}%</span>
                         </div>
-                        <div className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                          <span className="font-medium text-gray-500">{t.quality}</span>
-                          <span className="font-bold text-orange-500">{consolidated.weatheringQuality || '-'}</span>
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800/60">
+                          <span className="font-medium text-slate-500 dark:text-slate-400">{t.quality}</span>
+                          <span className="font-bold text-amber-600 dark:text-amber-400">{consolidated.weatheringQuality || '-'}</span>
                         </div>
-                        <div className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                          <span className="font-medium text-gray-500">{t.factory}</span>
-                          <span className="font-bold text-gray-900">{consolidated.factory || '-'}</span>
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800/60">
+                          <span className="font-medium text-slate-500 dark:text-slate-400">{t.factory}</span>
+                          <span className="font-bold text-slate-900 dark:text-slate-100">{consolidated.factory || '-'}</span>
                         </div>
-                        <div className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                          <span className="font-medium text-gray-500">{t.opsPeriod}</span>
-                          <span className="font-bold text-gray-900">
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800/60">
+                          <span className="font-medium text-slate-500 dark:text-slate-400">{t.opsPeriod}</span>
+                          <span className="font-bold text-slate-900 dark:text-slate-100">
                             {consolidated.startTime || '-'} to {consolidated.finishTime || '-'} ({consolidated.period || '-'})
                           </span>
                         </div>
@@ -491,16 +491,14 @@ const WitherLeafSummary = () => {
                 )}
 
                 {/* ========================================================= */}
-                {/* --- BEAUTIFIED HIDDEN PDF TEMPLATE (MATCHING REFERENCE UI) --- */}
+                {/* --- BEAUTIFIED HIDDEN PDF TEMPLATE --- */}
                 {/* ========================================================= */}
                 <div 
                   id={`pdf-print-area-${groupKey}`}
                   style={{ width: '1122px', minHeight: '793px', display: 'none', backgroundColor: '#ffffff', color: '#111827', padding: '48px', fontFamily: 'sans-serif', boxSizing: 'border-box' }}
                 >
-                  {/* Top Green Accent Bar */}
                   <div style={{ height: '6px', backgroundColor: '#15803d', width: '100%', marginBottom: '24px', borderRadius: '4px' }}></div>
 
-                  {/* Header */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', borderBottom: '2px solid #e5e7eb', paddingBottom: '20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                       <img 
@@ -521,7 +519,6 @@ const WitherLeafSummary = () => {
                     </div>
                   </div>
 
-                  {/* Top: Batch Table */}
                   <div style={{ marginBottom: '32px' }}>
                     <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#1d4ed8', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ display: 'inline-block', width: '8px', height: '8px', backgroundColor: '#2563eb', borderRadius: '50%' }}></span>
@@ -553,7 +550,6 @@ const WitherLeafSummary = () => {
                     )}
                   </div>
 
-                  {/* Bottom: Production Summary (Clean 2-Column List Style matching reference image) */}
                   <div style={{ marginBottom: '40px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px' }}>
                     <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#15803d', textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ display: 'inline-block', width: '8px', height: '8px', backgroundColor: '#16a34a', borderRadius: '50%' }}></span>
@@ -596,7 +592,6 @@ const WitherLeafSummary = () => {
                     </div>
                   </div>
 
-                  {/* Footer */}
                   <div style={{ marginTop: '48px', paddingTop: '20px', borderTop: '2px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: '13px', fontWeight: '700', color: '#374151' }}>
                     <div>
                       <p style={{ color: '#9ca3af', fontWeight: 'normal', fontSize: '11px', margin: 0, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.genBy}</p>
