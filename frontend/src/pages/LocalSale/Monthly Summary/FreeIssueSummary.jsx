@@ -262,6 +262,7 @@ export default function FreeIssueSummary() {
     };
 
     // --- EXPORT EXCEL LOGIC ---
+    // --- EXPORT EXCEL LOGIC ---
     const exportToExcel = async () => {
         try {
             const workbook = new ExcelJS.Workbook();
@@ -269,6 +270,7 @@ export default function FreeIssueSummary() {
 
             let totalCols = 1 + flatColumns.length;
 
+            // 1. Title Row
             const titleRow = worksheet.addRow([`FREE ISSUED SUMMARY - ${getMonthName()}`]);
             worksheet.mergeCells(1, 1, 1, totalCols);
             titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEAF5EC' } };
@@ -276,6 +278,7 @@ export default function FreeIssueSummary() {
             titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
             titleRow.height = 30;
 
+            // 2. Categories Row (Row 2)
             const catRow = worksheet.addRow(['DATE']);
             let colIndex = 2;
             dynamicTableStructure.forEach(cat => {
@@ -285,6 +288,7 @@ export default function FreeIssueSummary() {
                 colIndex += span;
             });
 
+            // 3. Sizes Row (Row 3)
             const sizeRow = worksheet.addRow(['']);
             colIndex = 2;
             dynamicTableStructure.forEach(cat => {
@@ -295,6 +299,7 @@ export default function FreeIssueSummary() {
             });
             worksheet.mergeCells('A2:A3'); 
 
+            // Header Styling
             [catRow, sizeRow].forEach(row => {
                 row.eachCell((cell) => {
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEAF5EC' } };
@@ -304,36 +309,82 @@ export default function FreeIssueSummary() {
                 });
             });
 
+            // 4. Data Rows (Starts from Row 4)
+            const startDataRow = 4;
+            let currentRow = startDataRow;
+
             filteredDates.forEach(date => {
-                const rowData = [date];
-                flatColumns.forEach(col => {
-                    const val = dailyDataMap[date]?.[col.key];
-                    rowData.push(val && val > 0 ? Number(val) : '-');
-                });
+                const dataRow = worksheet.addRow([date]); // Column 1: Date
                 
-                const dataRow = worksheet.addRow(rowData);
-                dataRow.eachCell((cell, cIdx) => {
+                // Style Date Cell
+                const dateCell = dataRow.getCell(1);
+                dateCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                dateCell.border = { top: { style: 'thin', color: { argb: 'FFDCEBDC' } }, bottom: { style: 'thin', color: { argb: 'FFDCEBDC' } }, left: { style: 'thin', color: { argb: 'FFDCEBDC' } }, right: { style: 'thin', color: { argb: 'FFDCEBDC' } } };
+                dateCell.font = { bold: true, color: { argb: 'FF111827' } };
+
+                // Fill Data Cells
+                flatColumns.forEach((col, idx) => {
+                    const val = dailyDataMap[date]?.[col.key];
+                    const cell = dataRow.getCell(idx + 2); // Column 2 onwards
+                    
+                    // 💡 අගය අංකයක් (Number) ලෙසම ලබා දීම (Formulas වැඩ කිරීමට මෙය අත්‍යවශ්‍යයි)
+                    if (val && val > 0) {
+                        cell.value = Number(val);
+                    } else {
+                        cell.value = ''; // හිස් නම් හිස්ව තැබීම Excel SUM සඳහා වඩාත් යෝග්‍ය වේ
+                    }
+                    
                     cell.alignment = { horizontal: 'center', vertical: 'middle' };
                     cell.border = { top: { style: 'thin', color: { argb: 'FFDCEBDC' } }, bottom: { style: 'thin', color: { argb: 'FFDCEBDC' } }, left: { style: 'thin', color: { argb: 'FFDCEBDC' } }, right: { style: 'thin', color: { argb: 'FFDCEBDC' } } };
-                    if(cIdx === 1) cell.font = { bold: true, color: { argb: 'FF111827' } };
-                    else cell.font = { color: { argb: 'FFEF4444' } }; 
+                    cell.font = { color: { argb: 'FFEF4444' } }; 
                 });
+                
+                currentRow++;
             });
 
+            // Blank Row
             worksheet.addRow([]);
+            currentRow++;
 
-            const totalsData = ["TOTAL"];
-            flatColumns.forEach(col => {
-                const val = currentTotals[col.key];
-                totalsData.push(val && val > 0 ? Number(val) : '-');
-            });
-            const ftRow = worksheet.addRow(totalsData);
-            ftRow.eachCell((cell, cIdx) => {
+            // 5. Column Letter Converter for Formulas (0 -> A, 1 -> B, 2 -> C)
+            const numToCol = (n) => {
+                let ordA = 'A'.charCodeAt(0);
+                let ordZ = 'Z'.charCodeAt(0);
+                let len = ordZ - ordA + 1;
+                let s = "";
+                while(n >= 0) {
+                    s = String.fromCharCode(n % len + ordA) + s;
+                    n = Math.floor(n / len) - 1;
+                }
+                return s;
+            };
+
+            // 6. 💡 TOTAL Row with SUM Formulas
+            const endDataRow = startDataRow + filteredDates.length - 1;
+            const ftRow = worksheet.addRow(['TOTAL']);
+            
+            const titleTotalCell = ftRow.getCell(1);
+            titleTotalCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4F5F5' } };
+            titleTotalCell.alignment = { horizontal: 'center', vertical: 'middle' };
+            titleTotalCell.border = { top: { style: 'thin', color: { argb: 'FFDCEBDC' } }, bottom: { style: 'thin', color: { argb: 'FFDCEBDC' } }, right: { style: 'thin', color: { argb: 'FFDCEBDC' } }, left: { style: 'thin', color: { argb: 'FFDCEBDC' } } };
+            titleTotalCell.font = { bold: true, color: { argb: 'FF111827' } };
+
+            flatColumns.forEach((col, idx) => {
+                const cellIndex = idx + 2;
+                const cell = ftRow.getCell(cellIndex);
+                const colLetter = numToCol(cellIndex - 1); 
+                
+                // 💡 Excel SUM Formula එක මෙහි ලබා දී ඇත (eg: SUM(B4:B10))
+                if (filteredDates.length > 0) {
+                    cell.value = { formula: `SUM(${colLetter}${startDataRow}:${colLetter}${endDataRow})` };
+                } else {
+                    cell.value = 0;
+                }
+
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4F5F5' } };
                 cell.alignment = { horizontal: 'center', vertical: 'middle' };
                 cell.border = { top: { style: 'thin', color: { argb: 'FFDCEBDC' } }, bottom: { style: 'thin', color: { argb: 'FFDCEBDC' } }, right: { style: 'thin', color: { argb: 'FFDCEBDC' } }, left: { style: 'thin', color: { argb: 'FFDCEBDC' } } };
-                if(cIdx === 1) cell.font = { bold: true, color: { argb: 'FF111827' } };
-                else cell.font = { bold: true, color: { argb: 'FFDC2626' } }; 
+                cell.font = { bold: true, color: { argb: 'FFDC2626' } }; 
             });
 
             worksheet.getColumn(1).width = 15;

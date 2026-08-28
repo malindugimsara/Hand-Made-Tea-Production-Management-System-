@@ -219,6 +219,7 @@ export default function WeightAverage() {
   };
 
   // --- EXCEL EXPORT LOGIC ---
+  // --- EXCEL EXPORT LOGIC ---
   const exportToExcel = () => {
     if (Object.keys(matrixData).length === 0) {
       toast.error("No data to export!");
@@ -270,36 +271,69 @@ export default function WeightAverage() {
         header2.push({ v: "Sum Total Kg", s: subHeaderStyle }, { v: "Sum Prod Kg", s: subHeaderStyle }, { v: "Final Avg %", s: subHeaderStyle });
         aoa.push(header2);
 
+        // Utility to convert number to Excel Column Letter (0 = A, 1 = B, ..., 26 = AA)
+        const numToCol = (n) => {
+            let ordA = 'A'.charCodeAt(0);
+            let ordZ = 'Z'.charCodeAt(0);
+            let len = ordZ - ordA + 1;
+            let s = "";
+            while(n >= 0) {
+                s = String.fromCharCode(n % len + ordA) + s;
+                n = Math.floor(n / len) - 1;
+            }
+            return s;
+        };
+
+        // Data Rows start at Excel row index 6 (because array push starts at 0, and we pushed 5 rows)
+        let currentRow = 6; 
+
         Object.keys(matrixData).forEach(routeKey => {
           const data = matrixData[routeKey];
           const row = [{ v: data.fullName, s: boldCell }];
-          let rowSumTotalQty = 0;
-          let rowSumProduct = 0;
+          
+          let sumTotalKgCells = [];
+          let sumProdKgCells = [];
+          
+          let currentColIndex = 1; // "Total Kg" starts at index 1 (Column B)
 
           daysArray.forEach(day => {
             const dayData = data[day];
             const totalQty = dayData.totalLeafQty;
             const specificQty = dayData[dataKey];
             
-            rowSumTotalQty += totalQty;
-            rowSumProduct += specificQty; 
-
-            const pct = totalQty > 0 ? (specificQty / totalQty) * 100 : 0;
+            // Collect Cell references for Summation
+            const colTotalLetter = numToCol(currentColIndex);
+            const colProdLetter = numToCol(currentColIndex + 2);
             
+            sumTotalKgCells.push(`${colTotalLetter}${currentRow}`);
+            sumProdKgCells.push(`${colProdLetter}${currentRow}`);
+
+            // Write static numbers (editable by user) or Formulas
             row.push(
-              { v: totalQty > 0 ? totalQty.toFixed(2) : "-", s: cellStyle },
-              { v: totalQty > 0 ? `${Math.round(pct)}%` : "-", s: { ...cellStyle, font: { bold: true, color: { rgb: themeColor } } } },
-              { v: totalQty > 0 ? specificQty.toFixed(2) : "-", s: cellStyle }
+              { v: totalQty > 0 ? Number(totalQty.toFixed(2)) : 0, t: 'n', s: cellStyle }, // Number type
+              // 💡 FORMULA: (Prod Kg / Total Kg) * 100
+              { f: `IF(${colTotalLetter}${currentRow}>0, (${colProdLetter}${currentRow}/${colTotalLetter}${currentRow}), 0)`, s: { ...cellStyle, numFmt: "0%", font: { bold: true, color: { rgb: themeColor } } } },
+              { v: totalQty > 0 ? Number(specificQty.toFixed(2)) : 0, t: 'n', s: cellStyle } // Number type
             );
+            
+            currentColIndex += 3;
           });
 
-          const finalAvgPct = rowSumTotalQty > 0 ? (rowSumProduct / rowSumTotalQty) * 100 : 0;
+          // 💡 Summary Formulas
+          const sumTotalColLetter = numToCol(currentColIndex);
+          const sumProdColLetter = numToCol(currentColIndex + 1);
+
           row.push(
-            { v: rowSumTotalQty > 0 ? rowSumTotalQty.toFixed(2) : "-", s: summaryCell },
-            { v: rowSumTotalQty > 0 ? rowSumProduct.toFixed(2) : "-", s: summaryCell },
-            { v: rowSumTotalQty > 0 ? `${Math.round(finalAvgPct)}%` : "-", s: { ...summaryCell, font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: themeColor } } } }
+            // Sum of all 'Total Kg'
+            { f: `SUM(${sumTotalKgCells.join(',')})`, s: summaryCell },
+            // Sum of all 'Prod Kg'
+            { f: `SUM(${sumProdKgCells.join(',')})`, s: summaryCell },
+            // Final Average %
+            { f: `IF(${sumTotalColLetter}${currentRow}>0, (${sumProdColLetter}${currentRow}/${sumTotalColLetter}${currentRow}), 0)`, s: { ...summaryCell, numFmt: "0%", font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: themeColor } } } }
           );
+          
           aoa.push(row);
+          currentRow++;
         });
 
         const ws = XLSX.utils.aoa_to_sheet(aoa);

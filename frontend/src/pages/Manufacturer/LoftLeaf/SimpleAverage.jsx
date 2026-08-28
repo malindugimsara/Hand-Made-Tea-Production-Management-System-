@@ -199,10 +199,11 @@ export default function SimpleAverage() {
   };
 
   // --- EXCEL EXPORT LOGIC ---
+  // --- EXCEL EXPORT LOGIC ---
   const exportToExcel = () => {
     if (Object.keys(matrixData).length === 0) { toast.error("No data to export!"); return; }
 
-    const toastId = toast.loading("Generating Excel file...");
+    const toastId = toast.loading("Generating Excel file with Formulas...");
     try {
       const wb = XLSX.utils.book_new();
 
@@ -223,24 +224,68 @@ export default function SimpleAverage() {
         header.push({ v: "Active Days", s: headerStyle }, { v: "Row Sum %", s: headerStyle }, { v: "Simple Avg %", s: headerStyle });
         aoa.push(header);
 
+        // Utility to convert number to Excel Column Letter (0 = A, 1 = B, ..., 26 = AA)
+        const numToCol = (n) => {
+            let ordA = 'A'.charCodeAt(0);
+            let ordZ = 'Z'.charCodeAt(0);
+            let len = ordZ - ordA + 1;
+            let s = "";
+            while(n >= 0) {
+                s = String.fromCharCode(n % len + ordA) + s;
+                n = Math.floor(n / len) - 1;
+            }
+            return s;
+        };
+
+        // Data Rows start at Excel row index 5 (because array push starts at 0, and we pushed 4 rows)
+        let currentRow = 5; 
+
         Object.keys(matrixData).forEach(routeKey => {
           const data = matrixData[routeKey];
           const row = [{ v: data.fullName, s: boldCell }];
-          let rowSum = 0; let activeDays = 0;
+          
+          // To track which cells have actual values (for COUNT and SUM formulas)
+          const dataCells = [];
 
-          daysArray.forEach(day => {
+          daysArray.forEach((day, index) => {
             const val = data[day][dataKey];
-            if (val !== null && val > 0) { rowSum += val; activeDays++; }
-            row.push({ v: val !== null && val > 0 ? Math.round(val) : "-", s: cellStyle });
+            const colLetter = numToCol(index + 1); // +1 because index 0 is "Route"
+
+            if (val !== null && val > 0) { 
+                dataCells.push(`${colLetter}${currentRow}`);
+            }
+
+            // Write numbers (t:'n') to allow Excel calculations, otherwise blank
+            row.push(
+               val !== null && val > 0 
+               ? { v: Number(Math.round(val)), t: 'n', s: cellStyle } 
+               : { v: "", s: cellStyle }
+            );
           });
 
-          const rowAverage = activeDays > 0 ? (rowSum / activeDays) : 0;
+          // 💡 Formulas for Summaries
+          const firstDataCol = numToCol(1);
+          const lastDataCol = numToCol(daysArray.length);
+          const dataRange = `${firstDataCol}${currentRow}:${lastDataCol}${currentRow}`;
+          
+          const sumColLetter = numToCol(daysArray.length + 2); // Column for "Row Sum %"
+          const activeDaysColLetter = numToCol(daysArray.length + 1); // Column for "Active Days"
+
           row.push(
-            { v: activeDays > 0 ? activeDays : "-", s: summaryCell },
-            { v: rowSum > 0 ? rowSum.toFixed(2) : "-", s: summaryCell },
-            { v: activeDays > 0 ? `${rowAverage.toFixed(2)}%` : "-", s: { ...summaryCell, font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: themeColor } } } }
+            // Formula for Active Days: Count how many cells have numbers > 0
+            { f: `COUNTIF(${dataRange}, ">0")`, s: summaryCell },
+            
+            // Formula for Row Sum %: Sum of the range
+            { f: `SUM(${dataRange})`, s: summaryCell },
+            
+            // Formula for Simple Avg %: (Row Sum / Active Days)
+            { f: `IF(${activeDaysColLetter}${currentRow}>0, (${sumColLetter}${currentRow}/${activeDaysColLetter}${currentRow})/100, 0)`, 
+              s: { ...summaryCell, numFmt: "0.00%", font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: themeColor } } } 
+            }
           );
+          
           aoa.push(row);
+          currentRow++;
         });
 
         const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -260,6 +305,7 @@ export default function SimpleAverage() {
       XLSX.writeFile(wb, `Sheet2_Simple_Averages_${selectedMonth}.xlsx`);
       toast.success("Excel file downloaded!", { id: toastId });
     } catch (error) {
+      console.error(error);
       toast.error("Failed to generate Excel file.", { id: toastId });
     }
   };
