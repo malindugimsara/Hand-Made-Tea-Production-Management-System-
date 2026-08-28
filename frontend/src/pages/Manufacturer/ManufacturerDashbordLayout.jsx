@@ -17,6 +17,8 @@ import {
   PackagePlus,
   Proportions,
   Search,
+  Leaf,
+  Layers,
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -104,20 +106,33 @@ const DATA = {
     },
     {
       title: 'Loft Leaf',
-      icon: Store,
+      icon: Leaf,
       items: [
-        { title: 'Enter L/L Count', url: '/manufacturer/factory-loft-leaf', nonViewer: true },
-        { title: 'View L/L Count', url: '/manufacturer/view-factory-loft-leaf'},
-      ],
-    },
-    {
-      title: ' L/L Summary Report',
-      icon: LineChart,
-      items: [
-        { title: 'Weekly L/L Summary', url: '/manufacturer/weekly-loft-leaf-summary'},
-        { title: 'Collector L/L Summary', url: '/manufacturer/collector-quality-difference'},
-        { title: 'Simple Average', url: '/manufacturer/simple-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
-        { title: 'Weight Average', url: '/manufacturer/weight-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
+        // 💡 1. Wither Leaf Sub-menu (Level 2)
+        { 
+          title: 'Leaf Count', 
+          items: [
+            { title: 'Enter L/L Count', url: '/manufacturer/factory-loft-leaf', nonViewer: true },
+            { title: 'View L/L Count', url: '/manufacturer/view-factory-loft-leaf'},
+          ],
+        },
+
+        // 💡 2. Dhool Rolling Sub-menu (Level 2)
+        { 
+          title: 'Weekly Summary', 
+          items: [
+            { title: 'Weekly L/L Summary', url: '/manufacturer/weekly-loft-leaf-summary'},
+            { title: 'Collector L/L Summary', url: '/manufacturer/collector-quality-difference'},
+          ],
+        },
+
+        { 
+          title: 'Monthly Summary', 
+          items: [
+            { title: 'Simple Average', url: '/manufacturer/simple-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
+            { title: 'Weight Average', url: '/manufacturer/weight-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
+          ],
+        },
       ],
     },
   ],
@@ -469,13 +484,13 @@ export default function ManufacturerDashboardLayout() {
                                     <Collapsible key={subItem.title + '-nested'} asChild defaultOpen={isLvl2Open} className="group/sub-collapsible mb-1">
                                       <SidebarMenuSubItem>
                                         <CollapsibleTrigger asChild>
-                                          <SidebarMenuSubButton className="flex justify-between w-full cursor-pointer py-4 rounded-full transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-[#3f6212] dark:hover:text-lime-500 hover:bg-white/40 dark:hover:bg-zinc-900/40">
-                                            <span className="text-sm font-medium px-2">{subItem.title}</span>
+                                          <SidebarMenuSubButton className="flex justify-between w-full cursor-pointer py-5 rounded-full transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-[#3f6212] dark:hover:text-lime-500 hover:bg-white/40 dark:hover:bg-zinc-900/40">
+                                            <span className="text-sm font-medium px-1">{subItem.title}</span>
                                             <ChevronRight className="h-4 w-4 mr-2 transition-transform duration-300 group-data-[state=open]/sub-collapsible:rotate-90 opacity-50" />
                                           </SidebarMenuSubButton>
                                         </CollapsibleTrigger>
                                         <CollapsibleContent>
-                                          <SidebarMenuSub className="border-l-2 border-gray-200 dark:border-zinc-800 ml-4 pl-3 mt-1 space-y-1">
+                                          <SidebarMenuSub className="border-l-2 border-gray-200 dark:border-zinc-800">
                                             {subItem.items.map((lvl2) => {
                                               const isLvl2Active = location.pathname === lvl2.url;
                                               return (
