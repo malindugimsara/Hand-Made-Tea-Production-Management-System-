@@ -129,12 +129,12 @@ export default function PDFDownloader({
                 head: finalHeaders,
                 body: processedBody,
                 theme: 'grid',
-                headStyles: { 
-                    fillColor: [35, 164, 74], 
-                    textColor: 255,              
-                    fontSize: 9, 
-                    halign: 'center',         
-                    valign: 'middle'           
+                headStyles: {
+                    fillColor: [35, 164, 74],
+                    textColor: 255,
+                    fontSize: 9,
+                    halign: 'center',
+                    valign: 'middle'
                 },
                 bodyStyles: { fontSize: 8, halign: 'center' },
                 columnStyles: { 0: { fontStyle: 'bold', halign: 'left' } },

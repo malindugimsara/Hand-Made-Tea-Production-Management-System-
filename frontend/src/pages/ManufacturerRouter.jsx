@@ -7,6 +7,9 @@ import { View } from "lucide-react";
 import ViewLoftLeafCount from "./Manufacturer/LoftLeaf/ViewFactoryLoftLeaf";
 import SimpleAverage from "./Manufacturer/LoftLeaf/SimpleAverage";
 import WeightAverage from "./Manufacturer/LoftLeaf/WeightAverage";
+import WitherLeafSummary from "./Manufacturer/BL Operation/WitherLeafSummary";
+import DhoolRollingSection from "./Manufacturer/BL Operation/DhoolRollingSection";
+import DhoolRollingSummary from "./Manufacturer/BL Operation/DhoolRollingSummary";
 import WeeklyLoftLeafSummary from "./Manufacturer/SummaryReport/WeeklyLoftLeafSummary";
 import CollectorQualityDiffReport from "./Manufacturer/SummaryReport/CollectorQualityDiffReport";
 
@@ -16,6 +19,10 @@ export default function ManufacturerRouter() {
     <Route path="/manufacturer" element={<ManufacturerDashboardLayout />}>
       <Route index element={<ManufacturerDashboard />} />
       <Route path="bl-production/witherLeafForm" element={<WitherLeafForm />} />
+      <Route path="bl-production/witherLeafSummary" element={<WitherLeafSummary />} />
+      <Route path="bl-production/dhoolRollingSection" element={<DhoolRollingSection />} />
+      <Route path="bl-production/dhoolRollingSummary" element={<DhoolRollingSummary />} />
+
       <Route path="factory-loft-leaf" element={<FactoryLoftLeaf />} />
       <Route path="view-factory-loft-leaf" element={<ViewLoftLeafCount />} />
       <Route path="simple-avg-factory-loft-leaf" element={<SimpleAverage />} />
