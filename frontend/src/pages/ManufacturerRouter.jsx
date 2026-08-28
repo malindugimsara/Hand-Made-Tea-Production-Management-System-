@@ -31,6 +31,7 @@ export default function ManufacturerRouter() {
       <Route path="weight-avg-factory-loft-leaf" element={<WeightAverage />} />
       <Route path="weekly-loft-leaf-summary" element={<WeeklyLoftLeafSummary />} />
       <Route path="collector-quality-difference" element={<CollectorQualityDiffReport />} />
+      
     </Route>
   );
 }

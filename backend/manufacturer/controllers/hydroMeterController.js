@@ -48,3 +48,41 @@ export const getHydroMeterDataByDate = async (req, res) => {
         res.status(500).json({ message: "Failed to fetch data.", error: error.message });
     }
 };
+
+// 💡 සියලුම දත්ත ලබා ගැනීම (List View එක සඳහා)
+export const getAllHydroMeters = async (req, res) => {
+    try {
+        // දින අනුපිළිවෙලට (අලුත්ම දින මුලින් එන ලෙස) ලබාගැනීම. formData එක මෙහිදී අවශ්‍ය නැත.
+        const records = await HydroMeter.find().sort({ date: -1 }).select('date enteredBy updatedAt');
+        
+        res.status(200).json({ 
+            message: "Records fetched successfully", 
+            data: records 
+        });
+    } catch (error) {
+        console.error("Get All Hydro Meters Error:", error);
+        res.status(500).json({ message: "Failed to fetch records.", error: error.message });
+    }
+};
+
+// 💡 වාර්තාවක් Delete කිරීම
+export const deleteHydroMeter = async (req, res) => {
+    try {
+        const { date } = req.query;
+
+        if (!date) {
+            return res.status(400).json({ message: "Date parameter is required." });
+        }
+
+        const deletedRecord = await HydroMeter.findOneAndDelete({ date: date });
+
+        if (!deletedRecord) {
+            return res.status(404).json({ message: "Record not found for this date." });
+        }
+
+        res.status(200).json({ message: "Record deleted successfully!" });
+    } catch (error) {
+        console.error("Delete Hydro Meter Error:", error);
+        res.status(500).json({ message: "Failed to delete record.", error: error.message });
+    }
+};

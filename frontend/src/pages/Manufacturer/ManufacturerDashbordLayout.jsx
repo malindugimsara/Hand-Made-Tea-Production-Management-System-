@@ -81,7 +81,7 @@ const DATA = {
         { title: 'Wither Leaf Summary', url: '/manufacturer/bl-production/witherLeafSummary' },
         { title: "Enter Dhool Rolling", url: "/manufacturer/bl-production/dhoolRollingSection", nonViewer: true },
         { title: "Dhool Rolling Summary", url: "/manufacturer/bl-production/dhoolRollingSummary" },
-        { title: "Hydro Meters Chart", url: "/manufacturer/bl-production/hydrometerschart" },
+        { title: "HydroMeters Chart", url: "/manufacturer/bl-production/hydrometerschart" },
       ],
     },
     {
