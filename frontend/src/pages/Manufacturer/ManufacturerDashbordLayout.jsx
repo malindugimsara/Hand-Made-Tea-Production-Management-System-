@@ -94,6 +94,7 @@ const DATA = {
       icon: LineChart,
       items: [
         { title: 'Weekly L/L Summary', url: '/manufacturer/weekly-loft-leaf-summary'},
+        { title: 'Collector L/L Summary', url: '/manufacturer/collector-quality-difference'},
         { title: 'Simple Average', url: '/manufacturer/simple-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
         { title: 'Weight Average', url: '/manufacturer/weight-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
       ],
