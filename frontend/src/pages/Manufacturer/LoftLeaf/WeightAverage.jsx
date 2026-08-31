@@ -219,7 +219,6 @@ export default function WeightAverage() {
   };
 
   // --- EXCEL EXPORT LOGIC ---
-  // --- EXCEL EXPORT LOGIC ---
   const exportToExcel = () => {
     if (Object.keys(matrixData).length === 0) {
       toast.error("No data to export!");
@@ -254,7 +253,7 @@ export default function WeightAverage() {
         const summaryCell = { ...cellStyle, font: { bold: true }, fill: { fgColor: { rgb: "ECFDF5" } } };
 
         aoa.push([{ v: sheetTitle, s: titleStyle }]);
-        aoa.push([{ v: "Data calculated using Factory Samples Total Leaf Qty (Kg)", s: { font: { italic: true, color: { rgb: "6B7280" } } } }]);
+        aoa.push([{ v: "Data calculated using Total Leaf Qty (Kg) * Percentage Value", s: { font: { italic: true, color: { rgb: "6B7280" } } } }]);
         aoa.push([]); 
 
         const header1 = [{ v: "Route", s: headerStyle }];
@@ -271,7 +270,6 @@ export default function WeightAverage() {
         header2.push({ v: "Sum Total Kg", s: subHeaderStyle }, { v: "Sum Prod Kg", s: subHeaderStyle }, { v: "Final Avg %", s: subHeaderStyle });
         aoa.push(header2);
 
-        // Utility to convert number to Excel Column Letter (0 = A, 1 = B, ..., 26 = AA)
         const numToCol = (n) => {
             let ordA = 'A'.charCodeAt(0);
             let ordZ = 'Z'.charCodeAt(0);
@@ -284,7 +282,6 @@ export default function WeightAverage() {
             return s;
         };
 
-        // Data Rows start at Excel row index 6 (because array push starts at 0, and we pushed 5 rows)
         let currentRow = 6; 
 
         Object.keys(matrixData).forEach(routeKey => {
@@ -294,42 +291,41 @@ export default function WeightAverage() {
           let sumTotalKgCells = [];
           let sumProdKgCells = [];
           
-          let currentColIndex = 1; // "Total Kg" starts at index 1 (Column B)
+          let currentColIndex = 1; 
 
           daysArray.forEach(day => {
             const dayData = data[day];
             const totalQty = dayData.totalLeafQty;
-            const specificQty = dayData[dataKey];
+            const originalProdKg = dayData[dataKey];
             
-            // Collect Cell references for Summation
+            // 💡 නව ගණනය කිරීම (Total Kg * %)
+            const rawPct = totalQty > 0 ? (originalProdKg / totalQty) * 100 : 0;
+            const roundedPct = Math.round(rawPct);
+            const customProdKg = totalQty * roundedPct; 
+
             const colTotalLetter = numToCol(currentColIndex);
             const colProdLetter = numToCol(currentColIndex + 2);
             
             sumTotalKgCells.push(`${colTotalLetter}${currentRow}`);
             sumProdKgCells.push(`${colProdLetter}${currentRow}`);
 
-            // Write static numbers (editable by user) or Formulas
             row.push(
-              { v: totalQty > 0 ? Number(totalQty.toFixed(2)) : 0, t: 'n', s: cellStyle }, // Number type
-              // 💡 FORMULA: (Prod Kg / Total Kg) * 100
-              { f: `IF(${colTotalLetter}${currentRow}>0, (${colProdLetter}${currentRow}/${colTotalLetter}${currentRow}), 0)`, s: { ...cellStyle, numFmt: "0%", font: { bold: true, color: { rgb: themeColor } } } },
-              { v: totalQty > 0 ? Number(specificQty.toFixed(2)) : 0, t: 'n', s: cellStyle } // Number type
+              { v: totalQty > 0 ? Number(totalQty.toFixed(2)) : 0, t: 'n', s: cellStyle }, 
+              { v: totalQty > 0 ? roundedPct / 100 : 0, t: 'n', s: { ...cellStyle, numFmt: "0%", font: { bold: true, color: { rgb: themeColor } } } },
+              { v: totalQty > 0 ? Number(customProdKg.toFixed(2)) : 0, t: 'n', s: cellStyle } 
             );
             
             currentColIndex += 3;
           });
 
-          // 💡 Summary Formulas
           const sumTotalColLetter = numToCol(currentColIndex);
           const sumProdColLetter = numToCol(currentColIndex + 1);
 
           row.push(
-            // Sum of all 'Total Kg'
             { f: `SUM(${sumTotalKgCells.join(',')})`, s: summaryCell },
-            // Sum of all 'Prod Kg'
             { f: `SUM(${sumProdKgCells.join(',')})`, s: summaryCell },
-            // Final Average %
-            { f: `IF(${sumTotalColLetter}${currentRow}>0, (${sumProdColLetter}${currentRow}/${sumTotalColLetter}${currentRow}), 0)`, s: { ...summaryCell, numFmt: "0%", font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: themeColor } } } }
+            // 💡 දැන් Sum Prod එක ඇතුලේ % අගය ගුණ වෙලා තියෙන නිසා Final Avg එක ගන්න 100න් ගුණ කරන්නේ නෑ
+            { f: `IF(${sumTotalColLetter}${currentRow}>0, (${sumProdColLetter}${currentRow}/${sumTotalColLetter}${currentRow})/100, 0)`, s: { ...summaryCell, numFmt: "0%", font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: themeColor } } } }
           );
           
           aoa.push(row);
@@ -431,12 +427,24 @@ export default function WeightAverage() {
                 let rowSumTotalQty = 0;
                 let rowSumProduct = 0;
 
+                // 💡 නව ගණනය කිරීම සඳහා පෙර-ගණනය
                 daysArray.forEach((day) => {
-                  rowSumTotalQty += data[day].totalLeafQty;
-                  rowSumProduct += data[day][dataKey]; 
+                  const dayData = data[day];
+                  const totalQty = dayData.totalLeafQty;
+                  const originalProdKg = dayData[dataKey]; 
+                  
+                  const rawPct = totalQty > 0 ? (originalProdKg / totalQty) * 100 : 0;
+                  const roundedPct = Math.round(rawPct); // % Column එකේ පෙන්වන අගය
+                  
+                  // 💡 අලුත් Prod Kg ගණනය (Total Kg * %)
+                  const customProdKg = totalQty * roundedPct; 
+
+                  rowSumTotalQty += totalQty;
+                  rowSumProduct += customProdKg; 
                 });
 
-                const finalAvgPct = rowSumTotalQty > 0 ? (rowSumProduct / rowSumTotalQty) * 100 : 0;
+                // 💡 Final Avg % ගණනය (දැන් rowSumProduct එක ඇතුළේ % අගය ගුණ වී ඇති නිසා නැවත 100න් ගුණ නොකරයි)
+                const finalAvgPct = rowSumTotalQty > 0 ? (rowSumProduct / rowSumTotalQty) : 0;
 
                 return (
                   <tr key={routeKey} className="hover:bg-gray-50 dark:hover:bg-zinc-900/50 transition-colors group">
@@ -447,8 +455,13 @@ export default function WeightAverage() {
                     {viewMode === "detailed" && daysArray.map((day) => {
                       const dayData = data[day];
                       const totalQty = dayData.totalLeafQty;
-                      const specificQty = dayData[dataKey];
-                      const pct = totalQty > 0 ? (specificQty / totalQty) * 100 : 0;
+                      const originalProdKg = dayData[dataKey];
+                      
+                      const rawPct = totalQty > 0 ? (originalProdKg / totalQty) * 100 : 0;
+                      const roundedPct = Math.round(rawPct);
+                      
+                      // 💡 අලුත් Prod Kg
+                      const customProdKg = totalQty * roundedPct;
 
                       return (
                         <React.Fragment key={`${routeKey}-${day}`}>
@@ -456,10 +469,11 @@ export default function WeightAverage() {
                             {totalQty > 0 ? totalQty.toFixed(2) : "-"}
                           </td>
                           <td onMouseEnter={() => setHoveredCol(`${day}-p`)} className={`border-b border-r border-gray-100 dark:border-zinc-800 px-2 py-3 font-semibold ${theme.pctColor} transition-colors ${hoveredCol === `${day}-p` ? 'bg-gray-100 dark:bg-zinc-800' : ''}`}>
-                            {totalQty > 0 ? `${Math.round(pct)}%` : "-"}
+                            {totalQty > 0 ? `${roundedPct}%` : "-"}
                           </td>
                           <td onMouseEnter={() => setHoveredCol(`${day}-k`)} className={`border-b border-r border-gray-300 dark:border-zinc-700 px-2 py-3 bg-black/5 text-gray-800 dark:text-gray-200 font-mono transition-colors ${hoveredCol === `${day}-k` ? 'bg-gray-200 dark:bg-zinc-700' : ''}`}>
-                            {totalQty > 0 ? specificQty.toFixed(2) : "-"}
+                            {/* 💡 මෙතැනට අලුත් Prod Kg එක පෙන්වයි */}
+                            {totalQty > 0 ? customProdKg.toFixed(2) : "-"}
                           </td>
                         </React.Fragment>
                       );
