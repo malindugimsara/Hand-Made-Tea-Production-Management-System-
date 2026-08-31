@@ -51,6 +51,7 @@ import factoryLoftLeafRouter from './manufacturer/routes/loftLeafRoutes.js';
 import WitherLeafRouter from './manufacturer/routes/witherLeafRouter.js';
 import rollingRouter from './manufacturer/routes/rollingRoomSheetRoutes.js';
 import hydroMeterRouter from './manufacturer/routes/hydroMeterRoutes.js';
+import { Production } from './models/Production.js';
 
 dotenv.config();
 const app = express();
@@ -92,8 +93,54 @@ cron.schedule('1 0 1 * *', async () => {
         console.error('Automated B/M Stock Generation Failed:', error);
     }
 });
-// ---------------------------------------------
+// ==============================================================
+// 💡 අලුත්: DAILY MORNING JOB - EXPECTED DRYER DATE NOTIFICATIONS
+// ==============================================================
+// Runs at 07:00 AM every day
+cron.schedule('30 8 * * *', async () => {
+    try {
+        console.log('Checking for pending dryer tasks for today...');
+        
+        // අද දිනය ලබාගැනීම (Format: YYYY-MM-DD)
+        const todayDate = new Date().toISOString().split('T')[0];
+        
+        // Production Collection එකෙන් අද දිනට (Expected Dryer Date) අදාළව ඇති Tasks සෙවීම
+        // මෙහි "madeTeaWeight: 0" වැනි Filter එකක් දැමීමෙන් දැනටමත් කම්ප්ලීට් වුණු ඒවා මඟ හැරිය හැක.
+        const pendingTasks = await Production.find({
+            expectedDryerDate: { $regex: `^${todayDate}` }
+        });
 
+        if (pendingTasks.length > 0) {
+            console.log(`Found ${pendingTasks.length} tasks for today. Sending notifications...`);
+
+            // Handmade අංශයේ Users ලාගේ Subscriptions පමණක් ලබාගැනීම
+            // (ඔබ Subscription model එකේ role එක save කරන්නේ නැත්නම්, 'await Subscription.find({})' යොදා සියලුම දෙනාට යැවිය හැක)
+            const subscriptions = await Subscription.find({}); 
+            
+            const payload = JSON.stringify({
+                title: 'Dryer Tasks Pending Today! 🍂',
+                body: `You have ${pendingTasks.length} handmade/production task(s) scheduled to be dried today. Please check the system.`,
+                // Action link එකක් click කරාම යන්න ඕන තැන
+                data: { url: '/view-green-leaf' } 
+            });
+
+            // අදාළ සියලුම Devices වලට Notification එක යැවීම
+            const sendPromises = subscriptions.map(sub => 
+                webpush.sendNotification(sub, payload).catch(err => {
+                    console.error('Push error (maybe unsubscribed):', err.statusCode);
+                    // අවශ්‍ය නම් Expired වුණු subscriptions DB එකෙන් අයින් කරන්න මෙතන කේතය ලිවිය හැක.
+                })
+            );
+
+            await Promise.all(sendPromises);
+            console.log('Daily dryer notifications sent successfully.');
+        } else {
+            console.log('No pending dryer tasks for today.');
+        }
+    } catch (error) {
+        console.error('Daily Notification Cron Job Failed:', error);
+    }
+});
 
 app.post('/api/notifications/subscribe', async (req, res) => {
     try {
