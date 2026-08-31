@@ -242,100 +242,96 @@ export default function DispatchAndReturn() {
   };
 
   const handlePdfUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    if (file.type !== 'application/pdf') {
-      toast.error("Please upload a valid PDF file.");
-      return;
+    // Validate that all selected files are PDFs
+    for (const file of files) {
+      if (file.type !== 'application/pdf') {
+        toast.error(`"${file.name}" is not a valid PDF file.`);
+        return;
+      }
     }
 
     setIsUploadingPdf(true);
-    const toastId = toast.loading("Reading PDF and extracting dispatch items...");
+    const toastId = toast.loading(`Processing ${files.length} PDF file(s)...`);
 
     try {
       const pdfjs = await loadPdfJs();
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+      const allExtractedDispatches = [];
 
-      const extractedDispatches = [];
+      for (const file of files) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
 
-      // Read each page of the uploaded PDF
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        const page = await pdf.getPage(pageNum);
-        const textContent = await page.getTextContent();
-        
-        // Group items into horizontal lines based on Y coordinate
-        const rows = [];
-        textContent.items.forEach(item => {
-          const text = item.str.trim();
-          if (!text) return;
-          const x = item.transform[4];
-          const y = Math.round(item.transform[5]);
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          const page = await pdf.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          
+          const rows = [];
+          textContent.items.forEach(item => {
+            const text = item.str.trim();
+            if (!text) return;
+            const x = item.transform[4];
+            const y = Math.round(item.transform[5]);
 
-          let row = rows.find(r => Math.abs(r.y - y) <= 4);
-          if (!row) {
-            row = { y, items: [] };
-            rows.push(row);
-          }
-          row.items.push({ x, text });
-        });
+            let row = rows.find(r => Math.abs(r.y - y) <= 4);
+            if (!row) {
+              row = { y, items: [] };
+              rows.push(row);
+            }
+            row.items.push({ x, text });
+          });
 
-        // Sort rows top-to-bottom
-        rows.sort((a, b) => b.y - a.y);
-        // Sort items left-to-right inside each row
-        rows.forEach(r => r.items.sort((a, b) => a.x - b.x));
+          rows.sort((a, b) => b.y - a.y);
+          rows.forEach(r => r.items.sort((a, b) => a.x - b.x));
 
-        for (const r of rows) {
-          const texts = r.items.map(i => i.text);
-          if (texts.length < 5) continue;
+          for (const r of rows) {
+            const texts = r.items.map(i => i.text);
+            if (texts.length < 5) continue;
 
-          const firstCol = texts[0];
-          // Skip header or total rows; check if 1st col is a numeric invoice (e.g. 000338)
-          if (!/^\d{4,8}$/.test(firstCol) || firstCol.toLowerCase().includes("total")) continue;
+            const firstCol = texts[0];
+            if (!/^\d{4,8}$/.test(firstCol) || firstCol.toLowerCase().includes("total")) continue;
 
-          const invoiceNo = firstCol;
-          let weight = '';
-          let teaType = '';
+            const invoiceNo = firstCol;
+            let weight = '';
+            let teaType = '';
 
-          // Standard Tea Invoice table mapping:
-          // [0]=Invoice, [1]=NoOfPack, [2]=Full/Half, [3]=NetEach, [4]=SAllow, [5]=NetTotal, [6]=TotalGrossWeight, [7]=Grade, ...
-          if (texts.length >= 8) {
-            weight = texts[6];
+            if (texts.length >= 8) {
+              weight = texts[6];
 
-            // Handle single or multi-part grades (e.g. "BOP SP", "FBOP1")
-            let candidateGrade = texts[7];
-            if (texts[8] && (texts[8].toUpperCase() === 'SP' || texts[8].toUpperCase() === '1' || texts[8].toUpperCase() === 'EX SP')) {
-              candidateGrade += ' ' + texts[8];
+              let candidateGrade = texts[7];
+              if (texts[8] && (texts[8].toUpperCase() === 'SP' || texts[8].toUpperCase() === '1' || texts[8].toUpperCase() === 'EX SP')) {
+                candidateGrade += ' ' + texts[8];
+              }
+
+              const matchedGrade = teaTypeOptions.find(opt => opt.toLowerCase() === candidateGrade.toLowerCase());
+              teaType = matchedGrade || candidateGrade.toUpperCase();
             }
 
-            // Match against standardized tea grade options
-            const matchedGrade = teaTypeOptions.find(opt => opt.toLowerCase() === candidateGrade.toLowerCase());
-            teaType = matchedGrade || candidateGrade.toUpperCase();
-          }
-
-          if (invoiceNo && (weight || teaType)) {
-            extractedDispatches.push({
-              invoiceNo: invoiceNo,
-              teaType: teaType,
-              weight: weight ? String(Number(weight.replace(/,/g, '')) || weight) : ''
-            });
+            if (invoiceNo && (weight || teaType)) {
+              allExtractedDispatches.push({
+                invoiceNo: invoiceNo,
+                teaType: teaType,
+                weight: weight ? String(Number(weight.replace(/,/g, '')) || weight) : ''
+              });
+            }
           }
         }
       }
 
-      if (extractedDispatches.length === 0) {
-        toast.error("No valid dispatch invoice rows found in this PDF.", { id: toastId });
+      if (allExtractedDispatches.length === 0) {
+        toast.error("No valid dispatch invoice rows found in the uploaded PDF(s).", { id: toastId });
       } else {
         setFormData(prev => ({
           ...prev,
-          dispatches: extractedDispatches
+          dispatches: [...prev.dispatches.filter(d => d.invoiceNo || d.teaType || d.weight), ...allExtractedDispatches]
         }));
-        toast.success(`Successfully imported ${extractedDispatches.length} dispatch items!`, { id: toastId });
+        toast.success(`Successfully imported ${allExtractedDispatches.length} items from ${files.length} file(s)!`, { id: toastId });
       }
     } catch (error) {
-      console.error("PDF Parsing Error:", error);
-      toast.error("Failed to parse the PDF file.", { id: toastId });
+      console.error("Multiple PDF Parsing Error:", error);
+      toast.error("Failed to parse one or more PDF files.", { id: toastId });
     } finally {
       setIsUploadingPdf(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -507,6 +503,7 @@ export default function DispatchAndReturn() {
                       ref={fileInputRef} 
                       onChange={handlePdfUpload} 
                       accept="application/pdf" 
+                      multiple
                       className="hidden" 
                     />
                     <button
