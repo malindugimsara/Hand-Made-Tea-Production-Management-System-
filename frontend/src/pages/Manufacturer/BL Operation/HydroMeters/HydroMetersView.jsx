@@ -259,7 +259,7 @@ export default function HydroMetersView() {
 
         const row1 = [{ 
             content: 'TIME', rowSpan: 2, 
-            styles: { halign: 'center', valign: 'middle', fillColor: [220, 252, 231], textColor: darkGreenText, fontStyle: 'bold', lineWidth: 0.5, lineColor: borderColor } 
+            styles: { halign: 'center', valign: 'middle', fillColor: [255, 255, 255], textColor: darkGreenText, fontStyle: 'bold', lineWidth: 0.5, lineColor: borderColor } 
         }];
         
         activeTroughs.forEach(t => {
@@ -287,7 +287,7 @@ export default function HydroMetersView() {
         return activeTimeSlots.map(time => {
             const row = [{ 
                 content: time, 
-                styles: { fontStyle: 'bold', fillColor: [220, 252, 231], textColor: [20, 83, 45], halign: 'center', valign: 'middle', lineColor: borderColor, lineWidth: 0.5 } 
+                styles: { fontStyle: 'bold', textColor: [20, 83, 45], halign: 'center', valign: 'middle', lineColor: borderColor, lineWidth: 0.5 } 
             }];
             
             activeTroughs.forEach(t => {
