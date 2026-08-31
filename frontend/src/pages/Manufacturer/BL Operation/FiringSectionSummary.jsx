@@ -585,7 +585,7 @@ const FiringSectionSummary = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto justify-start xl:justify-end z-10">
-            {/* Native PDFDownloader handling signature footer */}
+            {/* Native PDFDownloader handling  footer */}
             <PDFDownloader
               title=""
               subtitle=""
