@@ -96,8 +96,7 @@ const DATA = {
             { title: "Dhool Rolling Summary", url: "/manufacturer/bl-production/dhoolRollingSummary" },
           ]
         },
-
-         {
+        {
           title: 'Hydro Meter',
           items: [
             { title: "Enter HydroMeter", url: "/manufacturer/bl-production/hydroMetersentry", nonViewer: true },
