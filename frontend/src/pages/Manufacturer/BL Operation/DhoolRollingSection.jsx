@@ -109,6 +109,7 @@ const RollingRoomSheetForm = () => {
     
     // Table Headers
     badgeNo: lang === 'SI' ? "කාණ්ඩ අංකය" : "BADGE NO",
+    batch: lang === 'SI' ? "කාණ්ඩය" : "Batch",
     dhool1: lang === 'SI' ? "1 වන ධූල් (1ST DHOOL)" : "1ST DHOOL",
     roll1: lang === 'SI' ? "රෝල් අංක: 01" : "ROLL NO 01",
     dhool2: lang === 'SI' ? "2 වන ධූල් (2ND DHOOL)" : "2ND DHOOL",
@@ -495,8 +496,8 @@ const RollingRoomSheetForm = () => {
 
         </div>
 
-        {/* --- Section 2: Main Rolling Room Sheet Table --- */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 overflow-hidden transition-colors duration-200">
+        {/* --- Section 2: Main Rolling Room Sheet Table (Mobile-Responsive & 4-Tier Desktop Grid) --- */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-4 sm:p-6 overflow-hidden transition-colors duration-200">
           
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
             <div className="flex items-center gap-2.5">
@@ -514,13 +515,203 @@ const RollingRoomSheetForm = () => {
             <button
               type="button"
               onClick={handleAddBatch}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer w-full sm:w-auto justify-center"
             >
               <Plus size={14} /> {t.addBatch}
             </button>
           </div>
 
-          <div className="w-full overflow-x-auto custom-scrollbar pb-2 rounded-2xl border border-slate-200 dark:border-slate-800">
+          {/* 📱 Mobile Card View (< 768px) */}
+          <div className="flex md:hidden flex-col gap-3.5">
+            {batches.map((batch, index) => {
+              const bD1 = parseFloat(batch.dhool1.wetDhoolKg) || 0;
+              const bD2 = parseFloat(batch.dhool2.wetDhoolKg) || 0;
+              const bBB = parseFloat(batch.bigBulk.wetDhoolKg) || 0;
+              const batchTotalKg = bD1 + bD2 + bBB;
+
+              return (
+                <div key={index} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+                  <div className="bg-slate-100/80 dark:bg-slate-800 px-3.5 py-2.5 flex justify-between items-center border-b border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-900 dark:text-white bg-white dark:bg-slate-900 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                        {t.batch} {String(batch.batchNo).padStart(2, '0')}
+                      </span>
+                      <span className="text-xs font-black text-purple-700 dark:text-purple-400">
+                        Total: {batchTotalKg.toFixed(2)} kg
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveBatch(index)}
+                      className="p-1.5 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
+                      title="Remove Row"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+
+                  <div className="p-3 flex flex-col gap-3">
+                    {/* 1st Dhool */}
+                    <div className="p-2.5 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                      <div className="text-[10px] font-black text-blue-700 dark:text-blue-400 uppercase mb-2">
+                        {t.dhool1} ({t.roll1})
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-400 block mb-1">Start</label>
+                          <input 
+                            type="time" 
+                            value={batch.dhool1.startTime} 
+                            onChange={(e) => handleBatchCellChange(index, 'dhool1', 'startTime', e.target.value)} 
+                            className={tableInput} 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-400 block mb-1">End</label>
+                          <input 
+                            type="time" 
+                            value={batch.dhool1.endTime} 
+                            onChange={(e) => handleBatchCellChange(index, 'dhool1', 'endTime', e.target.value)} 
+                            className={tableInput} 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-400 block mb-1">Wet (Kg)</label>
+                          <input 
+                            type="number" 
+                            inputMode="decimal"
+                            min="0"
+                            step="any"
+                            placeholder="0.0" 
+                            value={batch.dhool1.wetDhoolKg} 
+                            onKeyDown={preventNegativeKeys}
+                            onChange={(e) => handleBatchCellChange(index, 'dhool1', 'wetDhoolKg', e.target.value)} 
+                            className={`${tableInput} font-bold text-blue-700 dark:text-blue-400`} 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-400 block mb-1">%</label>
+                          <input 
+                            type="text" 
+                            readOnly
+                            placeholder="--" 
+                            value={batch.dhool1.percentage ? `${batch.dhool1.percentage}%` : ''} 
+                            className={tableReadOnly} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 2nd Dhool */}
+                    <div className="p-2.5 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
+                      <div className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase mb-2">
+                        {t.dhool2} ({t.roll2})
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-400 block mb-1">Start</label>
+                          <input 
+                            type="time" 
+                            value={batch.dhool2.startTime} 
+                            onChange={(e) => handleBatchCellChange(index, 'dhool2', 'startTime', e.target.value)} 
+                            className={tableInput} 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-400 block mb-1">End</label>
+                          <input 
+                            type="time" 
+                            value={batch.dhool2.endTime} 
+                            onChange={(e) => handleBatchCellChange(index, 'dhool2', 'endTime', e.target.value)} 
+                            className={tableInput} 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-400 block mb-1">Wet (Kg)</label>
+                          <input 
+                            type="number" 
+                            inputMode="decimal"
+                            min="0"
+                            step="any"
+                            placeholder="0.0" 
+                            value={batch.dhool2.wetDhoolKg} 
+                            onKeyDown={preventNegativeKeys}
+                            onChange={(e) => handleBatchCellChange(index, 'dhool2', 'wetDhoolKg', e.target.value)} 
+                            className={`${tableInput} font-bold text-emerald-700 dark:text-emerald-400`} 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-400 block mb-1">%</label>
+                          <input 
+                            type="text" 
+                            readOnly
+                            placeholder="--" 
+                            value={batch.dhool2.percentage ? `${batch.dhool2.percentage}%` : ''} 
+                            className={tableReadOnly} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Big Bulk */}
+                    <div className="p-2.5 bg-amber-50/40 dark:bg-amber-950/20 rounded-xl border border-amber-100 dark:border-amber-900/30">
+                      <div className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase mb-2">
+                        {t.bigBulk} ({t.roll3})
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-400 block mb-1">Start</label>
+                          <input 
+                            type="time" 
+                            value={batch.bigBulk.startTime} 
+                            onChange={(e) => handleBatchCellChange(index, 'bigBulk', 'startTime', e.target.value)} 
+                            className={tableInput} 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-400 block mb-1">End</label>
+                          <input 
+                            type="time" 
+                            value={batch.bigBulk.endTime} 
+                            onChange={(e) => handleBatchCellChange(index, 'bigBulk', 'endTime', e.target.value)} 
+                            className={tableInput} 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-400 block mb-1">Wet (Kg)</label>
+                          <input 
+                            type="number" 
+                            inputMode="decimal"
+                            min="0"
+                            step="any"
+                            placeholder="0.0" 
+                            value={batch.bigBulk.wetDhoolKg} 
+                            onKeyDown={preventNegativeKeys}
+                            onChange={(e) => handleBatchCellChange(index, 'bigBulk', 'wetDhoolKg', e.target.value)} 
+                            className={`${tableInput} font-bold text-amber-700 dark:text-amber-400`} 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-400 block mb-1">%</label>
+                          <input 
+                            type="text" 
+                            readOnly
+                            placeholder="--" 
+                            value={batch.bigBulk.percentage ? `${batch.bigBulk.percentage}%` : ''} 
+                            className={tableReadOnly} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 💻 Desktop Table View (>= 768px) */}
+          <div className="hidden md:block w-full overflow-x-auto custom-scrollbar pb-2 rounded-2xl border border-slate-200 dark:border-slate-800">
             <table className="w-full min-w-[1050px] border-collapse text-center text-xs">
               <thead>
                 {/* Level 1 Header: Dhool Category */}
@@ -549,17 +740,14 @@ const RollingRoomSheetForm = () => {
 
                 {/* Level 3 Header: Sub-Columns (Start/End & Wet Dhool) */}
                 <tr className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
-                  {/* 1st Dhool */}
                   <th rowSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24 align-middle">{t.startTime}</th>
                   <th rowSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24 align-middle">{t.endTime}</th>
                   <th colSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 text-slate-800 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">{t.wetDhool}</th>
 
-                  {/* 2nd Dhool */}
                   <th rowSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24 align-middle">{t.startTime}</th>
                   <th rowSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24 align-middle">{t.endTime}</th>
                   <th colSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 text-slate-800 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">{t.wetDhool}</th>
 
-                  {/* Big Bulk */}
                   <th rowSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24 align-middle">{t.startTime}</th>
                   <th rowSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24 align-middle">{t.endTime}</th>
                   <th colSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 text-slate-800 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">{t.wetDhool}</th>
@@ -567,15 +755,10 @@ const RollingRoomSheetForm = () => {
 
                 {/* Level 4 Header: KG / % */}
                 <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider">
-                  {/* 1st Dhool */}
                   <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-20">{t.kg}</th>
                   <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-16">{t.pct}</th>
-
-                  {/* 2nd Dhool */}
                   <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-20">{t.kg}</th>
                   <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-16">{t.pct}</th>
-
-                  {/* Big Bulk */}
                   <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-20">{t.kg}</th>
                   <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-16">{t.pct}</th>
                 </tr>
@@ -584,8 +767,6 @@ const RollingRoomSheetForm = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                 {batches.map((batch, index) => (
                   <tr key={index} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors">
-                    
-                    {/* Badge / Batch No */}
                     <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-black text-slate-800 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/40">
                       {String(batch.batchNo).padStart(2, '0')}
                     </td>
@@ -741,7 +922,7 @@ const RollingRoomSheetForm = () => {
                   {/* Big Bulk Totals */}
                   <td colSpan={2} className="border-r border-slate-300 dark:border-slate-700 p-2"></td>
                   <td className="border-r border-slate-300 dark:border-slate-700 p-2 text-amber-700 dark:text-amber-400 font-black text-sm bg-amber-50/40 dark:bg-amber-950/40">{sumBBKg.toFixed(2)} kg</td>
-                  <td className="border-r border-slate-300 dark:border-slate-700 p-2 text-amber-700 dark:text-amber-300 font-bold">{avgBBPct}%</td>
+                  <td className="p-2 text-amber-700 dark:text-amber-300 font-bold">{avgBBPct}%</td>
 
                   <td className="border-l border-slate-300 dark:border-slate-700 p-2"></td>
                 </tr>
