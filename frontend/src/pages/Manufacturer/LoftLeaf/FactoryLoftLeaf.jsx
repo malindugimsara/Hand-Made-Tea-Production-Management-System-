@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
-import { Leaf, PlusCircle, Trash2, Tag, Factory, Users, Edit2, Save, Weight, Calendar, Clock, Languages, UserCheck, User } from "lucide-react";
+import { Leaf, PlusCircle, Trash2, Tag, Factory, Users, Edit2, Save, Weight, Calendar, Clock, Languages, UserCheck, User, FileUp, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
@@ -41,17 +41,17 @@ export default function LoftLeafCount() {
   const [editingId, setEditingId] = useState(null); 
   const [editFormData, setEditFormData] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   
   const [isFactoryRouteDropdownOpen, setIsFactoryRouteDropdownOpen] = useState(false);
   const [isCollectorRouteDropdownOpen, setIsCollectorRouteDropdownOpen] = useState(false);
   
   const factoryRouteDropdownRef = useRef(null);
   const collectorRouteDropdownRef = useRef(null);
+  const fileInputRef = useRef(null);
 
-  // 💡 Factory Supervisor Name (Global for the day)
+  // Factory Supervisor Name (Global for the day)
   const [supervisorName, setSupervisorName] = useState(currentUsername);
-  
-  // 💡 State to track the last auto-filled route to avoid overwriting manual edits
   const [lastAutoFilledRoute, setLastAutoFilledRoute] = useState("");
 
   const [factoryForm, setFactoryForm] = useState({
@@ -70,7 +70,7 @@ export default function LoftLeafCount() {
     belowBestQty: "",
   });
 
-  // 💡 --- AUTO-FILL COLLECTOR NAME LOGIC ---
+  // AUTO-FILL COLLECTOR NAME LOGIC
   useEffect(() => {
       const routeCode = collectorForm.route.split('-')[0].trim().toUpperCase();
       if (collectorNameMapping[routeCode]) {
@@ -83,7 +83,7 @@ export default function LoftLeafCount() {
       }
   }, [collectorForm.route, lastAutoFilledRoute]);
 
-  // 💡 --- LANGUAGE TOGGLE & TRANSLATIONS ---
+  // LANGUAGE TOGGLE & TRANSLATIONS
   const [lang, setLang] = useState("EN");
 
   const t = {
@@ -205,32 +205,28 @@ export default function LoftLeafCount() {
   const factoryStats = calculateStats(factoryForm.bestQty, factoryForm.belowBestQty);
   const collectorStats = calculateStats(collectorForm.bestQty, collectorForm.belowBestQty);
 
-  // 💡 --- TIME FORMATTER & VALIDATOR (12-Hour) ---
   const formatTime12Hour = (value) => {
-      let raw = value.replace(/\D/g, ''); // අංක පමණක් වෙන් කර ගැනීම
-      raw = raw.substring(0, 4); // උපරිම ඉලක්කම් 4කට සීමා කිරීම
+      let raw = value.replace(/\D/g, ''); 
+      raw = raw.substring(0, 4); 
 
       if (raw.length === 0) return '';
 
       let hours = raw.substring(0, 2);
       let minutes = raw.substring(2, 4);
 
-      // පැය (Hours) වල නිවැරදිතාවය පරීක්ෂා කිරීම (01-12)
       if (hours.length === 2) {
           let h = parseInt(hours, 10);
-          if (h > 12) hours = '12'; // 12ට වඩා ටයිප් කළොත් 12 බවට පත් වේ
-          if (h === 0) hours = '12'; // 00 ලෙස ටයිප් කළොත් 12 බවට පත් වේ
+          if (h > 12) hours = '12'; 
+          if (h === 0) hours = '12'; 
       } else if (hours.length === 1 && parseInt(hours, 10) > 1) {
-          hours = `0${hours}`; // 2-9 අතර ඉලක්කමක් මුලින් ගැහුවොත් ඉබේම '0' එකක් මුලට වැටේ
+          hours = `0${hours}`; 
       }
 
-      // මිනිත්තු (Minutes) වල නිවැරදිතාවය පරීක්ෂා කිරීම (00-59)
       if (minutes.length === 2) {
           let m = parseInt(minutes, 10);
-          if (m > 59) minutes = '59'; // 59ට වඩා ටයිප් කළොත් 59 බවට පත් වේ
+          if (m > 59) minutes = '59'; 
       }
 
-      // Output එකට ':' එක් කිරීම
       if (raw.length >= 3) {
           return `${hours}:${minutes}`;
       } else {
@@ -263,6 +259,199 @@ export default function LoftLeafCount() {
         }
         return newValue;
     });
+  };
+
+  // =========================================================================
+  // 💡 PDF UPLOAD & PARSING LOGIC FOR LOFT LEAF REPORT
+  // =========================================================================
+  const loadPdfJs = async () => {
+    if (window.pdfjsLib) return window.pdfjsLib;
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        script.onload = () => {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            resolve(window.pdfjsLib);
+        };
+        script.onerror = () => reject(new Error("Failed to load PDF processing library."));
+        document.head.appendChild(script);
+    });
+  };
+
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+        toast.error("Please upload a valid PDF file.");
+        return;
+    }
+
+    setIsUploadingPdf(true);
+    const toastId = toast.loading("Reading PDF and extracting data...");
+
+    try {
+        const pdfjs = await loadPdfJs();
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+
+        let mode = 'factory';
+        let parsedRecords = {};
+        let extractedDate = selectedDate;
+        let extractedSupervisor = supervisorName;
+
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const textContent = await page.getTextContent();
+            
+            const rows = [];
+            textContent.items.forEach(item => {
+                const text = item.str.trim();
+                if (!text) return;
+                const x = item.transform[4];
+                const y = Math.round(item.transform[5]);
+
+                let row = rows.find(r => Math.abs(r.y - y) <= 4);
+                if (!row) {
+                    row = { y, items: [] };
+                    rows.push(row);
+                }
+                row.items.push({ x, text });
+            });
+
+            // Y අක්ෂය අනුව Top to Bottom සකස් කිරීම
+            rows.sort((a, b) => b.y - a.y);
+            // X අක්ෂය අනුව Left to Right සකස් කිරීම
+            rows.forEach(r => r.items.sort((a, b) => a.x - b.x));
+
+            for (const r of rows) {
+                const lineText = r.items.map(i => i.text).join(' ');
+                const lowerLine = lineText.toLowerCase();
+
+                // Extract Date
+                if (lowerLine.includes("transaction date:")) {
+                    const match = lineText.match(/(\d{4}\.\d{2}\.\d{2})/);
+                    if (match) extractedDate = match[1].replace(/\./g, '-');
+                }
+                // Extract Supervisor Name
+                if (lowerLine.includes("officer name:")) {
+                    const parts = lineText.split(/name[:\s]+/i);
+                    if (parts.length > 1) {
+                        extractedSupervisor = parts[1].trim();
+                    }
+                }
+
+                // Identify Table Section
+                if (lowerLine.includes("collector's sample") || lowerLine.includes("collector")) {
+                    mode = 'collector';
+                }
+
+                // Match Rows starting with C1, FA, E etc.
+                const routeMatch = lineText.match(/^(C[1-8]|FA|E)\b/i);
+                if (routeMatch) {
+                    const rawRoute = routeMatch[1].toUpperCase();
+                    const fullRoute = routeOptions.find(opt => opt.startsWith(rawRoute)) || rawRoute;
+
+                    if (!parsedRecords[rawRoute]) {
+                        parsedRecords[rawRoute] = { route: fullRoute, collectorName: collectorNameMapping[rawRoute] || "" };
+                    }
+
+                    // Extract Arrival Time
+                    let timeStr = "";
+                    const timeToken = lineText.match(/\b([0-1]?[0-9]|2[0-3]):[0-5][0-9]\b/);
+                    if (timeToken) {
+                        let [h, m] = timeToken[0].split(':').map(Number);
+                        let ampm = h >= 12 ? 'PM' : 'AM';
+                        let h12 = h % 12 || 12;
+                        timeStr = `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+                        parsedRecords[rawRoute].facTime = timeStr;
+                    }
+
+                    // Remove Route name (e.g. "C1 (MATHTHKA)") and commas to extract clean numbers
+                    let cleanLine = lineText.replace(/^(C[1-8]|FA|E)\b\s*(\([^\)]+\))?/i, '').replace(/,/g, '');
+                    if (timeToken) cleanLine = cleanLine.replace(timeToken[0], ''); // Remove time token as well
+                    
+                    const numbers = cleanLine.match(/\d+(?:\.\d+)?/g);
+                    if (!numbers) continue;
+
+                    if (mode === 'factory') {
+                        // In the Factory table, "100" is always the sample total. 
+                        // The values around it represent our needed data.
+                        const idx100 = numbers.findIndex(n => Number(n) === 100);
+                        if (idx100 !== -1) {
+                            if (idx100 > 0) parsedRecords[rawRoute].facTotalQty = Number(numbers[idx100 - 1]);
+                            if (idx100 + 1 < numbers.length) parsedRecords[rawRoute].facBest = Number(numbers[idx100 + 1]);
+                            if (idx100 + 4 < numbers.length) parsedRecords[rawRoute].facBelowBest = Number(numbers[idx100 + 4]);
+                        }
+                    } else if (mode === 'collector') {
+                        // In the Collector table, the first values are 0.00 and 0.
+                        // We find the first 0 index.
+                        const zeroIdx = numbers.findIndex(n => Number(n) === 0);
+                        if (zeroIdx !== -1 && zeroIdx + 2 < numbers.length) {
+                            parsedRecords[rawRoute].colBest = Number(numbers[zeroIdx + 2]);
+                            parsedRecords[rawRoute].colBelowBest = Number(numbers[zeroIdx + 4]);
+                        }
+                    }
+                }
+            }
+        }
+
+        setSupervisorName(extractedSupervisor);
+        setSelectedDate(extractedDate); // Automatically set form date to report date
+
+        const newPending = [];
+        Object.keys(parsedRecords).forEach(key => {
+            const rec = parsedRecords[key];
+            
+            // Push Factory Sample Record
+            if (rec.facBest !== undefined) {
+                newPending.push({
+                    id: Date.now().toString() + Math.random().toString() + 'fac',
+                    date: extractedDate || selectedDate,
+                    sampleType: 'Factory',
+                    route: rec.route,
+                    arrivalTime: rec.facTime || "",
+                    leafCollectorName: "",
+                    totalLeafQty: rec.facTotalQty || 0,
+                    bestQty: rec.facBest || 0,
+                    belowBestQty: rec.facBelowBest || 0,
+                    poorQty: Math.max(0, 100 - ((rec.facBest || 0) + (rec.facBelowBest || 0))),
+                    totalQty: 100
+                });
+            }
+            
+            // Push Collector Sample Record
+            if (rec.colBest !== undefined) {
+                newPending.push({
+                    id: Date.now().toString() + Math.random().toString() + 'col',
+                    date: extractedDate || selectedDate,
+                    sampleType: 'LeafCollector',
+                    route: rec.route,
+                    arrivalTime: "",
+                    leafCollectorName: rec.collectorName,
+                    totalLeafQty: null, 
+                    bestQty: rec.colBest || 0,
+                    belowBestQty: rec.colBelowBest || 0,
+                    poorQty: Math.max(0, 100 - ((rec.colBest || 0) + (rec.colBelowBest || 0))),
+                    totalQty: 100
+                });
+            }
+        });
+
+        if (newPending.length > 0) {
+            setPendingRecords(prev => [...prev, ...newPending]);
+            toast.success(`Successfully extracted ${newPending.length} records from PDF!`, { id: toastId });
+        } else {
+            toast.error("Could not extract any valid data from the PDF.", { id: toastId });
+        }
+
+    } catch (error) {
+        console.error("PDF Parsing Error:", error);
+        toast.error("Failed to parse the PDF file.", { id: toastId });
+    } finally {
+        setIsUploadingPdf(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const handleAddToList = (e, formType) => {
@@ -386,7 +575,7 @@ export default function LoftLeafCount() {
         } : {
             date: record.date, 
             route: record.route, 
-            leafCollectorName: record.leafCollectorName, // Specific collector name
+            leafCollectorName: record.leafCollectorName, 
             bestG: record.bestQty, 
             belowBestG: record.belowBestQty, 
             poorG: record.poorQty
@@ -473,7 +662,7 @@ export default function LoftLeafCount() {
                                     ) : (
                                         <span className="font-mono text-xs">{data.arrivalTime || '-'}</span>
                                     )}
-                                </td>                                
+                                </td>                               
                                 <td className="px-4 py-3 text-center">
                                     {isEditing ? (
                                         <input type="number" name="totalLeafQty" value={data.totalLeafQty || ''} onChange={handleEditChange} className="w-20 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-1 focus:ring-lime-500" />
@@ -526,13 +715,36 @@ export default function LoftLeafCount() {
             {t.subtitle}
           </p>
         </div>
-        <button
-            onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')}
-            className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center gap-2"
-        >
-            <Languages size={18} />
-            {lang === 'EN' ? "සිංහල" : "English"}
-        </button>
+        
+        <div className="flex items-center gap-3">
+            {/* 💡 PDF UPLOAD BUTTON (OCR) */}
+            <div>
+                <input 
+                    type="file" 
+                    accept="application/pdf" 
+                    ref={fileInputRef} 
+                    onChange={handlePdfUpload} 
+                    className="hidden" 
+                />
+                <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingPdf}
+                    className="px-4 py-2 bg-green-600 dark:bg-green-900/70 dark:border dark:border-green-600 text-white hover:bg-green-700 rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center gap-2 disabled:opacity-50"
+                    title="Upload Report PDF to Auto-fill"
+                >
+                    {isUploadingPdf ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
+                    {isUploadingPdf ? "Scanning..." : "Upload Report PDF"}
+                </button>
+            </div>
+
+            <button
+                onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')}
+                className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center gap-2"
+            >
+                <Languages size={18} />
+                {lang === 'EN' ? "සිංහල" : "English"}
+            </button>
+        </div>
       </div>
 
       {/* 2. DATE SELECTOR SECTION */}
@@ -631,24 +843,54 @@ export default function LoftLeafCount() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                <div className="p-4 bg-green-50/50 rounded-xl border border-green-100">
-                    <label className="block text-xs font-bold text-green-700 mb-2 uppercase">{t.bestG}</label>
-                    <input type="number" id="fac-bestQty" name="bestQty" onWheel={(e) => e.target.blur()} value={factoryForm.bestQty} onChange={(e) => handleInputChange(e, 'factory')} onKeyDown={(e) => handleEnterKey(e, 'fac-belowBestQty')} required className="w-full p-2.5 mb-3 border border-green-200 rounded-lg focus:ring-2 focus:ring-[#8CC63F] outline-none" />
-                    <div className="flex items-center gap-1 bg-green-100 px-3 py-2 rounded-lg font-bold text-green-800 justify-center shadow-inner">{factoryStats.bPct}%</div>
+                <div className="p-4 bg-green-50/50 dark:bg-green-900/10 rounded-xl border border-green-100 dark:border-green-800/30 transition-colors">
+                    <label className="block text-xs font-bold text-green-700 dark:text-green-500 mb-2 uppercase">{t.bestG}</label>
+                    <input 
+                        type="number" 
+                        id="fac-bestQty" 
+                        name="bestQty" 
+                        onWheel={(e) => e.target.blur()} 
+                        value={factoryForm.bestQty} 
+                        onChange={(e) => handleInputChange(e, 'factory')} 
+                        onKeyDown={(e) => handleEnterKey(e, 'fac-belowBestQty')} 
+                        required 
+                        className="w-full p-2.5 mb-3 bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-200 border border-green-200 dark:border-green-800/50 rounded-lg focus:ring-2 focus:ring-[#8CC63F] outline-none transition-colors" 
+                    />
+                    <div className="flex items-center gap-1 bg-green-100 dark:bg-green-900/40 px-3 py-2 rounded-lg font-bold text-green-800 dark:text-green-400 justify-center shadow-inner transition-colors">
+                        {factoryStats.bPct}%
+                    </div>
                 </div>
 
-                <div className="p-4 bg-yellow-50/50 rounded-xl border border-yellow-100">
-                    <label className="block text-xs font-bold text-yellow-700 mb-2 uppercase">{t.belowBestG}</label>
-                    <input type="number" id="fac-belowBestQty" name="belowBestQty" onWheel={(e) => e.target.blur()} value={factoryForm.belowBestQty} onChange={(e) => handleInputChange(e, 'factory')} onKeyDown={(e) => handleEnterKey(e, 'fac-submitBtn')} required className="w-full p-2.5 mb-3 border border-yellow-200 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none bg-white dark:bg-zinc-800" />
-                    <div className="flex items-center gap-1 bg-yellow-100 px-3 py-2 rounded-lg font-bold text-yellow-800 justify-center shadow-inner">{factoryStats.bbPct}%</div>
+                <div className="p-4 bg-yellow-50/50 dark:bg-yellow-900/10 rounded-xl border border-yellow-100 dark:border-yellow-800/30 transition-colors">
+                    <label className="block text-xs font-bold text-yellow-700 dark:text-yellow-500 mb-2 uppercase">{t.belowBestG}</label>
+                    <input 
+                        type="number" 
+                        id="fac-belowBestQty" 
+                        name="belowBestQty" 
+                        onWheel={(e) => e.target.blur()} 
+                        value={factoryForm.belowBestQty} 
+                        onChange={(e) => handleInputChange(e, 'factory')} 
+                        onKeyDown={(e) => handleEnterKey(e, 'fac-submitBtn')} 
+                        required 
+                        className="w-full p-2.5 mb-3 bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-200 border border-yellow-200 dark:border-yellow-800/50 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none transition-colors" 
+                    />
+                    <div className="flex items-center gap-1 bg-yellow-100 dark:bg-yellow-900/40 px-3 py-2 rounded-lg font-bold text-yellow-800 dark:text-yellow-500 justify-center shadow-inner transition-colors">
+                        {factoryStats.bbPct}%
+                    </div>
                 </div>
 
-                <div className="p-4 bg-red-50/50 rounded-xl border border-red-100">
-                    <label className="block text-xs font-bold text-red-700 mb-2 uppercase">{t.poorG}</label>
-                    <input type="number" value={factoryStats.p} disabled className="w-full p-2.5 mb-3 border border-red-200 dark:border-red-900/50 rounded-lg bg-gray-100 dark:bg-zinc-800/80 font-bold text-red-700 dark:text-red-500 cursor-not-allowed outline-none" />
-                    <div className="flex items-center gap-1 bg-red-100 px-3 py-2 rounded-lg font-bold text-red-800 justify-center shadow-inner">{factoryStats.pPct}%</div>
+                <div className="p-4 bg-red-50/50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-800/30 transition-colors">
+                    <label className="block text-xs font-bold text-red-700 dark:text-red-500 mb-2 uppercase">{t.poorG}</label>
+                    <input 
+                        type="number" 
+                        value={factoryStats.p} 
+                        disabled 
+                        className="w-full p-2.5 mb-3 bg-gray-100 dark:bg-zinc-900/50 border border-red-200 dark:border-red-900/50 rounded-lg font-bold text-red-700 dark:text-red-500 cursor-not-allowed outline-none transition-colors" 
+                    />
+                    <div className="flex items-center gap-1 bg-red-100 dark:bg-red-900/40 px-3 py-2 rounded-lg font-bold text-red-800 dark:text-red-400 justify-center shadow-inner transition-colors">
+                        {factoryStats.pPct}%
+                    </div>
                 </div>
-                
             </div>
             
             <p className="text-xs text-gray-500 mt-3 italic">{t.autoCalcNote}</p>
@@ -718,7 +960,7 @@ export default function LoftLeafCount() {
                 </AnimatePresence>
                 </div>
 
-                {/* 💡 Leaf Collector Name Input */}
+                {/* Leaf Collector Name Input */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1">
                         <User size={12} /> {t.collectorName}
@@ -737,22 +979,53 @@ export default function LoftLeafCount() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                <div className="p-4 bg-green-50/50 rounded-xl border border-green-100">
-                    <label className="block text-xs font-bold text-green-700 mb-2 uppercase">{t.bestG}</label>
-                    <input type="number" id="col-bestQty" name="bestQty" value={collectorForm.bestQty} onChange={(e) => handleInputChange(e, 'collector')} onWheel={(e) => e.target.blur()} onKeyDown={(e) => handleEnterKey(e, 'col-belowBestQty')} required className="w-full p-2.5 mb-3 border border-green-200 rounded-lg focus:ring-2 focus:ring-[#8CC63F] outline-none" />
-                    <div className="flex items-center gap-1 bg-green-100 px-3 py-2 rounded-lg font-bold text-green-800 justify-center shadow-inner">{collectorStats.bPct}%</div>
+                <div className="p-4 bg-green-50/50 dark:bg-green-900/10 rounded-xl border border-green-100 dark:border-green-800/30 transition-colors">
+                    <label className="block text-xs font-bold text-green-700 dark:text-green-500 mb-2 uppercase">{t.bestG}</label>
+                    <input 
+                        type="number" 
+                        id="col-bestQty" 
+                        name="bestQty" 
+                        value={collectorForm.bestQty} 
+                        onChange={(e) => handleInputChange(e, 'collector')} 
+                        onWheel={(e) => e.target.blur()} 
+                        onKeyDown={(e) => handleEnterKey(e, 'col-belowBestQty')} 
+                        required 
+                        className="w-full p-2.5 mb-3 bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-200 border border-green-200 dark:border-green-800/50 rounded-lg focus:ring-2 focus:ring-[#8CC63F] outline-none transition-colors" 
+                    />
+                    <div className="flex items-center gap-1 bg-green-100 dark:bg-green-900/40 px-3 py-2 rounded-lg font-bold text-green-800 dark:text-green-400 justify-center shadow-inner transition-colors">
+                        {collectorStats.bPct}%
+                    </div>
                 </div>
 
-                <div className="p-4 bg-yellow-50/50 rounded-xl border border-yellow-100">
-                    <label className="block text-xs font-bold text-yellow-700 mb-2 uppercase">{t.belowBestG}</label>
-                    <input type="number" id="col-belowBestQty" name="belowBestQty" value={collectorForm.belowBestQty} onChange={(e) => handleInputChange(e, 'collector')} onWheel={(e) => e.target.blur()} onKeyDown={(e) => handleEnterKey(e, 'col-submitBtn')} required className="w-full p-2.5 mb-3 border border-yellow-200 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none bg-white dark:bg-zinc-800" />
-                    <div className="flex items-center gap-1 bg-yellow-100 px-3 py-2 rounded-lg font-bold text-yellow-800 justify-center shadow-inner">{collectorStats.bbPct}%</div>
+                <div className="p-4 bg-yellow-50/50 dark:bg-yellow-900/10 rounded-xl border border-yellow-100 dark:border-yellow-800/30 transition-colors">
+                    <label className="block text-xs font-bold text-yellow-700 dark:text-yellow-500 mb-2 uppercase">{t.belowBestG}</label>
+                    <input 
+                        type="number" 
+                        id="col-belowBestQty" 
+                        name="belowBestQty" 
+                        value={collectorForm.belowBestQty} 
+                        onChange={(e) => handleInputChange(e, 'collector')} 
+                        onWheel={(e) => e.target.blur()} 
+                        onKeyDown={(e) => handleEnterKey(e, 'col-submitBtn')} 
+                        required 
+                        className="w-full p-2.5 mb-3 bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-200 border border-yellow-200 dark:border-yellow-800/50 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none transition-colors" 
+                    />
+                    <div className="flex items-center gap-1 bg-yellow-100 dark:bg-yellow-900/40 px-3 py-2 rounded-lg font-bold text-yellow-800 dark:text-yellow-500 justify-center shadow-inner transition-colors">
+                        {collectorStats.bbPct}%
+                    </div>
                 </div>
 
-                <div className="p-4 bg-red-50/50 rounded-xl border border-red-100">
-                    <label className="block text-xs font-bold text-red-700 mb-2 uppercase">{t.poorG}</label>
-                    <input type="number" value={collectorStats.p} disabled className="w-full p-2.5 mb-3 border border-red-200 dark:border-red-900/50 rounded-lg bg-gray-100 dark:bg-zinc-800/80 font-bold text-red-700 dark:text-red-500 cursor-not-allowed outline-none" />
-                    <div className="flex items-center gap-1 bg-red-100 px-3 py-2 rounded-lg font-bold text-red-800 justify-center shadow-inner">{collectorStats.pPct}%</div>
+                <div className="p-4 bg-red-50/50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-800/30 transition-colors">
+                    <label className="block text-xs font-bold text-red-700 dark:text-red-500 mb-2 uppercase">{t.poorG}</label>
+                    <input 
+                        type="number" 
+                        value={collectorStats.p} 
+                        disabled 
+                        className="w-full p-2.5 mb-3 bg-gray-100 dark:bg-zinc-900/50 border border-red-200 dark:border-red-900/50 rounded-lg font-bold text-red-700 dark:text-red-500 cursor-not-allowed outline-none transition-colors" 
+                    />
+                    <div className="flex items-center gap-1 bg-red-100 dark:bg-red-900/40 px-3 py-2 rounded-lg font-bold text-red-800 dark:text-red-400 justify-center shadow-inner transition-colors">
+                        {collectorStats.pPct}%
+                    </div>
                 </div>
             </div>
             
