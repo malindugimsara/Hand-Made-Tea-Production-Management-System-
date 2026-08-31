@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { createPortal } from 'react-dom';
-import { Languages } from 'lucide-react'; // <-- Imported Languages Icon
+import { Languages } from 'lucide-react';
 
 const getYesterdayDate = () => {
   const date = new Date();
@@ -48,10 +48,10 @@ const WitherLeafForm = () => {
   const [bottomForm, setBottomForm] = useState(initialBottomFormState);
   const [deleteAlert, setDeleteAlert] = useState({ isOpen: false, batchIndex: null });
   
-  // 💡 Language Toggle State ("EN" or "SI")
+  // Language Toggle State ("EN" or "SI")
   const [lang, setLang] = useState("EN");
 
-  // 💡 --- DYNAMIC TRANSLATIONS ---
+  // DYNAMIC TRANSLATIONS
   const t = {
     title: lang === 'SI' ? "අමු තේ දළු ඇතුළත් කිරීම" : "Wither Leaf Entry",
     subtitle: lang === 'SI' ? "කර්මාන්තශාලා, මැලවූ දළු සහ කාණ්ඩ විස්තර දත්ත ගබඩාවට එක් කරන්න." : "Record Factory, Wither Leaf & Batch Details directly to the database.",
@@ -248,9 +248,7 @@ const WitherLeafForm = () => {
 
   const handleClearBottomSection = () => setBottomForm(initialBottomFormState);
 
-  // ==========================================
-  // INDEPENDENT SAVE: SECTIONS 1 & 2
-  // ==========================================
+  // --- Save Sections 1 & 2 ---
   const handleSaveTopSections = async (e) => {
     e.preventDefault();
     const loadingToast = toast.loading(lang === 'SI' ? "කොටස් 1 සහ 2 සුරකිමින්..." : "Saving Sections 1 & 2...");
@@ -275,9 +273,7 @@ const WitherLeafForm = () => {
     }
   };
 
-  // ==========================================
-  // INDEPENDENT SAVE: SECTION 3
-  // ==========================================
+  // --- Save Section 3 ---
   const handleSaveBottomSection = async (e) => {
     e.preventDefault();
 
@@ -317,33 +313,33 @@ const WitherLeafForm = () => {
 
   const activeBatches = bottomForm.batches.map((kg, index) => ({ index, kg })).filter(batch => batch.kg > 0);
 
-  // --- Styles ---
-  const inputClass = "w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 block p-2.5 transition-colors";
-  const readOnlyClass = "w-full bg-gray-100 border border-gray-200 text-gray-500 text-sm rounded-lg block p-2.5 font-medium";
-  const labelClass = "block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2";
-  const btnSaveClass = "bg-[#34a853] hover:bg-green-700 text-white font-bold py-2.5 px-6 rounded-lg transition-colors shadow-sm text-sm w-full sm:w-auto";
-  const btnClearClass = "bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2.5 px-6 rounded-lg transition-colors shadow-sm text-sm w-full sm:w-auto";
+  // Responsive Dark Mode Styles
+  const inputClass = "w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 block p-2.5 transition-colors";
+  const readOnlyClass = "w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-sm rounded-lg block p-2.5 font-medium select-none";
+  const labelClass = "block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2";
+  const btnSaveClass = "bg-[#34a853] hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl transition-colors shadow-sm text-sm w-full sm:w-auto cursor-pointer";
+  const btnClearClass = "bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2.5 px-6 rounded-xl transition-colors shadow-sm text-sm w-full sm:w-auto cursor-pointer";
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] p-4 md:p-8 font-sans relative">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8 font-sans relative transition-colors duration-200">
       <Toaster position="bottom-right" reverseOrder={false} />
 
       {/* --- HEADER --- */}
-      <div className="mb-6 border-b border-gray-200 pb-4 max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="mb-6 border-b border-slate-200 dark:border-slate-800 pb-4 max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <div className="flex items-center space-x-2">
-            <svg className="w-6 h-6 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6 text-emerald-700 dark:text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 19s1-7 8-7 8 7 8 7M3 19c0-5.523 4.477-10 10-10s10 4.477 10 10M12 9c0-3.314-2.686-6-6-6S0 5.686 0 9"></path>
             </svg>
-            <h1 className="text-xl font-bold text-green-800 tracking-tight">{t.title}</h1>
+            <h1 className="text-xl font-bold text-emerald-800 dark:text-emerald-400 tracking-tight">{t.title}</h1>
           </div>
-          <p className="text-sm text-gray-500 mt-1 ml-8">{t.subtitle}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 ml-8">{t.subtitle}</p>
         </div>
         
-        {/* 💡 LANGUAGE TOGGLE BUTTON */}
+        {/* LANGUAGE TOGGLE BUTTON */}
         <button
           onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')}
-          className="p-2.5 px-4 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center gap-2"
+          className="p-2.5 px-4 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 rounded-xl transition-colors shadow-sm font-bold text-sm flex items-center gap-2 cursor-pointer"
           title="Toggle Language"
         >
           <Languages size={18} />
@@ -353,18 +349,19 @@ const WitherLeafForm = () => {
 
       <div className="w-full max-w-5xl mx-auto flex flex-col gap-6">
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col gap-6">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col gap-6 transition-colors duration-200">
+          
           {/* --- SECTION 1 --- */}
           <div>
-            <div className="flex items-center space-x-2 mb-4 border-b pb-2">
-              <div className="p-1.5 bg-green-50 rounded-lg">
-                <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd"></path></svg>
+            <div className="flex items-center space-x-2 mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+              <div className="p-1.5 bg-emerald-50 dark:bg-emerald-950/60 rounded-lg">
+                <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd"></path></svg>
               </div>
-              <h2 className="text-sm font-bold text-gray-800">{t.sec1Title}</h2>
+              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200">{t.sec1Title}</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
-              <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-gray-100"></div>
+              <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-slate-100 dark:bg-slate-800"></div>
 
               <div className="flex flex-col gap-4 md:pr-4">
                 <div>
@@ -424,12 +421,12 @@ const WitherLeafForm = () => {
           </div>
 
           {/* --- SECTION 2 --- */}
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <div className="flex items-center space-x-2 mb-4 border-b pb-2">
-              <div className="p-1.5 bg-orange-50 rounded-lg">
+          <div className="mt-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex items-center space-x-2 mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+              <div className="p-1.5 bg-orange-50 dark:bg-orange-950/60 rounded-lg">
                 <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
               </div>
-              <h2 className="text-sm font-bold text-gray-800">{t.sec2Title}</h2>
+              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200">{t.sec2Title}</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -455,7 +452,7 @@ const WitherLeafForm = () => {
               </div>
               <div>
                 <label className={labelClass}>{t.weatherQuality}</label>
-                <input type="text" name="weatheringQuality" value={topForm.weatheringQuality} readOnly placeholder={t.auto} className={`${readOnlyClass} capitalize text-green-700`} />
+                <input type="text" name="weatheringQuality" value={topForm.weatheringQuality} readOnly placeholder={t.auto} className={`${readOnlyClass} capitalize text-emerald-700 dark:text-emerald-400 font-bold`} />
               </div>
             </div>
           </div>
@@ -467,24 +464,24 @@ const WitherLeafForm = () => {
         </div>
 
         {/* --- SECTION 3 --- */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-          <div className="flex justify-between items-center mb-6 border-b pb-2">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm transition-colors duration-200">
+          <div className="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-2">
             <div className="flex items-center space-x-2">
-              <div className="p-1.5 bg-blue-50 rounded-lg">
+              <div className="p-1.5 bg-blue-50 dark:bg-blue-950/60 rounded-lg">
                 <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
               </div>
-              <h2 className="text-sm font-bold text-gray-800">{t.sec3Title}</h2>
+              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200">{t.sec3Title}</h2>
             </div>
           </div>
 
           <div className="mb-6">
             <label className={labelClass}>{t.dom}</label>
-            <div className="w-full md:w-1/3 bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm text-gray-600 font-semibold h-10 flex items-center">
+            <div className="w-full md:w-1/3 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-sm text-slate-600 dark:text-slate-400 font-semibold h-11 flex items-center">
               {topForm.dateOfManufacture || t.awaitingDom}
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4 items-end mb-8 bg-gray-50 p-4 rounded-xl border border-gray-100">
+          <div className="flex flex-col md:flex-row gap-4 items-end mb-8 bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800">
             <div className="w-full md:w-1/3">
               <label className={labelClass}>{t.selectBatch}</label>
               <select name="selectedBatch" value={bottomForm.selectedBatch} onChange={handleBottomChange} className={inputClass}>
@@ -510,7 +507,7 @@ const WitherLeafForm = () => {
               <button
                 type="button"
                 onClick={handleAddBatchRecord}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-10 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-11 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
                 {t.addBatch}
@@ -519,24 +516,24 @@ const WitherLeafForm = () => {
           </div>
 
           {activeBatches.length === 0 ? (
-            <div className="text-center p-8 bg-gray-50 border border-dashed border-gray-300 rounded-xl mb-8">
-              <p className="text-gray-500 text-sm font-medium">{t.noBatches}</p>
+            <div className="text-center p-8 bg-slate-50 dark:bg-slate-800/30 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl mb-8">
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">{t.noBatches}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 mb-8">
               {activeBatches.map(({ index, kg }) => (
-                <div key={index} className="group relative flex flex-col border border-green-200 rounded-lg overflow-hidden text-center shadow-sm">
-                  <div className="bg-green-50 py-1.5 text-xs font-bold text-green-700 border-b border-green-200">
+                <div key={index} className="group relative flex flex-col border border-emerald-200 dark:border-emerald-800/60 rounded-xl overflow-hidden text-center shadow-2xs">
+                  <div className="bg-emerald-50 dark:bg-emerald-950/60 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 border-b border-emerald-200 dark:border-emerald-800/60">
                     {t.batch} {String(index + 1).padStart(2, '0')}
                   </div>
-                  <div className="py-3 text-lg font-bold text-gray-800 bg-white">
-                    {kg} <span className="text-xs text-gray-400 font-normal">kg</span>
+                  <div className="py-3 text-lg font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900">
+                    {kg} <span className="text-xs text-slate-400 dark:text-slate-500 font-normal">kg</span>
                   </div>
-                  <div className="absolute inset-0 bg-gray-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-3 transition-opacity duration-200 backdrop-blur-[2px]">
-                    <button onClick={() => handleEditBatchClick(index)} className="p-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-transform hover:scale-110 shadow-sm" title="Edit Batch">
+                  <div className="absolute inset-0 bg-slate-900/60 dark:bg-slate-950/80 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-3 transition-opacity duration-200 backdrop-blur-[2px]">
+                    <button onClick={() => handleEditBatchClick(index)} className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-transform hover:scale-110 shadow-sm cursor-pointer" title="Edit Batch">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                     </button>
-                    <button onClick={() => handleDeleteBatchClick(index)} className="p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full transition-transform hover:scale-110 shadow-sm" title="Remove Batch">
+                    <button onClick={() => handleDeleteBatchClick(index)} className="p-2 bg-rose-500 hover:bg-rose-600 text-white rounded-full transition-transform hover:scale-110 shadow-sm cursor-pointer" title="Remove Batch">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                     </button>
                   </div>
@@ -553,20 +550,20 @@ const WitherLeafForm = () => {
       </div>
 
       {deleteAlert.isOpen && createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl transform transition-all">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 w-full max-w-sm shadow-2xl transform transition-all">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="p-2 bg-red-100 rounded-full">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+              <div className="p-2 bg-rose-100 dark:bg-rose-950/60 rounded-full">
+                <svg className="w-6 h-6 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
               </div>
-              <h3 className="text-lg font-bold text-gray-900">{t.removeTitle}</h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">{t.removeTitle}</h3>
             </div>
-            <p className="text-sm text-gray-500 mb-6 pl-11">
-              {t.removeDesc1} <strong>{t.batch} {deleteAlert.batchIndex + 1}</strong>{t.removeDesc2}
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 pl-11">
+              {t.removeDesc1} <strong className="text-slate-800 dark:text-slate-200">{t.batch} {deleteAlert.batchIndex + 1}</strong>{t.removeDesc2}
             </p>
             <div className="flex justify-end gap-3">
-              <button onClick={cancelDelete} className="px-4 py-2.5 text-sm font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">{t.cancelBtn}</button>
-              <button onClick={confirmDelete} className="px-4 py-2.5 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors shadow-sm">{t.removeBtn}</button>
+              <button onClick={cancelDelete} className="px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer">{t.cancelBtn}</button>
+              <button onClick={confirmDelete} className="px-4 py-2.5 text-sm font-bold text-white bg-rose-500 hover:bg-rose-600 rounded-xl transition-colors shadow-sm cursor-pointer">{t.removeBtn}</button>
             </div>
           </div>
         </div>,
