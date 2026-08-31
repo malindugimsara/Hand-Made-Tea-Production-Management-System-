@@ -2,22 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
   ChevronDown, 
-  ChevronUp,
-  RefreshCw,
-  Leaf,
-  Filter,
-  X,
-  Package,
-  Activity,
-  Info,
-  FileDown,
-  Languages 
+  ChevronUp, 
+  RefreshCw, 
+  Leaf, 
+  Filter, 
+  X, 
+  Package, 
+  Activity, 
+  Info, 
+  FileDown, 
+  Languages,
+  Clock,
+  Building,
+  CheckCircle2
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-// Utility to chunk arrays into smaller arrays for multiple rows
+// Utility to chunk arrays into smaller arrays for desktop tables
 const chunkArray = (arr, size) => {
   const chunked = [];
   for (let i = 0; i < arr.length; i += size) {
@@ -26,7 +29,7 @@ const chunkArray = (arr, size) => {
   return chunked;
 };
 
-// Helper to get local date in YYYY-MM-DD format for default filter
+// Helper to get local date in YYYY-MM-DD
 const getTodayDate = () => {
   const today = new Date();
   const yyyy = today.getFullYear();
@@ -44,14 +47,10 @@ const WitherLeafSummary = () => {
   const [filterDate, setFilterDate] = useState(getTodayDate());
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
-  // User details from localStorage for the PDF footer
   const userRole = localStorage.getItem("userRole") || "Admin";
   const currentUsername = localStorage.getItem("username") || "admin";
-
-  // 💡 Language Toggle State ("EN" or "SI")
   const [lang, setLang] = useState("EN");
 
-  // 💡 --- DYNAMIC TRANSLATIONS ---
   const t = {
     title: lang === 'SI' ? "මැලවූ දළු සාරාංශ වාර්තාව" : "Wither Leaf Summary Report",
     subtitle: lang === 'SI' ? "දෛනික මැලවූ දළු සහ කාණ්ඩ විස්තර වාර්තාව." : "Daily consolidated report of all wither leaf and batch data.",
@@ -134,7 +133,6 @@ const WitherLeafSummary = () => {
   const groupedRecords = filteredRecords.reduce((acc, record) => {
     const cropDate = record.dateOfCrop || 'Unknown Crop Date';
     const mfDate = record.dateOfManufacture || 'Unknown M/F Date';
-    
     const groupKey = `${cropDate}|${mfDate}`;
     if (!acc[groupKey]) acc[groupKey] = [];
     acc[groupKey].push(record);
@@ -149,9 +147,6 @@ const WitherLeafSummary = () => {
     return new Date(dateB) - new Date(dateA);
   });
 
-  // =========================================================
-  // --- DIRECT DOWNLOAD PDF (Beautified High-Quality Export) ---
-  // =========================================================
   const handleDownloadPDF = async (groupKey) => {
     const printElement = document.getElementById(`pdf-print-area-${groupKey}`);
     if (!printElement) return;
@@ -178,7 +173,6 @@ const WitherLeafSummary = () => {
       printElement.style.display = "none";
 
       const imgData = canvas.toDataURL('image/jpeg', 0.90);
-
       const pdf = new jsPDF('landscape', 'pt', 'a4');
       const pdfPageWidth = pdf.internal.pageSize.getWidth();
       const pdfPageHeight = pdf.internal.pageSize.getHeight();
@@ -211,61 +205,64 @@ const WitherLeafSummary = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] p-4 md:p-8 font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-3 sm:p-5 md:p-8 font-sans transition-colors duration-200">
       <Toaster position="bottom-right" />
       
-      {/* Page Header */}
-      <div className="max-w-6xl mx-auto mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <div className="flex items-center space-x-2">
-            <Leaf className="w-7 h-7 text-green-700" />
-            <h1 className="text-2xl font-bold text-green-800 tracking-tight">{t.title}</h1>
+      {/* Top Mobile-Responsive Header */}
+      <div className="max-w-6xl mx-auto mb-4 sm:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3.5">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 rounded-2xl shrink-0">
+            <Leaf className="w-6 h-6 md:w-7 md:h-7" />
           </div>
-          <p className="text-sm text-gray-500 mt-1 ml-9">{t.subtitle}</p>
+          <div>
+            <h1 className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">{t.title}</h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium line-clamp-1">{t.subtitle}</p>
+          </div>
         </div>
         
-        <div className="flex flex-row flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 w-full md:w-auto">
-          {/* 💡 LANGUAGE TOGGLE BUTTON */}
+        <div className="grid grid-cols-2 sm:flex items-center gap-2 sm:gap-3 w-full md:w-auto">
           <button
+            type="button"
             onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')}
-            className="p-2.5 px-4 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center gap-2"
+            className="p-2.5 px-4 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 rounded-xl transition-all font-bold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-95 min-h-[44px]"
             title="Toggle Language"
           >
-            <Languages size={18} />
+            <Languages size={17} />
             {lang === 'EN' ? "සිංහල" : "English"}
           </button>
 
           <button 
+            type="button"
             onClick={fetchRecords} 
             disabled={loading}
-            className="flex-1 sm:flex-none justify-center bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold py-2 sm:py-2.5 px-4 rounded-lg shadow-sm flex items-center gap-2 transition-colors text-sm"
+            className="justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold py-2.5 px-4 rounded-xl shadow-xs flex items-center gap-2 transition-all text-xs sm:text-sm cursor-pointer active:scale-95 min-h-[44px]"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
             {loading ? t.refreshing : t.sync}
           </button>
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="max-w-6xl mx-auto mb-8 bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
-        <div className="flex items-center gap-2 text-gray-700 font-semibold text-sm">
-          <Filter className="w-4 h-4 text-green-600" />
+      {/* Date Filter Bar */}
+      <div className="max-w-6xl mx-auto mb-6 bg-white dark:bg-slate-900 p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-bold text-xs sm:text-sm">
+          <Filter className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           {t.filterDay}
         </div>
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <label className="text-[10px] font-bold text-gray-500 uppercase">{t.cropDate}</label>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-none">
             <input 
               type="date" 
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              className="bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none p-2"
+              value={filterDate} 
+              onChange={(e) => setFilterDate(e.target.value)} 
+              className="w-full sm:w-auto bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs sm:text-sm font-bold rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none p-2.5 transition-all"
             />
           </div>
           {filterDate && (
             <button 
-              onClick={clearFilter}
-              className="flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-lg transition-colors"
+              type="button"
+              onClick={clearFilter} 
+              className="flex items-center justify-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 px-3.5 py-2.5 rounded-xl transition-colors cursor-pointer active:scale-95 min-h-[40px]"
             >
               <X className="w-3.5 h-3.5" /> {t.clear}
             </button>
@@ -273,18 +270,18 @@ const WitherLeafSummary = () => {
         </div>
       </div>
 
-      {/* UI Content Generation */}
-      <div className="max-w-6xl mx-auto flex flex-col gap-6">
+      {/* Main Content List */}
+      <div className="max-w-6xl mx-auto flex flex-col gap-4 sm:gap-6">
         {loading && records.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl border border-gray-200 shadow-sm">
-            <div className="w-10 h-10 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-500 font-medium">{t.loading}</p>
+          <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs">
+            <div className="w-10 h-10 border-4 border-emerald-200 dark:border-emerald-800 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-slate-500 dark:text-slate-400 font-semibold text-xs uppercase tracking-wider">{t.loading}</p>
           </div>
         ) : sortedGroupKeys.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl border border-gray-200 shadow-sm">
-            <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <h3 className="text-lg font-bold text-gray-700">{t.noRecords}</h3>
-            <p className="text-gray-500 text-sm">{t.noRecordsDesc}</p>
+          <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs">
+            <Package className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+            <h3 className="text-base font-black text-slate-700 dark:text-slate-200 uppercase">{t.noRecords}</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-xs max-w-sm mx-auto font-medium mt-1">{t.noRecordsDesc}</p>
           </div>
         ) : (
           sortedGroupKeys.map((groupKey) => {
@@ -325,6 +322,7 @@ const WitherLeafSummary = () => {
             const activeBatches = consolidated.batches.map((kg, i) => ({ num: String(i + 1).padStart(2, '0'), kg })).filter(b => b.kg > 0);
             const hasBatches = activeBatches.length > 0;
             const totalReceived = consolidated.receivedTotalCropKg || 0;
+            const totalBatchKg = activeBatches.reduce((sum, b) => sum + (Number(b.kg) || 0), 0);
 
             const docRefCode = `WL/SUM/${new Date().toLocaleString("default", { month: "long" }).toUpperCase()}.${new Date().getFullYear()}`;
             const currentTimestamp = `${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${String(new Date().getDate()).padStart(2, '0')} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase()}`;
@@ -332,155 +330,175 @@ const WitherLeafSummary = () => {
             return (
               <div 
                 key={groupKey} 
-                className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all duration-300"
+                className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden transition-all duration-300"
               >
-                
-                {/* Header Container */}
+                {/* Group Accordion Bar */}
                 <div 
                   onClick={() => toggleGroup(groupKey)}
-                  className="bg-white hover:bg-green-50/30 p-5 cursor-pointer flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors"
+                  className="bg-white dark:bg-slate-900 hover:bg-emerald-50/30 dark:hover:bg-slate-800/40 p-4 sm:p-5 cursor-pointer flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 transition-colors select-none"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="p-2.5 bg-green-100/50 text-green-600 rounded-lg">
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="p-2.5 bg-emerald-100/60 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 rounded-xl shrink-0">
                       <Calendar className="w-5 h-5" />
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6">
-                      <div className="flex flex-col">
-                         <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{t.cropDate}</span>
-                         <span className="text-lg font-black text-gray-800">{formattedCropDate}</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 flex-1">
+                      <div className="flex justify-between sm:flex-col">
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider">{t.cropDate}</span>
+                        <span className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">{formattedCropDate}</span>
                       </div>
-                      <span className="hidden sm:block text-gray-300">|</span>
-                      <div className="flex flex-col">
-                         <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{t.mfDate}</span>
-                         <span className="text-lg font-black text-gray-800">{formattedMFDate}</span>
+                      <span className="hidden sm:block text-slate-300 dark:text-slate-700 font-bold">|</span>
+                      <div className="flex justify-between sm:flex-col">
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider">{t.mfDate}</span>
+                        <span className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">{formattedMFDate}</span>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-4 w-full sm:w-auto mt-3 sm:mt-0">
+                  <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
                     {totalReceived > 0 && (
-                      <div className="hidden sm:block text-right mr-2">
-                        <p className="text-[10px] uppercase font-bold text-gray-400">{t.totalCrop}</p>
-                        <p className="text-sm font-bold text-gray-800">{Number(totalReceived).toFixed(2)} kg</p>
+                      <div className="text-left sm:text-right">
+                        <p className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">{t.totalCrop}</p>
+                        <p className="text-xs sm:text-sm font-black text-emerald-700 dark:text-emerald-400">{Number(totalReceived).toFixed(2)} kg</p>
                       </div>
                     )}
                     
-                    {/* --- PDF DOWNLOAD BUTTON --- */}
-                    {isExpanded && (
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation(); 
-                          handleDownloadPDF(groupKey);
-                        }}
-                        disabled={generatingPdf}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-xs transition-colors shadow-sm"
-                        title="Download PDF"
-                      >
-                        <FileDown className="w-4 h-4" />
-                        {t.downloadPdf}
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {isExpanded && (
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation(); 
+                            handleDownloadPDF(groupKey);
+                          }}
+                          disabled={generatingPdf}
+                          className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl font-bold text-xs transition-colors shadow-xs cursor-pointer min-h-[38px]"
+                          title="Download PDF"
+                        >
+                          <FileDown className="w-4 h-4" />
+                          <span className="hidden xs:inline">{t.downloadPdf}</span>
+                        </button>
+                      )}
 
-                    <button className="p-1.5 bg-gray-50 border border-gray-200 rounded-full text-gray-500 hover:bg-gray-100 ml-auto sm:ml-0 transition-colors">
-                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </button>
+                      <button 
+                        type="button"
+                        className="p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      >
+                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                {/* ======================================= */}
-                {/* --- MODERN UI CONTENT --- */}
-                {/* ======================================= */}
+                {/* Expanded Accordion Body */}
                 {isExpanded && (
-                  <div className="border-t border-gray-100 bg-gray-50/30 p-6 md:p-8">
+                  <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/40 p-3.5 sm:p-6 md:p-8 flex flex-col gap-6">
                     
-                    {/* --- TOP SECTION: Batch Table --- */}
-                    <div className="mb-10 w-full overflow-x-auto custom-scrollbar pb-2">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Activity className="w-4 h-4 text-blue-500" />
-                        <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">{t.batchQty}</h4>
+                    {/* --- BATCH SECTION --- */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">{t.batchQty}</h4>
+                        </div>
+                        {hasBatches && (
+                          <span className="text-[10px] font-extrabold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 rounded-full border border-blue-200 dark:border-blue-900/50">
+                            {activeBatches.length} Batches ({totalBatchKg.toFixed(2)} kg)
+                          </span>
+                        )}
                       </div>
 
                       {hasBatches ? (
-                        chunkArray(activeBatches, 15).map((chunk, chunkIdx) => (
-                          <table key={`table-${chunkIdx}`} className="w-full min-w-max border-collapse border border-gray-200 mb-6 bg-white shadow-sm rounded-lg overflow-hidden">
-                            <thead className="bg-gray-50 border-b border-gray-200">
-                              <tr>
-                                <th className="border-r border-gray-200 text-gray-500 font-bold text-[11px] uppercase px-4 py-2 text-left w-24">
-                                  {t.batchNo}
-                                </th>
-                                {chunk.map(batch => (
-                                  <th 
-                                    key={`th-${batch.num}`} 
-                                    className="border-r border-gray-200 text-blue-600 font-bold text-[13px] px-3 py-2 text-center min-w-[55px] last:border-r-0"
-                                  >
-                                    {batch.num}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr>
-                                <td className="border-r border-gray-200 bg-gray-50 text-gray-500 font-bold text-[11px] uppercase px-4 py-3 text-left w-24">
-                                  {t.kg}
-                                </td>
-                                {chunk.map(batch => (
-                                  <td 
-                                    key={`td-${batch.num}`} 
-                                    className="border-r border-gray-200 text-gray-800 font-bold text-sm px-3 py-3 text-center last:border-r-0"
-                                  >
-                                    {batch.kg}
-                                  </td>
-                                ))}
-                              </tr>
-                            </tbody>
-                          </table>
-                        ))
+                        <>
+                          {/* 📱 Mobile Optimized Grid Cards (Visible on screens < 640px) */}
+                          <div className="grid sm:hidden grid-cols-3 xs:grid-cols-4 gap-2">
+                            {activeBatches.map(batch => (
+                              <div key={`m-batch-${batch.num}`} className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl p-2 text-center shadow-2xs">
+                                <span className="block text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase">#{batch.num}</span>
+                                <span className="block text-xs font-bold text-slate-800 dark:text-slate-100 mt-0.5">{batch.kg}</span>
+                                <span className="text-[9px] font-semibold text-slate-400 block">kg</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* 💻 Desktop Segmented Tables (Visible on screens >= 640px) */}
+                          <div className="hidden sm:block w-full overflow-x-auto custom-scrollbar pb-2">
+                            {chunkArray(activeBatches, 15).map((chunk, chunkIdx) => (
+                              <table key={`table-${chunkIdx}`} className="w-full min-w-max border-collapse border border-slate-200 dark:border-slate-800 mb-4 bg-white dark:bg-slate-900 shadow-2xs rounded-xl overflow-hidden text-center text-xs">
+                                <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800">
+                                  <tr>
+                                    <th className="border-r border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase px-3 py-2 text-left w-24">
+                                      {t.batchNo}
+                                    </th>
+                                    {chunk.map(batch => (
+                                      <th key={`th-${batch.num}`} className="border-r border-slate-200 dark:border-slate-800 text-blue-600 dark:text-blue-400 font-extrabold text-xs px-2.5 py-2 min-w-[50px] last:border-r-0">
+                                        {batch.num}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td className="border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase px-3 py-2 text-left w-24">
+                                      {t.kg}
+                                    </td>
+                                    {chunk.map(batch => (
+                                      <td key={`td-${batch.num}`} className="border-r border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 font-bold text-xs px-2.5 py-2 last:border-r-0">
+                                        {batch.kg}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                </tbody>
+                              </table>
+                            ))}
+                          </div>
+                        </>
                       ) : (
-                        <div className="bg-white border border-dashed border-gray-300 rounded-lg p-6 text-center w-full max-w-md">
-                          <p className="text-gray-500 font-medium text-sm">{t.noBatches}</p>
+                        <div className="bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-6 text-center">
+                          <p className="text-slate-500 dark:text-slate-400 font-medium text-xs sm:text-sm">{t.noBatches}</p>
                         </div>
                       )}
                     </div>
 
-                    {/* --- BOTTOM SECTION: Info List --- */}
-                    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                      <div className="flex items-center gap-2 mb-6 border-b border-gray-100 pb-4">
-                        <Info className="w-4 h-4 text-green-600" />
-                        <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">{t.prodSummary}</h4>
+                    {/* --- PRODUCTION SUMMARY METRICS --- */}
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xs">
+                      <div className="flex items-center gap-2 mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
+                        <Info className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider">{t.prodSummary}</h4>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 text-sm text-gray-700">
-                        <div className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                          <span className="font-medium text-gray-500">{t.cropDate}</span>
-                          <span className="font-bold text-gray-900">{formattedCropDate}</span>
+                      {/* Responsive Key-Value Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                        <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 flex justify-between items-center">
+                          <span className="font-semibold text-slate-500 dark:text-slate-400">{t.cropDate}</span>
+                          <span className="font-black text-slate-900 dark:text-slate-100">{formattedCropDate}</span>
                         </div>
-                        <div className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                          <span className="font-medium text-gray-500">{t.mfDate}</span>
-                          <span className="font-bold text-gray-900">{formattedMFDate}</span>
+                        <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 flex justify-between items-center">
+                          <span className="font-semibold text-slate-500 dark:text-slate-400">{t.mfDate}</span>
+                          <span className="font-black text-slate-900 dark:text-slate-100">{formattedMFDate}</span>
                         </div>
-                        <div className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                          <span className="font-medium text-gray-500">{t.greenLeaf}</span>
-                          <span className="font-bold text-blue-600">{consolidated.receivedTotalCropKg || 0} kg</span>
+                        <div className="bg-blue-50/60 dark:bg-blue-950/30 p-3 rounded-xl border border-blue-200/60 dark:border-blue-900/40 flex justify-between items-center">
+                          <span className="font-bold text-blue-800 dark:text-blue-300">{t.greenLeaf}</span>
+                          <span className="font-black text-blue-900 dark:text-blue-200">{consolidated.receivedTotalCropKg || 0} kg</span>
                         </div>
-                        <div className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                          <span className="font-medium text-gray-500">{t.witherLeaf}</span>
-                          <span className="font-bold text-green-600">{consolidated.witheredLeafKg || 0} kg</span>
+                        <div className="bg-emerald-50/60 dark:bg-emerald-950/30 p-3 rounded-xl border border-emerald-200/60 dark:border-emerald-900/40 flex justify-between items-center">
+                          <span className="font-bold text-emerald-800 dark:text-emerald-300">{t.witherLeaf}</span>
+                          <span className="font-black text-emerald-900 dark:text-emerald-200">{consolidated.witheredLeafKg || 0} kg</span>
                         </div>
-                        <div className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                          <span className="font-medium text-gray-500">{t.witheringP}</span>
-                          <span className="font-bold text-gray-900">{consolidated.percentage || 0}%</span>
+                        <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 flex justify-between items-center">
+                          <span className="font-semibold text-slate-500 dark:text-slate-400">{t.witheringP}</span>
+                          <span className="font-black text-slate-900 dark:text-slate-100">{consolidated.percentage || 0}%</span>
                         </div>
-                        <div className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                          <span className="font-medium text-gray-500">{t.quality}</span>
-                          <span className="font-bold text-orange-500">{consolidated.weatheringQuality || '-'}</span>
+                        <div className="bg-amber-50/60 dark:bg-amber-950/30 p-3 rounded-xl border border-amber-200/60 dark:border-amber-900/40 flex justify-between items-center">
+                          <span className="font-bold text-amber-800 dark:text-amber-300">{t.quality}</span>
+                          <span className="font-black text-amber-900 dark:text-amber-200">{consolidated.weatheringQuality || '-'}</span>
                         </div>
-                        <div className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                          <span className="font-medium text-gray-500">{t.factory}</span>
-                          <span className="font-bold text-gray-900">{consolidated.factory || '-'}</span>
+                        <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 flex justify-between items-center sm:col-span-2">
+                          <span className="font-semibold text-slate-500 dark:text-slate-400">{t.factory}</span>
+                          <span className="font-bold text-slate-900 dark:text-slate-100 text-right truncate ml-2">{consolidated.factory || '-'}</span>
                         </div>
-                        <div className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                          <span className="font-medium text-gray-500">{t.opsPeriod}</span>
-                          <span className="font-bold text-gray-900">
+                        <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 flex justify-between items-center sm:col-span-2 lg:col-span-4">
+                          <span className="font-semibold text-slate-500 dark:text-slate-400">{t.opsPeriod}</span>
+                          <span className="font-bold text-slate-900 dark:text-slate-100">
                             {consolidated.startTime || '-'} to {consolidated.finishTime || '-'} ({consolidated.period || '-'})
                           </span>
                         </div>
@@ -491,16 +509,14 @@ const WitherLeafSummary = () => {
                 )}
 
                 {/* ========================================================= */}
-                {/* --- BEAUTIFIED HIDDEN PDF TEMPLATE (MATCHING REFERENCE UI) --- */}
+                {/* --- HIDDEN PDF PRINT TEMPLATE --- */}
                 {/* ========================================================= */}
                 <div 
                   id={`pdf-print-area-${groupKey}`}
                   style={{ width: '1122px', minHeight: '793px', display: 'none', backgroundColor: '#ffffff', color: '#111827', padding: '48px', fontFamily: 'sans-serif', boxSizing: 'border-box' }}
                 >
-                  {/* Top Green Accent Bar */}
-                  <div style={{ height: '6px', backgroundColor: '#15803d', width: '100%', marginBottom: '24px', borderRadius: '4px' }}></div>
+                  <div style={{ height: '6px', backgroundColor: '#15803d', width: '100%', marginBottom: '24px', borderRadius: '4px' }} />
 
-                  {/* Header */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', borderBottom: '2px solid #e5e7eb', paddingBottom: '20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                       <img 
@@ -510,101 +526,92 @@ const WitherLeafSummary = () => {
                         onError={(e) => e.target.style.display = 'none'} 
                       />
                       <div>
-                        <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#15803d', textTransform: 'uppercase', margin: 0, letterSpacing: '0.025em' }}>Athukorala Group (Pvt) Ltd</h1>
-                        <h2 style={{ fontSize: '18px', fontWeight: '700', marginTop: '4px', color: '#1f2937', margin: 0 }}>{t.title}</h2>
-                        <p style={{ color: '#4b5563', fontSize: '13px', marginTop: '4px', margin: 0 }}>Filter Applied: Date - {formattedCropDate}</p>
+                        <h1 style={{ fontSize: '20px', fontWeight: '800', color: '#15803d', textTransform: 'uppercase', margin: 0 }}>Athukorala Group (Pvt) Ltd</h1>
+                        <h2 style={{ fontSize: '16px', fontWeight: '700', marginTop: '4px', color: '#1f2937', margin: 0 }}>{t.title}</h2>
+                        <p style={{ color: '#4b5563', fontSize: '12px', marginTop: '4px', margin: 0 }}>Filter Applied: Date - {formattedCropDate}</p>
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right', fontSize: '12px', color: '#6b7280', display: 'flex', flexDirection: 'column', gap: '4px', backgroundColor: '#f9fafb', padding: '12px 16px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                    <div style={{ textAlign: 'right', fontSize: '11px', color: '#6b7280', display: 'flex', flexDirection: 'column', gap: '4px', backgroundColor: '#f9fafb', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                       <p style={{ margin: 0 }}><strong style={{ color: '#111827' }}>{t.docRef}:</strong> {docRefCode}</p>
                       <p style={{ margin: 0 }}><strong style={{ color: '#111827' }}>{t.generated}:</strong> {currentTimestamp}</p>
                     </div>
                   </div>
 
-                  {/* Top: Batch Table */}
                   <div style={{ marginBottom: '32px' }}>
-                    <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#1d4ed8', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ display: 'inline-block', width: '8px', height: '8px', backgroundColor: '#2563eb', borderRadius: '50%' }}></span>
-                      {t.batchQty}
-                    </h3>
+                    <h3 style={{ fontSize: '12px', fontWeight: '800', color: '#1d4ed8', textTransform: 'uppercase', marginBottom: '12px' }}>{t.batchQty}</h3>
                     {hasBatches ? (
                       chunkArray(activeBatches, 15).map((chunk, cIdx) => (
-                        <table key={`pdf-table-${cIdx}`} style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #cbd5e1', marginBottom: '16px', textAlign: 'center', fontSize: '12px', borderRadius: '8px', overflow: 'hidden' }}>
+                        <table key={`pdf-table-${cIdx}`} style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #cbd5e1', marginBottom: '16px', textAlign: 'center', fontSize: '11px' }}>
                           <thead>
                             <tr style={{ backgroundColor: '#eff6ff', color: '#1e3a8a' }}>
-                              <th style={{ border: '1px solid #cbd5e1', padding: '10px 14px', fontWeight: '700', textTransform: 'uppercase', textAlign: 'left', width: '100px', fontSize: '11px', letterSpacing: '0.05em' }}>Batch No</th>
+                              <th style={{ border: '1px solid #cbd5e1', padding: '8px 12px', fontWeight: '700', textTransform: 'uppercase', textAlign: 'left', width: '90px' }}>Batch No</th>
                               {chunk.map(b => (
-                                <th key={`pdf-th-${b.num}`} style={{ border: '1px solid #cbd5e1', padding: '10px 8px', fontWeight: '700', color: '#1e40af', fontSize: '12px' }}>{b.num}</th>
+                                <th key={`pdf-th-${b.num}`} style={{ border: '1px solid #cbd5e1', padding: '8px 6px', fontWeight: '700', color: '#1e40af' }}>{b.num}</th>
                               ))}
                             </tr>
                           </thead>
                           <tbody>
                             <tr>
-                              <td style={{ border: '1px solid #cbd5e1', padding: '10px 14px', fontWeight: '700', textTransform: 'uppercase', textAlign: 'left', backgroundColor: '#f8fafc', color: '#475569', fontSize: '11px' }}>Kg</td>
+                              <td style={{ border: '1px solid #cbd5e1', padding: '8px 12px', fontWeight: '700', textTransform: 'uppercase', textAlign: 'left', backgroundColor: '#f8fafc', color: '#475569' }}>Kg</td>
                               {chunk.map(b => (
-                                <td key={`pdf-td-${b.num}`} style={{ border: '1px solid #cbd5e1', padding: '10px 8px', fontWeight: '700', color: '#0f172a', backgroundColor: '#ffffff' }}>{b.kg}</td>
+                                <td key={`pdf-td-${b.num}`} style={{ border: '1px solid #cbd5e1', padding: '8px 6px', fontWeight: '700', color: '#0f172a' }}>{b.kg}</td>
                               ))}
                             </tr>
                           </tbody>
                         </table>
                       ))
                     ) : (
-                      <p style={{ fontSize: '13px', color: '#6b7280', fontStyle: 'italic', padding: '12px', backgroundColor: '#f9fafb', borderRadius: '6px', border: '1px dashed #d1d5db' }}>No batches recorded.</p>
+                      <p style={{ fontSize: '12px', color: '#6b7280', fontStyle: 'italic', padding: '12px', backgroundColor: '#f9fafb', borderRadius: '6px' }}>No batches recorded.</p>
                     )}
                   </div>
 
-                  {/* Bottom: Production Summary (Clean 2-Column List Style matching reference image) */}
-                  <div style={{ marginBottom: '40px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px' }}>
-                    <h3 style={{ fontSize: '13px', fontWeight: '800', color: '#15803d', textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ display: 'inline-block', width: '8px', height: '8px', backgroundColor: '#16a34a', borderRadius: '50%' }}></span>
-                      {t.prodSummary}
-                    </h3>
+                  <div style={{ marginBottom: '36px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
+                    <h3 style={{ fontSize: '12px', fontWeight: '800', color: '#15803d', textTransform: 'uppercase', marginBottom: '14px' }}>{t.prodSummary}</h3>
                     
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 32px', fontSize: '14px', color: '#334155' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 28px', fontSize: '13px', color: '#334155' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #e2e8f0' }}>
                         <span style={{ fontWeight: '500', color: '#64748b' }}>Crop Date</span>
                         <span style={{ fontWeight: '700', color: '#0f172a' }}>{formattedCropDate}</span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #e2e8f0' }}>
                         <span style={{ fontWeight: '500', color: '#64748b' }}>M/F Date</span>
                         <span style={{ fontWeight: '700', color: '#0f172a' }}>{formattedMFDate}</span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #e2e8f0' }}>
                         <span style={{ fontWeight: '500', color: '#64748b' }}>Green Leaf</span>
                         <span style={{ fontWeight: '800', color: '#2563eb' }}>{consolidated.receivedTotalCropKg || 0} kg</span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #e2e8f0' }}>
                         <span style={{ fontWeight: '500', color: '#64748b' }}>Wither Leaf</span>
                         <span style={{ fontWeight: '800', color: '#16a34a' }}>{consolidated.witheredLeafKg || 0} kg</span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #e2e8f0' }}>
                         <span style={{ fontWeight: '500', color: '#64748b' }}>Withering (P)</span>
                         <span style={{ fontWeight: '700', color: '#0f172a' }}>{consolidated.percentage || 0}%</span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #e2e8f0' }}>
                         <span style={{ fontWeight: '500', color: '#64748b' }}>Quality</span>
                         <span style={{ fontWeight: '800', color: '#ea580c' }}>{consolidated.weatheringQuality || '-'}</span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #e2e8f0' }}>
                         <span style={{ fontWeight: '500', color: '#64748b' }}>Factory</span>
                         <span style={{ fontWeight: '700', color: '#0f172a' }}>{consolidated.factory || '-'}</span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #e2e8f0' }}>
                         <span style={{ fontWeight: '500', color: '#64748b' }}>Ops Period</span>
                         <span style={{ fontWeight: '700', color: '#0f172a' }}>{consolidated.startTime || '-'} to {consolidated.finishTime || '-'} ({consolidated.period || '-'})</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Footer */}
-                  <div style={{ marginTop: '48px', paddingTop: '20px', borderTop: '2px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: '13px', fontWeight: '700', color: '#374151' }}>
+                  <div style={{ marginTop: '40px', paddingTop: '16px', borderTop: '2px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: '12px', fontWeight: '700' }}>
                     <div>
-                      <p style={{ color: '#9ca3af', fontWeight: 'normal', fontSize: '11px', margin: 0, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.genBy}</p>
-                      <p style={{ color: '#111827', margin: 0, fontSize: '14px' }}>{currentUsername} ({userRole})</p>
+                      <p style={{ color: '#9ca3af', fontWeight: 'normal', fontSize: '10px', margin: 0, marginBottom: '4px', textTransform: 'uppercase' }}>{t.genBy}</p>
+                      <p style={{ color: '#111827', margin: 0, fontSize: '13px' }}>{currentUsername} ({userRole})</p>
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <p style={{ color: '#cbd5e1', margin: 0, marginBottom: '4px', letterSpacing: '2px' }}>.................................................................</p>
-                      <p style={{ color: '#9ca3af', fontWeight: 'normal', fontSize: '11px', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.authSig}</p>
+                      <p style={{ color: '#9ca3af', fontWeight: 'normal', fontSize: '10px', margin: 0, textTransform: 'uppercase' }}>{t.authSig}</p>
                     </div>
                   </div>
                 </div>
