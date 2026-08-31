@@ -17,6 +17,8 @@ import {
   PackagePlus,
   Proportions,
   Search,
+  Leaf,
+  Layers,
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -77,31 +79,68 @@ const DATA = {
       title: 'B/L Operations',
       icon: Store,
       items: [
-        { title: 'Enter Wither Leaf', url: '/manufacturer/bl-production/witherLeafForm', nonViewer: true },
-        { title: 'Wither Leaf Summary', url: '/manufacturer/bl-production/witherLeafSummary' },
-        { title: "Enter Dhool Rolling", url: "/manufacturer/bl-production/dhoolRollingSection", nonViewer: true },
-        { title: "Dhool Rolling Summary", url: "/manufacturer/bl-production/dhoolRollingSummary" },
-        { title: "Firing Section", url: "/manufacturer/bl-production/firingSection", nonViewer: true },
-        { title: "Firing Section Summary", url: "/manufacturer/bl-production/firingSectionSummary" },
+        // 💡 1. Wither Leaf Sub-menu (Level 2)
+        { 
+          title: 'Wither Leaf', 
+          items: [
+            { title: 'Enter Wither Leaf', url: '/manufacturer/bl-production/witherLeafForm', nonViewer: true },
+            { title: 'Wither Leaf Summary', url: '/manufacturer/bl-production/witherLeafSummary' },
+          ]
+        },
+
+        // 💡 2. Dhool Rolling Sub-menu (Level 2)
+        {
+          title: 'Dhool Rolling',
+          items: [
+            { title: "Enter Dhool Rolling", url: "/manufacturer/bl-production/dhoolRollingSection", nonViewer: true },
+            { title: "Dhool Rolling Summary", url: "/manufacturer/bl-production/dhoolRollingSummary" },
+          ]
+        },
+
+         { 
+          title: 'Firing Section', 
+          items: [
+            { title: 'Enter Firing Section', url: '/manufacturer/bl-production/firingSection', nonViewer: true },
+            { title: 'Firing Section Summary', url: '/manufacturer/bl-production/firingSectionSummary' },
+          ]
+        },
+
+        // 💡 3. Normal Item (Level 1)
+        { 
+          title: "HydroMeters Chart", 
+          url: "/manufacturer/bl-production/hydrometerschart" 
+        },
       ],
     },
     {
       title: 'Loft Leaf',
-      icon: Store,
+      icon: Leaf,
       items: [
-        { title: 'Enter L/L Count', url: '/manufacturer/factory-loft-leaf', nonViewer: true },
-        { title: 'View L/L Count', url: '/manufacturer/view-factory-loft-leaf'},
-        
-      ],
-    },
-    {
-      title: ' L/L Summary Report',
-      icon: LineChart,
-      items: [
-        { title: 'Weekly L/L Summary', url: '/manufacturer/weekly-loft-leaf-summary'},
-        { title: 'Collector L/L Summary', url: '/manufacturer/collector-quality-difference'},
-        { title: 'Simple Average', url: '/manufacturer/simple-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
-        { title: 'Weight Average', url: '/manufacturer/weight-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
+        // 💡 1. Wither Leaf Sub-menu (Level 2)
+        { 
+          title: 'Leaf Count', 
+          items: [
+            { title: 'Enter L/L Count', url: '/manufacturer/factory-loft-leaf', nonViewer: true },
+            { title: 'View L/L Count', url: '/manufacturer/view-factory-loft-leaf'},
+          ],
+        },
+
+        // 💡 2. Dhool Rolling Sub-menu (Level 2)
+        { 
+          title: 'Weekly Summary', 
+          items: [
+            { title: 'Weekly L/L Summary', url: '/manufacturer/weekly-loft-leaf-summary'},
+            { title: 'Collector L/L Summary', url: '/manufacturer/collector-quality-difference'},
+          ],
+        },
+
+        { 
+          title: 'Monthly Summary', 
+          items: [
+            { title: 'Simple Average', url: '/manufacturer/simple-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
+            { title: 'Weight Average', url: '/manufacturer/weight-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
+          ],
+        },
       ],
     },
   ],
@@ -176,7 +215,7 @@ export default function ManufacturerDashboardLayout() {
   const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'User';
 
   const handleLogout = () => {
-    localStorage.clear(); // Clear all auth data
+    localStorage.clear();
     navigate('/', { replace: true });
   };
 
@@ -188,45 +227,52 @@ export default function ManufacturerDashboardLayout() {
       case '/manufacturer/view-factory-loft-leaf': return 'View L/L Count';
       case '/manufacturer/simple-avg-factory-loft-leaf': return 'Simple Average';
       case '/manufacturer/weight-avg-factory-loft-leaf': return 'Weight Average';
-      
       default: return null;
     }
   };
 
-  // --- DYNAMIC BREADCRUMB LOGIC ---
+  // --- DYNAMIC BREADCRUMB LOGIC (Updated for Level 2) ---
   const generateBreadcrumbs = () => {
     const paths = [{ title: 'System', url: '/' }];
 
-    // 1. Check if the current route is in Quick Links (e.g., Dashboard Home)
+    // 1. Quick Links
     const quickLink = DATA.quickLinks.find(item => item.url === location.pathname);
     if (quickLink) {
       paths.push({ title: quickLink.name, url: quickLink.url });
       return paths;
     }
 
-    // 2. Check if the current route is inside the Main Navigation
+    // 2. Main Navigation (Nested Level 1 & 2 Support)
     for (const group of DATA.navMain) {
-      const matchedItem = group.items.find(subItem => subItem.url === location.pathname);
-      if (matchedItem) {
-        paths.push({ title: group.title, url: '' }); 
-        paths.push({ title: matchedItem.title, url: matchedItem.url });
-        return paths;
+      for (const subItem of group.items) {
+        if (subItem.items) {
+          // Check Level 2
+          const matchedLvl2 = subItem.items.find(lvl2 => lvl2.url === location.pathname);
+          if (matchedLvl2) {
+            paths.push({ title: group.title, url: '' });
+            paths.push({ title: subItem.title, url: '' });
+            paths.push({ title: matchedLvl2.title, url: matchedLvl2.url });
+            return paths;
+          }
+        } else if (subItem.url === location.pathname) {
+          // Check Level 1
+          paths.push({ title: group.title, url: '' });
+          paths.push({ title: subItem.title, url: subItem.url });
+          return paths;
+        }
       }
     }
 
-    // 3. Fallback to Switch Statement (For hidden edit pages and /manufacturer/ module)
+    // 3. Fallback
     const customTitle = getCustomBreadcrumbTitle(location.pathname);
     if (customTitle) {
-      // Inject "Manufacturer" as the parent folder automatically
       if (location.pathname.includes('/manufacturer/')) {
         paths.push({ title: 'Manufacturer', url: '' });
       }
-      
       paths.push({ title: customTitle, url: location.pathname });
       return paths;
     }
 
-    // 4. Fallback if nothing matches
     return paths;
   };
 
@@ -237,17 +283,28 @@ export default function ManufacturerDashboardLayout() {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
 
-  // --- SEARCH FILTERING LOGIC ---
+  // --- SEARCH FILTERING LOGIC (Updated for Level 2) ---
   const accessibleLinks = React.useMemo(() => {
-    return [
-      ...DATA.quickLinks.map(link => ({ title: link.name, url: link.url, icon: link.icon })),
-      ...DATA.navMain.flatMap(group =>
-        group.items
-          .filter(item => !(item.adminOnly && currentUserRole !== 'Admin')) // Filter admin paths
-          .filter(item => !(item.nonViewer && currentUserRole === 'Viewer')) // Hide from viewers
-          .map(item => ({ title: item.title, url: item.url, icon: group.icon }))
-      )
-    ];
+    const links = [...DATA.quickLinks.map(link => ({ title: link.name, url: link.url, icon: link.icon }))];
+    
+    DATA.navMain.forEach(group => {
+      group.items.forEach(item => {
+        if (item.items) {
+          // Push Level 2 links
+          item.items.forEach(lvl2 => {
+            if (lvl2.adminOnly && currentUserRole !== 'Admin') return;
+            if (lvl2.nonViewer && currentUserRole === 'Viewer') return;
+            links.push({ title: `${item.title} - ${lvl2.title}`, url: lvl2.url, icon: group.icon });
+          });
+        } else {
+          // Push Level 1 links
+          if (item.adminOnly && currentUserRole !== 'Admin') return;
+          if (item.nonViewer && currentUserRole === 'Viewer') return;
+          links.push({ title: item.title, url: item.url, icon: group.icon });
+        }
+      });
+    });
+    return links;
   }, [currentUserRole]);
 
   const filteredQuickLinks = DATA.quickLinks.filter(item =>
@@ -259,26 +316,37 @@ export default function ManufacturerDashboardLayout() {
     : [];
 
   const filteredNavMain = DATA.navMain.map(group => {
-    const visibleItems = group.items.filter(subItem => {
-        // Admin Only ඒවා Admin ට විතරයි
-        if (subItem.adminOnly && currentUserRole !== 'Admin') return false;
-        
-        // nonViewer දාලා තියෙන ඒවා Viewer ට පෙන්වන්නේ නෑ
-        if (subItem.nonViewer && currentUserRole === 'Viewer') return false; 
-        
-        return true;
-    });
-
     const matchesGroupTitle = group.title.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const searchFilteredItems = visibleItems.filter(subItem =>
-      matchesGroupTitle || subItem.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredLevel1 = group.items.map(subItem => {
+      if (subItem.items) {
+        // Level 2 Group Logic
+        const filteredLevel2 = subItem.items.filter(lvl2 => {
+          if (lvl2.adminOnly && currentUserRole !== 'Admin') return false;
+          if (lvl2.nonViewer && currentUserRole === 'Viewer') return false;
+          return matchesGroupTitle || 
+                 subItem.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                 lvl2.title.toLowerCase().includes(searchQuery.toLowerCase());
+        });
+        
+        if (filteredLevel2.length > 0) {
+          return { ...subItem, items: filteredLevel2 };
+        }
+        return null;
+      } else {
+        // Level 1 Logic
+        if (subItem.adminOnly && currentUserRole !== 'Admin') return null;
+        if (subItem.nonViewer && currentUserRole === 'Viewer') return null;
+
+        const matchesItem = matchesGroupTitle || subItem.title.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesItem ? subItem : null;
+      }
+    }).filter(Boolean);
 
     return {
       ...group,
-      items: searchFilteredItems,
-      isSearchMatch: matchesGroupTitle || searchFilteredItems.length > 0
+      items: filteredLevel1,
+      isSearchMatch: matchesGroupTitle || filteredLevel1.length > 0
     };
   }).filter(group => group.isSearchMatch && group.items.length > 0);
 
@@ -388,7 +456,14 @@ export default function ManufacturerDashboardLayout() {
                 <SidebarMenu>
                   {filteredNavMain.map((item) => {
 
-                    const isGroupActive = item.items.some((sub) => sub.url === location.pathname);
+                    // 💡 Updated to support nested checking
+                    const isGroupActive = item.items.some((sub) => {
+                        if (sub.items) {
+                            return sub.items.some(lvl2 => lvl2.url === location.pathname);
+                        }
+                        return sub.url === location.pathname;
+                    });
+                    
                     const isOpen = searchQuery.length > 0 ? true : isGroupActive;
 
                     return (
@@ -405,7 +480,57 @@ export default function ManufacturerDashboardLayout() {
                           </CollapsibleTrigger>
                           <CollapsibleContent>
                             <SidebarMenuSub className="border-l-2 border-gray-200 dark:border-zinc-800 ml-6 pl-4 mt-2 space-y-1">
+                              
                               {item.items.map((subItem) => {
+
+                                // 💡 LEVEL 2 RENDERING LOGIC
+                                if (subItem.items) {
+                                  const isLvl2GroupActive = subItem.items.some(lvl2 => lvl2.url === location.pathname);
+                                  const isLvl2Open = searchQuery.length > 0 ? true : isLvl2GroupActive;
+
+                                  return (
+                                    <Collapsible key={subItem.title + '-nested'} asChild defaultOpen={isLvl2Open} className="group/sub-collapsible mb-1">
+                                      <SidebarMenuSubItem>
+                                        <CollapsibleTrigger asChild>
+                                          <SidebarMenuSubButton className="flex justify-between w-full cursor-pointer py-5 rounded-full transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-[#3f6212] dark:hover:text-lime-500 hover:bg-white/40 dark:hover:bg-zinc-900/40">
+                                            <span className="text-sm font-medium px-1">{subItem.title}</span>
+                                            <ChevronRight className="h-4 w-4 mr-2 transition-transform duration-300 group-data-[state=open]/sub-collapsible:rotate-90 opacity-50" />
+                                          </SidebarMenuSubButton>
+                                        </CollapsibleTrigger>
+                                        <CollapsibleContent>
+                                          <SidebarMenuSub className="border-l-2 border-gray-200 dark:border-zinc-800">
+                                            {subItem.items.map((lvl2) => {
+                                              const isLvl2Active = location.pathname === lvl2.url;
+                                              return (
+                                                <SidebarMenuSubItem key={lvl2.title}>
+                                                  <SidebarMenuSubButton
+                                                    asChild
+                                                    isActive={isLvl2Active}
+                                                    onClick={() => {
+                                                      navigate(lvl2.url);
+                                                      if (isMobile) setIsSidebarOpen(false);
+                                                    }}
+                                                    className={`cursor-pointer py-4 rounded-full transition-all duration-300 ${
+                                                      isLvl2Active
+                                                        ? 'text-[#3f6212] dark:text-lime-500 font-bold bg-white dark:bg-zinc-900 shadow-sm ring-1 ring-gray-200/50 dark:ring-zinc-800'
+                                                        : 'text-gray-500 dark:text-gray-400 hover:text-[#65a30d] dark:hover:text-lime-400 hover:bg-white/40 dark:hover:bg-zinc-900/40'
+                                                    }`}
+                                                  >
+                                                    <div className="px-2">
+                                                      <span className="text-[13px]">{lvl2.title}</span>
+                                                    </div>
+                                                  </SidebarMenuSubButton>
+                                                </SidebarMenuSubItem>
+                                              )
+                                            })}
+                                          </SidebarMenuSub>
+                                        </CollapsibleContent>
+                                      </SidebarMenuSubItem>
+                                    </Collapsible>
+                                  );
+                                }
+
+                                // 💡 LEVEL 1 RENDERING LOGIC (Original)
                                 const isSubActive = location.pathname === subItem.url;
                                 return (
                                   <SidebarMenuSubItem key={subItem.title}>

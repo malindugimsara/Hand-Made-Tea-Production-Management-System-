@@ -37,7 +37,9 @@ export default function PDFDownloader({
         const doc = new jsPDF(orientation);
 
         try {
-            // 1. Load Logo (Optional)
+            // ===============================================================
+            // 💡 1. Load Logo
+            // ===============================================================
             try {
                 const res = await fetch("/logo.png");
                 if (res.ok) {
@@ -47,24 +49,41 @@ export default function PDFDownloader({
                         reader.onloadend = () => resolve(reader.result);
                         reader.readAsDataURL(blob);
                     });
-                    doc.addImage(dataUrl, "PNG", 14, 10, 25, 25, "", "FAST");
+                    
+                    // Logo Image (රූපයට ගැළපෙන පරිදි ප්‍රමාණය වෙනස් කර ඇත)
+                    doc.addImage(dataUrl, "PNG", 14, 10, 24, 24, "", "FAST");
                 }
             } catch (err) {
                 console.warn("Logo not found or couldn't be loaded.");
             }
 
-            // 2. Add Titles
-            doc.setFontSize(16);
-            doc.setTextColor(27, 106, 49);
-            doc.text(title, 45, 25);
+            // ===============================================================
+            // 💡 2. Add Company Name, Title & Subtitle (රූපයේ පරිදි පෙළගස්වා ඇත)
+            // ===============================================================
+            
+            // Company Name
+            doc.setFontSize(20);
+            doc.setTextColor(27, 106, 49); // Theme Green (#1B6A31)
+            doc.setFont(undefined, 'bold');
+            doc.text("ATHUKORALA GROUP (PVT) LTD", 42, 18);
 
+            // Document Title (e.g. HYDRO METERS CHART)
+            doc.setFontSize(14);
+            doc.setTextColor(40, 40, 40); // Dark/Black
+            doc.setFont(undefined, 'bold');
+            doc.text(title, 42, 26);
+
+            // Subtitle (e.g. Date: 2026-08-28)
             if (subtitle) {
-                doc.setFontSize(10);
-                doc.setTextColor(100);
-                doc.text(subtitle, 45, 30);
+                doc.setFontSize(11);
+                doc.setTextColor(80, 80, 80); // Gray
+                doc.setFont(undefined, 'normal');
+                doc.text(subtitle, 42, 33);
             }
 
-            // --- Generate Current Date & Time ---
+            // ===============================================================
+            // 💡 3. Generate Current Date & Time (Meta Info)
+            // ===============================================================
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -76,12 +95,15 @@ export default function PDFDownloader({
             const generatedDateTime = `${year}/${month}/${day} ${hours}.${minutes}${ampm}`;
 
             doc.setFontSize(10);
-            doc.setTextColor(150);
+            doc.setTextColor(150, 150, 150);
+            
+            // 💡 මකා දැමී තිබුණු pageHeight එක මෙතැනට නැවත එකතු කර ඇත
             const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
+            const pageHeight = doc.internal.pageSize.getHeight(); 
 
-            doc.text(`Doc Ref: ${uniqueCode}`, pageWidth - 14, 12, { align: 'right' });
-            doc.text(`Generated: ${generatedDateTime}`, pageWidth - 14, 17, { align: 'right' });
+            // දකුණු පස ඉහළ කෙළවරේ Doc Ref සහ Date
+            doc.text(`Doc Ref: ${uniqueCode}`, pageWidth - 14, 15, { align: 'right' });
+            doc.text(`Generated: ${generatedDateTime}`, pageWidth - 14, 20, { align: 'right' });
 
             // --- Advanced Sorting ---
             let totalRow = null;
@@ -125,7 +147,7 @@ export default function PDFDownloader({
 
             // 3. Generate Table
             autoTable(doc, {
-                startY: 40,
+                startY: 45,
                 head: finalHeaders,
                 body: processedBody,
                 theme: 'grid',
@@ -250,7 +272,7 @@ export default function PDFDownloader({
     if (isWhatsApp) {
         return (
             <button onClick={handleAction} disabled={disabled} className={`px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed ${className}`}>
-                <FaWhatsapp size={18} /> Share on WhatsApp
+                <FaWhatsapp size={18} /> Share WhatsApp
             </button>
         );
     }

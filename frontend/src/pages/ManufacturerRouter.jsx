@@ -14,6 +14,7 @@ import WeeklyLoftLeafSummary from "./Manufacturer/SummaryReport/WeeklyLoftLeafSu
 import CollectorQualityDiffReport from "./Manufacturer/SummaryReport/CollectorQualityDiffReport";
 import FiringSectionForm from "./Manufacturer/BL Operation/FiringSectionForm";
 import FiringSectionSummary from "./Manufacturer/BL Operation/FiringSectionSummary";
+import HydroMetersChart from "./Manufacturer/BL Operation/HydroMetersChart";
 
 
 export default function ManufacturerRouter() {
@@ -26,6 +27,7 @@ export default function ManufacturerRouter() {
       <Route path="bl-production/dhoolRollingSummary" element={<DhoolRollingSummary />} />
       <Route path="bl-production/firingSection" element={<FiringSectionForm />} />
       <Route path="bl-production/firingSectionSummary" element={<FiringSectionSummary />} />
+      <Route path="bl-production/hydrometerschart" element={<HydroMetersChart />} />
 
       <Route path="factory-loft-leaf" element={<FactoryLoftLeaf />} />
       <Route path="view-factory-loft-leaf" element={<ViewLoftLeafCount />} />
@@ -33,6 +35,7 @@ export default function ManufacturerRouter() {
       <Route path="weight-avg-factory-loft-leaf" element={<WeightAverage />} />
       <Route path="weekly-loft-leaf-summary" element={<WeeklyLoftLeafSummary />} />
       <Route path="collector-quality-difference" element={<CollectorQualityDiffReport />} />
+      
     </Route>
   );
 }
