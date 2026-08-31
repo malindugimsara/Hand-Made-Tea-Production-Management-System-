@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { Save, Trash2, Package, RefreshCcw, ListChecks, PlusCircle, Truck, Store, Tag } from 'lucide-react';
+import { Save, Trash2, Package, RefreshCcw, ListChecks, PlusCircle, Truck, Store, Tag, FileUp, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 // --- Shared Input Styles ---
@@ -45,18 +45,16 @@ const TeaTypeAutocomplete = ({ id, name, value, onChange, placeholder, autoFocus
   }, [highlightedIndex, isOpen]);
 
   const handleKeyDown = (e) => {
-    // Dropdown එක වැහිලා තියෙනවා නම්
     if (!isOpen) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         setIsOpen(true);
       } else if (e.key === "Enter") {
         e.preventDefault(); 
-        if (onEnterKeyPress) onEnterKeyPress(); // ඊළඟ input එකට යන්න
+        if (onEnterKeyPress) onEnterKeyPress();
       }
       return;
     }
 
-    // Dropdown එක ඇරලා තියෙනවා නම්
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setHighlightedIndex(prev => (prev < filteredOptions.length - 1 ? prev + 1 : prev));
@@ -66,13 +64,11 @@ const TeaTypeAutocomplete = ({ id, name, value, onChange, placeholder, autoFocus
     } else if (e.key === "Enter") {
       e.preventDefault(); 
       if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
-        // Option එකක් select කරලා Enter එබුවම
         onChange({ target: { name, value: filteredOptions[highlightedIndex] } });
         setIsOpen(false);
         setHighlightedIndex(-1);
-        if (onEnterKeyPress) setTimeout(() => onEnterKeyPress(), 50); // Select කරාට පස්සේ ඉබේම ඊළඟට යන්න
+        if (onEnterKeyPress) setTimeout(() => onEnterKeyPress(), 50);
       } else {
-        // මුකුත් select කරන්නේ නැතුව Enter එබුවම
         setIsOpen(false);
         if (onEnterKeyPress) onEnterKeyPress();
       }
@@ -122,7 +118,6 @@ const TeaTypeAutocomplete = ({ id, name, value, onChange, placeholder, autoFocus
                   e.preventDefault();
                   onChange({ target: { name, value: opt } });
                   setIsOpen(false);
-                  // Mouse එකෙන් select කරාමත් ඊළඟට යන්න
                   if (onEnterKeyPress) setTimeout(() => onEnterKeyPress(), 50);
                 }}
                 onMouseEnter={() => setHighlightedIndex(index)}
@@ -143,8 +138,10 @@ export default function DispatchAndReturn() {
   const navigate = useNavigate();
   
   const [isSavingAll, setIsSavingAll] = useState(false);
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   const [records, setRecords] = useState([]);
   const [pendingRecords, setPendingRecords] = useState([]);
+  const fileInputRef = useRef(null);
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark' || false;
@@ -225,6 +222,124 @@ export default function DispatchAndReturn() {
   const removeArrayItem = (category, index) => {
     const updatedArray = formData[category].filter((_, i) => i !== index);
     setFormData({ ...formData, [category]: updatedArray });
+  };
+
+  // =========================================================================
+  // 💡 PDF AUTO-PARSING AND EXTRACTION LOGIC
+  // =========================================================================
+  const loadPdfJs = async () => {
+    if (window.pdfjsLib) return window.pdfjsLib;
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.onload = () => {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        resolve(window.pdfjsLib);
+      };
+      script.onerror = () => reject(new Error("Failed to load PDF processing library."));
+      document.head.appendChild(script);
+    });
+  };
+
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      toast.error("Please upload a valid PDF file.");
+      return;
+    }
+
+    setIsUploadingPdf(true);
+    const toastId = toast.loading("Reading PDF and extracting dispatch items...");
+
+    try {
+      const pdfjs = await loadPdfJs();
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+
+      const extractedDispatches = [];
+
+      // Read each page of the uploaded PDF
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        
+        // Group items into horizontal lines based on Y coordinate
+        const rows = [];
+        textContent.items.forEach(item => {
+          const text = item.str.trim();
+          if (!text) return;
+          const x = item.transform[4];
+          const y = Math.round(item.transform[5]);
+
+          let row = rows.find(r => Math.abs(r.y - y) <= 4);
+          if (!row) {
+            row = { y, items: [] };
+            rows.push(row);
+          }
+          row.items.push({ x, text });
+        });
+
+        // Sort rows top-to-bottom
+        rows.sort((a, b) => b.y - a.y);
+        // Sort items left-to-right inside each row
+        rows.forEach(r => r.items.sort((a, b) => a.x - b.x));
+
+        for (const r of rows) {
+          const texts = r.items.map(i => i.text);
+          if (texts.length < 5) continue;
+
+          const firstCol = texts[0];
+          // Skip header or total rows; check if 1st col is a numeric invoice (e.g. 000338)
+          if (!/^\d{4,8}$/.test(firstCol) || firstCol.toLowerCase().includes("total")) continue;
+
+          const invoiceNo = firstCol;
+          let weight = '';
+          let teaType = '';
+
+          // Standard Tea Invoice table mapping:
+          // [0]=Invoice, [1]=NoOfPack, [2]=Full/Half, [3]=NetEach, [4]=SAllow, [5]=NetTotal, [6]=TotalGrossWeight, [7]=Grade, ...
+          if (texts.length >= 8) {
+            weight = texts[6];
+
+            // Handle single or multi-part grades (e.g. "BOP SP", "FBOP1")
+            let candidateGrade = texts[7];
+            if (texts[8] && (texts[8].toUpperCase() === 'SP' || texts[8].toUpperCase() === '1' || texts[8].toUpperCase() === 'EX SP')) {
+              candidateGrade += ' ' + texts[8];
+            }
+
+            // Match against standardized tea grade options
+            const matchedGrade = teaTypeOptions.find(opt => opt.toLowerCase() === candidateGrade.toLowerCase());
+            teaType = matchedGrade || candidateGrade.toUpperCase();
+          }
+
+          if (invoiceNo && (weight || teaType)) {
+            extractedDispatches.push({
+              invoiceNo: invoiceNo,
+              teaType: teaType,
+              weight: weight ? String(Number(weight.replace(/,/g, '')) || weight) : ''
+            });
+          }
+        }
+      }
+
+      if (extractedDispatches.length === 0) {
+        toast.error("No valid dispatch invoice rows found in this PDF.", { id: toastId });
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          dispatches: extractedDispatches
+        }));
+        toast.success(`Successfully imported ${extractedDispatches.length} dispatch items!`, { id: toastId });
+      }
+    } catch (error) {
+      console.error("PDF Parsing Error:", error);
+      toast.error("Failed to parse the PDF file.", { id: toastId });
+    } finally {
+      setIsUploadingPdf(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const handleAddToList = (e) => {
@@ -324,7 +439,6 @@ export default function DispatchAndReturn() {
     }
   };
 
-  // 👇 ඊළඟ Input එකට Focus කරන්න භාවිතා කරන Helper Function එක
   const focusNextInput = (nextId) => {
     const nextInput = document.getElementById(nextId);
     if (nextInput) {
@@ -380,12 +494,33 @@ export default function DispatchAndReturn() {
 
               {/* 1. DISPATCH SECTION */}
               <div className="bg-gray-50/50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 rounded-2xl p-5 shadow-sm mb-6 transition-colors">
-                <h3 className="text-lg font-bold mb-4 flex items-center justify-between text-[#0f766e] dark:text-teal-400 border-b border-gray-200 dark:border-gray-700 pb-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-gray-200 dark:border-gray-700 pb-3 mb-4">
                   <div className="flex items-center gap-2">
                     <div className="p-1.5 rounded-lg bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300"><Truck size={18}/></div>
-                    Dispatch Details
+                    <h3 className="text-lg font-bold text-[#0f766e] dark:text-teal-400">Dispatch Details</h3>
                   </div>
-                </h3>
+
+                  {/* 💡 Upload PDF Button */}
+                  <div>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handlePdfUpload} 
+                      accept="application/pdf" 
+                      className="hidden" 
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingPdf || isViewer}
+                      className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                      title="Upload Tea Invoice PDF to auto-fill"
+                    >
+                      {isUploadingPdf ? <Loader2 size={14} className="animate-spin" /> : <FileUp size={14} />}
+                      {isUploadingPdf ? "Reading PDF..." : "Upload Invoice PDF"}
+                    </button>
+                  </div>
+                </div>
                 
                 {formData.dispatches.map((dispatchItem, index) => (
                   <div key={index} className="relative mb-5 pb-5 border-b border-gray-200 dark:border-gray-700/60 border-dashed last:border-0 last:mb-0 last:pb-0">
@@ -405,7 +540,7 @@ export default function DispatchAndReturn() {
                       <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Invoice No.</label>
                         <input 
-                          id={`dispatch-invoice-${index}`} // 👈 ID එකක් ලබාදීම
+                          id={`dispatch-invoice-${index}`}
                           type="text" 
                           value={dispatchItem.invoiceNo} 
                           onChange={(e) => handleArrayChange('dispatches', index, 'invoiceNo', e.target.value)} 
@@ -414,7 +549,7 @@ export default function DispatchAndReturn() {
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               e.preventDefault();
-                              focusNextInput(`dispatch-tea-${index}`); // Enter එබූ විට ඊළඟට යයි
+                              focusNextInput(`dispatch-tea-${index}`);
                             }
                           }}
                         />
@@ -422,12 +557,12 @@ export default function DispatchAndReturn() {
                       <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
                         <TeaTypeAutocomplete
-                          id={`dispatch-tea-${index}`} // 👈 ID එකක් ලබාදීම
+                          id={`dispatch-tea-${index}`}
                           name={`dispatchTeaType-${index}`}
                           value={dispatchItem.teaType}
                           onChange={(e) => handleArrayChange('dispatches', index, 'teaType', e.target.value)}
                           placeholder="E.g. BOPF, Pekoe"
-                          onEnterKeyPress={() => focusNextInput(`dispatch-weight-${index}`)} // Select කළ පසු ඊළඟට යයි
+                          onEnterKeyPress={() => focusNextInput(`dispatch-weight-${index}`)}
                         />
                       </div>
                     </div>
@@ -435,7 +570,7 @@ export default function DispatchAndReturn() {
                     <div>
                       <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Total Gross Weight (kg)</label>
                       <input 
-                        id={`dispatch-weight-${index}`} // 👈 ID එකක් ලබාදීම
+                        id={`dispatch-weight-${index}`}
                         type="number" step="0.01" min="0" 
                         value={dispatchItem.weight} 
                         onChange={(e) => handleArrayChange('dispatches', index, 'weight', e.target.value)} 
@@ -477,6 +612,7 @@ export default function DispatchAndReturn() {
                         type="button" 
                         onClick={() => removeArrayItem('localSales', index)}
                         className="absolute -top-1 right-0 text-red-400 hover:text-red-600 dark:hover:text-red-400 p-1 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 shadow-sm z-10 transition-colors"
+                        title="Remove local sale"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -486,19 +622,19 @@ export default function DispatchAndReturn() {
                       <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
                         <TeaTypeAutocomplete
-                          id={`localSale-tea-${index}`} // 👈 ID එකක් ලබාදීම
+                          id={`localSale-tea-${index}`}
                           name={`localSaleTeaType-${index}`}
                           value={saleItem.teaType}
                           onChange={(e) => handleArrayChange('localSales', index, 'teaType', e.target.value)}
                           placeholder="E.g. Dust, Fannings"
                           autoFocus={index > 0 && index === formData.localSales.length - 1}
-                          onEnterKeyPress={() => focusNextInput(`localSale-weight-${index}`)} // Select කළ පසු ඊළඟට යයි
+                          onEnterKeyPress={() => focusNextInput(`localSale-weight-${index}`)}
                         />
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Total Qty (kg)</label>
                         <input 
-                          id={`localSale-weight-${index}`} // 👈 ID එකක් ලබාදීම
+                          id={`localSale-weight-${index}`}
                           type="number" step="0.01" min="0" 
                           value={saleItem.weight} 
                           onChange={(e) => handleArrayChange('localSales', index, 'weight', e.target.value)} 
@@ -549,6 +685,7 @@ export default function DispatchAndReturn() {
                         type="button" 
                         onClick={() => removeArrayItem('returns', index)}
                         className="absolute -top-1 right-0 text-red-400 hover:text-red-600 dark:hover:text-red-400 p-1 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 shadow-sm z-10 transition-colors"
+                        title="Remove return"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -558,19 +695,19 @@ export default function DispatchAndReturn() {
                       <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tea Type</label>
                         <TeaTypeAutocomplete
-                          id={`return-tea-${index}`} // 👈 ID එකක් ලබාදීම
+                          id={`return-tea-${index}`}
                           name={`returnTeaType-${index}`}
                           value={returnItem.teaType}
                           onChange={(e) => handleArrayChange('returns', index, 'teaType', e.target.value)}
                           placeholder="E.g. BOPF, Pekoe"
                           autoFocus={index > 0 && index === formData.returns.length - 1}
-                          onEnterKeyPress={() => focusNextInput(`return-weight-${index}`)} // Select කළ පසු ඊළඟට යයි
+                          onEnterKeyPress={() => focusNextInput(`return-weight-${index}`)}
                         />
                       </div>
                       <div>
                         <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Return Amount (kg)</label>
                         <input 
-                          id={`return-weight-${index}`} // 👈 ID එකක් ලබාදීම
+                          id={`return-weight-${index}`}
                           type="number" step="0.01" min="0" 
                           value={returnItem.amount} 
                           onChange={(e) => handleArrayChange('returns', index, 'amount', e.target.value)} 
@@ -686,16 +823,16 @@ export default function DispatchAndReturn() {
                           {/* Returns Summary */}
                           {item.totalReturn > 0 && (
                             <div className="flex flex-col bg-blue-50/50 dark:bg-blue-900/20 p-2 rounded-lg border border-blue-100 dark:border-blue-800/50">
-                                <div className="flex justify-between items-center text-blue-800 dark:text-blue-400 mb-1 border-b border-blue-200/50 dark:border-blue-800/50 pb-1 px-1">
-                                  <span className="font-bold text-xs">Total Returns</span>
-                                  <span className="font-black text-xs">{item.totalReturn.toFixed(2)} kg</span>
+                              <div className="flex justify-between items-center text-blue-800 dark:text-blue-400 mb-1 border-b border-blue-200/50 dark:border-blue-800/50 pb-1 px-1">
+                                <span className="font-bold text-xs">Total Returns</span>
+                                <span className="font-black text-xs">{item.totalReturn.toFixed(2)} kg</span>
+                              </div>
+                              {item.returns.map((r, i) => (r.amount || r.teaType) && (
+                                <div key={i} className="text-[10px] text-blue-600/70 dark:text-blue-300/70 flex justify-between pt-1 px-1">
+                                  <span>{r.teaType ? `Type: ${r.teaType}` : 'Unspecified'}</span>
+                                  <span className="font-semibold">{r.amount || '0'} kg</span>
                                 </div>
-                                {item.returns.map((r, i) => (r.amount || r.teaType) && (
-                                  <div key={i} className="text-[10px] text-blue-600/70 dark:text-blue-300/70 flex justify-between pt-1 px-1">
-                                    <span>{r.teaType ? `Type: ${r.teaType}` : 'Unspecified'}</span>
-                                    <span className="font-semibold">{r.amount || '0'} kg</span>
-                                  </div>
-                                ))}
+                              ))}
                             </div>
                           )}
 
