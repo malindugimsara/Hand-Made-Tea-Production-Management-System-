@@ -97,10 +97,12 @@ const DATA = {
           ]
         },
 
-        // 💡 3. Normal Item (Level 1)
-        { 
-          title: "HydroMeters Chart", 
-          url: "/manufacturer/bl-production/hydrometerschart" 
+         {
+          title: 'HydroMeters Chart',
+          items: [
+            { title: "Enter HydroMeter", url: "/manufacturer/bl-production/hydroMetersentry", nonViewer: true },
+            { title: "View HydroMeter", url: "/manufacturer/bl-production/hydroMeterview" },
+          ]
         },
       ],
     },
