@@ -14,7 +14,6 @@ import WeeklyLoftLeafSummary from "./Manufacturer/SummaryReport/WeeklyLoftLeafSu
 import CollectorQualityDiffReport from "./Manufacturer/SummaryReport/CollectorQualityDiffReport";
 import FiringSectionForm from "./Manufacturer/BL Operation/FiringSectionForm";
 import FiringSectionSummary from "./Manufacturer/BL Operation/FiringSectionSummary";
-import HydroMetersChart from "./Manufacturer/BL Operation/HydroMetersChart";
 import HydroMetersEntry from "./Manufacturer/BL Operation/HydroMeters/HydroMetersEntry";
 import HydroMetersView from "./Manufacturer/BL Operation/HydroMeters/HydroMetersView";
 
@@ -29,7 +28,6 @@ export default function ManufacturerRouter() {
       <Route path="bl-production/dhoolRollingSummary" element={<DhoolRollingSummary />} />
       <Route path="bl-production/firingSection" element={<FiringSectionForm />} />
       <Route path="bl-production/firingSectionSummary" element={<FiringSectionSummary />} />
-      <Route path="bl-production/hydrometerschart" element={<HydroMetersChart />} />
       <Route path="bl-production/hydroMetersentry" element={<HydroMetersEntry />} />
       <Route path="bl-production/hydroMeterview" element={<HydroMetersView />} />
 
