@@ -161,7 +161,7 @@ const RollingRoomSheetForm = () => {
     })));
   }, [standardBatchKg]);
 
-  // Handle Meta Change (Strictly disallows negative values for kg fields)
+  // Handle Meta Change
   const handleMetaChange = (e) => {
     const { name, value } = e.target;
     if (['cropKg', 'otherLeafKg'].includes(name) && value !== '') {
@@ -171,14 +171,14 @@ const RollingRoomSheetForm = () => {
     setMeta(prev => ({ ...prev, [name]: value }));
   };
 
-  // Handle Standard Batch Input Change (Strictly >= 0)
+  // Handle Standard Batch Input Change
   const handleStandardBatchChange = (e) => {
     const val = e.target.value;
     if (val !== '' && parseFloat(val) < 0) return;
     setStandardBatchKg(val);
   };
 
-  // Handle Batch Cell Input Change (Strictly disallows negative values)
+  // Handle Batch Cell Input Change
   const handleBatchCellChange = (index, sectionKey, field, value) => {
     if (field === 'wetDhoolKg' && value !== '') {
       const num = parseFloat(value);
@@ -280,7 +280,7 @@ const RollingRoomSheetForm = () => {
   const avgBBPct = totalCapacityKg > 0 ? ((sumBBKg / totalCapacityKg) * 100).toFixed(2) : '0.00';
   const grandTotalPct = totalCapacityKg > 0 ? ((grandTotalWetDhool / totalCapacityKg) * 100).toFixed(2) : '0.00';
 
-  // Responsive Dark Mode CSS Helpers
+  // Responsive Dark Mode Styles
   const inputBase = "w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:focus:border-emerald-500 transition-all";
   const readOnlyBase = "w-full bg-slate-100/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-xs rounded-xl p-2.5 font-bold select-none outline-none";
   const tableInput = "w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg p-1.5 text-xs text-center outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all";
@@ -525,7 +525,7 @@ const RollingRoomSheetForm = () => {
               <thead>
                 {/* Level 1 Header: Dhool Category */}
                 <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-black uppercase text-xs">
-                  <th rowSpan={3} className="border-r border-slate-200 dark:border-slate-700 p-2.5 w-16 bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                  <th rowSpan={4} className="border-r border-slate-200 dark:border-slate-700 p-2.5 w-16 bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                     {t.badgeNo}
                   </th>
                   <th colSpan={4} className="border-r border-slate-200 dark:border-slate-700 p-2.5 bg-blue-100/90 dark:bg-blue-950/80 text-blue-950 dark:text-blue-200 font-black tracking-wider text-xs">
@@ -534,38 +534,50 @@ const RollingRoomSheetForm = () => {
                   <th colSpan={4} className="border-r border-slate-200 dark:border-slate-700 p-2.5 bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-200 font-black tracking-wider text-xs">
                     {t.dhool2}
                   </th>
-                  <th colSpan={4} className="p-2.5 bg-amber-100/90 dark:bg-amber-950/80 text-amber-950 dark:text-amber-200 font-black tracking-wider text-xs">
+                  <th colSpan={4} className="p-2.5 bg-amber-100/90 dark:bg-amber-950/80 text-amber-950 dark:text-amber-200 font-black tracking-wider text-xs border-r border-slate-200 dark:border-slate-700">
                     {t.bigBulk}
                   </th>
-                  <th rowSpan={3} className="border-l border-slate-200 dark:border-slate-700 p-2 w-12 bg-slate-50 dark:bg-slate-900"></th>
+                  <th rowSpan={4} className="border-l border-slate-200 dark:border-slate-700 p-2 w-12 bg-slate-50 dark:bg-slate-900"></th>
                 </tr>
 
                 {/* Level 2 Header: Roll Number */}
                 <tr className="border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold">
                   <th colSpan={4} className="border-r border-slate-200 dark:border-slate-700 p-1.5 bg-blue-50 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300">{t.roll1}</th>
                   <th colSpan={4} className="border-r border-slate-200 dark:border-slate-700 p-1.5 bg-emerald-50 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300">{t.roll2}</th>
-                  <th colSpan={4} className="p-1.5 bg-amber-50 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300">{t.roll3}</th>
+                  <th colSpan={4} className="p-1.5 border-r border-slate-200 dark:border-slate-700 bg-amber-50 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300">{t.roll3}</th>
                 </tr>
 
-                {/* Level 3 Header: Sub-Columns */}
+                {/* Level 3 Header: Sub-Columns (Start/End & Wet Dhool) */}
                 <tr className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                   {/* 1st Dhool */}
-                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24">{t.startTime}</th>
-                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24">{t.endTime}</th>
-                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-20 text-slate-800 dark:text-slate-200">{t.kg}</th>
-                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-16 text-slate-800 dark:text-slate-200">{t.pct}</th>
+                  <th rowSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24 align-middle">{t.startTime}</th>
+                  <th rowSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24 align-middle">{t.endTime}</th>
+                  <th colSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 text-slate-800 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">{t.wetDhool}</th>
 
                   {/* 2nd Dhool */}
-                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24">{t.startTime}</th>
-                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24">{t.endTime}</th>
-                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-20 text-slate-800 dark:text-slate-200">{t.kg}</th>
-                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-16 text-slate-800 dark:text-slate-200">{t.pct}</th>
+                  <th rowSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24 align-middle">{t.startTime}</th>
+                  <th rowSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24 align-middle">{t.endTime}</th>
+                  <th colSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 text-slate-800 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">{t.wetDhool}</th>
 
                   {/* Big Bulk */}
-                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24">{t.startTime}</th>
-                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24">{t.endTime}</th>
-                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-20 text-slate-800 dark:text-slate-200">{t.kg}</th>
-                  <th className="p-1.5 w-16 text-slate-800 dark:text-slate-200">{t.pct}</th>
+                  <th rowSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24 align-middle">{t.startTime}</th>
+                  <th rowSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-24 align-middle">{t.endTime}</th>
+                  <th colSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-1.5 text-slate-800 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">{t.wetDhool}</th>
+                </tr>
+
+                {/* Level 4 Header: KG / % */}
+                <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider">
+                  {/* 1st Dhool */}
+                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-20">{t.kg}</th>
+                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-16">{t.pct}</th>
+
+                  {/* 2nd Dhool */}
+                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-20">{t.kg}</th>
+                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-16">{t.pct}</th>
+
+                  {/* Big Bulk */}
+                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-20">{t.kg}</th>
+                  <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-16">{t.pct}</th>
                 </tr>
               </thead>
 
@@ -685,7 +697,7 @@ const RollingRoomSheetForm = () => {
                         className={`${tableInput} font-bold text-amber-700 dark:text-amber-400 bg-amber-50/20 dark:bg-amber-950/20`} 
                       />
                     </td>
-                    <td className="p-1">
+                    <td className="border-r border-slate-200 dark:border-slate-800 p-1">
                       <input 
                         type="text" 
                         readOnly
@@ -729,7 +741,7 @@ const RollingRoomSheetForm = () => {
                   {/* Big Bulk Totals */}
                   <td colSpan={2} className="border-r border-slate-300 dark:border-slate-700 p-2"></td>
                   <td className="border-r border-slate-300 dark:border-slate-700 p-2 text-amber-700 dark:text-amber-400 font-black text-sm bg-amber-50/40 dark:bg-amber-950/40">{sumBBKg.toFixed(2)} kg</td>
-                  <td className="p-2 text-amber-700 dark:text-amber-300 font-bold">{avgBBPct}%</td>
+                  <td className="border-r border-slate-300 dark:border-slate-700 p-2 text-amber-700 dark:text-amber-300 font-bold">{avgBBPct}%</td>
 
                   <td className="border-l border-slate-300 dark:border-slate-700 p-2"></td>
                 </tr>

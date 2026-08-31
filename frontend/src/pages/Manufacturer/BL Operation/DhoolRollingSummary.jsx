@@ -120,6 +120,7 @@ const RollingRoomSheetSummary = () => {
     roll2: lang === 'SI' ? "රෝල් අංක: 02" : "ROLL NO 02",
     bigBulk: lang === 'SI' ? "බිග් බල්ක් (BIG BULK)" : "BIG BULK",
     roll3: lang === 'SI' ? "රෝල් අංක: 03" : "ROLL NO 03",
+    totalWetDhoolHeader: lang === 'SI' ? "මුළු තෙත් ධූල් (TOTAL WET DHOOL)" : "TOTAL WET DHOOL",
 
     startTime: lang === 'SI' ? "ආරම්භය" : "START",
     endTime: lang === 'SI' ? "අවසානය" : "END",
@@ -263,7 +264,8 @@ const RollingRoomSheetSummary = () => {
       { content: t.badgeNo, rowSpan: 3, styles: { halign: 'center', valign: 'middle', fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', lineWidth: 0.2, lineColor: [148, 163, 184] } },
       { content: t.dhool1, colSpan: 4, styles: { halign: 'center', fillColor: [219, 234, 254], textColor: [30, 64, 175], fontStyle: 'bold', lineWidth: 0.2, lineColor: [148, 163, 184] } },
       { content: t.dhool2, colSpan: 4, styles: { halign: 'center', fillColor: [209, 250, 229], textColor: [6, 95, 70], fontStyle: 'bold', lineWidth: 0.2, lineColor: [148, 163, 184] } },
-      { content: t.bigBulk, colSpan: 4, styles: { halign: 'center', fillColor: [254, 243, 199], textColor: [146, 64, 14], fontStyle: 'bold', lineWidth: 0.2, lineColor: [148, 163, 184] } }
+      { content: t.bigBulk, colSpan: 4, styles: { halign: 'center', fillColor: [254, 243, 199], textColor: [146, 64, 14], fontStyle: 'bold', lineWidth: 0.2, lineColor: [148, 163, 184] } },
+      { content: t.totalWetDhoolHeader, colSpan: 2, rowSpan: 2, styles: { halign: 'center', valign: 'middle', fillColor: [243, 232, 255], textColor: [107, 33, 168], fontStyle: 'bold', lineWidth: 0.2, lineColor: [148, 163, 184] } }
     ],
     [
       { content: t.roll1, colSpan: 4, styles: { halign: 'center', fillColor: [239, 246, 255], textColor: [30, 58, 138], fontStyle: 'bold', lineWidth: 0.2, lineColor: [148, 163, 184] } },
@@ -284,7 +286,10 @@ const RollingRoomSheetSummary = () => {
       { content: t.startTime, styles: { halign: 'center', fillColor: [255, 255, 255], textColor: [71, 85, 105], lineWidth: 0.2, lineColor: [148, 163, 184] } },
       { content: t.endTime, styles: { halign: 'center', fillColor: [255, 255, 255], textColor: [71, 85, 105], lineWidth: 0.2, lineColor: [148, 163, 184] } },
       { content: t.kg, styles: { halign: 'center', fillColor: [255, 255, 255], textColor: [146, 64, 14], fontStyle: 'bold', lineWidth: 0.2, lineColor: [148, 163, 184] } },
-      { content: t.pct, styles: { halign: 'center', fillColor: [255, 255, 255], textColor: [146, 64, 14], fontStyle: 'bold', lineWidth: 0.2, lineColor: [148, 163, 184] } }
+      { content: t.pct, styles: { halign: 'center', fillColor: [255, 255, 255], textColor: [146, 64, 14], fontStyle: 'bold', lineWidth: 0.2, lineColor: [148, 163, 184] } },
+
+      { content: t.kg, styles: { halign: 'center', fillColor: [250, 245, 255], textColor: [107, 33, 168], fontStyle: 'bold', lineWidth: 0.2, lineColor: [148, 163, 184] } },
+      { content: t.pct, styles: { halign: 'center', fillColor: [250, 245, 255], textColor: [107, 33, 168], fontStyle: 'bold', lineWidth: 0.2, lineColor: [148, 163, 184] } }
     ]
   ], [t]);
 
@@ -293,21 +298,31 @@ const RollingRoomSheetSummary = () => {
       return [];
     }
 
-    const rows = currentRecord.batches.map(b => [
-      String(b.batchNo).padStart(2, '0'),
-      b.dhool1?.startTime || '-',
-      b.dhool1?.endTime || '-',
-      b.dhool1?.wetDhoolKg ? Number(b.dhool1.wetDhoolKg).toFixed(2) : '-',
-      b.dhool1?.percentage ? `${b.dhool1.percentage}%` : '-',
-      b.dhool2?.startTime || '-',
-      b.dhool2?.endTime || '-',
-      b.dhool2?.wetDhoolKg ? Number(b.dhool2.wetDhoolKg).toFixed(2) : '-',
-      b.dhool2?.percentage ? `${b.dhool2.percentage}%` : '-',
-      b.bigBulk?.startTime || '-',
-      b.bigBulk?.endTime || '-',
-      b.bigBulk?.wetDhoolKg ? Number(b.bigBulk.wetDhoolKg).toFixed(2) : '-',
-      b.bigBulk?.percentage ? `${b.bigBulk.percentage}%` : '-'
-    ]);
+    const rows = currentRecord.batches.map(b => {
+      const bD1 = parseFloat(b.dhool1?.wetDhoolKg) || 0;
+      const bD2 = parseFloat(b.dhool2?.wetDhoolKg) || 0;
+      const bBB = parseFloat(b.bigBulk?.wetDhoolKg) || 0;
+      const batchWetDhool = bD1 + bD2 + bBB;
+      const batchWetDhoolPct = STANDARD_BATCH_KG > 0 ? ((batchWetDhool / STANDARD_BATCH_KG) * 100).toFixed(2) : '0.00';
+
+      return [
+        String(b.batchNo).padStart(2, '0'),
+        b.dhool1?.startTime || '-',
+        b.dhool1?.endTime || '-',
+        b.dhool1?.wetDhoolKg ? Number(b.dhool1.wetDhoolKg).toFixed(2) : '-',
+        b.dhool1?.percentage ? `${b.dhool1.percentage}%` : '-',
+        b.dhool2?.startTime || '-',
+        b.dhool2?.endTime || '-',
+        b.dhool2?.wetDhoolKg ? Number(b.dhool2.wetDhoolKg).toFixed(2) : '-',
+        b.dhool2?.percentage ? `${b.dhool2.percentage}%` : '-',
+        b.bigBulk?.startTime || '-',
+        b.bigBulk?.endTime || '-',
+        b.bigBulk?.wetDhoolKg ? Number(b.bigBulk.wetDhoolKg).toFixed(2) : '-',
+        b.bigBulk?.percentage ? `${b.bigBulk.percentage}%` : '-',
+        batchWetDhool > 0 ? batchWetDhool.toFixed(2) : '-',
+        batchWetDhool > 0 ? `${batchWetDhoolPct}%` : '-'
+      ];
+    });
 
     // Total Row
     rows.push({
@@ -324,24 +339,23 @@ const RollingRoomSheetSummary = () => {
         '',
         '',
         sumBBKg.toFixed(2),
-        `${avgBBPct}%`
+        `${avgBBPct}%`,
+        grandTotalWetDhool.toFixed(2),
+        `${grandTotalPct}%`
       ],
       isFooter: true
     });
 
     return rows;
-  }, [currentRecord, sumD1Kg, avgD1Pct, sumD2Kg, avgD2Pct, sumBBKg, avgBBPct, t]);
+  }, [currentRecord, sumD1Kg, avgD1Pct, sumD2Kg, avgD2Pct, sumBBKg, avgBBPct, grandTotalWetDhool, grandTotalPct, t]);
 
-  // =========================================================================
-  // 💡 AUTO-TABLE OPTIONS: FIXED CANVAS FOR PDF EXPORT
-  // =========================================================================
   const autoTableOptions = useMemo(() => ({
     startY: 88,
     margin: { top: 25, bottom: 25, left: 14, right: 14 },
     theme: 'grid',
     styles: {
-      fontSize: 8.5,
-      cellPadding: 3,
+      fontSize: 8,
+      cellPadding: 2.5,
       valign: 'middle',
       lineColor: [100, 116, 139],
       lineWidth: 0.2
@@ -353,7 +367,7 @@ const RollingRoomSheetSummary = () => {
       const startX = 14;
       const pageWidth = doc.internal.pageSize.getWidth();
 
-      // 1. Metadata: 4 Separate Vertical Stacked Lines
+      // 1. Metadata Lines
       doc.setFontSize(9);
       doc.setTextColor(15, 23, 42);
 
@@ -364,7 +378,7 @@ const RollingRoomSheetSummary = () => {
         { label: t.otherLeafKg, value: currentRecord?.otherLeafKg ? `${currentRecord.otherLeafKg} kg` : '...........................................' }
       ];
 
-      let currentMetaY = 35;
+      let currentMetaY = 38;
       metaItems.forEach((item) => {
         doc.setFont(undefined, 'bold');
         doc.text(item.label, startX, currentMetaY);
@@ -374,9 +388,9 @@ const RollingRoomSheetSummary = () => {
         currentMetaY += 4.8;
       });
 
-      // 2. Operations 2-Column Table (Left Side)
+      // 2. Operations Table
       const tableX = startX;
-      const tableY = currentMetaY + 2;
+      const tableY = currentMetaY;
       const col1W = 68;
       const col2W = 68;
       const rowH = 5.5;
@@ -411,7 +425,7 @@ const RollingRoomSheetSummary = () => {
         doc.text(String(r[1] || '-'), tableX + col1W + 3, currentY + 3.8);
       });
 
-      // 3. Warning Card (Right Side)
+      // 3. Warning Card
       if (analysis.isOverdue) {
         const alertX = 156;
         const alertY = tableY;
@@ -472,7 +486,7 @@ const RollingRoomSheetSummary = () => {
 
       <div className="max-w-7xl mx-auto flex flex-col gap-6">
 
-        {/* --- Top Premium Header Bar --- */}
+        {/* --- Top Header Bar --- */}
         <div className="relative overflow-hidden bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
           <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
           
@@ -531,7 +545,7 @@ const RollingRoomSheetSummary = () => {
           </div>
         </div>
 
-        {/* --- Date Filter Bar (Filtered by M/F Date) --- */}
+        {/* --- Date Filter Bar --- */}
         <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded-xl">
@@ -560,7 +574,7 @@ const RollingRoomSheetSummary = () => {
           </div>
         </div>
 
-        {/* --- 30-Day Benchmark Status Banner (Executive UI) --- */}
+        {/* --- 30-Day Benchmark Status Banner --- */}
         {analysis.hasData && (
           <div className={`relative overflow-hidden p-6 rounded-3xl border transition-all duration-300 shadow-sm ${
             analysis.isOverdue
@@ -660,7 +674,7 @@ const RollingRoomSheetSummary = () => {
             </div>
 
             {/* Metadata Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
               <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 p-3.5 rounded-xl flex justify-between items-center shadow-2xs">
                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t.cropDate}</span>
                 <span className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{currentRecord.cropDate || '-'}</span>
@@ -676,6 +690,10 @@ const RollingRoomSheetSummary = () => {
               <div className="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/50 p-3.5 rounded-xl flex justify-between items-center shadow-2xs">
                 <span className="text-xs font-bold text-amber-800 dark:text-amber-400 uppercase">{t.otherLeafKg}</span>
                 <span className="text-sm font-extrabold text-amber-950 dark:text-amber-200">{currentRecord.otherLeafKg ? `${currentRecord.otherLeafKg} kg` : '-'}</span>
+              </div>
+              <div className="bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/70 dark:border-purple-800/50 p-3.5 rounded-xl flex justify-between items-center shadow-2xs">
+                <span className="text-xs font-bold text-purple-800 dark:text-purple-400 uppercase">{t.wetDhool} (Total)</span>
+                <span className="text-sm font-extrabold text-purple-950 dark:text-purple-200">{grandTotalWetDhool.toFixed(2)} kg</span>
               </div>
             </div>
 
@@ -716,7 +734,7 @@ const RollingRoomSheetSummary = () => {
 
             {/* Main Batch Grid */}
             <div className="w-full overflow-x-auto custom-scrollbar pb-2 rounded-xl border border-slate-200 dark:border-slate-800">
-              <table className="w-full min-w-[950px] border-collapse text-center text-xs">
+              <table className="w-full min-w-[1100px] border-collapse text-center text-xs">
                 <thead>
                   {/* Tier 1 Header */}
                   <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-extrabold uppercase">
@@ -729,8 +747,11 @@ const RollingRoomSheetSummary = () => {
                     <th colSpan={4} className="border-r border-slate-200 dark:border-slate-700 p-2.5 bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-200 tracking-wider text-xs font-black">
                       {t.dhool2}
                     </th>
-                    <th colSpan={4} className="p-2.5 bg-amber-100/90 dark:bg-amber-950/80 text-amber-950 dark:text-amber-200 tracking-wider text-xs font-black">
+                    <th colSpan={4} className="border-r border-slate-200 dark:border-slate-700 p-2.5 bg-amber-100/90 dark:bg-amber-950/80 text-amber-950 dark:text-amber-200 tracking-wider text-xs font-black">
                       {t.bigBulk}
+                    </th>
+                    <th colSpan={2} rowSpan={2} className="p-2.5 bg-purple-100/90 dark:bg-purple-950/80 text-purple-950 dark:text-purple-200 tracking-wider text-xs font-black">
+                      {t.totalWetDhoolHeader}
                     </th>
                   </tr>
 
@@ -738,7 +759,7 @@ const RollingRoomSheetSummary = () => {
                   <tr className="border-b border-slate-200 dark:border-slate-700 text-[11px] font-bold">
                     <th colSpan={4} className="border-r border-slate-200 dark:border-slate-700 p-1.5 bg-blue-50 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300">{t.roll1}</th>
                     <th colSpan={4} className="border-r border-slate-200 dark:border-slate-700 p-1.5 bg-emerald-50 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300">{t.roll2}</th>
-                    <th colSpan={4} className="p-1.5 bg-amber-50 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300">{t.roll3}</th>
+                    <th colSpan={4} className="border-r border-slate-200 dark:border-slate-700 p-1.5 bg-amber-50 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300">{t.roll3}</th>
                   </tr>
 
                   {/* Tier 3 Sub-Headers */}
@@ -756,32 +777,46 @@ const RollingRoomSheetSummary = () => {
                     <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-20">{t.startTime}</th>
                     <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-20">{t.endTime}</th>
                     <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-20 text-slate-800 dark:text-slate-200">{t.kg}</th>
-                    <th className="p-1.5 w-16 text-slate-800 dark:text-slate-200">{t.pct}</th>
+                    <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-16 text-slate-800 dark:text-slate-200">{t.pct}</th>
+
+                    <th className="border-r border-slate-200 dark:border-slate-700 p-1.5 w-20 text-purple-900 dark:text-purple-300 font-black">{t.kg}</th>
+                    <th className="p-1.5 w-16 text-purple-900 dark:text-purple-300 font-black">{t.pct}</th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
-                  {batches.map((b, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors">
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2.5 font-bold text-slate-800 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/40">
-                        {String(b.batchNo).padStart(2, '0')}
-                      </td>
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 text-slate-600 dark:text-slate-300">{b.dhool1?.startTime || '-'}</td>
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 text-slate-600 dark:text-slate-300">{b.dhool1?.endTime || '-'}</td>
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-bold text-slate-900 dark:text-white bg-blue-50/20 dark:bg-blue-950/20">{b.dhool1?.wetDhoolKg || '-'}</td>
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-semibold text-slate-500 dark:text-slate-400">{b.dhool1?.percentage ? `${b.dhool1.percentage}%` : '-'}</td>
+                  {batches.map((b, idx) => {
+                    const bD1 = parseFloat(b.dhool1?.wetDhoolKg) || 0;
+                    const bD2 = parseFloat(b.dhool2?.wetDhoolKg) || 0;
+                    const bBB = parseFloat(b.bigBulk?.wetDhoolKg) || 0;
+                    const batchWetTotal = bD1 + bD2 + bBB;
+                    const batchWetPct = STANDARD_BATCH_KG > 0 ? ((batchWetTotal / STANDARD_BATCH_KG) * 100).toFixed(2) : '0.00';
 
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 text-slate-600 dark:text-slate-300">{b.dhool2?.startTime || '-'}</td>
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 text-slate-600 dark:text-slate-300">{b.dhool2?.endTime || '-'}</td>
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-bold text-slate-900 dark:text-white bg-emerald-50/20 dark:bg-emerald-950/20">{b.dhool2?.wetDhoolKg || '-'}</td>
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-semibold text-slate-500 dark:text-slate-400">{b.dhool2?.percentage ? `${b.dhool2.percentage}%` : '-'}</td>
+                    return (
+                      <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors">
+                        <td className="border-r border-slate-200 dark:border-slate-800 p-2.5 font-bold text-slate-800 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/40">
+                          {String(b.batchNo).padStart(2, '0')}
+                        </td>
+                        <td className="border-r border-slate-200 dark:border-slate-800 p-2 text-slate-600 dark:text-slate-300">{b.dhool1?.startTime || '-'}</td>
+                        <td className="border-r border-slate-200 dark:border-slate-800 p-2 text-slate-600 dark:text-slate-300">{b.dhool1?.endTime || '-'}</td>
+                        <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-bold text-slate-900 dark:text-white bg-blue-50/20 dark:bg-blue-950/20">{b.dhool1?.wetDhoolKg || '-'}</td>
+                        <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-semibold text-slate-500 dark:text-slate-400">{b.dhool1?.percentage ? `${b.dhool1.percentage}%` : '-'}</td>
 
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 text-slate-600 dark:text-slate-300">{b.bigBulk?.startTime || '-'}</td>
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 text-slate-600 dark:text-slate-300">{b.bigBulk?.endTime || '-'}</td>
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-bold text-slate-900 dark:text-white bg-amber-50/20 dark:bg-amber-950/20">{b.bigBulk?.wetDhoolKg || '-'}</td>
-                      <td className="p-2 font-semibold text-slate-500 dark:text-slate-400">{b.bigBulk?.percentage ? `${b.bigBulk.percentage}%` : '-'}</td>
-                    </tr>
-                  ))}
+                        <td className="border-r border-slate-200 dark:border-slate-800 p-2 text-slate-600 dark:text-slate-300">{b.dhool2?.startTime || '-'}</td>
+                        <td className="border-r border-slate-200 dark:border-slate-800 p-2 text-slate-600 dark:text-slate-300">{b.dhool2?.endTime || '-'}</td>
+                        <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-bold text-slate-900 dark:text-white bg-emerald-50/20 dark:bg-emerald-950/20">{b.dhool2?.wetDhoolKg || '-'}</td>
+                        <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-semibold text-slate-500 dark:text-slate-400">{b.dhool2?.percentage ? `${b.dhool2.percentage}%` : '-'}</td>
+
+                        <td className="border-r border-slate-200 dark:border-slate-800 p-2 text-slate-600 dark:text-slate-300">{b.bigBulk?.startTime || '-'}</td>
+                        <td className="border-r border-slate-200 dark:border-slate-800 p-2 text-slate-600 dark:text-slate-300">{b.bigBulk?.endTime || '-'}</td>
+                        <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-bold text-slate-900 dark:text-white bg-amber-50/20 dark:bg-amber-950/20">{b.bigBulk?.wetDhoolKg || '-'}</td>
+                        <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-semibold text-slate-500 dark:text-slate-400">{b.bigBulk?.percentage ? `${b.bigBulk.percentage}%` : '-'}</td>
+
+                        <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-black text-purple-900 dark:text-purple-300 bg-purple-50/40 dark:bg-purple-950/20">{batchWetTotal > 0 ? batchWetTotal.toFixed(2) : '-'}</td>
+                        <td className="p-2 font-bold text-purple-700 dark:text-purple-400 bg-purple-50/20 dark:bg-purple-950/10">{batchWetTotal > 0 ? `${batchWetPct}%` : '-'}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
 
                 <tfoot>
@@ -798,22 +833,25 @@ const RollingRoomSheetSummary = () => {
 
                     <td colSpan={2} className="border-r border-slate-200 dark:border-slate-700 p-2"></td>
                     <td className="border-r border-slate-200 dark:border-slate-700 p-2 font-black text-slate-900 dark:text-white text-sm bg-amber-50/40 dark:bg-amber-950/40">{sumBBKg.toFixed(2)}</td>
-                    <td className="p-2 text-slate-700 dark:text-slate-300 font-bold">{avgBBPct}%</td>
+                    <td className="border-r border-slate-300 dark:border-slate-700 p-2 text-slate-700 dark:text-slate-300 font-bold">{avgBBPct}%</td>
+
+                    <td className="border-r border-slate-300 dark:border-slate-700 p-2 font-black text-purple-950 dark:text-purple-200 text-sm bg-purple-100/50 dark:bg-purple-900/30">{grandTotalWetDhool.toFixed(2)}</td>
+                    <td className="p-2 text-purple-900 dark:text-purple-300 font-black bg-purple-100/40 dark:bg-purple-900/20">{grandTotalPct}%</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
 
             {/* Total Wet Dhool Card */}
-            <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-2">
-              <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+            <div className="mt-6 p-4 bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200/80 dark:border-purple-900/50 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-2">
+              <span className="text-xs font-bold text-purple-900 dark:text-purple-300 uppercase tracking-wider">
                 Grand Total Wet Dhool Quantity:
               </span>
               <div className="flex items-center gap-3">
-                <span className="text-xl font-black text-slate-900 dark:text-white">
+                <span className="text-xl font-black text-purple-950 dark:text-purple-100">
                   {grandTotalWetDhool.toFixed(2)} kg
                 </span>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-600 shadow-2xs">
+                <span className="text-xs font-bold text-purple-800 dark:text-purple-200 bg-white dark:bg-purple-900/60 px-3 py-1 rounded-lg border border-purple-200 dark:border-purple-700 shadow-2xs">
                   {grandTotalPct}% Overall Capacity
                 </span>
               </div>
