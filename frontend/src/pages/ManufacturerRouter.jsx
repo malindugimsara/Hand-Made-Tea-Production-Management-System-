@@ -12,7 +12,8 @@ import DhoolRollingSection from "./Manufacturer/BL Operation/DhoolRollingSection
 import DhoolRollingSummary from "./Manufacturer/BL Operation/DhoolRollingSummary";
 import WeeklyLoftLeafSummary from "./Manufacturer/SummaryReport/WeeklyLoftLeafSummary";
 import CollectorQualityDiffReport from "./Manufacturer/SummaryReport/CollectorQualityDiffReport";
-import HydroMetersChart from "./Manufacturer/BL Operation/HydroMetersChart";
+import HydroMetersEntry from "./Manufacturer/BL Operation/HydroMeters/HydroMetersEntry";
+import HydroMetersView from "./Manufacturer/BL Operation/HydroMeters/HydroMetersView";
 
 
 export default function ManufacturerRouter() {
@@ -23,7 +24,8 @@ export default function ManufacturerRouter() {
       <Route path="bl-production/witherLeafSummary" element={<WitherLeafSummary />} />
       <Route path="bl-production/dhoolRollingSection" element={<DhoolRollingSection />} />
       <Route path="bl-production/dhoolRollingSummary" element={<DhoolRollingSummary />} />
-      <Route path="bl-production/hydrometerschart" element={<HydroMetersChart />} />
+      <Route path="bl-production/hydroMetersentry" element={<HydroMetersEntry />} />
+      <Route path="bl-production/hydroMeterview" element={<HydroMetersView />} />
 
       <Route path="factory-loft-leaf" element={<FactoryLoftLeaf />} />
       <Route path="view-factory-loft-leaf" element={<ViewLoftLeafCount />} />
