@@ -109,6 +109,12 @@ const DATA = {
         { 
           title: "HydroMeters Chart", 
           url: "/manufacturer/bl-production/hydrometerschart" 
+         {
+          title: 'Hydro Meter',
+          items: [
+            { title: "Enter HydroMeter", url: "/manufacturer/bl-production/hydroMetersentry", nonViewer: true },
+            { title: "View HydroMeter", url: "/manufacturer/bl-production/hydroMeterview" },
+          ]
         },
       ],
     },
