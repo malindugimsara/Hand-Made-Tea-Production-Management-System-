@@ -20,28 +20,67 @@ const productCategories = [
     { id: 'others_DUST 1', categoryId: 'others', size: 'DUST 1', name: 'DUST 1' }
 ];
 
+const seed = { 'athukorala_400g': 95, 'athukorala_200g': 100, 'athukorala_100g': 64, 'bopfSp_400g': 53, 'bopfSp_200g': 31, 'bopfPremium_400g': 18, 'bopfPremium_200g': 17, 'pitigala_400g': 18, 'pitigala_200g': 22, 'tb_25': 14, 'tb_100': 9, 'gt_200g': 28, 'gt_T/B 25': 19, 'others_BOPF': 6, 'others_DUST': 2.5, 'others_DUST 1': 7.5 };
+
+// 💡 NEW: Database එකේ සේව් වී ඇති නම් අපගේ Format එකට හරවන (Normalization) කේතය
+const generateNormalizedKey = (catId, catTitle, size) => {
+    let cleanId = String(catId || '').toLowerCase().trim();
+    let cleanTitle = String(catTitle || '').toLowerCase().trim();
+    let cleanSize = String(size || '').toLowerCase().trim();
+
+    if (!cleanId && cleanTitle) {
+        cleanId = cleanTitle; 
+    }
+
+    let finalId = catId;
+    let finalSize = size;
+
+    // Database එකේ ඇති G/T සහ Other Grades නිවැරදි කිරීම
+    if (cleanId === 'g/t' || cleanTitle === 'g/t') finalId = 'gt';
+    if (cleanId === 'other grades' || cleanTitle === 'other grades' || cleanId === 'others') finalId = 'others';
+    
+    // Size එකේ ඇති වැරදි නිවැරදි කිරීම
+    if (cleanSize === 'bopf (kg)' || cleanSize === 'kg' || cleanSize === 'bopf') finalSize = 'BOPF';
+    if (cleanSize === 'dust (kg)' || cleanSize === 'dust') finalSize = 'DUST';
+    if (cleanSize === 'dust 1 (kg)' || cleanSize === 'dust 1') finalSize = 'DUST 1';
+
+    return `${finalId}_${finalSize}`;
+};
+
 // @route   GET /api/monthly-balance
 export const getBalance = async (req, res) => {
     try {
-        const { month } = req.query;
+        const { month } = req.query; // උදා: '2026-09'
         if (!month) return res.status(400).json({ success: false, message: 'Month required' });
 
-        let bmRecord = await MonthlyBalance.findOne({ month });
-        const bmMap = {};
+        // 1. ආරම්භක තොගය (Seed)
+        const bmMap = { ...seed };
 
-        if (!bmRecord && month === '2026-07') {
-            const seed = { 'athukorala_400g': 95, 'athukorala_200g': 100, 'athukorala_100g': 64, 'bopfSp_400g': 53, 'bopfSp_200g': 31, 'bopfPremium_400g': 18, 'bopfPremium_200g': 17, 'pitigala_400g': 18, 'pitigala_200g': 22, 'tb_25': 14, 'tb_100': 9, 'gt_200g': 28, 'gt_T/B 25': 19, 'others_BOPF': 6, 'others_DUST': 2.5, 'others_DUST 1': 7.5 };
-            Object.keys(seed).forEach(k => bmMap[k] = seed[k]);
-        } else if (bmRecord) {
-            bmRecord.items.forEach(item => bmMap[`${item.categoryId}_${item.size}`] = item.bmStock);
-        }
+        // 2. ඉල්ලුම් කළ මාසයට පෙර ඇති සියලුම මාස වල Daily Summary ගෙන (IN/OUT) ගණනය කර සජීවීව B/M Stock එක සෑදීම
+        const pastSummaries = await DailySummary.find({ date: { $lt: `${month}-01` } });
+        
+        pastSummaries.forEach(day => {
+            day.items?.forEach(item => {
+                // 💡 අපගේ අලුත් Normalization Function එක භාවිතය
+                const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
+                
+                if (bmMap[key] !== undefined) {
+                    bmMap[key] += (Number(item.in) || 0) - (Number(item.out) || 0);
+                } else {
+                    bmMap[key] = (Number(item.in) || 0) - (Number(item.out) || 0);
+                }
+            });
+        });
 
-        const summaries = await DailySummary.find({ date: { $regex: `^${month}` } });
+        // 3. අදාළ (ඉල්ලුම් කළ) මාසයේ දත්ත ලබා ගැනීම
+        const currentSummaries = await DailySummary.find({ date: { $regex: `^${month}` } });
         const dynamicMap = {};
 
-        summaries.forEach(day => {
+        currentSummaries.forEach(day => {
             day.items?.forEach(item => {
-                const key = `${item.categoryId}_${item.size}`;
+                // 💡 අපගේ අලුත් Normalization Function එක භාවිතය
+                const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
+                
                 if (!dynamicMap[key]) dynamicMap[key] = { in: 0, out: 0 };
                 dynamicMap[key].in += (Number(item.in) || 0);
                 dynamicMap[key].out += (Number(item.out) || 0);
@@ -66,18 +105,18 @@ export const getBalance = async (req, res) => {
 
         res.status(200).json({ success: true, data: { month, items } });
     } catch (error) {
+        console.error("Error in getBalance:", error);
         res.status(500).json({ success: false, message: 'Server Error' });
     }
 };
 
-// CORE REUSABLE LOGIC: Calculates current month and saves it to the NEXT month
+// CORE REUSABLE LOGIC 
 export const updateBMStockLogic = async (currentMonthStr) => {
     let bmRecord = await MonthlyBalance.findOne({ month: currentMonthStr });
     const bmMap = {};
     if (bmRecord) {
         bmRecord.items.forEach(item => bmMap[`${item.categoryId}_${item.size}`] = item.bmStock);
     } else if (currentMonthStr === '2026-07') {
-        const seed = { 'athukorala_400g': 95, 'athukorala_200g': 100, 'athukorala_100g': 64, 'bopfSp_400g': 53, 'bopfSp_200g': 31, 'bopfPremium_400g': 18, 'bopfPremium_200g': 17, 'pitigala_400g': 18, 'pitigala_200g': 22, 'tb_25': 14, 'tb_100': 9, 'gt_200g': 28, 'gt_T/B 25': 19, 'others_BOPF': 6, 'others_DUST': 2.5, 'others_DUST 1': 7.5 };
         Object.keys(seed).forEach(k => bmMap[k] = seed[k]);
     }
 
@@ -85,7 +124,7 @@ export const updateBMStockLogic = async (currentMonthStr) => {
     const dynamicMap = {};
     summaries.forEach(day => {
         day.items?.forEach(item => {
-            const key = `${item.categoryId}_${item.size}`;
+            const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
             if (!dynamicMap[key]) dynamicMap[key] = { in: 0, out: 0 };
             dynamicMap[key].in += (Number(item.in) || 0);
             dynamicMap[key].out += (Number(item.out) || 0);

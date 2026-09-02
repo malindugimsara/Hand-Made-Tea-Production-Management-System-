@@ -103,6 +103,13 @@ const DATA = {
             { title: "View HydroMeter", url: "/manufacturer/bl-production/hydroMeterview" },
           ]
         },
+        {
+          title: 'Firing Section',
+          items: [
+            { title: "Enter Firing Section", url: "/manufacturer/bl-production/firingSection", nonViewer: true },
+            { title: "View Firing Section", url: "/manufacturer/bl-production/firingSectionSummary" },
+          ]
+        },
       ],
     },
     {
