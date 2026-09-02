@@ -375,8 +375,6 @@ export default function LoftLeafCount() {
                     if (!numbers) continue;
 
                     if (mode === 'factory') {
-                        // In the Factory table, "100" is always the sample total. 
-                        // The values around it represent our needed data.
                         const idx100 = numbers.findIndex(n => Number(n) === 100);
                         if (idx100 !== -1) {
                             if (idx100 > 0) parsedRecords[rawRoute].facTotalQty = Number(numbers[idx100 - 1]);
@@ -384,8 +382,6 @@ export default function LoftLeafCount() {
                             if (idx100 + 4 < numbers.length) parsedRecords[rawRoute].facBelowBest = Number(numbers[idx100 + 4]);
                         }
                     } else if (mode === 'collector') {
-                        // In the Collector table, the first values are 0.00 and 0.
-                        // We find the first 0 index.
                         const zeroIdx = numbers.findIndex(n => Number(n) === 0);
                         if (zeroIdx !== -1 && zeroIdx + 2 < numbers.length) {
                             parsedRecords[rawRoute].colBest = Number(numbers[zeroIdx + 2]);
@@ -601,7 +597,8 @@ export default function LoftLeafCount() {
     }
   };
 
-  const PendingTable = ({ sampleType, title, icon }) => {
+  // 💡 FIXED: Render Pending Table helper function (Prevents Input Focus Loss on Edit)
+  const renderPendingTable = (sampleType, title, icon) => {
     const filteredRecords = pendingRecords.filter(r => r.sampleType === sampleType);
     if (filteredRecords.length === 0) return null;
 
@@ -612,21 +609,21 @@ export default function LoftLeafCount() {
             </h4>
             
             <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-zinc-700">
-              <table className="w-full text-sm text-left text-gray-600 dark:text-gray-400 min-w-[600px]">
+              <table className="w-full text-sm text-left text-gray-600 dark:text-gray-400 min-w-[700px]">
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-zinc-800 dark:text-gray-400">
                   <tr>
-                    <th className="px-4 py-3">Route</th>
-                    {sampleType === 'LeafCollector' && <th className="px-4 py-3">Collector Name</th>}
+                    <th className="px-4 py-3 whitespace-nowrap">Route</th>
+                    {sampleType === 'LeafCollector' && <th className="px-4 py-3 whitespace-nowrap">Collector Name</th>}
                     {sampleType === 'Factory' && (
                         <>
-                            <th className="px-4 py-3 text-center">Time</th>
-                            <th className="px-4 py-3 text-center">Total (Kg)</th>
+                            <th className="px-4 py-3 text-center whitespace-nowrap">Time</th>
+                            <th className="px-4 py-3 text-center whitespace-nowrap">Total (Kg)</th>
                         </>
                     )}
-                    <th className="px-4 py-3 text-center">Best (g)</th>
-                    <th className="px-4 py-3 text-center">Below Best (g)</th>
-                    <th className="px-4 py-3 text-center">Poor (g)</th>
-                    <th className="px-4 py-3 text-center">Actions</th>
+                    <th className="px-4 py-3 text-center whitespace-nowrap">Best (g)</th>
+                    <th className="px-4 py-3 text-center whitespace-nowrap">Below Best (g)</th>
+                    <th className="px-4 py-3 text-center whitespace-nowrap">Poor (g)</th>
+                    <th className="px-4 py-3 text-center whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -635,14 +632,14 @@ export default function LoftLeafCount() {
                       const data = isEditing ? editFormData : item;
                       return (
                       <tr key={item.id} className="bg-white border-b dark:bg-zinc-900 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800/50">
-                        <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">{data.route.toUpperCase()}</td>
+                        <td className="px-4 py-3 font-bold text-gray-900 dark:text-white whitespace-nowrap">{data.route.toUpperCase()}</td>
                         
                         {sampleType === 'LeafCollector' && (
                             <td className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">
                                 {isEditing ? (
-                                    <input type="text" name="leafCollectorName" value={data.leafCollectorName || ''} onChange={handleEditChange} className="w-full p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded outline-none focus:ring-1 focus:ring-lime-500" />
+                                    <input type="text" name="leafCollectorName" value={data.leafCollectorName || ''} onChange={handleEditChange} className="w-full min-w-[120px] p-1.5 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded outline-none focus:ring-2 focus:ring-lime-500 transition-all" />
                                 ) : (
-                                    <span>{data.leafCollectorName || '-'}</span>
+                                    <span className="whitespace-nowrap">{data.leafCollectorName || '-'}</span>
                                 )}
                             </td>
                         )}
@@ -657,40 +654,40 @@ export default function LoftLeafCount() {
                                             value={data.arrivalTime || ''} 
                                             onChange={handleEditChange} 
                                             placeholder="08:30 PM"
-                                            className="w-20 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-1 focus:ring-lime-500 font-mono text-xs" 
+                                            className="w-24 p-1.5 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-2 focus:ring-lime-500 font-mono text-xs transition-all" 
                                         />
                                     ) : (
-                                        <span className="font-mono text-xs">{data.arrivalTime || '-'}</span>
+                                        <span className="font-mono text-xs whitespace-nowrap">{data.arrivalTime || '-'}</span>
                                     )}
                                 </td>                               
                                 <td className="px-4 py-3 text-center">
                                     {isEditing ? (
-                                        <input type="number" name="totalLeafQty" value={data.totalLeafQty || ''} onChange={handleEditChange} className="w-20 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-1 focus:ring-lime-500" />
+                                        <input type="number" name="totalLeafQty" value={data.totalLeafQty || ''} onChange={handleEditChange} className="w-24 p-1.5 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-2 focus:ring-lime-500 transition-all" />
                                     ) : (
-                                        <span className="font-bold text-lime-700 dark:text-lime-400">{data.totalLeafQty ? `${data.totalLeafQty} Kg` : '-'}</span>
+                                        <span className="font-bold text-lime-700 dark:text-lime-400 whitespace-nowrap">{data.totalLeafQty ? `${data.totalLeafQty} Kg` : '-'}</span>
                                     )}
                                 </td>
                             </>
                         )}
                         <td className="px-4 py-3 text-center">
-                            {isEditing ? <input type="number" name="bestQty" value={data.bestQty} onChange={handleEditChange} className="w-16 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-1 focus:ring-lime-500" /> : <span className="text-green-600 font-bold">{data.bestQty}g</span>}
+                            {isEditing ? <input type="number" name="bestQty" value={data.bestQty} onChange={handleEditChange} className="w-20 p-1.5 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-2 focus:ring-lime-500 transition-all" /> : <span className="text-green-600 font-bold whitespace-nowrap">{data.bestQty}g</span>}
                         </td>
                         <td className="px-4 py-3 text-center">
-                            {isEditing ? <input type="number" name="belowBestQty" value={data.belowBestQty} onChange={handleEditChange} className="w-16 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-1 focus:ring-lime-500" /> : <span className="text-yellow-600 font-bold">{data.belowBestQty}g</span>}
+                            {isEditing ? <input type="number" name="belowBestQty" value={data.belowBestQty} onChange={handleEditChange} className="w-20 p-1.5 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-2 focus:ring-lime-500 transition-all" /> : <span className="text-yellow-600 font-bold whitespace-nowrap">{data.belowBestQty}g</span>}
                         </td>
                         <td className="px-4 py-3 text-center">
-                            <span className="text-red-600 font-bold">{data.poorQty}g</span>
+                            <span className="text-red-600 font-bold whitespace-nowrap">{data.poorQty}g</span>
                         </td>
                         <td className="px-4 py-3 text-center">
                             {isEditing ? (
                                 <div className="flex items-center justify-center gap-2">
-                                    <button onClick={handleSaveEdit} className="text-green-600 hover:text-green-800 font-bold text-xs bg-green-100 px-2 py-1 rounded">Save</button>
-                                    <button onClick={handleCancelEdit} className="text-gray-600 hover:text-gray-800 font-bold text-xs bg-gray-200 px-2 py-1 rounded">Cancel</button>
+                                    <button onClick={handleSaveEdit} className="text-green-700 hover:text-green-900 font-bold text-xs bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded transition-colors">Save</button>
+                                    <button onClick={handleCancelEdit} className="text-gray-700 hover:text-gray-900 font-bold text-xs bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded transition-colors">Cancel</button>
                                 </div>
                             ) : (
                                 <div className="flex items-center justify-center gap-3">
-                                    <button type="button" onClick={() => handleEditClick(item.id)} className="text-blue-500 hover:text-blue-700"><Edit2 size={16} /></button>
-                                    <button type="button" onClick={() => handleRemoveFromList(item.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
+                                    <button type="button" onClick={() => handleEditClick(item.id)} className="text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 p-1.5 rounded transition-colors"><Edit2 size={16} /></button>
+                                    <button type="button" onClick={() => handleRemoveFromList(item.id)} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded transition-colors"><Trash2 size={16} /></button>
                                 </div>
                             )}
                         </td>
@@ -704,9 +701,9 @@ export default function LoftLeafCount() {
   };
 
   return (
-        <div className="p-4 sm:p-8 max-w-[1200px] mx-auto font-sans min-h-screen transition-colors duration-300 relative">     
+    <div className="p-3 sm:p-8 max-w-[1200px] mx-auto font-sans min-h-screen transition-colors duration-300 relative">     
       {/* 1. HEADING SECTION */}
-      <div className="mb-6 flex justify-between items-center">
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-[#3f6212] dark:text-lime-500 flex items-center gap-2">
             <Leaf size={24} /> {t.title}
@@ -716,9 +713,37 @@ export default function LoftLeafCount() {
           </p>
         </div>
         
-        <div className="flex items-center gap-3">
-            {/* 💡 PDF UPLOAD BUTTON (OCR) */}
-            <div>
+        <div className="flex items-center w-full sm:w-auto">
+            <button
+                onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')}
+                className="w-full sm:w-auto justify-center px-4 py-2.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center gap-2"
+            >
+                <Languages size={18} />
+                {lang === 'EN' ? "සිංහල" : "English"}
+            </button>
+        </div>
+      </div>
+
+      {/* 2. DATE SELECTOR & UPLOAD SECTION */}
+      <div className="mb-8 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        <div className="w-full sm:w-auto bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border-l-4 border-l-[#84cc16] border border-gray-100 dark:border-zinc-800">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
+                Select Date
+            </label>
+            <div className="relative">
+                <Calendar size={18} className="absolute left-3 top-3 text-[#65a30d]" />
+                <input 
+                    type="date" 
+                    value={selectedDate} 
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full sm:w-auto pl-10 pr-4 py-2.5 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm font-bold focus:ring-2 focus:ring-[#84cc16] outline-none bg-gray-50 dark:bg-zinc-800 text-[#3f6212] dark:text-lime-400 cursor-pointer transition-all shadow-inner"
+                />
+            </div>
+        </div>
+
+        {/* 💡 Show Upload Button ONLY if a date is selected */}
+        {selectedDate && (
+            <div className="w-full sm:w-auto sm:ml-auto">
                 <input 
                     type="file" 
                     accept="application/pdf" 
@@ -729,51 +754,25 @@ export default function LoftLeafCount() {
                 <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploadingPdf}
-                    className="px-4 py-2 bg-green-600 dark:bg-green-900/70 dark:border dark:border-green-600 text-white hover:bg-green-700 rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center gap-2 disabled:opacity-50"
+                    className="w-full sm:w-auto px-5 py-3.5 sm:py-2.5 bg-green-600 dark:bg-green-900/70 dark:border dark:border-green-600 text-white hover:bg-green-700 rounded-xl sm:rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
                     title="Upload Report PDF to Auto-fill"
                 >
                     {isUploadingPdf ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
-                    {isUploadingPdf ? "Scanning..." : "Upload Report PDF"}
+                    {isUploadingPdf ? "Scanning PDF..." : "Upload Report PDF"}
                 </button>
             </div>
-
-            <button
-                onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')}
-                className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center gap-2"
-            >
-                <Languages size={18} />
-                {lang === 'EN' ? "සිංහල" : "English"}
-            </button>
-        </div>
-      </div>
-
-      {/* 2. DATE SELECTOR SECTION */}
-      <div className="mb-8">
-        <div className="inline-block bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border-l-4 border-l-[#84cc16] border border-gray-100 dark:border-zinc-800">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
-                Select Date
-            </label>
-            <div className="relative">
-                <Calendar size={18} className="absolute left-3 top-2.5 text-[#65a30d]" />
-                <input 
-                    type="date" 
-                    value={selectedDate} 
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm font-bold focus:ring-2 focus:ring-[#84cc16] outline-none bg-gray-50 dark:bg-zinc-800 text-[#3f6212] dark:text-lime-400 cursor-pointer transition-all shadow-inner"
-                />
-            </div>
-        </div>
+        )}
       </div>
 
       <div className="space-y-6">
         {/* FACTORY SAMPLE SECTION */}
         <div>
-            <form onSubmit={(e) => handleAddToList(e, 'factory')} className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-sm border-t-4 border-t-[#84cc16] border border-gray-100 dark:border-zinc-800">
+            <form onSubmit={(e) => handleAddToList(e, 'factory')} className="bg-white dark:bg-zinc-900 p-5 md:p-8 rounded-2xl shadow-sm border-t-4 border-t-[#84cc16] border border-gray-100 dark:border-zinc-800">
             <h3 className="text-lg font-bold text-[#3f6212] dark:text-lime-500 mb-6 flex items-center gap-2 border-b border-gray-100 dark:border-zinc-800 pb-3">
                 <Factory size={20} /> {t.facSampleEntry}
             </h3>
 
-            {/* 💡 SUPERVISOR NAME (GLOBAL FOR FACTORY) */}
+            {/* SUPERVISOR NAME (GLOBAL FOR FACTORY) */}
             <div className="mb-6 bg-lime-50/50 dark:bg-lime-900/10 p-4 rounded-xl border border-lime-100 dark:border-lime-900/50 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <label className="text-sm font-bold text-lime-800 dark:text-lime-400 min-w-max flex items-center gap-2">
                     <UserCheck size={16} /> {t.supervisorName}:
@@ -782,7 +781,7 @@ export default function LoftLeafCount() {
                     type="text" 
                     value={supervisorName} 
                     onChange={(e) => setSupervisorName(e.target.value)} 
-                    className="w-full max-w-sm p-2 border border-gray-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-2 focus:ring-lime-500 bg-white dark:bg-zinc-950 font-bold text-gray-700 dark:text-gray-300"
+                    className="w-full sm:max-w-sm p-2.5 border border-gray-200 dark:border-zinc-700 rounded-lg outline-none focus:ring-2 focus:ring-lime-500 bg-white dark:bg-zinc-950 font-bold text-gray-700 dark:text-gray-300"
                 />
             </div>
 
@@ -827,7 +826,7 @@ export default function LoftLeafCount() {
                             name="arrivalAmPm"
                             value={factoryForm.arrivalAmPm}
                             onChange={(e) => handleInputChange(e, 'factory')}
-                            className="w-20 p-2.5 border border-gray-200 dark:border-zinc-700 rounded-lg font-bold focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950 text-center"
+                            className="w-24 p-2.5 border border-gray-200 dark:border-zinc-700 rounded-lg font-bold focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950 text-center"
                         >
                             <option value="PM">PM</option>
                             <option value="AM">AM</option>
@@ -895,17 +894,18 @@ export default function LoftLeafCount() {
             
             <p className="text-xs text-gray-500 mt-3 italic">{t.autoCalcNote}</p>
 
-            <button type="submit" id="fac-submitBtn" className="mt-6 w-full py-3 rounded-xl bg-[#3f6212] text-white font-bold hover:bg-[#4d7c0f] transition-all shadow-md flex items-center justify-center gap-2">
+            <button type="submit" id="fac-submitBtn" className="mt-6 w-full py-3.5 rounded-xl bg-[#3f6212] text-white font-bold hover:bg-[#4d7c0f] transition-all shadow-md flex items-center justify-center gap-2">
                 <PlusCircle size={18} /> {t.addFac}
             </button>
             </form>
 
-            <PendingTable sampleType="Factory" title="Factory Entries" icon={<Factory size={16}/>} />
+            {/* 💡 CALL RENDER PENDING TABLE HELPER FUNCTION */}
+            {renderPendingTable('Factory', 'Factory Entries', <Factory size={16}/>)}
         </div>
 
         {/* COLLECTOR SAMPLE SECTION */}
         <div>
-            <form onSubmit={(e) => handleAddToList(e, 'collector')} className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-sm border-t-4 border-t-[#65a30d] border border-gray-100 dark:border-zinc-800 mt-8">
+            <form onSubmit={(e) => handleAddToList(e, 'collector')} className="bg-white dark:bg-zinc-900 p-5 md:p-8 rounded-2xl shadow-sm border-t-4 border-t-[#65a30d] border border-gray-100 dark:border-zinc-800 mt-8">
             <h3 className="text-lg font-bold text-[#65a30d] dark:text-lime-500 mb-6 flex items-center gap-2 border-b border-gray-100 dark:border-zinc-800 pb-3">
                 <Users size={20} /> {t.colSampleEntry}
             </h3>
@@ -1031,24 +1031,25 @@ export default function LoftLeafCount() {
             
             <p className="text-xs text-gray-500 mt-3 italic">{t.autoCalcNote}</p>
 
-            <button type="submit" id="col-submitBtn" className="mt-6 w-full py-3 rounded-xl bg-[#65a30d] text-white font-bold hover:bg-[#4d7c0f] transition-all shadow-md flex items-center justify-center gap-2">
+            <button type="submit" id="col-submitBtn" className="mt-6 w-full py-3.5 rounded-xl bg-[#65a30d] text-white font-bold hover:bg-[#4d7c0f] transition-all shadow-md flex items-center justify-center gap-2">
                 <PlusCircle size={18} /> {t.addCol}
             </button>
             </form>
 
-            <PendingTable sampleType="LeafCollector" title="Collector Entries" icon={<Users size={16}/>} />
+            {/* 💡 CALL RENDER PENDING TABLE HELPER FUNCTION */}
+            {renderPendingTable('LeafCollector', 'Collector Entries', <Users size={16}/>)}
         </div>
       </div>
 
       {pendingRecords.length > 0 && (
           <div className="mt-8 bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-lg border border-lime-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-gray-700 dark:text-gray-300 font-bold text-lg">
+              <div className="text-gray-700 dark:text-gray-300 font-bold text-lg w-full sm:w-auto text-center sm:text-left">
                   Total Pending: <span className="text-[#65a30d]">{pendingRecords.length} Records</span>
               </div>
               <button
                   onClick={handleSaveAll}
                   disabled={isSaving || editingId !== null}
-                  className="w-full sm:w-auto px-8 py-3 rounded-xl bg-[#84cc16] hover:bg-[#65a30d] text-white font-bold disabled:bg-gray-400 transition-all shadow-md flex items-center justify-center gap-2"
+                  className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#84cc16] hover:bg-[#65a30d] text-white font-bold disabled:bg-gray-400 transition-all shadow-md flex items-center justify-center gap-2"
               >
                   <Save size={20} />
                   {isSaving ? "Saving to Database..." : "Save All to Database"}
