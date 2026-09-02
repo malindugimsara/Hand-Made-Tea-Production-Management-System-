@@ -581,7 +581,7 @@ export default function ViewLoftLeafCount() {
             <button
               onClick={generatePDFForDate}
               disabled={loading || records.length === 0}
-              className="p-2.5 px-3 sm:px-4 flex-1 sm:flex-none justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+              className="p-2.5 px-3 sm:px-4 flex-1 sm:flex-none justify-center bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 rounded-lg text-sm font-bold shadow-sm transition-colors disabled:opacity-50 flex items-center gap-2"
               title="Download PDF"
             >
               <FileDown size={18} /> <span className="font-bold text-xs sm:text-sm hidden sm:inline">PDF</span>
