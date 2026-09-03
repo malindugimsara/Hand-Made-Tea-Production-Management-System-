@@ -139,6 +139,7 @@ const DATA = {
           items: [
             { title: 'Simple Average', url: '/manufacturer/simple-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
             { title: 'Weight Average', url: '/manufacturer/weight-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
+            { title: 'Green Leaf Monthly Ranking', url: '/manufacturer/green-leaf-monthly-ranking', adminOnly: true, nonViewer: true },
           ],
         },
       ],

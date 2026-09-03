@@ -52,6 +52,9 @@ export default function DispatchRecordsView() {
   });
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  
+  // 💡 අලුතින් එකතු කළ State එක (Dispatch Type එක සඳහා)
+  const [filterDispatchType, setFilterDispatchType] = useState("All");
 
   useEffect(() => {
     if (isDarkMode) {
@@ -102,12 +105,10 @@ export default function DispatchRecordsView() {
 
       const data = await response.json();
       
-      // Filter out records that have NO dispatch and NO local sale (keep only relevant rows)
       const dispatchRecords = (data.records || []).filter(
           r => (r.dispatch > 0 || r.localSaleAndGratis > 0 || r.returnAmount > 0)
       );
 
-      // Sort descending (newest first)
       setRecords(dispatchRecords.sort((a, b) => new Date(b.date) - new Date(a.date)));
     } catch (error) {
       console.error("Fetch Error:", error);
@@ -130,7 +131,6 @@ export default function DispatchRecordsView() {
     if (!recordToDelete) return;
     const toastId = toast.loading("Clearing dispatch data...");
     try {
-      // මේක යවන්න ඕනේ URL එක:
       const token = localStorage.getItem("token");
       const response = await fetch(`${BACKEND_URL}/api/factory-logs/${recordToDelete._id}?clearDispatchOnly=true`, {
         method: "DELETE",
@@ -152,10 +152,57 @@ export default function DispatchRecordsView() {
     }
   };
 
+  // 💡 Tea Type හි ඇති හිස්තැන් (Spaces) සහ Simple/Capital අකුරු වෙනස්කම් මකා එකම Standard එකකට (උදා: BOPSP, OP1) සැකසීමට Helper Function එකක්
+  const normalizeTeaType = (type) => {
+    if (!type) return "";
+    return type.toUpperCase().replace(/\s+/g, ""); 
+  };
+
+  // 💡 Unique Dispatch Types සියල්ල එකතු කරගැනීම (Dropdown එකට)
+  // dispatches, localSales, returns යන සියල්ලෙන්ම Types එකතු කර, ඒවා Normalize කර, Duplicates ඉවත් කරයි.
+  const uniqueDispatchTypes = Array.from(
+    new Set(
+      records.flatMap((r) => [
+        ...(r.dispatches || []).map((d) => normalizeTeaType(d.teaType)),
+        ...(r.localSales || []).map((l) => normalizeTeaType(l.teaType)),
+        ...(r.returns || []).map((ret) => normalizeTeaType(ret.teaType)),
+      ]).filter(Boolean)
+    )
+  ).sort();
+
+  // 💡 තෝරාගත් Dispatch Type එකට අදාළව Record හි ඇතුළත දත්ත Filter කිරීම
+  const filteredRecords = records.map((record) => {
+    if (filterDispatchType === "All") return record;
+
+    // Filter කරන විටත් Normalize කරම පරීක්ෂා කිරීම (එවිට "BOP SP" සහ "BOPSP" දෙකම හරියටම අහුවේ)
+    const filteredDispatches = (record.dispatches || []).filter((d) => normalizeTeaType(d.teaType) === filterDispatchType);
+    const filteredLocalSales = (record.localSales || []).filter((l) => normalizeTeaType(l.teaType) === filterDispatchType);
+    const filteredReturns = (record.returns || []).filter((r) => normalizeTeaType(r.teaType) === filterDispatchType);
+
+    if (filteredDispatches.length === 0 && filteredLocalSales.length === 0 && filteredReturns.length === 0) {
+      return null;
+    }
+
+    const rowDispatchTotal = filteredDispatches.reduce((sum, d) => sum + (Number(d.weight) || 0), 0);
+    const rowLocalSaleTotal = filteredLocalSales.reduce((sum, l) => sum + (Number(l.weight) || 0), 0);
+    const rowReturnTotal = filteredReturns.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+    return {
+      ...record,
+      dispatches: filteredDispatches,
+      localSales: filteredLocalSales,
+      returns: filteredReturns,
+      dispatch: rowDispatchTotal,
+      localSaleAndGratis: rowLocalSaleTotal,
+      totalOut: rowDispatchTotal + rowLocalSaleTotal,
+      returnAmount: rowReturnTotal,
+    };
+  }).filter(Boolean);
+
   // Calculations for Summary
-  const totalDispatch = records.reduce((sum, r) => sum + (r.dispatch || 0), 0);
-  const totalLocalSale = records.reduce((sum, r) => sum + (r.localSaleAndGratis || 0), 0);
-  const totalReturns = records.reduce((sum, r) => sum + (r.returnAmount || 0), 0);
+  const totalDispatch = filteredRecords.reduce((sum, r) => sum + (r.dispatch || 0), 0);
+  const totalLocalSale = filteredRecords.reduce((sum, r) => sum + (r.localSaleAndGratis || 0), 0);
+  const totalReturns = filteredRecords.reduce((sum, r) => sum + (r.returnAmount || 0), 0);
   const totalOut = totalDispatch + totalLocalSale;
 
   // Helpers for Array formatting (For PDF & Excel)
@@ -406,6 +453,19 @@ export default function DispatchRecordsView() {
                 className="w-full sm:w-40 outline-none text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#1B6A31]/20 transition-all cursor-pointer"
               />
             </div>
+            <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+            <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Dispatch Type</label>
+            <select
+              value={filterDispatchType}
+              onChange={(e) => setFilterDispatchType(e.target.value)}
+              className="w-full sm:w-40 outline-none text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#1B6A31]/20 transition-all cursor-pointer"
+            >
+              <option value="All">All Types</option>
+              {uniqueDispatchTypes.map((type, idx) => (
+                <option key={idx} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
           </div>
         </div>
       </div>
@@ -471,9 +531,11 @@ export default function DispatchRecordsView() {
               </thead>
 
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {records.length > 0 ? (
+                {/* 💡 වෙනස් කළා */}
+                {filteredRecords.length > 0 ? (
                   <>
-                    {records.map((record) => {
+                    {/* 💡 වෙනස් කළා */}
+                    {filteredRecords.map((record) => {
                       const dispatches = record.dispatches || [];
                       const localSales = record.localSales || [];
                       const returns = record.returns || [];
