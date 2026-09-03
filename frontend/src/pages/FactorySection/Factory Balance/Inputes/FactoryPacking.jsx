@@ -5,7 +5,7 @@ import { Package, ListPlus, Send, Trash2, AlertCircle } from "lucide-react";
 // 1. Reusable input styles
 const inputStyle = "w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-200 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-all";
 
-// 2. Helper component for the bag categories (Declared OUTSIDE to prevent focus loss)
+// 2. Helper component for the bag categories
 const BagSection = ({ title, stateData, categoryStr, themeClass, onChange }) => (
     <div className="p-5 rounded-2xl border bg-gray-50/50 dark:bg-gray-800/50 border-gray-100 dark:border-gray-700">
         <h3 className={`text-sm font-black uppercase tracking-wider mb-4 ${themeClass}`}>{title}</h3>
@@ -41,6 +41,8 @@ const BagSection = ({ title, stateData, categoryStr, themeClass, onChange }) => 
 );
 
 const FactoryPacking = () => {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+
     // --- Form State ---
     const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0]);
     const [agSuper, setAgSuper] = useState({ received: "", used: "" });
@@ -122,21 +124,27 @@ const FactoryPacking = () => {
         setIsSaving(true);
         const toastId = toast.loading(`Saving ${queue.length} entries to database...`);
 
+        // GET TOKEN FROM LOCAL STORAGE
+        const token = localStorage.getItem('token');
+
         try {
             // Process all queued items concurrently using Promise.all
             const promises = queue.map(async (item) => {
                 // Remove the temporary 'id' before sending to backend
                 const { id, ...dataToSend } = item;
                 
-                const response = await fetch('http://localhost:3000/api/factory-packs', {
+                const response = await fetch(`${BACKEND_URL}/api/factory-packs`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` // ADDED TOKEN HEADER HERE
+                    },
                     body: JSON.stringify(dataToSend),
                 });
 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(`Failed to save ${item.date}: ${errorData.message}`);
+                    throw new Error(`Failed to save ${item.date}: ${errorData.message || 'Access Denied'}`);
                 }
                 return response.json();
             });
@@ -301,4 +309,4 @@ const FactoryPacking = () => {
     );
 };
 
-export default FactoryPacking;3 
+export default FactoryPacking;
