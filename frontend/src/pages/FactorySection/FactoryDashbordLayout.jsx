@@ -17,6 +17,10 @@ import {
   PackagePlus,
   Proportions,
   Search,
+  Leaf,
+  Truck,
+  UsersRound,
+  PackageCheck,
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -74,22 +78,36 @@ const DATA = {
   ],
   navMain: [
     {
-      title: 'Factory Balance',
-      icon: Store,
+      title: 'Green Leaf',
+      icon: Leaf,
       items: [
-        { title: 'Daily Green Leaf', url: '/factory/dailyproduction', nonViewer: true },
-        { title: 'Dispatch And Return', url: '/factory/dispatchandreturn', nonViewer: true },
-        { title: 'Labour Output', url: '/factory/labouroutput', nonViewer: true },
-        { title: 'Factory Packing', url: '/factory/factorypacking', nonViewer: true }
+        { title: 'Enter Daily G/L', url: '/factory/dailyproduction', nonViewer: true },
+        { title: 'View Daily G/L', url: '/factory/view' },
+
       ],
     },
     {
-      title: 'Summary Reports',
-      icon: LineChart,
+      title: 'Dispatch And Return',
+      icon: Truck,
       items: [
-        { title: 'Factory Log View', url: '/factory/view' },
-        { title: 'Dispatch Records', url: '/factory/dispatchrecords' },
-        { title: 'Labour Output List', url: '/factory/labouroutputlist' },
+        { title: 'Enter Dispatch & Return', url: '/factory/dispatchandreturn', nonViewer: true },
+        { title: 'View Dispatch Records', url: '/factory/dispatchrecords' },
+
+      ],
+    },
+    {
+      title: 'Labour Output',
+      icon: UsersRound,
+      items: [
+        { title: 'Enter Labour Output', url: '/factory/labouroutput', nonViewer: true },
+        { title: 'View Labour Output', url: '/factory/labouroutputlist' },
+      ],
+    },
+    {
+      title: 'Factory Packing',
+      icon: PackageCheck,
+      items: [
+        { title: 'Enter Factory Packing', url: '/factory/factorypacking', nonViewer: true },
         { title: 'Packing Summary', url: '/factory/packingsummary' }
       ],
     },
