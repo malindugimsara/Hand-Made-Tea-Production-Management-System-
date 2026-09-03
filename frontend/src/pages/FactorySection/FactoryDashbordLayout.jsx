@@ -77,7 +77,7 @@ const DATA = {
       title: 'Factory Balance',
       icon: Store,
       items: [
-        { title: 'Daily Production', url: '/factory/dailyproduction', nonViewer: true },
+        { title: 'Daily Green Leaf', url: '/factory/dailyproduction', nonViewer: true },
         { title: 'Dispatch And Return', url: '/factory/dispatchandreturn', nonViewer: true },
         { title: 'Labour Output', url: '/factory/labouroutput', nonViewer: true },
         { title: 'Factory Packing', url: '/factory/factorypacking', nonViewer: true }

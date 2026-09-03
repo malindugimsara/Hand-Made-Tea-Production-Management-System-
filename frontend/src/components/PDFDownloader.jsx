@@ -62,7 +62,7 @@ export default function PDFDownloader({
             // ===============================================================
             
             // Company Name
-            doc.setFontSize(20);
+            doc.setFontSize(18);
             doc.setTextColor(27, 106, 49); // Theme Green (#1B6A31)
             doc.setFont(undefined, 'bold');
             doc.text("ATHUKORALA GROUP (PVT) LTD", 42, 18);
@@ -94,7 +94,7 @@ export default function PDFDownloader({
             hours = hours % 12 || 12;
             const generatedDateTime = `${year}/${month}/${day} ${hours}.${minutes}${ampm}`;
 
-            doc.setFontSize(10);
+            doc.setFontSize(8);
             doc.setTextColor(150, 150, 150);
             
             // 💡 මකා දැමී තිබුණු pageHeight එක මෙතැනට නැවත එකතු කර ඇත
@@ -102,8 +102,8 @@ export default function PDFDownloader({
             const pageHeight = doc.internal.pageSize.getHeight(); 
 
             // දකුණු පස ඉහළ කෙළවරේ Doc Ref සහ Date
-            doc.text(`Doc Ref: ${uniqueCode}`, pageWidth - 14, 15, { align: 'right' });
-            doc.text(`Generated: ${generatedDateTime}`, pageWidth - 14, 20, { align: 'right' });
+            doc.text(`Doc Ref: ${uniqueCode}`, pageWidth - 14, 20, { align: 'right' });
+            doc.text(`Generated: ${generatedDateTime}`, pageWidth - 14, 25, { align: 'right' });
 
             // --- Advanced Sorting ---
             let totalRow = null;
