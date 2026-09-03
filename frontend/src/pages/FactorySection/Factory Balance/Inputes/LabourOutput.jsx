@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { Save, Users, Clock, Activity, Plus, Trash2, Calculator, Calendar, Eraser } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+const SECTION_ORDER = ['Withering', 'Loft', 'Rolling', 'Drying', 'Sifting', 'Packing', 'Firewood'];
 
 export default function LabourOutput() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -16,6 +18,10 @@ export default function LabourOutput() {
     const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
 
     const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0]);
+
+    // Refs for input auto-focus and Enter key navigation
+    const noOfLaboursRef = useRef(null);
+    const otHoursRef = useRef(null);
 
     const [formData, setFormData] = useState({
         section: '',
@@ -32,6 +38,23 @@ export default function LabourOutput() {
     const [madeTeaToday, setMadeTeaToday] = useState(0);
     const [isLoadingTea, setIsLoadingTea] = useState(false);
     const [isSavingAll, setIsSavingAll] = useState(false);
+
+    // Auto-select the next available section on mount or when queue clears
+    useEffect(() => {
+        if (!formData.section) {
+            const firstAvailable = SECTION_ORDER.find(s => !pendingRecords.some(r => r.section === s));
+            if (firstAvailable) {
+                setFormData(prev => ({ ...prev, section: firstAvailable }));
+            }
+        }
+    }, [pendingRecords, formData.section]);
+
+    // Auto-focus the labours input whenever the section changes
+    useEffect(() => {
+        if (formData.section && noOfLaboursRef.current) {
+            noOfLaboursRef.current.focus();
+        }
+    }, [formData.section]);
 
     // Sync pending records to local storage whenever they change
     useEffect(() => {
@@ -94,6 +117,16 @@ export default function LabourOutput() {
         setFormData({ ...formData, [name]: value });
     };
 
+    // Handle Enter key on the No. of Labours field
+    const handleLaboursKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault(); // Prevent form submission
+            if (otHoursRef.current) {
+                otHoursRef.current.focus(); // Jump to OT Hours
+            }
+        }
+    };
+
     const handleAddToList = (e) => {
         e.preventDefault();
         if (isViewer) {
@@ -120,8 +153,33 @@ export default function LabourOutput() {
             otHours: otHours,
         };
 
-        setPendingRecords([...pendingRecords, newRecord]);
-        setFormData({ section: '', noOfLabours: '', otHours: '' });
+        const newPendingRecords = [...pendingRecords, newRecord];
+        setPendingRecords(newPendingRecords);
+
+        // Determine the next section automatically
+        const currentIdx = SECTION_ORDER.indexOf(formData.section);
+        let nextSection = '';
+
+        if (currentIdx !== -1) {
+            // Find the immediate next section that isn't already queued
+            for (let i = currentIdx + 1; i < SECTION_ORDER.length; i++) {
+                if (!newPendingRecords.some(r => r.section === SECTION_ORDER[i])) {
+                    nextSection = SECTION_ORDER[i];
+                    break;
+                }
+            }
+        }
+        // If we reached the end, just find ANY available section
+        if (!nextSection) {
+            nextSection = SECTION_ORDER.find(s => !newPendingRecords.some(r => r.section === s)) || '';
+        }
+
+        setFormData({ section: nextSection, noOfLabours: '', otHours: '' });
+
+        // Refocus back to the No. of Labours input for quick typing
+        setTimeout(() => {
+            if (noOfLaboursRef.current) noOfLaboursRef.current.focus();
+        }, 0);
     };
 
     const handleRemoveFromList = (indexToRemove) => {
@@ -131,6 +189,7 @@ export default function LabourOutput() {
     const handleClearQueue = () => {
         setPendingRecords([]);
         localStorage.removeItem('labourOutputQueue');
+        setFormData({ section: SECTION_ORDER[0], noOfLabours: '', otHours: '' });
         toast.success("Temporary queue cleared.");
     };
 
@@ -144,7 +203,8 @@ export default function LabourOutput() {
     const totalLabours = listLabours + currentLabours;
     const totalOtHours = listOtHours + currentOtHours;
 
-    const otShifts = totalOtHours / 5.5;
+    // Updated divisor from 5.5 to 6.43
+    const otShifts = totalOtHours / 6.43;
     const totalShifts = totalLabours + otShifts;
     const labourOutput = totalShifts > 0 ? (madeTeaToday / totalShifts) : 0;
     // ------------------------------------------------
@@ -165,7 +225,8 @@ export default function LabourOutput() {
             const finalLabourOutput = totalShifts > 0 ? (madeTeaToday / totalShifts) : 0;
 
             const recordsToSave = pendingRecords.map(record => {
-                const recOtShifts = record.otHours / 5.5;
+                // Updated divisor here as well
+                const recOtShifts = record.otHours / 6.43;
                 const recTotalShifts = record.noOfLabours + recOtShifts;
 
                 return {
@@ -189,11 +250,11 @@ export default function LabourOutput() {
             if (!res.ok) throw new Error("Failed to save records to the database.");
 
             toast.success("All queued records saved successfully!", { id: toastId });
-            
+
             // Clear state and local storage on success
             setPendingRecords([]);
             localStorage.removeItem('labourOutputQueue');
-            
+
             // --- REDIRECT HAPPENS HERE ---
             setTimeout(() => {
                 navigate("/factory/labouroutputlist");
@@ -269,17 +330,14 @@ export default function LabourOutput() {
                                             value={formData.section}
                                             onChange={handleInputChange}
                                             required
-                                            placeholder="-- Select or Type Section --"
+                                            placeholder="-- Select Section --"
                                             className={`${inputStyles} text-sm w-full`}
                                             autoComplete="off"
                                         />
                                         <datalist id="section-options">
-                                            <option value="Withering" />
-                                            <option value="Rolling" />
-                                            <option value="Drying" />
-                                            <option value="Sifting" />
-                                            <option value="Packing" />
-                                            <option value="Firewood" />
+                                            {SECTION_ORDER.map(section => (
+                                                <option key={section} value={section} />
+                                            ))}
                                         </datalist>
                                     </div>
 
@@ -288,9 +346,17 @@ export default function LabourOutput() {
                                             <Users size={12} /> No. of Labours
                                         </label>
                                         <input
-                                            type="number" min="0" step="1" name="noOfLabours"
-                                            value={formData.noOfLabours} onChange={handleInputChange}
-                                            onWheel={(e) => e.target.blur()} required placeholder="e.g. 12"
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            name="noOfLabours"
+                                            ref={noOfLaboursRef}
+                                            value={formData.noOfLabours}
+                                            onChange={handleInputChange}
+                                            onKeyDown={handleLaboursKeyDown}
+                                            onWheel={(e) => e.target.blur()}
+                                            required
+                                            placeholder="e.g. 12"
                                             className={`${inputStyles} text-sm`}
                                         />
                                     </div>
@@ -300,9 +366,15 @@ export default function LabourOutput() {
                                             <Clock size={12} /> O/T Hours
                                         </label>
                                         <input
-                                            type="number" min="0" step="0.5" name="otHours"
-                                            value={formData.otHours} onChange={handleInputChange}
-                                            onWheel={(e) => e.target.blur()}  placeholder="e.g. 11"
+                                            type="number"
+                                            min="0"
+                                            step="0.5"
+                                            name="otHours"
+                                            ref={otHoursRef}
+                                            value={formData.otHours}
+                                            onChange={handleInputChange}
+                                            onWheel={(e) => e.target.blur()}
+                                            placeholder="e.g. 11"
                                             className={`${inputStyles} text-sm`}
                                         />
                                     </div>
@@ -323,7 +395,7 @@ export default function LabourOutput() {
                                     <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
                                         <div className="flex items-center justify-between mb-3">
                                             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Temporary Queue ({pendingRecords.length})</span>
-                                            <button 
+                                            <button
                                                 onClick={handleClearQueue}
                                                 className="text-[10px] font-bold text-red-500 hover:text-red-700 uppercase tracking-widest flex items-center gap-1 transition-colors"
                                             >
@@ -359,7 +431,7 @@ export default function LabourOutput() {
                         </div>
                     </div>
 
-                    {/* RIGHT SIDE (Live Calculations matching image) */}
+                    {/* RIGHT SIDE (Live Calculations) */}
                     <div className="xl:col-span-5">
                         <div className="bg-white dark:bg-gray-800 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-700 sticky top-6 overflow-hidden transition-colors">
                             <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3">
@@ -373,7 +445,7 @@ export default function LabourOutput() {
                                 <div className="flex justify-between items-center pb-6 border-b border-gray-100 dark:border-gray-700">
                                     <div>
                                         <span className="block text-sm font-bold text-gray-600 dark:text-gray-300">O/T Shifts</span>
-                                        <span className="block text-[10px] font-medium text-gray-400 mt-1">(O/T Hours ÷ 5.5)</span>
+                                        <span className="block text-[10px] font-medium text-gray-400 mt-1">(O/T Hours ÷ 6.43)</span>
                                     </div>
                                     <span className="text-2xl font-black text-[#1e293b] dark:text-gray-200">{otShifts > 0 ? otShifts.toFixed(2) : '0.00'}</span>
                                 </div>
@@ -393,10 +465,10 @@ export default function LabourOutput() {
                                     </div>
 
                                     <div className={`w-full py-8 rounded-2xl flex flex-col items-center justify-center border-2 transition-colors ${labourOutput >= 30
-                                            ? 'bg-[#f0fdf4] dark:bg-green-900/20 border-[#bbf7d0] dark:border-green-800 text-[#166534] dark:text-green-500'
-                                            : labourOutput > 0
-                                                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-600 dark:text-red-500'
-                                                : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500'
+                                        ? 'bg-[#f0fdf4] dark:bg-green-900/20 border-[#bbf7d0] dark:border-green-800 text-[#166534] dark:text-green-500'
+                                        : labourOutput > 0
+                                            ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-600 dark:text-red-500'
+                                            : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500'
                                         }`}>
                                         <span className="text-[3.5rem] leading-none font-black">
                                             {labourOutput > 0 ? labourOutput.toFixed(2) : '0.00'}
