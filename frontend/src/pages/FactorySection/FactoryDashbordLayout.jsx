@@ -78,7 +78,7 @@ const DATA = {
   ],
   navMain: [
     {
-      title: 'Green Leaf',
+      title: 'Daily Green Leaf',
       icon: Leaf,
       items: [
         { title: 'Enter Daily G/L', url: '/factory/dailyproduction', nonViewer: true },

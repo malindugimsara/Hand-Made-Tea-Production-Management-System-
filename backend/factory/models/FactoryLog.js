@@ -3,7 +3,21 @@ import mongoose from 'mongoose';
 const factoryLogSchema = new mongoose.Schema({
   date: { type: Date, required: true, unique: true },
   
-  greenLeaf: { today: { type: Number, default: 0 }, toDate: { type: Number, default: 0 } },
+  // --- GREEN LEAF SECTION (Divided into Estate & Brought) ---
+  greenLeaf: { 
+    estateLeaf: { 
+      today: { type: Number, default: 0 }, 
+      toDate: { type: Number, default: 0 } 
+    },
+    broughtLeaf: { 
+      today: { type: Number, default: 0 }, 
+      toDate: { type: Number, default: 0 } 
+    },
+    // මේ දෙකේම එකතුව (Total) පහසුවෙන් ලබාගැනීමට
+    totalToday: { type: Number, default: 0 }, 
+    totalToDate: { type: Number, default: 0 } 
+  },
+
   madeTea: { today: { type: Number, default: 0 }, toDate: { type: Number, default: 0 } },
   
   // --- DISPATCH ARRAY ---

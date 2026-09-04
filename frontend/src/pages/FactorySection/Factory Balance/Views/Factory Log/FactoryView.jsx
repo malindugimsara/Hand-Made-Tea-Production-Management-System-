@@ -120,23 +120,34 @@ export default function FactoryView() {
           mtToDate = 0;
         }
 
-        const glToday = record.greenLeaf?.today || record.greenLeafToday || 0;
-        const mtToday = record.madeTea?.today || record.madeTeaToday || 0;
+        // 💡 අලුත්: Estate සහ Brought Leaf වෙන් කර ගැනීම (පරණ රෙකෝඩ්ස් සඳහා Fallback සහිතව)
+        const estate = record.greenLeaf?.estateLeaf?.today || 0;
+        const brought = record.greenLeaf?.broughtLeaf?.today || 0;
+        const legacyToday = record.greenLeaf?.today || record.greenLeafToday || 0;
+        
+        const totalToday = record.greenLeaf?.totalToday || (estate + brought > 0 ? estate + brought : legacyToday);
+        
+        const totalToDate = record.madeTea?.today || record.madeTeaToday || 0;
         const disp = record.dispatch || 0;
         const loc = record.localSaleAndGratis || 0;
         const ret = record.returnAmount || 0;
 
         const tOut = disp + loc;
 
-        glToDate += glToday;
-        mtToDate += mtToday;
+        glToDate += totalToday;
+        mtToDate += totalToDate;
 
-        runningBalance = runningBalance + mtToday - tOut + ret;
+        runningBalance = runningBalance + totalToDate - tOut + ret;
 
         return {
           ...record,
-          greenLeaf: { today: glToday, toDate: glToDate },
-          madeTea: { today: mtToday, toDate: mtToDate },
+          greenLeaf: { 
+              today: totalToday, 
+              toDate: glToDate,
+              estate: estate, // 💡 අලුත්: View එකේ පෙන්වීම සඳහා
+              brought: brought 
+          },
+          madeTea: { today: totalToDate, toDate: mtToDate },
           dispatch: disp,
           localSaleAndGratis: loc,
           totalOut: tOut,
@@ -144,7 +155,6 @@ export default function FactoryView() {
           factoryBalance: runningBalance,
           isEdited: record.isEdited || false,
           editedBy: record.editedBy || "",
-          // Backend එකෙන් එන daysToZero එක කෙලින්ම ගන්නවා
           daysToZero: record.daysToZero || 0,
         };
       });
@@ -800,35 +810,45 @@ export default function FactoryView() {
                             </div>
                           </td>
 
-                          <td className="px-3 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-200">
-                            {(record.greenLeaf?.today || 0).toFixed(2)}
+                          {/* 💡 අලුත්: G/L Today හි Estate සහ Brought පෙන්වීම */}
+                          <td className="px-3 py-3 border-r border-gray-200 dark:border-gray-700 align-middle">
+                            <div className="flex flex-col items-center justify-center">
+                              <span className="font-bold text-gray-900 dark:text-gray-200">
+                                {(record.greenLeaf?.today || 0).toFixed(2)}
+                              </span>
+                              {((record.greenLeaf?.estate > 0) || (record.greenLeaf?.brought > 0)) && (
+                                <span className="text-[9px] text-gray-500 mt-0.5 whitespace-nowrap">
+                                  E: {(record.greenLeaf.estate).toFixed(1)} | B: {(record.greenLeaf.brought).toFixed(1)}
+                                </span>
+                              )}
+                            </div>
                           </td>
-                          <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 font-medium text-gray-900 dark:text-gray-200">
+                          <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 font-medium text-gray-900 dark:text-gray-200 align-top pt-3.5">
                             {(record.greenLeaf?.toDate || 0).toFixed(2)}
                           </td>
 
-                          <td className="px-3 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-200">
+                          <td className="px-3 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-200 align-top pt-3.5">
                             {(record.madeTea?.today || 0).toFixed(2)}
                           </td>
-                          <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 font-medium text-gray-900 dark:text-gray-200">
+                          <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 font-medium text-gray-900 dark:text-gray-200 align-top pt-3.5">
                             {(record.madeTea?.toDate || 0).toFixed(2)}
                           </td>
 
-                          <td className="px-3 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
+                          <td className="px-3 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 align-top pt-3.5">
                             {(record.dispatch || 0) === 0
                               ? "-"
                               : record.dispatch.toFixed(2)}
                           </td>
-                          <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400">
+                          <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 align-top pt-3.5">
                             {(record.localSaleAndGratis || 0) === 0
                               ? "-"
                               : record.localSaleAndGratis.toFixed(2)}
                           </td>
 
-                          <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 font-bold text-gray-800 dark:text-gray-200 bg-orange-50/30 dark:bg-orange-900/20">
+                          <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 font-bold text-gray-800 dark:text-gray-200 bg-orange-50/30 dark:bg-orange-900/20 align-top pt-3.5">
                             {(record.totalOut || 0).toFixed(2)}
                           </td>
-                          <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 text-red-600 dark:text-red-400">
+                          <td className="px-3 py-3 border-r border-gray-300 dark:border-gray-700 text-red-600 dark:text-red-400 align-top pt-3.5">
                             {(record.returnAmount || 0) === 0
                               ? "-"
                               : record.returnAmount.toFixed(2)}
@@ -855,7 +875,7 @@ export default function FactoryView() {
                             </div>
                           </td>
 
-                          <td className="px-3 py-3 text-center">
+                          <td className="px-3 py-3 text-center align-top pt-2">
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => handleEditClick(record)}
