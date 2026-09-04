@@ -107,8 +107,15 @@ export const getFactoryLogsByMonth = async (req, res) => {
 export const saveDailyFactoryLog = async (req, res) => {
   try {
     const { 
-      date, greenLeafToday, dispatches, localSales, returns, 
-      username, isExplicitEdit 
+      date, 
+      estateLeafToday, // 💡 අලුත්: Estate Leaf සඳහා
+      broughtLeafToday, // 💡 අලුත්: Brought Leaf සඳහා
+      greenLeafToday, // Fallback එකක් ලෙස පරණ Data ආවොත් අල්ලගන්න
+      dispatches, 
+      localSales, 
+      returns, 
+      username, 
+      isExplicitEdit 
     } = req.body;
 
     if (!date) return res.status(400).json({ message: "Date is required." });
@@ -118,20 +125,27 @@ export const saveDailyFactoryLog = async (req, res) => {
 
     const currentUser = username || req.user?.username || "Factory Admin";
     
-    // 1. Get existing record first to preserve arrays if they are not sent in req.body
     const existingRecord = await FactoryLog.findOne({ date: targetDate });
 
-    // Use provided arrays, or fallback to existing arrays, or default to empty array
     const finalDispatches = dispatches !== undefined ? dispatches : (existingRecord?.dispatches || []);
     const finalLocalSales = localSales !== undefined ? localSales : (existingRecord?.localSales || []);
     const finalReturns = returns !== undefined ? returns : (existingRecord?.returns || []);
 
-    const glToday = Number(greenLeafToday) || (existingRecord?.greenLeaf?.today || 0);
+    // 💡 අලුත්: Estate සහ Brought අගයන් වෙන් වෙන්ව ගැනීම
+    const eLeaf = Number(estateLeafToday) || (existingRecord?.greenLeaf?.estateLeaf?.today || 0);
+    
+    // Frontend එක Update කරලා නැත්නම් පරණ greenLeafToday එක Brought Leaf එකට වැටෙන්න සකසා ඇත (ආරක්ෂිත පියවරක්)
+    const bLeaf = broughtLeafToday !== undefined 
+                    ? Number(broughtLeafToday) 
+                    : (greenLeafToday !== undefined ? Number(greenLeafToday) : (existingRecord?.greenLeaf?.broughtLeaf?.today || 0));
+
+    const totalGlToday = eLeaf + bLeaf; // 💡 අලුත්: මුළු එකතුව
 
     const selectedMonthNumber = targetDate.getMonth() + 1; 
     const monthsWith21Percent = [4, 5, 6, 9, 10, 11, 12];
     const conversionRate = monthsWith21Percent.includes(selectedMonthNumber) ? 0.21 : 0.215;
-    const madeTeaToday = glToday * conversionRate;
+    
+    const madeTeaToday = totalGlToday * conversionRate; // 💡 අලුත් මුළු එකතුවෙන් Made Tea සෑදීම
 
     // --- Arrays වලින් Totals ගණනය කිරීම ---
     const totalDispatch = finalDispatches.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
@@ -151,8 +165,13 @@ export const saveDailyFactoryLog = async (req, res) => {
 
     if (currentBalance < 0) return res.status(400).json({ message: `Total Out exceeds available Factory Balance.` });
 
+    // 💡 අලුත්: Update Fields සෑදීම (New DB Schema එකට අනුකූලව)
     let updateFields = {
-      greenLeaf: { today: glToday },
+      greenLeaf: { 
+        estateLeaf: { today: eLeaf },
+        broughtLeaf: { today: bLeaf },
+        totalToday: totalGlToday
+      },
       madeTea: { today: Number(madeTeaToday.toFixed(2)) }, 
       dispatches: finalDispatches, dispatch: totalDispatch,
       localSales: finalLocalSales, localSaleAndGratis: totalLocalSale,
