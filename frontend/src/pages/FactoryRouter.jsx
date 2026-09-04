@@ -13,6 +13,7 @@ import DispatchRecordsView from "./FactorySection/Factory Balance/Views/DIspatch
 import EditDispatchLog from "./FactorySection/Factory Balance/Views/DIspatch View/EditDispatchLog";
 import PackingStockSummary from "./FactorySection/Factory Balance/Views/Packing/PackingStockSummary";
 import PackingStockEdit from "./FactorySection/Factory Balance/Views/Packing/PackingStockEdit";
+import TC5Report from "./Manufacturer/TC5/TC5Report";
 
 export default function   FactoryRouter() {
   return (

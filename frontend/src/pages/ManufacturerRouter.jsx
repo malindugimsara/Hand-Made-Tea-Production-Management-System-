@@ -17,6 +17,7 @@ import FiringSectionSummary from "./Manufacturer/BL Operation/FiringSectionSumma
 import HydroMetersEntry from "./Manufacturer/BL Operation/HydroMeters/HydroMetersEntry";
 import HydroMetersView from "./Manufacturer/BL Operation/HydroMeters/HydroMetersView";
 import GreenLeafMonthlyRanking from "./Manufacturer/SummaryReport/GreenLeafMonthlyRanking";
+import TC5Report from "./Manufacturer/TC5/TC5Report";
 
 
 export default function ManufacturerRouter() {
@@ -39,6 +40,8 @@ export default function ManufacturerRouter() {
       <Route path="weekly-loft-leaf-summary" element={<WeeklyLoftLeafSummary />} />
       <Route path="collector-quality-difference" element={<CollectorQualityDiffReport />} />
       <Route path="green-leaf-monthly-ranking" element={<GreenLeafMonthlyRanking />} />
+
+      <Route path="tc5report" element={<TC5Report />} />
 
       
     </Route>
