@@ -191,23 +191,23 @@ const LabourOutputEdit = () => {
     const sectionOptions = ["Drying", "Packing", "Fermentation", "Sorting", "Maintenance", "Plucking"];
 
     return (
-        <div className="p-6 md:p-8 max-w-[1400px] mx-auto font-sans min-h-screen bg-[#f3faf7] text-gray-800">
+        <div className="p-6 md:p-8 max-w-[1400px] mx-auto font-sans min-h-screen bg-[#f3faf7] dark:bg-gray-950 text-gray-800 dark:text-gray-200 transition-colors duration-300">
 
             {/* Header */}
             <div className="flex items-center gap-4 mb-8">
                 <button
                     onClick={() => navigate(-1)}
-                    className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
-                    <ArrowLeft size={20} className="text-gray-500" />
+                    <ArrowLeft size={20} className="text-gray-500 dark:text-gray-400" />
                 </button>
                 <div className="flex items-center gap-3">
-                    <div className="bg-white p-2.5 rounded-xl shadow-sm border border-gray-100">
-                        <Users className="text-[#1B6A31]" size={28} />
+                    <div className="bg-white dark:bg-teal-900/30 p-2.5 rounded-xl shadow-sm border border-gray-100 dark:border-teal-800/50">
+                        <Users className="text-[#1B6A31] dark:text-teal-400" size={28} />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-extrabold text-[#1c4b3a] tracking-tight">Labour Output</h1>
-                        <p className="text-[11px] font-bold text-gray-500 tracking-widest uppercase mt-0.5">
+                        <h1 className="text-2xl font-extrabold text-[#1c4b3a] dark:text-teal-400 tracking-tight">Labour Output</h1>
+                        <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400 tracking-widest uppercase mt-0.5">
                             Shift & Efficiency Tracking
                         </p>
                     </div>
@@ -218,12 +218,12 @@ const LabourOutputEdit = () => {
 
                 {/* LEFT COLUMN: Input Form */}
                 <div className="xl:col-span-2 space-y-6">
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
+                    <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 md:p-8 transition-colors">
 
                         {/* Top Inputs */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                             <div className="flex flex-col gap-2">
-                                <label className="text-[11px] font-bold text-gray-500 tracking-widest uppercase mb-1">
+                                <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 tracking-widest uppercase mb-1">
                                     Record Date
                                 </label>
                                 <div className="relative">
@@ -231,21 +231,21 @@ const LabourOutputEdit = () => {
                                         type="date"
                                         value={recordDate}
                                         disabled
-                                        className="w-full pl-4 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 outline-none focus:border-[#1B6A31] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                        className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 outline-none focus:border-[#1B6A31] dark:focus:border-teal-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                     />
-                                    <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                    <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
                                 </div>
                             </div>
 
                             {/* AUTO-FETCHED MADE TEA FIELD */}
                             <div>
-                                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2">
+                                <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
                                     Made Tea (kg)
                                 </label>
                                 <div className={`w-full p-3 border rounded-xl flex items-center h-[50px] font-black transition-colors ${
                                     isLoadingTea 
-                                        ? 'bg-gray-50 text-gray-400 border-gray-200' 
-                                        : 'bg-[#f0fdf4] border-[#bbf7d0] text-[#166534]'
+                                        ? 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700' 
+                                        : 'bg-[#f0fdf4] dark:bg-green-900/20 border-[#bbf7d0] dark:border-green-800/50 text-[#166534] dark:text-green-400'
                                 }`}>
                                     {isLoadingTea ? 'Fetching...' : madeTeaToday.toFixed(2)}
                                 </div>
@@ -253,18 +253,18 @@ const LabourOutputEdit = () => {
                         </div>
 
                         {/* Input Fields Area */}
-                        <div className="bg-[#f8fbf9] border border-gray-100 rounded-2xl p-6 mb-8">
+                        <div className="bg-[#f8fbf9] dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 rounded-2xl p-6 mb-8 transition-colors">
                             <div className="flex items-center gap-2 mb-6">
-                                <Activity className="text-[#1B6A31]" size={20} />
-                                <h3 className="text-base font-bold text-[#1c4b3a]">Input Fields</h3>
+                                <Activity className="text-[#1B6A31] dark:text-teal-400" size={20} />
+                                <h3 className="text-base font-bold text-[#1c4b3a] dark:text-teal-300">Input Fields</h3>
                             </div>
 
                             <div className="space-y-4">
                                 {/* Desktop Header Row */}
                                 <div className="hidden md:grid grid-cols-12 gap-4 px-2">
-                                    <div className="col-span-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Select Section</div>
-                                    <div className="col-span-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">No. of Labours</div>
-                                    <div className="col-span-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">O/T Hours</div>
+                                    <div className="col-span-4 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Select Section</div>
+                                    <div className="col-span-3 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">No. of Labours</div>
+                                    <div className="col-span-3 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">O/T Hours</div>
                                     <div className="col-span-2"></div>
                                 </div>
 
@@ -273,11 +273,11 @@ const LabourOutputEdit = () => {
                                     <div key={sec.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
 
                                         <div className="col-span-1 md:col-span-4">
-                                            <label className="md:hidden text-[10px] font-bold text-gray-400 uppercase mb-1 block">Section</label>
+                                            <label className="md:hidden text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Section</label>
                                             <select
                                                 value={sec.section}
                                                 onChange={(e) => handleSectionChange(sec.id, 'section', e.target.value)}
-                                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 outline-none focus:border-[#1B6A31] appearance-none"
+                                                className="w-full px-4 py-2.5 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-200 outline-none focus:border-[#1B6A31] dark:focus:border-teal-500 appearance-none transition-colors"
                                             >
                                                 <option value="" disabled>-- Select Factory Section --</option>
                                                 {sectionOptions.map(opt => (
@@ -287,26 +287,26 @@ const LabourOutputEdit = () => {
                                         </div>
 
                                         <div className="col-span-1 md:col-span-3">
-                                            <label className="md:hidden text-[10px] font-bold text-gray-400 uppercase mb-1 block">No. of Labours</label>
+                                            <label className="md:hidden text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">No. of Labours</label>
                                             <input
                                                 type="number"
                                                 min="0"
                                                 placeholder="e.g. 12"
                                                 value={sec.noOfLabours}
                                                 onChange={(e) => handleSectionChange(sec.id, 'noOfLabours', e.target.value)}
-                                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 outline-none focus:border-[#1B6A31]"
+                                                className="w-full px-4 py-2.5 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-200 outline-none focus:border-[#1B6A31] dark:focus:border-teal-500 transition-colors"
                                             />
                                         </div>
 
                                         <div className="col-span-1 md:col-span-3">
-                                            <label className="md:hidden text-[10px] font-bold text-gray-400 uppercase mb-1 block">O/T Hours</label>
+                                            <label className="md:hidden text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">O/T Hours</label>
                                             <input
                                                 type="number"
                                                 min="0"
                                                 placeholder="e.g. 11"
                                                 value={sec.otHours}
                                                 onChange={(e) => handleSectionChange(sec.id, 'otHours', e.target.value)}
-                                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 outline-none focus:border-[#1B6A31]"
+                                                className="w-full px-4 py-2.5 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-200 outline-none focus:border-[#1B6A31] dark:focus:border-teal-500 transition-colors"
                                             />
                                         </div>
 
@@ -314,7 +314,7 @@ const LabourOutputEdit = () => {
                                             <button
                                                 onClick={() => handleRemoveSection(sec.id)}
                                                 disabled={sections.length === 1} 
-                                                className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
+                                                className="p-2.5 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-30"
                                                 title="Remove Section"
                                             >
                                                 <Trash2 size={20} />
@@ -327,7 +327,7 @@ const LabourOutputEdit = () => {
                                 <div className="pt-2">
                                     <button
                                         onClick={handleAddSection}
-                                        className="flex items-center gap-2 px-4 py-2.5 bg-gray-200/60 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-xl transition-colors uppercase tracking-wide"
+                                        className="flex items-center gap-2 px-4 py-2.5 bg-gray-200/60 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold text-xs rounded-xl transition-colors uppercase tracking-wide"
                                     >
                                         <Plus size={16} /> ADD SECTION
                                     </button>
@@ -339,7 +339,7 @@ const LabourOutputEdit = () => {
                         <button
                             onClick={handleSave}
                             disabled={isSaving}
-                            className="w-full flex items-center justify-center gap-2 py-4 bg-[#809f94] hover:bg-[#6c8b7f] text-white font-bold text-sm tracking-widest uppercase rounded-xl transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full flex items-center justify-center gap-2 py-4 bg-[#809f94] dark:bg-teal-700 hover:bg-[#6c8b7f] dark:hover:bg-teal-600 text-white font-bold text-sm tracking-widest uppercase rounded-xl transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-md"
                         >
                             {isSaving ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -353,33 +353,33 @@ const LabourOutputEdit = () => {
 
                 {/* RIGHT COLUMN: Live Calculations */}
                 <div className="xl:col-span-1">
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 sticky top-8">
-                        <div className="flex items-center gap-3 mb-8 pb-6 border-b border-gray-100">
-                            <div className="bg-gray-50 p-2 rounded-lg border border-gray-200">
-                                <Calculator className="text-gray-600" size={20} />
+                    <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 md:p-8 sticky top-8 transition-colors">
+                        <div className="flex items-center gap-3 mb-8 pb-6 border-b border-gray-100 dark:border-gray-800">
+                            <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <Calculator className="text-gray-600 dark:text-gray-400" size={20} />
                             </div>
-                            <h3 className="text-lg font-bold text-[#1c4b3a]">Live Calculations</h3>
+                            <h3 className="text-lg font-bold text-[#1c4b3a] dark:text-teal-400">Live Calculations</h3>
                         </div>
 
                         <div className="space-y-8">
                             {/* O/T Shifts */}
                             <div className="flex justify-between items-end">
                                 <div>
-                                    <h4 className="text-sm font-bold text-gray-700">O/T Shifts</h4>
+                                    <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300">O/T Shifts</h4>
                                     <p className="text-[10px] text-gray-400 mt-0.5">(O/T Hours ÷ 5.5)</p>
                                 </div>
-                                <span className="text-2xl font-extrabold text-[#1c4b3a]">
+                                <span className="text-2xl font-extrabold text-[#1c4b3a] dark:text-teal-400">
                                     {liveMetrics.otShifts.toFixed(2)}
                                 </span>
                             </div>
 
                             {/* Total Equivalent Shifts */}
-                            <div className="flex justify-between items-end pb-8 border-b border-gray-100">
+                            <div className="flex justify-between items-end pb-8 border-b border-gray-100 dark:border-gray-800">
                                 <div>
-                                    <h4 className="text-sm font-bold text-gray-700">Total Equivalent Shifts</h4>
+                                    <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300">Total Equivalent Shifts</h4>
                                     <p className="text-[10px] text-gray-400 mt-0.5">(Labours + O/T Shifts)</p>
                                 </div>
-                                <span className="text-2xl font-extrabold text-[#1c4b3a]">
+                                <span className="text-2xl font-extrabold text-[#1c4b3a] dark:text-teal-400">
                                     {liveMetrics.totalEquivalentShifts.toFixed(2)}
                                 </span>
                             </div>
@@ -387,14 +387,14 @@ const LabourOutputEdit = () => {
                             {/* Final Labour Output */}
                             <div>
                                 <div>
-                                    <h4 className="text-sm font-bold text-gray-700">Final Labour Output</h4>
+                                    <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300">Final Labour Output</h4>
                                     <p className="text-[10px] text-gray-400 mt-0.5 mb-4">(Made Tea ÷ Total Shifts)</p>
                                 </div>
-                                <div className="bg-[#f5f6f8] border border-gray-200 rounded-2xl p-8 text-center flex flex-col justify-center items-center">
-                                    <span className="text-5xl font-black text-[#8ba29a] tracking-tight">
+                                <div className="bg-[#f5f6f8] dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-2xl p-8 text-center flex flex-col justify-center items-center transition-colors">
+                                    <span className="text-5xl font-black text-[#8ba29a] dark:text-teal-500 tracking-tight">
                                         {liveMetrics.finalOutput.toFixed(2)}
                                     </span>
-                                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-2">
+                                    <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-2">
                                         KG / Shift
                                     </span>
                                 </div>
