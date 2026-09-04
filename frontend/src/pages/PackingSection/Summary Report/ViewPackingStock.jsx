@@ -344,43 +344,7 @@ export default function ViewPackingStock() {
             {/* --- SUMMARY CARDS (Dynamic based on Tab) --- */}
             {activeTab !== 'zero' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                    {/* 1. Trans-In Amount */}
-                    <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-blue-200 dark:border-blue-900/50 shadow-sm flex items-center gap-5">
-                        <div className="p-4 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
-                            <ArrowDownToLine size={32} />
-                        </div>
-                        <div>
-                            <p className="text-[12px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Trans-In Total</p>
-                            <h3 className="text-3xl font-black text-gray-800 dark:text-gray-100 mt-1">
-                                {activeTab === 'tea' 
-                                    ? totalTransIn.toFixed(2) 
-                                    : activeTab === 'flavor' 
-                                        ? grandTotalFlavorTransIn.toFixed(2) 
-                                        : grandTotalPackingTransIn.toFixed(2)
-                                } 
-                                <span className="text-base font-semibold text-gray-500"> {activeTab === 'tea' || activeTab === 'flavor' ? 'kg' : 'Items'}</span>
-                            </h3>
-                        </div>
-                    </div>
-
-                    {/* 2. Issue Amount */}
-                    <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-amber-200 dark:border-amber-900/50 shadow-sm flex items-center gap-5">
-                        <div className="p-4 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl">
-                            <ArrowUpFromLine size={32} />
-                        </div>
-                        <div>
-                            <p className="text-[12px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Issued Total</p>
-                            <h3 className="text-3xl font-black text-gray-800 dark:text-gray-100 mt-1">
-                                {activeTab === 'tea' 
-                                    ? totalIssue.toFixed(2) 
-                                    : activeTab === 'flavor' 
-                                        ? grandTotalFlavorIssue.toFixed(2) 
-                                        : grandTotalPackingIssue.toFixed(2)
-                                } 
-                                <span className="text-base font-semibold text-gray-500"> {activeTab === 'tea' || activeTab === 'flavor' ? 'kg' : 'Items'}</span>
-                            </h3>
-                        </div>
-                    </div>
+                    
 
                     {/* 3. Current Stock */}
                     <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-[#99f6e4] dark:border-teal-800 shadow-sm flex items-center gap-5 relative overflow-hidden">

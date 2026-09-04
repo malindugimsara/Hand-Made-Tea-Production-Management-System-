@@ -18,9 +18,32 @@ const getTeaColor = (grade) => {
 
 // Available Grades for filtering
 const TEA_TYPES = [
-    "BOPF SP", "BOPF", "OPA", "OP 1", "OP", "Pekoe", "BOP", "FBOP", 
-    "FF SP", "FF EX SP", "Dust", "Dust 1", "Premium", "Green tea", 
-    "Awurudu Special"
+  "BOPF SP",
+  "BOPF",
+  "OPA",
+  "OP 1",
+  "OP",
+  "Pekoe",
+  "FBOP",
+  "FF SP",
+  "FF EX SP",
+  "Dust",
+  "Dust 1",
+  "Premium",
+  "Green tea",
+  "Green Tea T/B",
+  "Black Tea T/B",
+  "BOP",
+  "Chakra",
+  "Flower",
+  "Golden Tips",
+  "Pekoe 1",
+  "Pink Tea",
+  "Purple Tea",
+  "Serandib Gold",
+  "Silver Tips",
+  "Slim Beauty",
+  "White Tea"
 ];
 
 export default function EditTeaReceivedRecord() {
