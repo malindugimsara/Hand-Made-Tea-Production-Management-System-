@@ -66,7 +66,7 @@ export default function EditFactoryLog() {
         try {
             // AUTO CAPTURE USERNAME
             const loggedInUser = localStorage.getItem('username') || 'System User';
-
+            const token = localStorage.getItem('token'); // 💡 අලුතින්: Token එක ලබා ගැනීම
             const payload = {
                 date: formData.date,
                 greenLeafToday: Number(formData.greenLeafToday) || 0,
@@ -85,7 +85,10 @@ export default function EditFactoryLog() {
 
             const response = await fetch(`${BACKEND_URL}/api/factory-logs`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // 💡 අලුතින්: Backend එකට Token එක යැවීම
+                },                
                 body: JSON.stringify(payload)
             });
 

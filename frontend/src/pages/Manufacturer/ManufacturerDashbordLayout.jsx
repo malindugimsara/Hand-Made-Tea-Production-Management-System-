@@ -157,34 +157,12 @@ export default function ManufacturerDashboardLayout() {
 
   // --- SIDEBAR HOVER & DELAY LOGIC ---
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
-  const sidebarTimeoutRef = React.useRef(null);
 
   React.useEffect(() => {
     if (isMobile) {
       setIsSidebarOpen(false);
     }
   }, [isMobile]);
-
-  const handleSidebarMouseEnter = () => {
-    if (isMobile) return;
-    if (sidebarTimeoutRef.current) {
-      clearTimeout(sidebarTimeoutRef.current);
-    }
-    setIsSidebarOpen(true);
-  };
-
-  const handleSidebarMouseLeave = () => {
-    if (isMobile) return;
-    sidebarTimeoutRef.current = setTimeout(() => {
-      setIsSidebarOpen(false);
-    }, 100);
-  };
-
-  React.useEffect(() => {
-    return () => {
-      if (sidebarTimeoutRef.current) clearTimeout(sidebarTimeoutRef.current);
-    };
-  }, []);
 
   // --- THEME STATE LOGIC ---
   const [isDark, setIsDark] = React.useState(false);
@@ -357,8 +335,6 @@ export default function ManufacturerDashboardLayout() {
         <Sidebar
           collapsible="icon"
           className="border-none !bg-[#f2fcf5] dark:!bg-zinc-950 !opacity-100 z-[60] transition-[width] duration-300 ease-in-out"
-          onMouseEnter={handleSidebarMouseEnter}
-          onMouseLeave={handleSidebarMouseLeave}
         >
 
           <SidebarHeader className="pt-6 pb-2 px-4">
