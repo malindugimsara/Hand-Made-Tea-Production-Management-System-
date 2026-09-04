@@ -145,6 +145,7 @@ export default function WeeklyLoftLeafSummary() {
   }, [selectedDate]); 
 
   // 💡 --- REUSABLE DATA PROCESSING FUNCTION ---
+  // 💡 --- REUSABLE DATA PROCESSING FUNCTION ---
   const processWeeklyStats = (dataArray) => {
       const routeMap = {};
 
@@ -178,9 +179,15 @@ export default function WeeklyLoftLeafSummary() {
 
       Object.values(routeMap).forEach(route => {
           if (route.totals.count > 0) {
-              const b = Math.round(route.totals.b / route.totals.count);
-              const bb = Math.round(route.totals.bb / route.totals.count);
+              const rawB = route.totals.b / route.totals.count;
+              const rawBB = route.totals.bb / route.totals.count;
+
+              // 💡 Floating point ගැටලුව නිරාකරණය කර නිවැරදිව රවුම් කිරීම (e.g. 36.5 -> 37)
+              const b = Math.round(Number(rawB.toFixed(2)));
+              const bb = Math.round(Number(rawBB.toFixed(2)));
+              
               const p = Math.max(0, 100 - b - bb); 
+              
               route.avg.b = b;
               route.avg.bb = bb;
               route.avg.p = p;
@@ -212,38 +219,44 @@ export default function WeeklyLoftLeafSummary() {
 
  // 💡 --- (GRAND AVERAGES) පොදු Function එක ---
   // excludeEstate: true නම් Estate Tea (E) අත්හරිනවා
-  const calculateGrandAvg = (data, excludeEstate = false) => {
+  // 💡 වෙනස: දැන් මෙයට ලබා දෙන්නේ Raw Data නොව, Process කළ Route Averages අඩංගු Array එකයි (processedData)
+  const calculateGrandAvg = (processedData, excludeEstate = false) => {
     let totalB = 0, totalBB = 0, count = 0;
     
-    data.forEach(record => {
-         if (excludeEstate && record.route && record.route.includes("ESTATE")) return; // Estate ඉවත් කිරීම
+    processedData.forEach(route => {
+         // Estate ඉවත් කිරීම
+         if (excludeEstate && route.name === 'E') return; 
 
-         const sample = record.factorySample?.isEntered ? record.factorySample : (record.collectorSample?.isEntered ? record.collectorSample : null);
-         if (sample) {
-             totalB += Number(sample.bestPct || 0);
-             totalBB += Number(sample.belowBestPct || 0);
+         // අදාළ මාර්ගයට දත්ත තිබේ නම් පමණක් එම මාර්ගයේ සාමාන්‍ය අගය එකතු කිරීම
+         if (route.totals.count > 0) {
+             totalB += route.avg.b;
+             totalBB += route.avg.bb;
              count += 1;
          }
     });
 
     if (count === 0) return { b: "-", bb: "-", p: "-" };
     
+    // Math.round() මඟින් 36.5 ➔ 37, 36.12 ➔ 36 ලෙස ආසන්නතම පූර්ණ සංඛ්‍යාවට සකසයි
     const b = Math.round(totalB / count);
     const bb = Math.round(totalBB / count);
+    
+    // Total එක අනිවාර්යයෙන්ම 100ක් වීමට P අගය Balance කිරීම
     const p = Math.max(0, 100 - b - bb);
+    
     return { b, bb, p };
   };
 
   // 💡 Main Table එක සහ අනෙකුත් පැරණි තැන් සඳහා
-  const grandAverages = useMemo(() => calculateGrandAvg(weekData, false), [weekData]);
-  const prevGrandAverages = useMemo(() => calculateGrandAvg(prevWeekData, false), [prevWeekData]); 
+  const grandAverages = useMemo(() => calculateGrandAvg(processedTable, false), [processedTable]);
+  const prevGrandAverages = useMemo(() => calculateGrandAvg(prevProcessedTable, false), [prevProcessedTable]); 
 
   // 💡 Ranking වගු යටතට (With Estate & Without Estate)
-  const avgCurrentWithE = useMemo(() => calculateGrandAvg(weekData, false), [weekData]);
-  const avgCurrentNoE = useMemo(() => calculateGrandAvg(weekData, true), [weekData]);
+  const avgCurrentWithE = useMemo(() => calculateGrandAvg(processedTable, false), [processedTable]);
+  const avgCurrentNoE = useMemo(() => calculateGrandAvg(processedTable, true), [processedTable]);
 
-  const avgPrevWithE = useMemo(() => calculateGrandAvg(prevWeekData, false), [prevWeekData]);
-  const avgPrevNoE = useMemo(() => calculateGrandAvg(prevWeekData, true), [prevWeekData]);
+  const avgPrevWithE = useMemo(() => calculateGrandAvg(prevProcessedTable, false), [prevProcessedTable]);
+  const avgPrevNoE = useMemo(() => calculateGrandAvg(prevProcessedTable, true), [prevProcessedTable]);
 
   // 💡 --- RANKING TABLE DATA (C1 සිට C8 දක්වා සහ FA අවසානයට සකස් කිරීම) ---
   const getRankingSortIndex = (name) => {

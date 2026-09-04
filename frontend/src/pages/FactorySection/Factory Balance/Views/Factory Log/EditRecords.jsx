@@ -16,13 +16,28 @@ export default function EditFactoryLog() {
         ? (record.date.includes('T') ? record.date.split('T')[0] : record.date) 
         : '';
 
+    // =========================================================================
+    // 💡 අලුත්: පැරණි (Legacy) දත්ත නිවැරදිව Brought Leaf එකට Map කිරීම
+    // =========================================================================
+    let initialEstate = record?.greenLeaf?.estateLeaf?.today ?? record?.greenLeaf?.estate ?? 0;
+    let initialBrought = record?.greenLeaf?.broughtLeaf?.today ?? record?.greenLeaf?.brought ?? 0;
+    
+    // පරණ දත්තවල ඇති මුළු අගය ලබා ගැනීම
+    const legacyTotal = record?.greenLeaf?.today ?? record?.greenLeafToday ?? 0;
+
+    // පරණ මාසවල දත්ත නම් (Estate සහ Brought දෙකම 0 නම්, නමුත් පරණ Total එකක් තියෙනවා නම්)
+    // එය ස්වයංක්‍රීයව Brought Leaf එකට ඇතුළත් කරයි.
+    if (initialEstate === 0 && initialBrought === 0 && legacyTotal > 0) {
+        initialBrought = legacyTotal;
+    }
+
     // 2. Initialize the state IMMEDIATELY using the passed record
     const [formData, setFormData] = useState({
         date: safeDate,
         
-        // 💡 අලුත්: Estate සහ Brought Leaf සඳහා වෙන වෙනම Fields (පරණ දත්ත ආවොත් ඒක Brought එකට වැටෙන්න සකසා ඇත)
-        estateLeafToday: record?.greenLeaf?.estateLeaf?.today || '',
-        broughtLeafToday: record?.greenLeaf?.broughtLeaf?.today || record?.greenLeaf?.today || record?.greenLeafToday || '',
+        // 0 අගයන් Inputs වල හිස්ව (Empty string) පෙන්වීමට
+        estateLeafToday: initialEstate > 0 ? initialEstate : '',
+        broughtLeafToday: initialBrought > 0 ? initialBrought : '',
         
         // Dispatch & Sales data (Locked in UI, but needed for payload)
         dispatch: record?.dispatch || '',
@@ -55,7 +70,7 @@ export default function EditFactoryLog() {
     // Determine conversion rate based on the month
     const conversionRate = monthsWith21Percent.includes(selectedMonthNumber) ? 0.21 : 0.215;
     
-    // 💡 අලුත්: Real-time calculations (Total එක සහ Made Tea එක)
+    // Real-time calculations (Total එක සහ Made Tea එක)
     const totalGreenLeafToday = (Number(formData.estateLeafToday) || 0) + (Number(formData.broughtLeafToday) || 0);
     const calculatedMadeTea = totalGreenLeafToday * conversionRate;
     const calculatedTotalOut = (Number(formData.dispatch) || 0) + (Number(formData.localSaleAndGratis) || 0);
@@ -85,7 +100,7 @@ export default function EditFactoryLog() {
             const payload = {
                 date: formData.date,
                 
-                // 💡 අලුත්: Backend Payload එකට Estate සහ Brought යැවීම
+                // Backend Payload එකට Estate සහ Brought යැවීම
                 estateLeafToday: Number(formData.estateLeafToday) || 0,
                 broughtLeafToday: Number(formData.broughtLeafToday) || 0,
                 greenLeafToday: totalGreenLeafToday, // Fallback
@@ -196,7 +211,6 @@ export default function EditFactoryLog() {
                         <Leaf size={20} /> Green Leaf & Production
                     </h3>
                     
-                    {/* 💡 අලුත්: Estate සහ Brought Leaf සඳහා වෙන වෙනම Inputs */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">Estate Leaf (kg)</label>
