@@ -285,7 +285,7 @@ export default function GreenLeafMonthlyRanking() {
         styles: {
           valign: "middle",
           halign: "center",
-          fillColor: [220, 252, 231],
+          fillColor: [241, 245, 249],
           textColor: [20, 83, 45],
           fontStyle: "bold",
           fontSize: 9,

@@ -17,6 +17,10 @@ import {
   PackagePlus,
   Proportions,
   Search,
+  Leaf,
+  Truck,
+  UsersRound,
+  PackageCheck,
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -74,22 +78,36 @@ const DATA = {
   ],
   navMain: [
     {
-      title: 'Factory Balance',
-      icon: Store,
+      title: 'Daily Green Leaf',
+      icon: Leaf,
       items: [
-        { title: 'Daily Green Leaf', url: '/factory/dailyproduction', nonViewer: true },
-        { title: 'Dispatch And Return', url: '/factory/dispatchandreturn', nonViewer: true },
-        { title: 'Labour Output', url: '/factory/labouroutput', nonViewer: true },
-        { title: 'Factory Packing', url: '/factory/factorypacking', nonViewer: true }
+        { title: 'Enter Daily G/L', url: '/factory/dailyproduction', nonViewer: true },
+        { title: 'View Daily G/L', url: '/factory/view' },
+
       ],
     },
     {
-      title: 'Summary Reports',
-      icon: LineChart,
+      title: 'Dispatch And Return',
+      icon: Truck,
       items: [
-        { title: 'Factory Log View', url: '/factory/view' },
-        { title: 'Dispatch Records', url: '/factory/dispatchrecords' },
-        { title: 'Labour Output List', url: '/factory/labouroutputlist' },
+        { title: 'Enter Dispatch & Return', url: '/factory/dispatchandreturn', nonViewer: true },
+        { title: 'View Dispatch Records', url: '/factory/dispatchrecords' },
+
+      ],
+    },
+    {
+      title: 'Labour Output',
+      icon: UsersRound,
+      items: [
+        { title: 'Enter Labour Output', url: '/factory/labouroutput', nonViewer: true },
+        { title: 'View Labour Output', url: '/factory/labouroutputlist' },
+      ],
+    },
+    {
+      title: 'Factory Packing',
+      icon: PackageCheck,
+      items: [
+        { title: 'Enter Factory Packing', url: '/factory/factorypacking', nonViewer: true },
         { title: 'Packing Summary', url: '/factory/packingsummary' }
       ],
     },
@@ -104,36 +122,14 @@ export default function FactoryDashboardLayout() {
   // --- SEARCH BAR STATE ---
   const [searchQuery, setSearchQuery] = React.useState('');
 
-  // --- SIDEBAR HOVER & DELAY LOGIC ---
+  // --- SIDEBAR STATE LOGIC ---
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
-  const sidebarTimeoutRef = React.useRef(null);
 
   React.useEffect(() => {
     if (isMobile) {
       setIsSidebarOpen(false);
     }
   }, [isMobile]);
-
-  const handleSidebarMouseEnter = () => {
-    if (isMobile) return;
-    if (sidebarTimeoutRef.current) {
-      clearTimeout(sidebarTimeoutRef.current);
-    }
-    setIsSidebarOpen(true);
-  };
-
-  const handleSidebarMouseLeave = () => {
-    if (isMobile) return;
-    sidebarTimeoutRef.current = setTimeout(() => {
-      setIsSidebarOpen(false);
-    }, 100);
-  };
-
-  React.useEffect(() => {
-    return () => {
-      if (sidebarTimeoutRef.current) clearTimeout(sidebarTimeoutRef.current);
-    };
-  }, []);
 
   // --- THEME STATE LOGIC ---
   const [isDark, setIsDark] = React.useState(false);
@@ -278,8 +274,6 @@ export default function FactoryDashboardLayout() {
         <Sidebar
           collapsible="icon"
           className="border-none !bg-[#F4F7F5] dark:!bg-zinc-950 !opacity-100 z-[60] transition-[width] duration-300 ease-in-out"
-          onMouseEnter={handleSidebarMouseEnter}
-          onMouseLeave={handleSidebarMouseLeave}
         >
 
           <SidebarHeader className="pt-6 pb-2 px-4">

@@ -150,26 +150,12 @@ export default function DashboardLayout() {
 
   // --- SIDEBAR HOVER & DELAY LOGIC ---
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
-  const sidebarTimeoutRef = React.useRef(null);
-
-  const handleSidebarMouseEnter = () => {
-    if (sidebarTimeoutRef.current) {
-      clearTimeout(sidebarTimeoutRef.current);
-    }
-    setIsSidebarOpen(true);
-  };
-
-  const handleSidebarMouseLeave = () => {
-    sidebarTimeoutRef.current = setTimeout(() => {
-      setIsSidebarOpen(false);
-    }, 100); 
-  };
 
   React.useEffect(() => {
-    return () => {
-      if (sidebarTimeoutRef.current) clearTimeout(sidebarTimeoutRef.current);
-    };
-  }, []);
+    if (isMobile) {
+      setIsSidebarOpen(false);
+    }
+  }, [isMobile]);
 
   // --- THEME STATE LOGIC ---
   const [isDark, setIsDark] = React.useState(false);
@@ -278,8 +264,6 @@ export default function DashboardLayout() {
       <Sidebar 
         collapsible="icon" 
         className="border-none !bg-[#F4F7F5] dark:!bg-zinc-950 !opacity-100 z-[60] transition-[width] duration-300 ease-in-out"
-        onMouseEnter={handleSidebarMouseEnter}
-        onMouseLeave={handleSidebarMouseLeave}
       >
         <SidebarHeader className="pt-6 pb-2 px-4">
           <SidebarMenu>

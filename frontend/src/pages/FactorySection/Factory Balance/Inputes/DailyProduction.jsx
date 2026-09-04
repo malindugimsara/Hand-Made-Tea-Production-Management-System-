@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { Save, Trash2, Factory, Leaf, ListChecks, PlusCircle, Sparkles} from 'lucide-react';
+import { Save, Trash2, Factory, Leaf, ListChecks, PlusCircle, Sparkles, FileUp, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function DailyProduction() {
@@ -12,6 +12,10 @@ export default function DailyProduction() {
   const [records, setRecords] = useState([]);
   const [pendingRecords, setPendingRecords] = useState([]);
   
+  // PDF Parsing States
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+  const fileInputRef = useRef(null);
+
   // Dark Mode State
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark' || false;
@@ -24,12 +28,13 @@ export default function DailyProduction() {
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
-    greenLeafToday: '',
+    estateLeafToday: '',
+    broughtLeafToday: '',
   });
 
   useEffect(() => {
     if (formData.date) {
-      const selectedDateMonth = formData.date.substring(0, 7); // '2024-04'
+      const selectedDateMonth = formData.date.substring(0, 7); 
       if (selectedDateMonth !== selectedMonth) {
         setSelectedMonth(selectedDateMonth);
       }
@@ -41,18 +46,14 @@ export default function DailyProduction() {
   const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
 
   // --- NEW CALCULATION LOGIC ---
-  // Extract month from the selected date (1-12)
   const selectedMonthNumber = parseInt(formData.date.split('-')[1], 10);
-  
-  // April(4), May(5), June(6), September(9), October(10), November(11), December(12)
   const monthsWith21Percent = [4, 5, 6, 9, 10, 11, 12];
-  
-  // Determine conversion rate based on the month
   const conversionRate = monthsWith21Percent.includes(selectedMonthNumber) ? 0.21 : 0.215;
-  const calculatedMadeTea = (Number(formData.greenLeafToday) || 0) * conversionRate;
+  
+  const totalGreenLeafToday = (Number(formData.estateLeafToday) || 0) + (Number(formData.broughtLeafToday) || 0);
+  const calculatedMadeTea = totalGreenLeafToday * conversionRate;
   // -----------------------------
 
-  // Dark Mode Toggle Effect
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -83,6 +84,203 @@ export default function DailyProduction() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMonth]);
 
+  // =========================================================================
+  // 💡 ENTER KEY FOCUS LOGIC
+  // =========================================================================
+  const focusNextInput = (nextId) => {
+    const nextInput = document.getElementById(nextId);
+    if (nextInput) {
+      nextInput.focus();
+    }
+  };
+
+  // =========================================================================
+  // 💡 PDF AUTO-PARSING AND ESTATE/BROUGHT LEAF CLASSIFICATION
+  // =========================================================================
+  const loadPdfJs = async () => {
+    if (window.pdfjsLib) return window.pdfjsLib;
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.onload = () => {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        resolve(window.pdfjsLib);
+      };
+      script.onerror = () => reject(new Error("Failed to load PDF processing library."));
+      document.head.appendChild(script);
+    });
+  };
+
+  const handlePdfUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    for (const file of files) {
+      if (file.type !== 'application/pdf') {
+        toast.error(`"${file.name}" is not a valid PDF file.`);
+        return;
+      }
+    }
+
+    setIsUploadingPdf(true);
+    const toastId = toast.loading(`Parsing ${files.length} PDF file(s)...`);
+
+    try {
+      const pdfjs = await loadPdfJs();
+      const groupedDataByDate = {}; 
+
+      for (const file of files) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+        
+        let allTextItems = [];
+
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          const page = await pdf.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          
+          textContent.items.forEach(item => {
+            allTextItems.push({
+              str: item.str.trim(),
+              x: Math.round(item.transform[4]),
+              y: Math.round(item.transform[5])
+            });
+          });
+        }
+
+        let isEstateCollector = false;
+        const headerText = allTextItems.slice(0, 60).map(i => i.str).join(" ").toUpperCase();
+        if (headerText.includes("COLLECTOR : ESTATE") || headerText.includes("COLLECTOR: ESTATE")) {
+            isEstateCollector = true;
+        } else {
+            const match = headerText.match(/COLLECTOR\s*:\s*([^A-Z]*[A-Z\s]+)/);
+            if (match && match[1].includes("ESTATE")) {
+                isEstateCollector = true;
+            }
+        }
+
+        const dateHeaders = [];
+        allTextItems.forEach(item => {
+          const dateMatch = item.str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); 
+          if (dateMatch) {
+            const m = String(dateMatch[1]).padStart(2, '0');
+            const d = String(dateMatch[2]).padStart(2, '0');
+            const y = dateMatch[3];
+            dateHeaders.push({ dateStr: `${y}-${m}-${d}`, x: item.x, y: item.y });
+          }
+        });
+
+        const totalLabels = allTextItems.filter(i => i.str.toLowerCase() === "total" && i.x < 150);
+        
+        if (totalLabels.length > 0 && dateHeaders.length > 0) {
+            let targetTotalRowY = null;
+            let totalRowNumbers = [];
+
+            for (let i = totalLabels.length - 1; i >= 0; i--) {
+                const candidateY = totalLabels[i].y;
+                const numbersOnThisRow = allTextItems.filter(item => 
+                    Math.abs(item.y - candidateY) <= 6 && /^[\d,]+(\.\d{1,2})?$/.test(item.str)
+                );
+                if (numbersOnThisRow.length > 0) {
+                    targetTotalRowY = candidateY;
+                    totalRowNumbers = numbersOnThisRow;
+                    break;
+                }
+            }
+
+            if (targetTotalRowY !== null) {
+                const routeCandidates = allTextItems.filter(i => i.x < 250 && i.y > targetTotalRowY + 10 && !/^[\d,.\/]+$/.test(i.str) && i.str.length > 3);
+                routeCandidates.sort((a, b) => a.y - b.y); 
+                const closestRoute = routeCandidates.length > 0 ? routeCandidates[0].str.toUpperCase() : "";
+                
+                const isEstateRow = isEstateCollector || closestRoute.includes("ESTATE");
+
+                dateHeaders.forEach(dh => {
+                    let closestNum = null;
+                    let minDiff = 40; 
+                    
+                    totalRowNumbers.forEach(numItem => {
+                        const diff = Math.abs(numItem.x - dh.x);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            closestNum = numItem;
+                        }
+                    });
+
+                    if (closestNum) {
+                        const val = parseFloat(closestNum.str.replace(/,/g, ''));
+                        if (!isNaN(val)) {
+                            if (!groupedDataByDate[dh.dateStr]) {
+                                groupedDataByDate[dh.dateStr] = { estate: 0, brought: 0 };
+                            }
+                            
+                            if (isEstateRow) {
+                                groupedDataByDate[dh.dateStr].estate += val;
+                            } else {
+                                groupedDataByDate[dh.dateStr].brought += val;
+                            }
+                        }
+                    }
+                });
+            }
+        }
+      }
+
+      const datesFound = Object.keys(groupedDataByDate);
+
+      if (datesFound.length === 0) {
+        toast.error("No valid daily totals found in the uploaded PDF(s).", { id: toastId });
+      } else {
+        const newQueueItems = [];
+        
+        datesFound.forEach(dateStr => {
+            const eLeaf = groupedDataByDate[dateStr].estate || 0;
+            const bLeaf = groupedDataByDate[dateStr].brought || 0;
+            const tLeaf = eLeaf + bLeaf;
+            
+            const monthNum = parseInt(dateStr.split('-')[1], 10);
+            const convRate = monthsWith21Percent.includes(monthNum) ? 0.21 : 0.215;
+            const calcMadeTea = tLeaf * convRate;
+
+            const existingRecord = records.find(r => r.date.split('T')[0] === dateStr);
+
+            newQueueItems.push({
+              date: dateStr,
+              estateLeafToday: eLeaf > 0 ? eLeaf.toFixed(2) : "",
+              broughtLeafToday: bLeaf > 0 ? bLeaf.toFixed(2) : "",
+              greenLeafToday: tLeaf.toFixed(2),
+              calculatedMadeTea: calcMadeTea,
+              dispatch: existingRecord ? existingRecord.dispatch : 0,
+              localSaleAndGratis: existingRecord ? existingRecord.localSaleAndGratis : 0,
+              returnAmount: existingRecord ? existingRecord.returnAmount : 0,
+              dispatches: existingRecord?.dispatches || [],
+              localSales: existingRecord?.localSales || [],
+              returns: existingRecord?.returns || [],
+            });
+        });
+
+        setPendingRecords(prev => {
+             const existingDates = prev.map(p => p.date);
+             const uniqueNewItems = newQueueItems.filter(n => !existingDates.includes(n.date));
+             
+             if(uniqueNewItems.length < newQueueItems.length) {
+                 setTimeout(() => toast.error("Some dates were already in the queue and were skipped."), 1000);
+             }
+             return [...prev, ...uniqueNewItems];
+        });
+
+        toast.success(`Automatically mapped Estate/Brought totals for ${datesFound.length} dates!`, { id: toastId, duration: 6000 });
+      }
+
+    } catch (error) {
+      console.error("PDF Parsing Error:", error);
+      toast.error("Failed to parse PDFs. Check file format.", { id: toastId });
+    } finally {
+      setIsUploadingPdf(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
@@ -105,12 +303,11 @@ export default function DailyProduction() {
 
     const newRecord = {
       ...formData,
+      greenLeafToday: totalGreenLeafToday.toFixed(2),
       calculatedMadeTea,
       dispatch: existingRecord ? existingRecord.dispatch : 0,
       localSaleAndGratis: existingRecord ? existingRecord.localSaleAndGratis : 0,
       returnAmount: existingRecord ? existingRecord.returnAmount : 0,
-      
-      // ✅ ADD THESE THREE LINES: Preserve existing dispatch data
       dispatches: existingRecord?.dispatches || [],
       localSales: existingRecord?.localSales || [],
       returns: existingRecord?.returns || [],
@@ -118,7 +315,12 @@ export default function DailyProduction() {
 
     setPendingRecords([...pendingRecords, newRecord]);
     toast.success("Added to list!");
-    setFormData({ ...formData, greenLeafToday: '' });
+    
+    // Clear amounts after adding
+    setFormData({ ...formData, estateLeafToday: '', broughtLeafToday: '' }); 
+    
+    // 💡 Focus back to date input for the next entry
+    focusNextInput('date-input');
   };
 
   const handleRemoveFromList = (indexToRemove) => {
@@ -137,16 +339,15 @@ export default function DailyProduction() {
       for (const record of pendingRecords) {
         const payload = {
           date: record.date,
+          estateLeafToday: Number(record.estateLeafToday) || 0,
+          broughtLeafToday: Number(record.broughtLeafToday) || 0,
           greenLeafToday: Number(record.greenLeafToday) || 0,
           dispatch: Number(record.dispatch) || 0,
           localSaleAndGratis: Number(record.localSaleAndGratis) || 0,
           returnAmount: Number(record.returnAmount) || 0,
-          
-          // ✅ ADD THESE THREE LINES: Send the preserved data back to the DB
           dispatches: record.dispatches,
           localSales: record.localSales,
           returns: record.returns,
-          
           username: username
         };
 
@@ -168,7 +369,6 @@ export default function DailyProduction() {
     }
   };
 
-  // Reusable dynamic input styles for Light & Dark modes
   const inputStyles = "w-full p-3.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-bold text-gray-700 dark:text-gray-200 focus:ring-4 focus:ring-teal-500/20 dark:focus:ring-teal-400/20 focus:outline-none transition-all";
 
   return (
@@ -185,7 +385,7 @@ export default function DailyProduction() {
               <h2 className="text-2xl sm:text-3xl font-black text-[#0d5e4d] dark:text-teal-400 transition-colors">Daily Production</h2>
               <p className="font-semibold mt-1 uppercase tracking-wider text-sm text-[#0f766e] dark:text-teal-500 transition-colors">Green Leaf & Made Tea Log</p>
             </div>
-          </div>          
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -194,47 +394,116 @@ export default function DailyProduction() {
           <div className="lg:col-span-7 space-y-6">
             <form onSubmit={handleAddToList} className="bg-white dark:bg-gray-800 p-5 sm:p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
               
+              <div className="flex justify-end w-full mb-2">
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handlePdfUpload} 
+                  accept="application/pdf" 
+                  multiple
+                  className="hidden" 
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingPdf || isViewer}
+                  className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                  title="Upload Daily PDFs to Auto-fill Routes Totals"
+                >
+                  {isUploadingPdf ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
+                  {isUploadingPdf ? "Reading PDFs..." : "Upload Routes PDFs"}
+                </button>
+              </div>
+
               <div className="mb-6 pb-6 border-b border-gray-100 dark:border-gray-700">
                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Record Date</label>
                 <input 
+                  id="date-input"
                   type="date" name="date" value={formData.date} onChange={handleInputChange} required 
                   className={inputStyles}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      focusNextInput('estate-input');
+                    }
+                  }}
                 />
               </div>
 
               <div className="bg-gray-50/50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 rounded-2xl p-5 shadow-sm mb-6 transition-colors">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-[#0d5e4d] dark:text-teal-400">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-[#0d5e4d] dark:text-teal-400 border-b border-teal-100 dark:border-teal-900/50 pb-3">
                   <div className="p-1.5 rounded-lg bg-[#f0fdfa] dark:bg-teal-900/30"><Leaf size={18}/></div>
-                  Production Details
+                  Production Details (Manual Entry)
                 </h3>
                 
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Green Leaf Today (kg)</label>
-                    <input 
-                      type="number" step="0.01" min="0" name="greenLeafToday" 
-                      value={formData.greenLeafToday} onChange={handleInputChange} 
-                      onWheel={(e) => e.target.blur()} required placeholder="e.g. 1500" 
-                      className={inputStyles} 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
-                      Est. Made Tea ({(conversionRate * 100).toFixed(1)}%)
-                    </label>
-                    <div className="w-full p-3.5 border rounded-xl flex items-center h-[54px] font-black bg-[#f0fdfa] dark:bg-teal-900/20 border-[#99f6e4] dark:border-teal-800 text-[#0d5e4d] dark:text-teal-300 transition-colors">
-                      {calculatedMadeTea > 0 ? calculatedMadeTea.toFixed(3) : '0.000'} kg
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5 flex justify-between items-center">
+                            <span>Estate Leaf (kg)</span>
+                        </label>
+                        <input 
+                          id="estate-input"
+                          type="number" step="0.01" min="0" name="estateLeafToday" 
+                          value={formData.estateLeafToday} onChange={handleInputChange} 
+                          onWheel={(e) => e.target.blur()} placeholder="e.g. 500" 
+                          className={inputStyles} 
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              focusNextInput('brought-input');
+                            }
+                          }}
+                        />
                     </div>
-                    <p className="text-[10px] mt-1.5 font-bold flex items-center gap-1 text-[#0f766e] dark:text-teal-500">
-                      <Sparkles size={10}/> Auto calculated based on selected month
-                    </p>
+                    <div>
+                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5 flex justify-between items-center">
+                            <span>Brought Leaf (kg)</span>
+                        </label>
+                        <input 
+                          id="brought-input"
+                          type="number" step="0.01" min="0" name="broughtLeafToday" 
+                          value={formData.broughtLeafToday} onChange={handleInputChange} 
+                          onWheel={(e) => e.target.blur()} placeholder="e.g. 1000" 
+                          className={inputStyles} 
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              focusNextInput('add-queue-btn');
+                            }
+                          }}
+                        />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700/50">
+                    <div>
+                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                        Total Green Leaf (kg)
+                        </label>
+                        <div className="w-full p-3.5 border rounded-xl flex items-center h-[54px] font-black bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 transition-colors">
+                        {totalGreenLeafToday > 0 ? totalGreenLeafToday.toFixed(2) : '0.00'} kg
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                        Est. Made Tea ({(conversionRate * 100).toFixed(1)}%)
+                        </label>
+                        <div className="w-full p-3.5 border rounded-xl flex items-center h-[54px] font-black bg-[#f0fdfa] dark:bg-teal-900/20 border-[#99f6e4] dark:border-teal-800 text-[#0d5e4d] dark:text-teal-300 transition-colors">
+                        {calculatedMadeTea > 0 ? calculatedMadeTea.toFixed(3) : '0.000'} kg
+                        </div>
+                        <p className="text-[10px] mt-1.5 font-bold flex items-center gap-1 text-[#0f766e] dark:text-teal-500">
+                        <Sparkles size={10}/> Auto calculated based on selected month
+                        </p>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <button 
+                id="add-queue-btn"
                 type="submit" 
-                disabled={isViewer} 
+                disabled={isViewer || totalGreenLeafToday === 0} 
                 className="w-full py-4 rounded-2xl text-white font-black text-lg uppercase tracking-wider flex justify-center items-center gap-2 shadow-lg transition-all hover:-translate-y-0.5 bg-gradient-to-br from-[#163d2e] via-[#0d5e4d] to-[#0f766e] dark:from-teal-700 dark:via-teal-600 dark:to-teal-800 disabled:opacity-50"
               >
                 <PlusCircle size={22} /> Add to Queue
@@ -280,8 +549,11 @@ export default function DailyProduction() {
                           <div className="grid grid-cols-2 gap-2 text-xs font-medium text-gray-600 dark:text-gray-300">
                             
                             <div className="bg-gray-50 dark:bg-gray-900/50 p-2.5 rounded-xl border border-gray-100 dark:border-gray-700 transition-colors">
-                              <span className="block text-[10px] uppercase text-gray-400 dark:text-gray-500 font-bold mb-1">Leaf</span>
+                              <span className="block text-[10px] uppercase text-gray-400 dark:text-gray-500 font-bold mb-1">Leaf (Est+Brt)</span>
                               <span className="font-black text-[#0d5e4d] dark:text-teal-400">{item.greenLeafToday} kg</span>
+                              <span className="block text-[9px] text-gray-500 mt-0.5">
+                                E: {item.estateLeafToday || '0'} | B: {item.broughtLeafToday || '0'}
+                              </span>
                             </div>
                             
                             <div className="bg-gray-50 dark:bg-gray-900/50 p-2.5 rounded-xl border border-gray-100 dark:border-gray-700 transition-colors">

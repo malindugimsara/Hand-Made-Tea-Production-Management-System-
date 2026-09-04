@@ -224,7 +224,7 @@ export default function DispatchAndReturn() {
     setFormData({ ...formData, [category]: updatedArray });
   };
 
-  // =========================================================================
+ // =========================================================================
   // 💡 PDF AUTO-PARSING AND EXTRACTION LOGIC
   // =========================================================================
   const loadPdfJs = async () => {
@@ -258,11 +258,16 @@ export default function DispatchAndReturn() {
 
     try {
       const pdfjs = await loadPdfJs();
-      const allExtractedDispatches = [];
+      const groupedDataByDate = {}; // 💡 දින අනුව දත්ත වෙන් කිරීමට
+      let totalExtractedInvoices = 0;
 
       for (const file of files) {
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+
+        let fileDate = null;
+        let lowestY = Infinity;
+        const currentFileDispatches = [];
 
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
           const page = await pdf.getPage(pageNum);
@@ -274,6 +279,16 @@ export default function DispatchAndReturn() {
             if (!text) return;
             const x = item.transform[4];
             const y = Math.round(item.transform[5]);
+
+            // 💡 PDF එකේ ඇති දිනය හඳුනා ගැනීම (Lowest Y)
+            const dateMatch = text.match(/\b(\d{2})[\/\-](\d{2})[\/\-](\d{4})\b/);
+            if (dateMatch) {
+                if (y < lowestY) {
+                    lowestY = y;
+                    const [_, dd, mm, yyyy] = dateMatch;
+                    fileDate = `${yyyy}-${mm}-${dd}`;
+                }
+            }
 
             let row = rows.find(r => Math.abs(r.y - y) <= 4);
             if (!row) {
@@ -310,7 +325,7 @@ export default function DispatchAndReturn() {
             }
 
             if (invoiceNo && (weight || teaType)) {
-              allExtractedDispatches.push({
+              currentFileDispatches.push({
                 invoiceNo: invoiceNo,
                 teaType: teaType,
                 weight: weight ? String(Number(weight.replace(/,/g, '')) || weight) : ''
@@ -318,17 +333,67 @@ export default function DispatchAndReturn() {
             }
           }
         }
+
+        // 💡 File එකට දිනයක් හමු නොවුණොත් Form එකේ දැනට ඇති දිනය යොදා ගනී
+        const finalDate = fileDate || formData.date;
+
+        if (currentFileDispatches.length > 0) {
+            if (!groupedDataByDate[finalDate]) {
+                groupedDataByDate[finalDate] = [];
+            }
+            groupedDataByDate[finalDate].push(...currentFileDispatches);
+            totalExtractedInvoices += currentFileDispatches.length;
+        }
       }
 
-      if (allExtractedDispatches.length === 0) {
+      const datesFound = Object.keys(groupedDataByDate);
+
+      if (datesFound.length === 0) {
         toast.error("No valid dispatch invoice rows found in the uploaded PDF(s).", { id: toastId });
-      } else {
+      } else if (datesFound.length === 1) {
+        // 💡 එක දිනයක් පමණක් තිබේ නම් Form එකට Add කරයි
+        const singleDate = datesFound[0];
         setFormData(prev => ({
           ...prev,
-          dispatches: [...prev.dispatches.filter(d => d.invoiceNo || d.teaType || d.weight), ...allExtractedDispatches]
+          date: singleDate,
+          dispatches: [...prev.dispatches.filter(d => d.invoiceNo || d.teaType || d.weight), ...groupedDataByDate[singleDate]]
         }));
-        toast.success(`Successfully imported ${allExtractedDispatches.length} items from ${files.length} file(s)!`, { id: toastId });
+        toast.success(`Successfully imported ${totalExtractedInvoices} items for ${singleDate}!`, { id: toastId });
+      } else {
+        // 💡 වෙනස් දින කිහිපයක් තිබේ නම් ස්වයංක්‍රීයවම Queue එකට Add කරයි (Group by date)
+        const newQueueItems = [];
+        
+        datesFound.forEach(dateStr => {
+            const dispatchesForDate = groupedDataByDate[dateStr];
+            const totalDisp = dispatchesForDate.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+            const existingRecord = records.find(r => r.date.split('T')[0] === dateStr);
+
+            newQueueItems.push({
+              date: dateStr,
+              dispatches: dispatchesForDate,
+              localSales: [{ teaType: '', weight: '' }],
+              returns: [{ teaType: '', amount: '' }],
+              calculatedTotalOut: totalDisp,
+              totalDispatch: totalDisp,
+              totalLocalSale: 0,
+              totalReturn: 0,
+              greenLeafToday: existingRecord ? (existingRecord.greenLeaf?.today || existingRecord.greenLeafToday || 0) : 0,    
+            });
+        });
+
+        setPendingRecords(prev => {
+             const existingDates = prev.map(p => p.date);
+             const uniqueNewItems = newQueueItems.filter(n => !existingDates.includes(n.date));
+             
+             if(uniqueNewItems.length < newQueueItems.length) {
+                 setTimeout(() => toast.error("Some dates were already in the queue and were skipped."), 1000);
+             }
+             return [...prev, ...uniqueNewItems];
+        });
+
+        toast.success(`Grouped ${totalExtractedInvoices} items by ${datesFound.length} dates and added to Queue!`, { id: toastId, duration: 5000 });
       }
+
     } catch (error) {
       console.error("Multiple PDF Parsing Error:", error);
       toast.error("Failed to parse one or more PDF files.", { id: toastId });
@@ -385,6 +450,7 @@ export default function DispatchAndReturn() {
       const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
       for (const record of pendingRecords) {
+        // 💡 හිස් අගයන් සඳහා "N/A" යොදා Database Validation Errors මඟ හැරීම
         const payload = {
           date: record.date,
           greenLeafToday: Number(record.greenLeafToday) || 0,
@@ -393,24 +459,24 @@ export default function DispatchAndReturn() {
           returnAmount: Number(record.totalReturn) || 0,
 
           dispatches: record.dispatches
-            .filter(d => d.weight || d.invoiceNo)
+            .filter(d => Number(d.weight) > 0 || d.invoiceNo || d.teaType)
             .map(d => ({
-              invoiceNo: d.invoiceNo,
-              teaType: d.teaType,
+              invoiceNo: d.invoiceNo || "N/A",
+              teaType: d.teaType || "N/A",
               weight: Number(d.weight) || 0
             })),
             
           localSales: record.localSales
-            .filter(l => l.weight || l.teaType)
+            .filter(l => Number(l.weight) > 0 || l.teaType)
             .map(l => ({
-              teaType: l.teaType,
+              teaType: l.teaType || "N/A",
               weight: Number(l.weight) || 0
             })),
             
           returns: record.returns
-            .filter(r => r.amount || r.teaType)
+            .filter(r => Number(r.amount) > 0 || r.teaType)
             .map(r => ({
-              teaType: r.teaType,
+              teaType: r.teaType || "N/A",
               amount: Number(r.amount) || 0
             })),
             
@@ -422,14 +488,21 @@ export default function DispatchAndReturn() {
           headers: authHeaders,
           body: JSON.stringify(payload)
         });
-        if (!res.ok) throw new Error(`Failed to save record for ${record.date}`);
+
+        // 💡 Backend එකෙන් එන හරියටම Error එක අල්ලාගෙන පෙන්වීම
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          console.error("Backend Error Response:", errData);
+          throw new Error(errData.message || `Validation Error: Failed to save record for ${record.date}`);
+        }
       }
 
-      toast.success("Dispatch records saved!", { id: toastId });
+      toast.success("Dispatch records saved successfully!", { id: toastId });
       setPendingRecords([]);
       navigate("/factory/view");
     } catch (error) {
-      toast.error(error.message || "Error saving records.", { id: toastId });
+      console.error("Save Error:", error);
+      toast.error(error.message || "Error saving records.", { id: toastId, duration: 6000 });
     } finally {
       setIsSavingAll(false);
     }
@@ -472,6 +545,27 @@ export default function DispatchAndReturn() {
               }}
               className="bg-white dark:bg-gray-800 p-5 sm:p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors"
             >
+               {/* 💡 Upload PDF Button */}
+              <div className="flex justify-end w-full mb-2">
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handlePdfUpload} 
+                  accept="application/pdf" 
+                  multiple
+                  className="hidden" 
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingPdf || isViewer}
+                  className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                  title="Upload Tea Invoice PDF to auto-fill"
+                >
+                  {isUploadingPdf ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
+                  {isUploadingPdf ? "Reading PDF..." : "Upload Invoice PDF"}
+                </button>
+              </div>
               
               <div className="mb-6 pb-6 border-b border-gray-100 dark:border-gray-700">
                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Record Date</label>
@@ -496,27 +590,6 @@ export default function DispatchAndReturn() {
                     <h3 className="text-lg font-bold text-[#0f766e] dark:text-teal-400">Dispatch Details</h3>
                   </div>
 
-                  {/* 💡 Upload PDF Button */}
-                  <div>
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      onChange={handlePdfUpload} 
-                      accept="application/pdf" 
-                      multiple
-                      className="hidden" 
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploadingPdf || isViewer}
-                      className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 disabled:opacity-50"
-                      title="Upload Tea Invoice PDF to auto-fill"
-                    >
-                      {isUploadingPdf ? <Loader2 size={14} className="animate-spin" /> : <FileUp size={14} />}
-                      {isUploadingPdf ? "Reading PDF..." : "Upload Invoice PDF"}
-                    </button>
-                  </div>
                 </div>
                 
                 {formData.dispatches.map((dispatchItem, index) => (

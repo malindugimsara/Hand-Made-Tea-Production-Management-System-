@@ -59,7 +59,7 @@ export default function WeeklyLoftLeafSummary() {
     reportTitle: lang === 'SI' ? "අමු තේ (Green Leaf) වල ගුණාත්මය ඇගයීම පිළිබඳ වාර්තාව" : "Green Leaf Quality Evaluation Report",
     monthDate: lang === 'SI' ? "දිනය" : "Date",
     supplier: lang === 'SI' ? "සැපයුම්කරුගේ නම" : "Supplier Name",
-    weeklyAvg: lang === 'SI' ? "සතියේ සාමාන්‍ය අගය" : "Weekly Average",
+    weeklyAvg: lang === 'SI' ? "සාමාන්‍ය අගය" : "Weekly Average",
     rank: lang === 'SI' ? "ස්ථානය" : "Rank",
     legendRed: lang === 'SI' ? "ගුණාත්මය 55% ට අඩු" : "Quality < 55%",
     legendGreen: lang === 'SI' ? "තැළුනු දළු 5% ට වැඩි" : "Damaged > 5%",
