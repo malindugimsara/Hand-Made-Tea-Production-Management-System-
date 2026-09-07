@@ -130,12 +130,45 @@ export default function GreenLeafMonthlyRanking() {
 
         const items = routeOptions.map((r) => {
           const d = routeMap[r.key];
-          const bestPct =
-            d.totalKg > 0 ? Math.round((d.bKg / d.totalKg) * 100) : 0;
-          const bbPct =
-            d.totalKg > 0 ? Math.round((d.bbKg / d.totalKg) * 100) : 0;
-          const poorPct =
-            d.totalKg > 0 ? Math.round((d.pKg / d.totalKg) * 100) : 0;
+          
+          const rawBest = d.totalKg > 0 ? (d.bKg / d.totalKg) * 100 : 0;
+          const rawBb = d.totalKg > 0 ? (d.bbKg / d.totalKg) * 100 : 0;
+          const rawPoor = d.totalKg > 0 ? (d.pKg / d.totalKg) * 100 : 0;
+
+          let bestPct = Math.round(rawBest);
+          let bbPct = Math.round(rawBb);
+          let poorPct = Math.round(rawPoor);
+
+          if (d.totalKg > 0) {
+            let diff = 100 - (bestPct + bbPct + poorPct);
+            
+            // 💡 එකතුව 100 වන තුරු දශම ශේෂයන් (remainders) මත පදනම්ව වෙනස පියවීම (අගයන් 1කින් හෝ 2කින් වෙනස් වුවද ක්‍රියාත්මක වේ)
+            while (diff !== 0) {
+              const remBest = rawBest - bestPct;
+              const remBb = rawBb - bbPct;
+              const remPoor = rawPoor - poorPct;
+
+              if (diff > 0) {
+                if (remBest >= remBb && remBest >= remPoor) {
+                  bestPct += 1;
+                } else if (remBb >= remBest && remBb >= remPoor) {
+                  bbPct += 1;
+                } else {
+                  poorPct += 1;
+                }
+                diff -= 1;
+              } else {
+                if (remBest <= remBb && remBest <= remPoor) {
+                  bestPct -= 1;
+                } else if (remBb <= remBest && remBb <= remPoor) {
+                  bbPct -= 1;
+                } else {
+                  poorPct -= 1;
+                }
+                diff += 1;
+              }
+            }
+          }
 
           return {
             routeKey: r.key,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Loader2, User, LockKeyhole, CheckCircle2, Eye, EyeOff, Leaf, Package, Factory, Settings, LayoutDashboard, Store, ClipboardList } from 'lucide-react';
@@ -230,6 +230,7 @@ export default function Login() {
   const [isLoading,  setIsLoading]  = useState(false);
   const [showPass,   setShowPass]   = useState(false);
   
+  const passwordRef = useRef(null);
   const [loginStep, setLoginStep] = useState('login'); 
   const [allowedSystems, setAllowedSystems] = useState([]);
   const [activeTab,  setActiveTab]  = useState('handmade'); 
@@ -453,14 +454,35 @@ export default function Login() {
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
-                    onChange={e => setUsername(e.target.value)} type="text" value={username} placeholder="Username"
+                    onChange={e => setUsername(e.target.value)} 
+                    type="text" 
+                    value={username} 
+                    placeholder="Username"
+                    // 💡 3. Username එකේ සිට Enter එබූ විට Password field එකට Focus වීමට
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        passwordRef.current?.focus();
+                      }
+                    }}
                     className={`w-full py-3.5 pl-12 pr-4 bg-white/80 border border-white rounded-2xl text-sm focus:outline-none focus:ring-4 transition-all duration-300 ${t.ringFocus}`}
                   />
                 </div>
                 <div className="relative">
                   <LockKeyhole className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
-                    onChange={e => setPassword(e.target.value)} type={showPass ? 'text' : 'password'} value={password} placeholder="Password"
+                    ref={passwordRef} // 💡 4. Ref එක এখানে සම්බන්ධ කිරීම
+                    onChange={e => setPassword(e.target.value)} 
+                    type={showPass ? 'text' : 'password'} 
+                    value={password} 
+                    placeholder="Password"
+                    // 💡 5. Password එකේ සිට Enter එබූ විට කෙලින්ම Sign In (handleLogin) ක්‍රියාත්මක වීමට
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleLogin();
+                      }
+                    }}
                     className={`w-full py-3.5 pl-12 pr-12 bg-white/80 border border-white rounded-2xl text-sm focus:outline-none focus:ring-4 transition-all duration-300 ${t.ringFocus}`}
                   />
                   <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">

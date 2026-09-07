@@ -104,6 +104,21 @@ export default function FactoryDashboard() {
   const [factoryRecords, setFactoryRecords] = useState([]);
   const [monthBF, setMonthBF] = useState(0);
 
+  // 💡 Dark Mode State
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem("theme") === "dark" || false;
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [isDarkMode]);
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good Morning";
@@ -260,12 +275,12 @@ export default function FactoryDashboard() {
   } = dashboardData;
 
   return (
-    <div className="p-4 md:p-8 max-w-[1600px] mx-auto h-full flex flex-col space-y-8 transition-colors duration-300 min-h-screen relative overflow-x-hidden">
+    <div className="p-4 md:p-8 max-w-[1600px] mx-auto h-full flex flex-col space-y-8 transition-colors duration-300 min-h-screen relative overflow-x-hidden bg-[#f3faf7] dark:bg-gray-950">
       <MorphingBlobs />
 
       {/* 1. HERO WELCOME BANNER */}
       <div
-        className="relative rounded-2xl sm:rounded-3xl overflow-hidden px-5 py-8 sm:px-8 sm:py-10 md:py-12 min-h-[180px] md:min-h-[200px] flex flex-col justify-center shadow-lg border border-teal-900/20 z-10"
+        className="relative rounded-2xl sm:rounded-3xl overflow-hidden px-5 py-8 sm:px-8 sm:py-10 md:py-12 min-h-[180px] md:min-h-[200px] flex flex-col justify-center shadow-lg border border-teal-900/20 dark:border-teal-700/30 z-10"
         style={{ background: THEME.btnGradient }}
       >
         {/* Background Animations */}
@@ -304,93 +319,101 @@ export default function FactoryDashboard() {
 
       {/* 2. STATS OVERVIEW CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden transition-all hover:shadow-md hover:border-teal-300 group">
+        {/* FACTORY BALANCE */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden transition-all hover:shadow-md hover:border-teal-300 dark:hover:border-teal-500/50 group">
           <div className="flex justify-between items-start mb-4">
-            <div className="w-12 h-12 bg-teal-50 rounded-xl flex items-center justify-center text-teal-700 group-hover:scale-110 transition-transform">
+            <div className="w-12 h-12 bg-teal-50 dark:bg-teal-900/30 rounded-xl flex items-center justify-center text-teal-700 dark:text-teal-400 group-hover:scale-110 transition-transform">
               <Scale size={24} />
             </div>
-            <span className="text-[10px] font-bold px-2.5 py-1 bg-teal-50 text-teal-700 border border-teal-100 rounded-lg uppercase">
+            <span className="text-[10px] font-bold px-2.5 py-1 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 border border-teal-100 dark:border-teal-800 rounded-lg uppercase">
               Current Month
             </span>
           </div>
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
               Factory Balance
             </p>
             <h3
-              className={`text-3xl font-black ${currentFactoryBalance < 0 ? "text-red-500" : "text-gray-800"}`}
+              className={`text-3xl font-black ${
+                currentFactoryBalance < 0 
+                  ? "text-red-500 dark:text-red-400" 
+                  : "text-gray-800 dark:text-gray-100"
+              }`}
             >
               {isLoading ? "..." : currentFactoryBalance.toFixed(2)}{" "}
-              <span className="text-sm text-gray-400 font-semibold lowercase">
+              <span className="text-sm text-gray-400 dark:text-gray-500 font-semibold lowercase">
                 kg
               </span>
             </h3>
-            <p className="text-[11px] font-bold text-gray-400 mt-2">
+            <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 mt-2">
               B/F: {monthBF.toFixed(2)} kg
             </p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden transition-all hover:shadow-md hover:border-emerald-300 group">
+        {/* GREEN LEAF */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden transition-all hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-500/50 group">
           <div className="flex justify-between items-start mb-4">
-            <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-700 group-hover:scale-110 transition-transform">
+            <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center text-emerald-700 dark:text-emerald-400 group-hover:scale-110 transition-transform">
               <Leaf size={24} />
             </div>
-            <span className="text-[10px] font-bold px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg uppercase">
+            <span className="text-[10px] font-bold px-2.5 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 rounded-lg uppercase">
               To Date
             </span>
           </div>
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
               Green Leaf Total
             </p>
-            <h3 className="text-3xl font-black text-emerald-700">
+            <h3 className="text-3xl font-black text-emerald-700 dark:text-emerald-400">
               {isLoading ? "..." : totalGreenLeafToDate.toFixed(2)}{" "}
-              <span className="text-sm text-gray-400 font-semibold lowercase">
+              <span className="text-sm text-gray-400 dark:text-gray-500 font-semibold lowercase">
                 kg
               </span>
             </h3>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden transition-all hover:shadow-md hover:border-cyan-300 group">
+        {/* MADE TEA */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden transition-all hover:shadow-md hover:border-cyan-300 dark:hover:border-cyan-500/50 group">
           <div className="flex justify-between items-start mb-4">
-            <div className="w-12 h-12 bg-cyan-50 rounded-xl flex items-center justify-center text-cyan-700 group-hover:scale-110 transition-transform">
+            <div className="w-12 h-12 bg-cyan-50 dark:bg-cyan-900/30 rounded-xl flex items-center justify-center text-cyan-700 dark:text-cyan-400 group-hover:scale-110 transition-transform">
               <Factory size={24} />
             </div>
-            <span className="text-[10px] font-bold px-2.5 py-1 bg-cyan-50 text-cyan-700 border border-cyan-100 rounded-lg uppercase">
+            <span className="text-[10px] font-bold px-2.5 py-1 bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400 border border-cyan-100 dark:border-cyan-800 rounded-lg uppercase">
               To Date
             </span>
           </div>
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
               Made Tea Total
             </p>
-            <h3 className="text-3xl font-black text-cyan-700">
+            <h3 className="text-3xl font-black text-cyan-700 dark:text-cyan-400">
               {isLoading ? "..." : totalMadeTeaToDate.toFixed(2)}{" "}
-              <span className="text-sm text-gray-400 font-semibold lowercase">
+              <span className="text-sm text-gray-400 dark:text-gray-500 font-semibold lowercase">
                 kg
               </span>
             </h3>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden transition-all hover:shadow-md hover:border-amber-300 group">
+        {/* DISPATCH (OUT) */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden transition-all hover:shadow-md hover:border-amber-300 dark:hover:border-amber-500/50 group">
           <div className="flex justify-between items-start mb-4">
-            <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 group-hover:scale-110 transition-transform">
+            <div className="w-12 h-12 bg-amber-50 dark:bg-amber-900/30 rounded-xl flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
               <Send size={24} />
             </div>
-            <span className="text-[10px] font-bold px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-100 rounded-lg uppercase">
+            <span className="text-[10px] font-bold px-2.5 py-1 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-800 rounded-lg uppercase">
               To Date
             </span>
           </div>
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
               Total Out (Dispatch)
             </p>
-            <h3 className="text-3xl font-black text-amber-600">
+            <h3 className="text-3xl font-black text-amber-600 dark:text-amber-400">
               {isLoading ? "..." : totalOutToDate.toFixed(2)}{" "}
-              <span className="text-sm text-gray-400 font-semibold lowercase">
+              <span className="text-sm text-gray-400 dark:text-gray-500 font-semibold lowercase">
                 kg
               </span>
             </h3>
@@ -403,20 +426,20 @@ export default function FactoryDashboard() {
         {/* --- Left Column: Charts --- */}
         <div className="lg:col-span-2 space-y-8">
           {/* Chart 1: Daily Production Overview */}
-          <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100">
+          <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
             <div className="mb-6">
-              <h3 className="text-lg font-bold flex items-center gap-2 text-gray-800">
-                <TrendingUp className="text-[#0d9488]" size={20} /> Production
+              <h3 className="text-lg font-bold flex items-center gap-2 text-gray-800 dark:text-gray-200">
+                <TrendingUp className="text-[#0d9488] dark:text-teal-400" size={20} /> Production
                 Overview (Daily)
               </h3>
-              <p className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wider">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium uppercase tracking-wider">
                 Green Leaf vs Made Tea vs Dispatches
               </p>
             </div>
 
             <div className="h-[320px] w-full">
               {isLoading || !showCharts ? (
-                <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+                <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">
                   Loading chart data...
                 </div>
               ) : (
@@ -429,7 +452,7 @@ export default function FactoryDashboard() {
                     <CartesianGrid
                       strokeDasharray="3 3"
                       vertical={false}
-                      stroke="#e5e7eb"
+                      stroke={isDarkMode ? "#374151" : "#e5e7eb"}
                     />
                     <XAxis
                       dataKey="name"
@@ -447,21 +470,21 @@ export default function FactoryDashboard() {
                       labelFormatter={(label) => `Day: ${label}`}
                       contentStyle={{
                         borderRadius: "12px",
-                        border: "1px solid #f3f4f6",
+                        border: isDarkMode ? "1px solid #374151" : "1px solid #f3f4f6",
                         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                        backgroundColor: "#ffffff",
-                        color: "#1f2937",
+                        backgroundColor: isDarkMode ? "#1f2937" : "#ffffff",
+                        color: isDarkMode ? "#f3f4f6" : "#1f2937",
                         fontSize: "12px",
                         fontWeight: "bold",
                       }}
-                      cursor={{ fill: "rgba(0,0,0,0.05)" }}
+                      cursor={{ fill: isDarkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)" }}
                     />
                     <Legend
                       wrapperStyle={{
                         paddingTop: "20px",
                         fontSize: "12px",
                         fontWeight: 600,
-                        color: "#6b7280",
+                        color: isDarkMode ? "#9ca3af" : "#6b7280",
                       }}
                       iconType="circle"
                     />
@@ -490,20 +513,20 @@ export default function FactoryDashboard() {
           </div>
 
           {/* Chart 2: Balance Trend */}
-          <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100">
+          <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
             <div className="mb-6">
-              <h3 className="text-lg font-bold flex items-center gap-2 text-gray-800">
-                <ArrowRightLeft className="text-[#0f766e]" size={20} /> Factory
+              <h3 className="text-lg font-bold flex items-center gap-2 text-gray-800 dark:text-gray-200">
+                <ArrowRightLeft className="text-[#0f766e] dark:text-teal-400" size={20} /> Factory
                 Balance Trend
               </h3>
-              <p className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wider">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium uppercase tracking-wider">
                 Daily ending balance monitoring
               </p>
             </div>
 
             <div className="h-[280px] w-full">
               {isLoading || !showCharts ? (
-                <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+                <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm">
                   Loading trend data...
                 </div>
               ) : (
@@ -535,7 +558,7 @@ export default function FactoryDashboard() {
                     <CartesianGrid
                       strokeDasharray="3 3"
                       vertical={false}
-                      stroke="#e5e7eb"
+                      stroke={isDarkMode ? "#374151" : "#e5e7eb"}
                     />
                     <XAxis
                       dataKey="name"
@@ -555,10 +578,10 @@ export default function FactoryDashboard() {
                       labelFormatter={(label) => `Day: ${label}`}
                       contentStyle={{
                         borderRadius: "12px",
-                        border: "1px solid #f3f4f6",
+                        border: isDarkMode ? "1px solid #374151" : "1px solid #f3f4f6",
                         boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                        backgroundColor: "#ffffff",
-                        color: "#1f2937",
+                        backgroundColor: isDarkMode ? "#1f2937" : "#ffffff",
+                        color: isDarkMode ? "#f3f4f6" : "#1f2937",
                         fontSize: "12px",
                         fontWeight: "bold",
                       }}
@@ -580,26 +603,26 @@ export default function FactoryDashboard() {
 
         {/* --- Right Column: System Alerts --- */}
         <div className="lg:col-span-1">
-          <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 h-full flex flex-col">
-            <div className="flex items-center justify-between mb-6 border-b border-gray-100 pb-5">
+          <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 h-full flex flex-col transition-colors">
+            <div className="flex items-center justify-between mb-6 border-b border-gray-100 dark:border-gray-700 pb-5">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-teal-50 border border-teal-100 text-teal-700 rounded-xl">
+                <div className="p-2.5 bg-teal-50 dark:bg-teal-900/30 border border-teal-100 dark:border-teal-800 text-teal-700 dark:text-teal-400 rounded-xl">
                   <Bell size={20} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-800">
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">
                     System Alerts
                   </h3>
                 </div>
               </div>
-              <span className="bg-teal-100 text-teal-700 text-[10px] font-black px-2.5 py-1 rounded-full">
+              <span className="bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-400 text-[10px] font-black px-2.5 py-1 rounded-full">
                 {alerts.length}
               </span>
             </div>
 
             <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
               {isLoading ? (
-                <div className="text-center text-sm text-gray-400 py-10">
+                <div className="text-center text-sm text-gray-400 dark:text-gray-500 py-10">
                   Syncing live alerts...
                 </div>
               ) : (
@@ -608,19 +631,19 @@ export default function FactoryDashboard() {
                     key={alert.id}
                     className={`p-4 rounded-2xl border flex gap-4 items-start transition-all hover:-translate-y-0.5 ${
                       alert.type === "danger"
-                        ? "border-red-100 bg-red-50"
+                        ? "border-red-100 bg-red-50 dark:border-red-800/30 dark:bg-red-900/20"
                         : alert.type === "success"
-                          ? "border-teal-100 bg-teal-50"
-                          : "border-blue-100 bg-blue-50"
+                          ? "border-teal-100 bg-teal-50 dark:border-teal-800/30 dark:bg-teal-900/20"
+                          : "border-blue-100 bg-blue-50 dark:border-blue-800/30 dark:bg-blue-900/20"
                     }`}
                   >
                     <div
                       className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${
                         alert.type === "danger"
-                          ? "bg-red-100 text-red-600"
+                          ? "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400"
                           : alert.type === "success"
-                            ? "bg-teal-100 text-teal-700"
-                            : "bg-blue-100 text-blue-600"
+                            ? "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-400"
+                            : "bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400"
                       }`}
                     >
                       {alert.icon}
@@ -629,15 +652,15 @@ export default function FactoryDashboard() {
                       <h4
                         className={`font-bold text-sm mb-1 ${
                           alert.type === "danger"
-                            ? "text-red-800"
+                            ? "text-red-800 dark:text-red-400"
                             : alert.type === "success"
-                              ? "text-teal-800"
-                              : "text-blue-800"
+                              ? "text-teal-800 dark:text-teal-400"
+                              : "text-blue-800 dark:text-blue-400"
                         }`}
                       >
                         {alert.title}
                       </h4>
-                      <p className="text-xs opacity-90 leading-relaxed font-medium text-gray-600">
+                      <p className="text-xs opacity-90 leading-relaxed font-medium text-gray-600 dark:text-gray-300">
                         {alert.message}
                       </p>
                     </div>

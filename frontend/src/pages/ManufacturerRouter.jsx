@@ -18,6 +18,7 @@ import HydroMetersEntry from "./Manufacturer/BL Operation/HydroMeters/HydroMeter
 import HydroMetersView from "./Manufacturer/BL Operation/HydroMeters/HydroMetersView";
 import GreenLeafMonthlyRanking from "./Manufacturer/SummaryReport/GreenLeafMonthlyRanking";
 import TC5Report from "./Manufacturer/TC5/TC5Report";
+import GreenLeafMonthlyReport from "./Manufacturer/SummaryReport/GreenLeafMonthlyReport";
 
 
 export default function ManufacturerRouter() {
@@ -44,6 +45,7 @@ export default function ManufacturerRouter() {
       <Route path="tc5report" element={<TC5Report />} />
 
       
+      <Route path="green-leaf-monthly-report" element={<GreenLeafMonthlyReport />} />
     </Route>
   );
 }
