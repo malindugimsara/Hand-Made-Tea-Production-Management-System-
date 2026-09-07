@@ -13,42 +13,34 @@ import PDFDownloader from "@/components/PDFDownloader";
 const getTeaColor = (product) => {
   const p = product.toLowerCase();
 
-  // 1. Grade/Type strict matching
-  if (p.includes("ff ex sp")) return "bg-red-50 text-red-800";
-  if (p.includes("ff sp")) return "bg-orange-50 text-orange-900";
-  if (p.includes("bopf sp")) return "bg-[#bef264] text-lime-900";
-  if (p.includes("bopf")) return "bg-yellow-50 text-yellow-800";
-  if (p.includes("fbop")) return "bg-amber-50 text-amber-800";
-  if (p.includes("bop")) return "bg-lime-50 text-lime-800";
-  if (p.includes("op1") || p.includes("op 1")) return "bg-sky-50 text-sky-800";
-  if (p.includes("pekoe")) return "bg-emerald-50 text-emerald-800";
-  if (p.includes("dust")) return "bg-cyan-50 text-cyan-800";
+  if (p.includes("ff ex sp")) return "bg-red-50 text-red-800 dark:bg-red-900/20 dark:text-red-400";
+  if (p.includes("ff sp")) return "bg-orange-50 text-orange-900 dark:bg-orange-900/20 dark:text-orange-400";
+  if (p.includes("bopf sp")) return "bg-[#bef264] text-lime-900 dark:bg-lime-900/30 dark:text-lime-400";
+  if (p.includes("bopf")) return "bg-yellow-50 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400";
+  if (p.includes("fbop")) return "bg-amber-50 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400";
+  if (p.includes("bop")) return "bg-lime-50 text-lime-800 dark:bg-lime-900/20 dark:text-lime-400";
+  if (p.includes("op1") || p.includes("op 1")) return "bg-sky-50 text-sky-800 dark:bg-sky-900/20 dark:text-sky-400";
+  if (p.includes("pekoe")) return "bg-emerald-50 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400";
+  if (p.includes("dust")) return "bg-cyan-50 text-cyan-800 dark:bg-cyan-900/20 dark:text-cyan-400";
 
-  // 2. Specialty/Flavor/Color matching
-  if (p.includes("pink")) return "bg-pink-50 text-pink-800";
-  if (p.includes("purple")) return "bg-purple-50 text-purple-800";
-  if (p.includes("silver")) return "bg-slate-100 text-slate-800";
-  if (p.includes("white")) return "bg-gray-100 text-gray-800";
-  if (p.includes("golden") || p.includes("turmeric"))
-    return "bg-yellow-100 text-yellow-900";
-  if (p.includes("orange") || p.includes("cinnamon"))
-    return "bg-orange-50 text-orange-800";
-  if (p.includes("black") || p.includes("pepar"))
-    return "bg-zinc-100 text-zinc-800";
-  if (p.includes("lemangrass") || p.includes("green"))
-    return "bg-green-50 text-green-800";
-  if (p.includes("premium")) return "bg-rose-50 text-rose-800";
-  if (p.includes("awrudu") || p.includes("awuru"))
-    return "bg-fuchsia-50 text-fuchsia-800";
-  if (p.includes("slim beauty")) return "bg-fuchsia-100 text-fuchsia-900";
-  if (p.includes("masala")) return "bg-amber-100 text-amber-900";
-  if (p.includes("chakra")) return "bg-indigo-50 text-indigo-800";
-  if (p.includes("flower")) return "bg-violet-50 text-violet-800";
-  if (p.includes("labour")) return "bg-stone-100 text-stone-800";
-  if (p.includes("other purchasing")) return "bg-teal-50 text-teal-800";
+  if (p.includes("pink")) return "bg-pink-50 text-pink-800 dark:bg-pink-900/20 dark:text-pink-400";
+  if (p.includes("purple")) return "bg-purple-50 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400";
+  if (p.includes("silver")) return "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300";
+  if (p.includes("white")) return "bg-gray-100 text-gray-800 dark:bg-zinc-800 dark:text-gray-300";
+  if (p.includes("golden") || p.includes("turmeric")) return "bg-yellow-100 text-yellow-900 dark:bg-yellow-900/30 dark:text-yellow-400";
+  if (p.includes("orange") || p.includes("cinnamon")) return "bg-orange-50 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400";
+  if (p.includes("black") || p.includes("pepar")) return "bg-zinc-100 text-zinc-800 dark:bg-zinc-800/80 dark:text-zinc-300";
+  if (p.includes("lemangrass") || p.includes("green")) return "bg-green-50 text-green-800 dark:bg-green-900/20 dark:text-green-400";
+  if (p.includes("premium")) return "bg-rose-50 text-rose-800 dark:bg-rose-900/20 dark:text-rose-400";
+  if (p.includes("awrudu") || p.includes("awuru")) return "bg-fuchsia-50 text-fuchsia-800 dark:bg-fuchsia-900/20 dark:text-fuchsia-400";
+  if (p.includes("slim beauty")) return "bg-fuchsia-100 text-fuchsia-900 dark:bg-fuchsia-900/30 dark:text-fuchsia-400";
+  if (p.includes("masala")) return "bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-400";
+  if (p.includes("chakra")) return "bg-indigo-50 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400";
+  if (p.includes("flower")) return "bg-violet-50 text-violet-800 dark:bg-violet-900/20 dark:text-violet-400";
+  if (p.includes("labour")) return "bg-stone-100 text-stone-800 dark:bg-stone-800/80 dark:text-stone-300";
+  if (p.includes("other purchasing")) return "bg-teal-50 text-teal-800 dark:bg-teal-900/20 dark:text-teal-400";
 
-  // Default fallback
-  return "bg-white text-gray-800";
+  return "bg-white text-gray-800 dark:bg-zinc-900 dark:text-gray-300";
 };
 
 // PDF එක සඳහා RGB වර්ණ ලබා දෙන Function එක
@@ -435,18 +427,19 @@ export default function ProductIssueSummary() {
 
   const uniqueCode = `PIS/${getMonthName(filterMonth)}`;
 
+// 💡 Dark Mode සඳහා යාවත්කාලීන කළ Component Return කොටස
   return (
-    <div className="min-h-screen bg-[#f8fafc] pb-12">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-zinc-950 pb-12 transition-colors">
       <div className="p-4 md:p-8 max-w-[1200px] mx-auto font-sans relative">
         {/* STICKY HEADER */}
-        <div className="bg-white rounded-lg shadow-sm p-4 md:p-6 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-transparent dark:border-zinc-800 p-4 md:p-6 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors">
           <div className="flex items-center gap-3">
-            <Calculator className="text-[#0f766e] w-8 h-8" />
+            <Calculator className="text-[#0f766e] dark:text-teal-500 w-8 h-8" />
             <div>
-              <h2 className="text-2xl font-bold text-[#0f766e]">
+              <h2 className="text-2xl font-bold text-[#0f766e] dark:text-teal-400">
                 Product Issue Summary
               </h2>
-              <p className="text-gray-500 text-sm mt-0.5">
+              <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">
                 Monthly analysis and issuing calculations
               </p>
             </div>
@@ -456,7 +449,7 @@ export default function ProductIssueSummary() {
             <button
               onClick={() => fetchAndCalculateData(true)}
               disabled={loading}
-              className="px-4 py-2 border border-green-500 text-green-700 bg-white rounded flex items-center gap-2 text-sm font-bold shadow-sm transition-colors hover:bg-green-50"
+              className="px-4 py-2 border border-green-500 dark:border-green-600 text-green-700 dark:text-green-500 bg-white dark:bg-zinc-900 rounded flex items-center gap-2 text-sm font-bold shadow-sm transition-colors hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50"
             >
               <RefreshCw size={16} className={loading ? "animate-spin" : ""} />{" "}
               Sync Data
@@ -470,7 +463,7 @@ export default function ProductIssueSummary() {
               fileName={`Product_Issue_Summary_${filterMonth}.pdf`}
               orientation="portrait"
               disabled={tableData.length === 0}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow-sm text-sm font-bold flex items-center gap-2 transition-colors"
+              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white px-4 py-2 rounded shadow-sm text-sm font-bold flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
         </div>
@@ -478,8 +471,8 @@ export default function ProductIssueSummary() {
         {/* FILTERS & CONTROLS SECTION */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* SELECT REPORT MONTH CARD */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 border-l-[6px] border-l-blue-600 flex flex-col p-5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+          <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 border-l-[6px] border-l-blue-600 dark:border-l-blue-500 flex flex-col p-5 transition-colors">
+            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
               Select Report Month
             </label>
             <div className="flex gap-3 items-center">
@@ -487,11 +480,11 @@ export default function ProductIssueSummary() {
                 type="month"
                 value={filterMonth}
                 onChange={(e) => setFilterMonth(e.target.value)}
-                className="flex-1 border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none text-gray-700"
+                className="flex-1 border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 rounded p-2 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 focus:border-blue-500 dark:focus:border-blue-500 outline-none text-gray-700 dark:text-gray-200 transition-colors"
               />
               <button
                 onClick={() => fetchAndCalculateData(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
+                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white px-5 py-2 rounded text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
               >
                 <Filter size={16} /> Load
               </button>
@@ -500,9 +493,9 @@ export default function ProductIssueSummary() {
         </div>
 
         {/* SUMMARY BOARD TABLE */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-12">
+        <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden mb-12 transition-colors">
           {/* TABLE HEADER (DARK GREEN) */}
-          <div className="bg-[#0f766e] px-6 py-4 flex items-center gap-2 text-white">
+          <div className="bg-[#0f766e] dark:bg-teal-900/80 px-6 py-4 flex items-center gap-2 text-white">
             <FileText size={20} />
             <h3 className="font-semibold text-lg tracking-wide">
               Product Issue Summary Board
@@ -510,24 +503,24 @@ export default function ProductIssueSummary() {
           </div>
 
           {loading ? (
-            <div className="flex justify-center items-center h-64 bg-white">
-              <RefreshCw className="animate-spin text-[#0f766e] w-10 h-10" />
+            <div className="flex justify-center items-center h-64 bg-white dark:bg-zinc-900">
+              <RefreshCw className="animate-spin text-[#0f766e] dark:text-teal-500 w-10 h-10" />
             </div>
           ) : (
-            <div className="overflow-x-auto bg-white p-4">
-              <table className="w-full text-sm text-left ">
+            <div className="overflow-x-auto bg-white dark:bg-zinc-900 p-4">
+              <table className="w-full text-sm text-left border-collapse">
                 <thead>
-                  <tr className="border-b-2 border-gray-500 uppercase">
-                    <th className="p-3 text-gray-600 font-bold border-r border-gray-100 w-[20%] text-center">
+                  <tr className="border-b-2 border-gray-500 dark:border-zinc-700 uppercase">
+                    <th className="p-3 text-gray-600 dark:text-gray-400 font-bold border-r border-gray-100 dark:border-zinc-800 w-[20%] text-center">
                       Section
                     </th>
-                    <th className="p-3 text-gray-600 font-bold border-r border-gray-100 w-[40%] text-center">
+                    <th className="p-3 text-gray-600 dark:text-gray-400 font-bold border-r border-gray-100 dark:border-zinc-800 w-[40%] text-center">
                       Product
                     </th>
-                    <th className="p-3 text-blue-600 font-bold border-r border-gray-100 w-[20%] text-center">
+                    <th className="p-3 text-blue-600 dark:text-blue-500 font-bold border-r border-gray-100 dark:border-zinc-800 w-[20%] text-center">
                       Qut(KG)
                     </th>
-                    <th className="p-3 text-red-600 font-bold w-[20%] text-center">
+                    <th className="p-3 text-red-600 dark:text-red-500 font-bold w-[20%] text-center">
                       Total
                     </th>
                   </tr>
@@ -535,21 +528,18 @@ export default function ProductIssueSummary() {
                 <tbody>
                   {tableData.length > 0 ? (
                     tableData.map((sectionData, sIdx) => {
-                      const rowCount =
-                        sectionData.products.length > 0
-                          ? sectionData.products.length
-                          : 1;
+                      const rowCount = sectionData.products.length > 0 ? sectionData.products.length : 1;
                       return (
                         <React.Fragment key={sIdx}>
                           {sectionData.products.length > 0 ? (
                             sectionData.products.map((prod, pIdx) => (
                               <tr
                                 key={pIdx}
-                                className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                                className="border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
                               >
                                 {pIdx === 0 && (
                                   <td
-                                    className="p-3 border-r border-gray-900 font-bold text-gray-700 uppercase align-top bg-gray-50/50"
+                                    className="p-3 border-r border-gray-900 dark:border-zinc-700 font-bold text-gray-700 dark:text-gray-300 uppercase align-top bg-gray-50/50 dark:bg-zinc-800/30"
                                     rowSpan={rowCount}
                                   >
                                     {sectionData.section}
@@ -557,11 +547,11 @@ export default function ProductIssueSummary() {
                                 )}
 
                                 <td
-                                  className={`p-3 border-r border-gray-900 font-medium uppercase ${getTeaColor(prod.product)}`}
+                                  className={`p-3 border-r border-gray-900 dark:border-zinc-700 font-medium uppercase ${getTeaColor(prod.product)}`}
                                 >
                                   {prod.product}
                                 </td>
-                                <td className="p-3 border-r border-gray-900 font-semibold text-center text-gray-700">
+                                <td className="p-3 border-r border-gray-900 dark:border-zinc-700 font-semibold text-center text-gray-700 dark:text-gray-300">
                                   {prod.qty % 1 !== 0
                                     ? prod.qty.toFixed(3)
                                     : prod.qty}
@@ -578,30 +568,30 @@ export default function ProductIssueSummary() {
                               </tr>
                             ))
                           ) : (
-                            <tr className="border-b border-gray-100">
-                              <td className="p-3 border-r border-gray-100 font-bold uppercase align-top bg-gray-50/50 text-gray-700">
+                            <tr className="border-b border-gray-100 dark:border-zinc-800">
+                              <td className="p-3 border-r border-gray-100 dark:border-zinc-800 font-bold uppercase align-top bg-gray-50/50 dark:bg-zinc-800/30 text-gray-700 dark:text-gray-300">
                                 {sectionData.section}
                               </td>
-                              <td className="p-3 border-r border-gray-100"></td>
-                              <td className="p-3 border-r border-gray-100"></td>
+                              <td className="p-3 border-r border-gray-100 dark:border-zinc-800"></td>
+                              <td className="p-3 border-r border-gray-100 dark:border-zinc-800"></td>
                               <td className="p-3"></td>
                             </tr>
                           )}
 
                           {/* SUB TOTAL ROW */}
-                          <tr className="border-b-2 border-gray-900 bg-gray-50 font-bold text-gray-800">
+                          <tr className="border-b-2 border-gray-900 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 font-bold text-gray-800 dark:text-gray-200">
                             <td
                               colSpan={2}
-                              className="p-3 border-r border-gray-900 italic uppercase text-right"
+                              className="p-3 border-r border-gray-900 dark:border-zinc-700 italic uppercase text-right"
                             >
                               SUB TOTAL
                             </td>
-                            <td className="p-3 border-r border-gray-900 text-center text-blue-700">
+                            <td className="p-3 border-r border-gray-900 dark:border-zinc-700 text-center text-blue-700 dark:text-blue-400">
                               {sectionData.sectionTotal % 1 !== 0
                                 ? sectionData.sectionTotal.toFixed(3)
                                 : sectionData.sectionTotal}
                             </td>
-                            <td className="p-3 text-center text-red-700">
+                            <td className="p-3 text-center text-red-700 dark:text-red-400">
                               {sectionData.sectionTotal % 1 !== 0
                                 ? sectionData.sectionTotal.toFixed(3)
                                 : sectionData.sectionTotal}
@@ -614,7 +604,7 @@ export default function ProductIssueSummary() {
                     <tr>
                       <td
                         colSpan={4}
-                        className="p-10 text-center text-gray-500 italic bg-gray-50"
+                        className="p-10 text-center text-gray-500 dark:text-gray-400 italic bg-gray-50 dark:bg-zinc-900/50"
                       >
                         No records found for the selected month.
                       </td>
@@ -623,14 +613,14 @@ export default function ProductIssueSummary() {
 
                   {/* GRAND TOTAL ROW */}
                   {tableData.length > 0 && (
-                    <tr className="bg-gray-200 font-bold text-lg text-gray-800">
+                    <tr className="bg-gray-200 dark:bg-zinc-800/80 font-bold text-lg text-gray-800 dark:text-white">
                       <td
                         colSpan={3}
-                        className="p-4 border-r border-gray-300 uppercase text-right tracking-wide"
+                        className="p-4 border-r border-gray-300 dark:border-zinc-700 uppercase text-right tracking-wide"
                       >
                         GRAND TOTAL
                       </td>
-                      <td className="p-4 text-center text-red-700">
+                      <td className="p-4 text-center text-red-700 dark:text-red-500">
                         {grandTotal % 1 !== 0
                           ? grandTotal.toFixed(2)
                           : grandTotal}
