@@ -174,10 +174,15 @@ export default function DispatchRecordsView() {
   // 💡 තෝරාගත් Dispatch Type එකට අදාළව Record හි ඇතුළත දත්ත Filter කිරීම
   const filteredRecords = records.map((record) => {
     if (filterDispatchType === "All") {
-      // 💡 "All" තෝරා ඇති විටද Local Sale සහ Dispatch එකතුව (Total Out) සෑදීම
+      // 💡 අගයන් අනිවාර්යයෙන්ම Numbers බවට හරවා එකතු කිරීම (එවිට නිවැරදිව එකතු වේ)
+      const dispatchQty = Number(record.dispatch) || 0;
+      const localSaleQty = Number(record.localSaleAndGratis) || 0;
+      
       return {
         ...record,
-        totalOut: (record.dispatch || 0) + (record.localSaleAndGratis || 0)
+        dispatch: dispatchQty,
+        localSaleAndGratis: localSaleQty,
+        totalOut: dispatchQty + localSaleQty
       };
     }
 
@@ -620,7 +625,7 @@ export default function DispatchRecordsView() {
 
                         {/* TOTAL OUT */}
                         <td className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 font-black text-gray-800 dark:text-gray-200 bg-gray-100/50 dark:bg-gray-800/50 align-top">
-                          {(record.totalOut || 0).toFixed(2)}
+                          {record.totalOut > 0 ? record.totalOut.toFixed(2) : "-"}
                         </td>
                         
                         {/* RETURN TYPES */}
