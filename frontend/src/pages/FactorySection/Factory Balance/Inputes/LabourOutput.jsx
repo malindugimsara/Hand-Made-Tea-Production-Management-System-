@@ -85,20 +85,26 @@ export default function LabourOutput() {
                     const data = await res.json();
                     const recordsArray = Array.isArray(data) ? data : (data.records || []);
 
-                    const todaysRecord = recordsArray.find(r => {
+                   const todaysRecord = recordsArray.find(r => {
                         const cleanRecordDate = r.date.includes('T') ? r.date.split('T')[0] : r.date;
                         return cleanRecordDate === recordDate;
                     });
 
-                    if (todaysRecord && todaysRecord.greenLeaf && todaysRecord.greenLeaf.today) {
-                        const selectedMonthNumber = parseInt(recordDate.split('-')[1], 10);
-                        const monthsWith21Percent = [4, 5, 6, 9, 10, 11, 12];
-                        const conversionRate = monthsWith21Percent.includes(selectedMonthNumber) ? 0.21 : 0.215;
+                    if (todaysRecord) {
+                        const savedMadeTea = todaysRecord.madeTea?.today || 0;
 
-                        const calculatedMadeTea = todaysRecord.greenLeaf.today * conversionRate;
-                        setMadeTeaToday(calculatedMadeTea);
-                    } else {
-                        setMadeTeaToday(0);
+                        if (savedMadeTea > 0) {
+                            setMadeTeaToday(savedMadeTea);
+                        } else {
+                            // Fallback: Green Leaf එකෙන් Made Tea ගණනය කිරීම
+                            const totalGL = todaysRecord.greenLeaf?.totalToday || todaysRecord.greenLeaf?.today || 0;
+                            const selectedMonthNumber = parseInt(recordDate.split('-')[1], 10);
+                            const monthsWith21Percent = [4, 5, 6, 9, 10, 11, 12];
+                            const conversionRate = monthsWith21Percent.includes(selectedMonthNumber) ? 0.21 : 0.215;
+
+                            const calculatedMadeTea = totalGL * conversionRate;
+                            setMadeTeaToday(calculatedMadeTea);
+                        }
                     }
                 }
             } catch (error) {

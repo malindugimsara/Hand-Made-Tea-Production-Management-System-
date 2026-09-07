@@ -154,11 +154,11 @@ export default function EditFactoryLog() {
 
     if (!record || !formData.date) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[70vh] text-gray-500">
+            <div className="flex flex-col items-center justify-center min-h-[70vh] text-gray-500 dark:text-gray-400">
                 <AlertTriangle size={48} className="text-orange-400 mb-4" />
-                <h2 className="text-xl font-bold text-gray-700">Data Missing</h2>
-                <p className="mt-2">Please go back to the table and click "Edit" again.</p>
-                <button onClick={() => navigate(-1)} className="mt-6 px-6 py-2.5 bg-[#1B6A31] text-white rounded-lg hover:bg-[#145325] transition-colors">
+                <h2 className="text-xl font-bold text-gray-700 dark:text-gray-200">Data Missing</h2>
+                <p className="mt-2 text-gray-500 dark:text-gray-400">Please go back to the table and click "Edit" again.</p>
+                <button onClick={() => navigate(-1)} className="mt-6 px-6 py-2.5 bg-[#1B6A31] dark:bg-teal-700 text-white rounded-lg hover:bg-[#145325] dark:hover:bg-teal-600 transition-colors">
                     Go Back
                 </button>
             </div>
@@ -166,54 +166,54 @@ export default function EditFactoryLog() {
     }
 
     return (
-        <div className="p-6 md:p-8 max-w-4xl mx-auto font-sans animate-fade-in">
+        <div className="p-6 md:p-8 max-w-4xl mx-auto font-sans animate-fade-in transition-colors duration-300">
             {/* Header & Back Button */}
             <div className="mb-8 relative flex flex-col items-center">
                 <button
                     onClick={() => navigate(-1)}
-                    className="absolute left-0 top-1 p-2 text-gray-500 hover:text-[#1B6A31] hover:bg-green-50 rounded-full transition-all"
+                    className="absolute left-0 top-1 p-2 text-gray-500 dark:text-gray-400 hover:text-[#1B6A31] dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-full transition-all"
                     title="Go Back"
                 >
                     <ArrowLeft size={24} />
                 </button>
-                <h2 className="text-3xl font-bold text-[#1B6A31]">Edit Factory Log</h2>
-                <p className="text-gray-500 mt-2">Modify existing daily production data</p>
+                <h2 className="text-3xl font-bold text-[#1B6A31] dark:text-green-400">Edit Factory Log</h2>
+                <p className="text-gray-500 dark:text-gray-400 mt-2">Modify existing daily production data</p>
             </div>
 
             {/* Info Banner */}
-            <div className="mb-6 bg-blue-50/80 border border-blue-200 text-blue-800 p-4 rounded-xl flex items-start gap-3 text-sm shadow-sm">
-                <Info size={20} className="text-blue-500 mt-0.5 flex-shrink-0" />
+            <div className="mb-6 bg-blue-50/80 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 text-blue-800 dark:text-blue-300 p-4 rounded-xl flex items-start gap-3 text-sm shadow-sm transition-colors">
+                <Info size={20} className="text-blue-500 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                 <p>
                     You are editing the record for <strong className="font-semibold">{formData.date}</strong>. The date field is locked to prevent accidentally modifying a different day's data.
                 </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
 
                 {/* DATE SECTION (Locked) */}
-                <div className="mb-8 pb-6 border-b border-gray-100">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Record Date</label>
+                <div className="mb-8 pb-6 border-b border-gray-100 dark:border-gray-700">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Record Date</label>
                     <div className="relative w-full md:w-1/2">
                         <input
                             type="date"
                             name="date"
                             value={formData.date}
                             disabled
-                            className="w-full p-3 pl-10 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg cursor-not-allowed"
+                            className="w-full p-3 pl-10 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed transition-colors"
                         />
-                        <Lock size={16} className="absolute left-3 top-3.5 text-gray-400" />
+                        <Lock size={16} className="absolute left-3 top-3.5 text-gray-400 dark:text-gray-500" />
                     </div>
                 </div>
 
                 {/* 1. GREEN LEAF & MADE TEA */}
-                <div className="mb-8 bg-[#F8FAF8] border border-[#A3D9A5] rounded-xl p-6">
-                    <h3 className="text-lg font-bold text-[#1B6A31] mb-5 flex items-center gap-2">
+                <div className="mb-8 bg-[#F8FAF8] dark:bg-green-900/10 border border-[#A3D9A5] dark:border-green-800/40 rounded-xl p-6 transition-colors">
+                    <h3 className="text-lg font-bold text-[#1B6A31] dark:text-green-400 mb-5 flex items-center gap-2">
                         <Leaf size={20} /> Green Leaf & Production
                     </h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Estate Leaf (kg)</label>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Estate Leaf (kg)</label>
                             <input
                                 type="number" 
                                 step="0.01" 
@@ -221,12 +221,12 @@ export default function EditFactoryLog() {
                                 value={formData.estateLeafToday} 
                                 onChange={handleInputChange}
                                 onWheel={(e) => e.target.blur()} 
-                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8CC63F] focus:border-[#8CC63F] transition-all bg-white"
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-500/50 focus:border-[#8CC63F] dark:focus:border-green-500 transition-all bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
                                 placeholder="0.00"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Brought Leaf (kg)</label>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Brought Leaf (kg)</label>
                             <input
                                 type="number" 
                                 step="0.01" 
@@ -234,24 +234,24 @@ export default function EditFactoryLog() {
                                 value={formData.broughtLeafToday} 
                                 onChange={handleInputChange}
                                 onWheel={(e) => e.target.blur()} 
-                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8CC63F] focus:border-[#8CC63F] transition-all bg-white"
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-500/50 focus:border-[#8CC63F] dark:focus:border-green-500 transition-all bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
                                 placeholder="0.00"
                             />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t border-gray-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700/50">
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Total Green Leaf (kg)</label>
-                            <div className="w-full p-3 border border-gray-200 bg-gray-100 text-gray-600 font-bold rounded-lg flex items-center h-[50px]">
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Total Green Leaf (kg)</label>
+                            <div className="w-full p-3 border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 font-bold rounded-lg flex items-center h-[50px] transition-colors">
                                 {totalGreenLeafToday > 0 ? totalGreenLeafToday.toFixed(2) : '0.00'} kg
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                Est. Made Tea <span className="text-[#1B6A31]">({conversionRate === 0.21 ? '21%' : '21.5%'})</span>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                Est. Made Tea <span className="text-[#1B6A31] dark:text-green-500">({conversionRate === 0.21 ? '21%' : '21.5%'})</span>
                             </label>
-                            <div className="w-full p-3 border border-[#A3D9A5] bg-white text-[#1B6A31] font-bold rounded-lg flex items-center h-[50px] shadow-sm">
+                            <div className="w-full p-3 border border-[#A3D9A5] dark:border-green-700/50 bg-white dark:bg-gray-700/50 text-[#1B6A31] dark:text-green-400 font-bold rounded-lg flex items-center h-[50px] shadow-sm transition-colors">
                                 {calculatedMadeTea > 0 ? calculatedMadeTea.toFixed(3) : '0.000'} kg
                             </div>
                         </div>
@@ -259,42 +259,42 @@ export default function EditFactoryLog() {
                 </div>
 
                 {/* 2. DISPATCH, LOCAL SALES & RETURNS (LOCKED) */}
-                <div className="mb-8 bg-gray-50 border border-gray-200 rounded-xl p-6 relative overflow-hidden">
+                <div className="mb-8 bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-xl p-6 relative overflow-hidden transition-colors">
                     
                     {/* Lock Overlay Banner */}
-                    <div className="mb-6 bg-orange-50 border border-orange-200 text-orange-800 p-3.5 rounded-lg flex items-start gap-3 text-sm shadow-sm">
-                        <Lock size={18} className="mt-0.5 flex-shrink-0 text-orange-500" />
+                    <div className="mb-6 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/50 text-orange-800 dark:text-orange-300 p-3.5 rounded-lg flex items-start gap-3 text-sm shadow-sm transition-colors">
+                        <Lock size={18} className="mt-0.5 flex-shrink-0 text-orange-500 dark:text-orange-400" />
                         <p>
                             Dispatch, Local Sales, and Returns editing is locked here. If you need to modify these records, please update them via the <strong>Dispatch Records</strong> page.
                         </p>
                     </div>
 
-                    <h3 className="text-lg font-bold text-gray-600 mb-5 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-gray-600 dark:text-gray-300 mb-5 flex items-center gap-2">
                         <Package size={20} /> Dispatch, Sales & Returns (View Only)
                     </h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-5">
                         <div>
-                            <label className="block text-sm font-semibold text-gray-500 mb-2">Total Dispatch</label>
+                            <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">Total Dispatch</label>
                             <input
                                 type="number" 
                                 value={formData.dispatch} 
                                 disabled
-                                className="w-full p-3 border border-gray-200 bg-gray-100/70 text-gray-500 rounded-lg cursor-not-allowed"
+                                className="w-full p-3 border border-gray-200 dark:border-gray-700 bg-gray-100/70 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed transition-colors"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-gray-500 mb-2">Local Sales & Gratis</label>
+                            <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">Local Sales & Gratis</label>
                             <input
                                 type="number" 
                                 value={formData.localSaleAndGratis} 
                                 disabled
-                                className="w-full p-3 border border-gray-200 bg-gray-100/70 text-gray-500 rounded-lg cursor-not-allowed"
+                                className="w-full p-3 border border-gray-200 dark:border-gray-700 bg-gray-100/70 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed transition-colors"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-gray-500 mb-2">Total Out</label>
-                            <div className="w-full p-3 border border-gray-300 bg-gray-200/70 text-gray-600 font-bold rounded-lg flex items-center h-[50px]">
+                            <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">Total Out</label>
+                            <div className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-gray-200/70 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 font-bold rounded-lg flex items-center h-[50px] transition-colors">
                                 {calculatedTotalOut > 0 ? calculatedTotalOut.toFixed(2) : '0.00'}
                             </div>
                         </div>
@@ -302,12 +302,12 @@ export default function EditFactoryLog() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
-                            <label className="block text-sm font-semibold text-gray-500 mb-2">Total Returns</label>
+                            <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">Total Returns</label>
                             <input
                                 type="number" 
                                 value={formData.returnAmount} 
                                 disabled
-                                className="w-full p-3 border border-gray-200 bg-gray-100/70 text-gray-500 rounded-lg cursor-not-allowed"
+                                className="w-full p-3 border border-gray-200 dark:border-gray-700 bg-gray-100/70 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed transition-colors"
                             />
                         </div>
                     </div>
@@ -319,7 +319,7 @@ export default function EditFactoryLog() {
                     className={`w-full h-14 text-white font-bold rounded-xl mt-4 text-lg transition-all duration-300 flex items-center justify-center gap-3 ${
                         showSpinner
                             ? 'bg-[#4A9E46] cursor-not-allowed opacity-90'
-                            : 'bg-[#1B6A31] hover:bg-[#145325] hover:-translate-y-0.5 shadow-lg hover:shadow-xl'
+                            : 'bg-[#1B6A31] hover:bg-[#145325] dark:bg-teal-700 dark:hover:bg-teal-600 hover:-translate-y-0.5 shadow-lg hover:shadow-xl'
                     }`}
                     disabled={showSpinner}
                 >
