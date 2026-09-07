@@ -84,9 +84,6 @@ export default function DailyProduction() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMonth]);
 
-  // =========================================================================
-  // 💡 ENTER KEY FOCUS LOGIC
-  // =========================================================================
   const focusNextInput = (nextId) => {
     const nextInput = document.getElementById(nextId);
     if (nextInput) {
@@ -111,7 +108,7 @@ export default function DailyProduction() {
     });
   };
 
-  const handlePdfUpload = async (e) => {
+const handlePdfUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
@@ -171,58 +168,75 @@ export default function DailyProduction() {
         });
 
         const totalLabels = allTextItems.filter(i => i.str.toLowerCase() === "total" && i.x < 150);
+        let targetTotalRowY = null;
+        let totalRowNumbers = [];
         
-        if (totalLabels.length > 0 && dateHeaders.length > 0) {
-            let targetTotalRowY = null;
-            let totalRowNumbers = [];
-
-            for (let i = totalLabels.length - 1; i >= 0; i--) {
-                const candidateY = totalLabels[i].y;
-                const numbersOnThisRow = allTextItems.filter(item => 
-                    Math.abs(item.y - candidateY) <= 6 && /^[\d,]+(\.\d{1,2})?$/.test(item.str)
-                );
-                if (numbersOnThisRow.length > 0) {
-                    targetTotalRowY = candidateY;
-                    totalRowNumbers = numbersOnThisRow;
-                    break;
-                }
+        for (let i = totalLabels.length - 1; i >= 0; i--) {
+            const candidateY = totalLabels[i].y;
+            const numbersOnThisRow = allTextItems.filter(item => 
+                Math.abs(item.y - candidateY) <= 6 && /^[\d,]+(\.\d{1,2})?$/.test(item.str)
+            );
+            if (numbersOnThisRow.length > 0) {
+                targetTotalRowY = candidateY;
+                totalRowNumbers = numbersOnThisRow;
+                break;
             }
+        }
 
-            if (targetTotalRowY !== null) {
-                const routeCandidates = allTextItems.filter(i => i.x < 250 && i.y > targetTotalRowY + 10 && !/^[\d,.\/]+$/.test(i.str) && i.str.length > 3);
-                routeCandidates.sort((a, b) => a.y - b.y); 
-                const closestRoute = routeCandidates.length > 0 ? routeCandidates[0].str.toUpperCase() : "";
-                
-                const isEstateRow = isEstateCollector || closestRoute.includes("ESTATE");
+        const estateLabels = allTextItems.filter(i => i.str.toUpperCase().includes("ESTATE TEA") && i.x < 250);
+        let targetEstateRowY = null;
+        let estateRowNumbers = [];
+        
+        for (let i = estateLabels.length - 1; i >= 0; i--) {
+            const candidateY = estateLabels[i].y;
+            const numbersOnThisRow = allTextItems.filter(item => 
+                Math.abs(item.y - candidateY) <= 6 && /^[\d,]+(\.\d{1,2})?$/.test(item.str)
+            );
+            if (numbersOnThisRow.length > 0) {
+                targetEstateRowY = candidateY;
+                estateRowNumbers = numbersOnThisRow;
+                break;
+            }
+        }
 
-                dateHeaders.forEach(dh => {
-                    let closestNum = null;
-                    let minDiff = 40; 
-                    
-                    totalRowNumbers.forEach(numItem => {
+        if (targetTotalRowY !== null && dateHeaders.length > 0) {
+            dateHeaders.forEach(dh => {
+                let closestTotalNum = null;
+                let minDiffTotal = 16; 
+                totalRowNumbers.forEach(numItem => {
+                    const diff = Math.abs(numItem.x - dh.x);
+                    if (diff < minDiffTotal) { minDiffTotal = diff; closestTotalNum = numItem; }
+                });
+
+                let closestEstateNum = null;
+                let minDiffEstate = 16; 
+                if (targetEstateRowY !== null) {
+                    estateRowNumbers.forEach(numItem => {
                         const diff = Math.abs(numItem.x - dh.x);
-                        if (diff < minDiff) {
-                            minDiff = diff;
-                            closestNum = numItem;
-                        }
+                        if (diff < minDiffEstate) { minDiffEstate = diff; closestEstateNum = numItem; }
                     });
+                }
 
-                    if (closestNum) {
-                        const val = parseFloat(closestNum.str.replace(/,/g, ''));
-                        if (!isNaN(val)) {
-                            if (!groupedDataByDate[dh.dateStr]) {
-                                groupedDataByDate[dh.dateStr] = { estate: 0, brought: 0 };
-                            }
-                            
-                            if (isEstateRow) {
-                                groupedDataByDate[dh.dateStr].estate += val;
-                            } else {
-                                groupedDataByDate[dh.dateStr].brought += val;
+                if (closestTotalNum) {
+                    const totalVal = parseFloat(closestTotalNum.str.replace(/,/g, ''));
+                    if (!isNaN(totalVal)) {
+                        if (!groupedDataByDate[dh.dateStr]) {
+                            groupedDataByDate[dh.dateStr] = { estate: 0, brought: 0, total: 0 };
+                        }
+                        
+                        groupedDataByDate[dh.dateStr].total += totalVal;
+
+                        if (isEstateCollector) {
+                            groupedDataByDate[dh.dateStr].estate += totalVal;
+                        } else if (closestEstateNum) {
+                            const estVal = parseFloat(closestEstateNum.str.replace(/,/g, ''));
+                            if (!isNaN(estVal)) {
+                                groupedDataByDate[dh.dateStr].estate += estVal;
                             }
                         }
                     }
-                });
-            }
+                }
+            });
         }
       }
 
@@ -231,18 +245,43 @@ export default function DailyProduction() {
       if (datesFound.length === 0) {
         toast.error("No valid daily totals found in the uploaded PDF(s).", { id: toastId });
       } else {
+        // 💡 විසඳුම: PDF එකේ ඇති දිනවලට අදාළ මාස මොනවාදැයි සොයා Database එකෙන් දත්ත Fetch කිරීම
+        const monthsInPdf = [...new Set(datesFound.map(d => d.substring(0, 7)))];
+        let allExistingRecords = [...records];
+        
+        for (const monthStr of monthsInPdf) {
+            if (monthStr !== selectedMonth) {
+                try {
+                    const token = localStorage.getItem('token');
+                    const res = await fetch(`${BACKEND_URL}/api/factory-logs?month=${monthStr}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        allExistingRecords = [...allExistingRecords, ...(data.records || [])];
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch data for month", monthStr);
+                }
+            }
+        }
+
         const newQueueItems = [];
         
         datesFound.forEach(dateStr => {
-            const eLeaf = groupedDataByDate[dateStr].estate || 0;
-            const bLeaf = groupedDataByDate[dateStr].brought || 0;
-            const tLeaf = eLeaf + bLeaf;
+            const data = groupedDataByDate[dateStr];
+            
+            const tLeaf = data.total; 
+            const eLeaf = data.estate; 
+            let bLeaf = tLeaf - eLeaf; 
+            if (bLeaf < 0) bLeaf = 0;
             
             const monthNum = parseInt(dateStr.split('-')[1], 10);
             const convRate = monthsWith21Percent.includes(monthNum) ? 0.21 : 0.215;
             const calcMadeTea = tLeaf * convRate;
 
-            const existingRecord = records.find(r => r.date.split('T')[0] === dateStr);
+            // 💡 ලබා ගත් සියලුම Records වලින් අදාළ දිනය සෙවීම
+            const existingRecord = allExistingRecords.find(r => r.date.split('T')[0] === dateStr);
 
             newQueueItems.push({
               date: dateStr,
@@ -250,9 +289,10 @@ export default function DailyProduction() {
               broughtLeafToday: bLeaf > 0 ? bLeaf.toFixed(2) : "",
               greenLeafToday: tLeaf.toFixed(2),
               calculatedMadeTea: calcMadeTea,
-              dispatch: existingRecord ? existingRecord.dispatch : 0,
-              localSaleAndGratis: existingRecord ? existingRecord.localSaleAndGratis : 0,
-              returnAmount: existingRecord ? existingRecord.returnAmount : 0,
+              // 💡 පරණ Dispatch දත්ත ඒ ආකාරයෙන්ම තබා ගැනීම
+              dispatch: existingRecord?.dispatch || 0,
+              localSaleAndGratis: existingRecord?.localSaleAndGratis || 0,
+              returnAmount: existingRecord?.returnAmount || 0,
               dispatches: existingRecord?.dispatches || [],
               localSales: existingRecord?.localSales || [],
               returns: existingRecord?.returns || [],
@@ -269,7 +309,7 @@ export default function DailyProduction() {
              return [...prev, ...uniqueNewItems];
         });
 
-        toast.success(`Automatically mapped Estate/Brought totals for ${datesFound.length} dates!`, { id: toastId, duration: 6000 });
+        toast.success(`Successfully mapped Estate/Brought totals for ${datesFound.length} dates!`, { id: toastId, duration: 6000 });
       }
 
     } catch (error) {
@@ -286,7 +326,7 @@ export default function DailyProduction() {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleAddToList = (e) => {
+  const handleAddToList = async (e) => {
     e.preventDefault();
     if (isViewer) {
       toast.error("Viewers cannot add records.");
@@ -299,15 +339,33 @@ export default function DailyProduction() {
       return;
     }
 
-    const existingRecord = records.find(r => r.date.split('T')[0] === formData.date);
+    let existingRecord = records.find(r => r.date.split('T')[0] === formData.date);
+
+    // 💡 Manual ඇතුළත් කිරීමකදී වුවද මාසය වෙනස් නම් පමණක් දත්ත අලුතින් ලබා ගනී
+    const reqMonth = formData.date.substring(0, 7);
+    if (reqMonth !== selectedMonth) {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${BACKEND_URL}/api/factory-logs?month=${reqMonth}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                existingRecord = (data.records || []).find(r => r.date.split('T')[0] === formData.date);
+            }
+        } catch (error) {
+            console.error("Fetch error for date", formData.date);
+        }
+    }
 
     const newRecord = {
       ...formData,
       greenLeafToday: totalGreenLeafToday.toFixed(2),
       calculatedMadeTea,
-      dispatch: existingRecord ? existingRecord.dispatch : 0,
-      localSaleAndGratis: existingRecord ? existingRecord.localSaleAndGratis : 0,
-      returnAmount: existingRecord ? existingRecord.returnAmount : 0,
+      // 💡 පරණ දත්ත සුරක්ෂිත කිරීම
+      dispatch: existingRecord?.dispatch || 0,
+      localSaleAndGratis: existingRecord?.localSaleAndGratis || 0,
+      returnAmount: existingRecord?.returnAmount || 0,
       dispatches: existingRecord?.dispatches || [],
       localSales: existingRecord?.localSales || [],
       returns: existingRecord?.returns || [],
@@ -316,10 +374,7 @@ export default function DailyProduction() {
     setPendingRecords([...pendingRecords, newRecord]);
     toast.success("Added to list!");
     
-    // Clear amounts after adding
     setFormData({ ...formData, estateLeafToday: '', broughtLeafToday: '' }); 
-    
-    // 💡 Focus back to date input for the next entry
     focusNextInput('date-input');
   };
 

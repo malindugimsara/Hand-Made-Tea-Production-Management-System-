@@ -278,13 +278,13 @@ export default function LoftLeafCount() {
     if (filteredRecords.length === 0) return null;
 
     return (
-        <div className="mt-4 mb-8 bg-white dark:bg-zinc-900/50 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800">
+        <div className="mt-4 mb-8 bg-white dark:bg-zinc-900/80 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800">
             <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
                 {icon} Pending {title} ({filteredRecords.length})
             </h4>
             <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-zinc-700">
               <table className="w-full text-sm text-left text-gray-600 dark:text-gray-400 min-w-[600px]">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-zinc-800 dark:text-gray-400">
+                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-zinc-800/80 dark:text-gray-400">
                   <tr>
                     <th scope="col" className="px-4 py-3">Route</th>
                     {sampleType === 'Factory' && (
@@ -315,7 +315,7 @@ export default function LoftLeafCount() {
                                 <td className="px-4 py-3">{data.officerName || '-'}</td>
                                 <td className="px-4 py-3 text-center">
                                     {isEditing ? (
-                                        <input type="number" name="totalLeafQty" value={data.totalLeafQty || ''} onChange={handleEditChange} className="w-20 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-1 focus:ring-teal-500" />
+                                        <input type="number" name="totalLeafQty" value={data.totalLeafQty || ''} onChange={handleEditChange} className="w-20 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white rounded text-center outline-none focus:ring-1 focus:ring-teal-500" />
                                     ) : (
                                         <span className="font-bold text-teal-600 dark:text-teal-400">{data.totalLeafQty ? `${data.totalLeafQty} Kg` : '-'}</span>
                                     )}
@@ -325,33 +325,33 @@ export default function LoftLeafCount() {
                         
                         <td className="px-4 py-3 text-center">
                             {isEditing ? (
-                                <input type="number" name="bestQty" value={data.bestQty} onChange={handleEditChange} className="w-16 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-1 focus:ring-teal-500" />
+                                <input type="number" name="bestQty" value={data.bestQty} onChange={handleEditChange} className="w-16 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white rounded text-center outline-none focus:ring-1 focus:ring-teal-500" />
                             ) : (
-                                <span className="text-green-600 font-bold">{data.bestQty}g</span>
+                                <span className="text-green-600 dark:text-green-400 font-bold">{data.bestQty}g</span>
                             )}
                         </td>
                         <td className="px-4 py-3 text-center">
                             {isEditing ? (
-                                <input type="number" name="belowBestQty" value={data.belowBestQty} onChange={handleEditChange} className="w-16 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 rounded text-center outline-none focus:ring-1 focus:ring-teal-500" />
+                                <input type="number" name="belowBestQty" value={data.belowBestQty} onChange={handleEditChange} className="w-16 p-1 border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white rounded text-center outline-none focus:ring-1 focus:ring-teal-500" />
                             ) : (
-                                <span className="text-yellow-600 font-bold">{data.belowBestQty}g</span>
+                                <span className="text-yellow-600 dark:text-yellow-500 font-bold">{data.belowBestQty}g</span>
                             )}
                         </td>
                         <td className="px-4 py-3 text-center">
-                            <span className="text-red-600 font-bold">{data.poorQty}g</span>
+                            <span className="text-red-600 dark:text-red-500 font-bold">{data.poorQty}g</span>
                         </td>
                         <td className="px-4 py-3 text-center">
                             {isEditing ? (
                                 <div className="flex items-center justify-center gap-2">
-                                    <button onClick={handleSaveEdit} className="text-green-600 hover:text-green-800 font-bold text-xs bg-green-100 px-2 py-1 rounded">Save</button>
-                                    <button onClick={handleCancelEdit} className="text-gray-600 hover:text-gray-800 font-bold text-xs bg-gray-200 px-2 py-1 rounded">Cancel</button>
+                                    <button onClick={handleSaveEdit} className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 font-bold text-xs bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded transition-colors">Save</button>
+                                    <button onClick={handleCancelEdit} className="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 font-bold text-xs bg-gray-200 dark:bg-zinc-700 px-2 py-1 rounded transition-colors">Cancel</button>
                                 </div>
                             ) : (
                                 <div className="flex items-center justify-center gap-3">
-                                    <button onClick={() => handleEditClick(item.id)} className="text-blue-500 hover:text-blue-700 transition-colors" title="Edit">
+                                    <button onClick={() => handleEditClick(item.id)} className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors" title="Edit">
                                         <Edit2 size={16} />
                                     </button>
-                                    <button onClick={() => handleRemoveFromList(item.id)} className="text-red-500 hover:text-red-700 transition-colors" title="Delete">
+                                    <button onClick={() => handleRemoveFromList(item.id)} className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors" title="Delete">
                                         <Trash2 size={16} />
                                     </button>
                                 </div>
@@ -367,7 +367,7 @@ export default function LoftLeafCount() {
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-[900px] mx-auto font-sans min-h-screen transition-colors duration-300 relative">
+    <div className="p-4 sm:p-8 max-w-[900px] mx-auto font-sans min-h-screen bg-[#f8fafc] dark:bg-zinc-950 transition-colors duration-300 relative">
       <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h2 className="text-2xl font-bold text-[#1B6A31] dark:text-green-500 flex items-center gap-2">
@@ -378,8 +378,8 @@ export default function LoftLeafCount() {
           </p>
         </div>
         <div className="text-left md:text-right">
-            <span className="text-sm font-bold text-gray-500 uppercase tracking-wider block mb-1">Today's Date</span>
-            <span className="bg-gray-100 dark:bg-zinc-800 px-4 py-2 rounded-lg font-mono font-bold text-gray-700 dark:text-gray-300">
+            <span className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">Today's Date</span>
+            <span className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 px-4 py-2 rounded-lg font-mono font-bold text-gray-700 dark:text-gray-300 shadow-sm">
                 {today}
             </span>
         </div>
@@ -393,18 +393,17 @@ export default function LoftLeafCount() {
         <div>
             <form
             onSubmit={(e) => handleAddToList(e, 'factory')}
-            className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-lg border-t-4 border-t-gray-800 border-x border-b border-gray-100 dark:border-zinc-800"
+            className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-sm border-t-4 border-t-gray-800 dark:border-t-zinc-700 border-x border-b border-gray-200 dark:border-zinc-800 transition-colors"
             >
             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-6 flex items-center gap-2 border-b border-gray-100 dark:border-zinc-800 pb-3">
                 <Factory size={20} className="text-gray-800 dark:text-gray-400" /> Factory Sample Entry
             </h3>
 
-            {/* Changed from md:grid-cols-2 to md:grid-cols-3 to accommodate the new field */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
                 {/* Route Field */}
                 <div className="relative" ref={factoryRouteDropdownRef}>
-                <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1">
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
                     <Tag size={12} /> Route
                 </label>
                 <input
@@ -415,7 +414,7 @@ export default function LoftLeafCount() {
                     onChange={(e) => handleInputChange(e, 'factory')}
                     onFocus={() => setIsFactoryRouteDropdownOpen(true)}
                     required
-                    className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-gray-800/50 outline-none transition-colors shadow-sm bg-white dark:bg-zinc-950 text-gray-900 dark:text-white"
+                    className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-gray-800/50 dark:focus:ring-zinc-600 outline-none transition-colors shadow-sm bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-white"
                 />
                 
                 <AnimatePresence>
@@ -433,7 +432,7 @@ export default function LoftLeafCount() {
                             setFactoryForm((p) => ({ ...p, route: r }));
                             setIsFactoryRouteDropdownOpen(false);
                             }}
-                            className="px-4 py-2.5 cursor-pointer text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                            className="px-4 py-2.5 cursor-pointer text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                         >
                             {r.toUpperCase()}
                         </li>
@@ -445,7 +444,7 @@ export default function LoftLeafCount() {
 
                 {/* Officer Name Field */}
                 <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1">
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
                     <User size={12} /> Selected Officer Name
                 </label>
                 <input
@@ -455,13 +454,13 @@ export default function LoftLeafCount() {
                     value={factoryForm.officerName}
                     onChange={(e) => handleInputChange(e, 'factory')}
                     required
-                    className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-gray-800/50 outline-none transition-colors shadow-sm bg-white dark:bg-zinc-950 text-gray-900 dark:text-white"
+                    className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-gray-800/50 dark:focus:ring-zinc-600 outline-none transition-colors shadow-sm bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-white"
                 />
                 </div>
 
                 {/* NEW FIELD: Total Leaf Qty */}
                 <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1">
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
                     <Weight size={12} /> Total Leaf Qty (Kg)
                 </label>
                 <input
@@ -473,31 +472,33 @@ export default function LoftLeafCount() {
                     required
                     min="0"
                     step="any"
-                    className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-gray-800/50 outline-none transition-colors shadow-sm bg-white dark:bg-zinc-950 text-gray-900 dark:text-white"
+                    className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-gray-800/50 dark:focus:ring-zinc-600 outline-none transition-colors shadow-sm bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-white"
                 />
                 </div>
 
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                <div className="p-4 bg-green-50/50 rounded-xl border border-green-100">
-                <label className="block text-xs font-bold text-green-700 mb-2">Best (g)</label>
-                <input type="number" name="bestQty" value={factoryForm.bestQty} onChange={(e) => handleInputChange(e, 'factory')} required className="w-full p-2.5 mb-3 border border-green-200 rounded-lg focus:ring-2 focus:ring-[#8CC63F] outline-none" />
-                <div className="flex items-center gap-1 bg-green-100 px-3 py-2 rounded-lg font-bold text-green-800 justify-center shadow-inner">{factoryStats.bPct}%</div>
+                <div className="p-4 bg-green-50/50 dark:bg-green-900/10 rounded-xl border border-green-100 dark:border-green-900/30 transition-colors">
+                <label className="block text-xs font-bold text-green-700 dark:text-green-500 mb-2">Best (g)</label>
+                <input type="number" name="bestQty" value={factoryForm.bestQty} onChange={(e) => handleInputChange(e, 'factory')} required className="w-full p-2.5 mb-3 border border-green-200 dark:border-green-900/50 rounded-lg focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none bg-white dark:bg-zinc-950 text-gray-900 dark:text-white transition-colors" />
+                <div className="flex items-center gap-1 bg-green-100 dark:bg-green-900/40 px-3 py-2 rounded-lg font-bold text-green-800 dark:text-green-400 justify-center shadow-inner">{factoryStats.bPct}%</div>
                 </div>
-                <div className="p-4 bg-yellow-50/50 rounded-xl border border-yellow-100">
-                <label className="block text-xs font-bold text-yellow-700 mb-2 uppercase">Below Best (g)</label>
-                <input type="number" name="belowBestQty" value={factoryForm.belowBestQty} onChange={(e) => handleInputChange(e, 'factory')} required className="w-full p-2.5 mb-3 border border-yellow-200 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none" />
-                <div className="flex items-center gap-1 bg-yellow-100 px-3 py-2 rounded-lg font-bold text-yellow-800 justify-center shadow-inner">{factoryStats.bbPct}%</div>
+                
+                <div className="p-4 bg-yellow-50/50 dark:bg-yellow-900/10 rounded-xl border border-yellow-100 dark:border-yellow-900/30 transition-colors">
+                <label className="block text-xs font-bold text-yellow-700 dark:text-yellow-500 mb-2 uppercase">Below Best (g)</label>
+                <input type="number" name="belowBestQty" value={factoryForm.belowBestQty} onChange={(e) => handleInputChange(e, 'factory')} required className="w-full p-2.5 mb-3 border border-yellow-200 dark:border-yellow-900/50 rounded-lg focus:ring-2 focus:ring-yellow-400 dark:focus:ring-yellow-600 outline-none bg-white dark:bg-zinc-950 text-gray-900 dark:text-white transition-colors" />
+                <div className="flex items-center gap-1 bg-yellow-100 dark:bg-yellow-900/40 px-3 py-2 rounded-lg font-bold text-yellow-800 dark:text-yellow-400 justify-center shadow-inner">{factoryStats.bbPct}%</div>
                 </div>
-                <div className="p-4 bg-red-50/50 rounded-xl border border-red-100">
-                <label className="block text-xs font-bold text-red-700 mb-2 uppercase">Poor Leaf (g)</label>
-                <input type="number" value={factoryStats.p} disabled className="w-full p-2.5 mb-3 border border-red-200 rounded-lg bg-gray-100 font-bold text-red-700 cursor-not-allowed" />
-                <div className="flex items-center gap-1 bg-red-100 px-3 py-2 rounded-lg font-bold text-red-800 justify-center shadow-inner">{factoryStats.pPct}%</div>
+                
+                <div className="p-4 bg-red-50/50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30 transition-colors">
+                <label className="block text-xs font-bold text-red-700 dark:text-red-500 mb-2 uppercase">Poor Leaf (g)</label>
+                <input type="number" value={factoryStats.p} disabled className="w-full p-2.5 mb-3 border border-red-200 dark:border-red-900/50 rounded-lg bg-gray-100 dark:bg-zinc-900/80 font-bold text-red-700 dark:text-red-500 cursor-not-allowed transition-colors" />
+                <div className="flex items-center gap-1 bg-red-100 dark:bg-red-900/40 px-3 py-2 rounded-lg font-bold text-red-800 dark:text-red-400 justify-center shadow-inner">{factoryStats.pPct}%</div>
                 </div>
             </div>
 
-            <button type="submit" className="mt-6 w-full py-3 rounded-xl bg-gray-800 text-white font-bold hover:bg-gray-900 transition-all shadow-md flex items-center justify-center gap-2">
+            <button type="submit" className="mt-6 w-full py-3 rounded-xl bg-gray-800 dark:bg-zinc-800 text-white font-bold hover:bg-gray-900 dark:hover:bg-zinc-700 border dark:border-zinc-700 transition-all shadow-sm flex items-center justify-center gap-2">
                 <PlusCircle size={18} /> Add Factory Sample
             </button>
             </form>
@@ -511,15 +512,15 @@ export default function LoftLeafCount() {
         <div>
             <form
             onSubmit={(e) => handleAddToList(e, 'collector')}
-            className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-lg border-t-4 border-t-teal-600 border-x border-b border-gray-100 dark:border-zinc-800 mt-8"
+            className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-2xl shadow-sm border-t-4 border-t-teal-600 border-x border-b border-gray-200 dark:border-zinc-800 mt-8 transition-colors"
             >
             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-6 flex items-center gap-2 border-b border-gray-100 dark:border-zinc-800 pb-3">
-                <Users size={20} className="text-teal-600" /> Leaf Collector's Sample Entry
+                <Users size={20} className="text-teal-600 dark:text-teal-500" /> Leaf Collector's Sample Entry
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="relative" ref={collectorRouteDropdownRef}>
-                <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1">
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase flex items-center gap-1">
                     <Tag size={12} /> Route
                 </label>
                 <input
@@ -530,7 +531,7 @@ export default function LoftLeafCount() {
                     onChange={(e) => handleInputChange(e, 'collector')}
                     onFocus={() => setIsCollectorRouteDropdownOpen(true)}
                     required
-                    className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-teal-500/50 outline-none transition-colors shadow-sm bg-white dark:bg-zinc-950 text-gray-900 dark:text-white"
+                    className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-teal-500/50 outline-none transition-colors shadow-sm bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-white"
                 />
                 <AnimatePresence>
                     {isCollectorRouteDropdownOpen && (
@@ -547,7 +548,7 @@ export default function LoftLeafCount() {
                             setCollectorForm((p) => ({ ...p, route: r }));
                             setIsCollectorRouteDropdownOpen(false);
                             }}
-                            className="px-4 py-2.5 cursor-pointer text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                            className="px-4 py-2.5 cursor-pointer text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                         >
                             {r.toUpperCase()}
                         </li>
@@ -560,24 +561,26 @@ export default function LoftLeafCount() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                <div className="p-4 bg-green-50/50 rounded-xl border border-green-100">
-                <label className="block text-xs font-bold text-green-700 mb-2">Best (g)</label>
-                <input type="number" name="bestQty" value={collectorForm.bestQty} onChange={(e) => handleInputChange(e, 'collector')} required className="w-full p-2.5 mb-3 border border-green-200 rounded-lg focus:ring-2 focus:ring-[#8CC63F] outline-none" />
-                <div className="flex items-center gap-1 bg-green-100 px-3 py-2 rounded-lg font-bold text-green-800 justify-center shadow-inner">{collectorStats.bPct}%</div>
+                <div className="p-4 bg-green-50/50 dark:bg-green-900/10 rounded-xl border border-green-100 dark:border-green-900/30 transition-colors">
+                <label className="block text-xs font-bold text-green-700 dark:text-green-500 mb-2">Best (g)</label>
+                <input type="number" name="bestQty" value={collectorForm.bestQty} onChange={(e) => handleInputChange(e, 'collector')} required className="w-full p-2.5 mb-3 border border-green-200 dark:border-green-900/50 rounded-lg focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none bg-white dark:bg-zinc-950 text-gray-900 dark:text-white transition-colors" />
+                <div className="flex items-center gap-1 bg-green-100 dark:bg-green-900/40 px-3 py-2 rounded-lg font-bold text-green-800 dark:text-green-400 justify-center shadow-inner">{collectorStats.bPct}%</div>
                 </div>
-                <div className="p-4 bg-yellow-50/50 rounded-xl border border-yellow-100">
-                <label className="block text-xs font-bold text-yellow-700 mb-2 uppercase">Below Best (g)</label>
-                <input type="number" name="belowBestQty" value={collectorForm.belowBestQty} onChange={(e) => handleInputChange(e, 'collector')} required className="w-full p-2.5 mb-3 border border-yellow-200 rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none" />
-                <div className="flex items-center gap-1 bg-yellow-100 px-3 py-2 rounded-lg font-bold text-yellow-800 justify-center shadow-inner">{collectorStats.bbPct}%</div>
+                
+                <div className="p-4 bg-yellow-50/50 dark:bg-yellow-900/10 rounded-xl border border-yellow-100 dark:border-yellow-900/30 transition-colors">
+                <label className="block text-xs font-bold text-yellow-700 dark:text-yellow-500 mb-2 uppercase">Below Best (g)</label>
+                <input type="number" name="belowBestQty" value={collectorForm.belowBestQty} onChange={(e) => handleInputChange(e, 'collector')} required className="w-full p-2.5 mb-3 border border-yellow-200 dark:border-yellow-900/50 rounded-lg focus:ring-2 focus:ring-yellow-400 dark:focus:ring-yellow-600 outline-none bg-white dark:bg-zinc-950 text-gray-900 dark:text-white transition-colors" />
+                <div className="flex items-center gap-1 bg-yellow-100 dark:bg-yellow-900/40 px-3 py-2 rounded-lg font-bold text-yellow-800 dark:text-yellow-400 justify-center shadow-inner">{collectorStats.bbPct}%</div>
                 </div>
-                <div className="p-4 bg-red-50/50 rounded-xl border border-red-100">
-                <label className="block text-xs font-bold text-red-700 mb-2 uppercase">Poor Leaf (g)</label>
-                <input type="number" value={collectorStats.p} disabled className="w-full p-2.5 mb-3 border border-red-200 rounded-lg bg-gray-100 font-bold text-red-700 cursor-not-allowed" />
-                <div className="flex items-center gap-1 bg-red-100 px-3 py-2 rounded-lg font-bold text-red-800 justify-center shadow-inner">{collectorStats.pPct}%</div>
+                
+                <div className="p-4 bg-red-50/50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30 transition-colors">
+                <label className="block text-xs font-bold text-red-700 dark:text-red-500 mb-2 uppercase">Poor Leaf (g)</label>
+                <input type="number" value={collectorStats.p} disabled className="w-full p-2.5 mb-3 border border-red-200 dark:border-red-900/50 rounded-lg bg-gray-100 dark:bg-zinc-900/80 font-bold text-red-700 dark:text-red-500 cursor-not-allowed transition-colors" />
+                <div className="flex items-center gap-1 bg-red-100 dark:bg-red-900/40 px-3 py-2 rounded-lg font-bold text-red-800 dark:text-red-400 justify-center shadow-inner">{collectorStats.pPct}%</div>
                 </div>
             </div>
 
-            <button type="submit" className="mt-6 w-full py-3 rounded-xl bg-teal-600 text-white font-bold hover:bg-teal-700 transition-all shadow-md flex items-center justify-center gap-2">
+            <button type="submit" className="mt-6 w-full py-3 rounded-xl bg-teal-600 dark:bg-teal-700 text-white font-bold hover:bg-teal-700 dark:hover:bg-teal-600 transition-all shadow-sm flex items-center justify-center gap-2">
                 <PlusCircle size={18} /> Add Collector Sample
             </button>
             </form>
@@ -588,14 +591,14 @@ export default function LoftLeafCount() {
 
       {/* Static Save All Button Container at the bottom */}
       {pendingRecords.length > 0 && (
-          <div className="mt-8 bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-lg border border-green-100 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="mt-8 bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-lg border border-green-100 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 transition-colors">
               <div className="text-gray-700 dark:text-gray-300 font-bold text-lg">
-                  Total Pending: <span className="text-[#1B6A31]">{pendingRecords.length} Records</span>
+                  Total Pending: <span className="text-[#1B6A31] dark:text-green-500">{pendingRecords.length} Records</span>
               </div>
               <button
                   onClick={handleSaveAll}
                   disabled={isSaving || isTodaySaved || editingId !== null}
-                  className="w-full sm:w-auto px-8 py-3 rounded-xl bg-[#1B6A31] hover:bg-green-800 text-white font-bold disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-md flex items-center justify-center gap-2"
+                  className="w-full sm:w-auto px-8 py-3 rounded-xl bg-[#1B6A31] hover:bg-green-800 dark:bg-green-700 dark:hover:bg-green-600 text-white font-bold disabled:bg-gray-400 dark:disabled:bg-zinc-700 dark:disabled:text-gray-500 disabled:cursor-not-allowed transition-all shadow-md flex items-center justify-center gap-2"
               >
                   <Save size={20} />
                   {isTodaySaved ? "Already Saved Today" : isSaving ? "Saving to Database..." : "Save All to Database"}

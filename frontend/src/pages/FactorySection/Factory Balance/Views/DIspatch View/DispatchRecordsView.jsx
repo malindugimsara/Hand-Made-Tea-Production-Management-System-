@@ -171,10 +171,22 @@ export default function DispatchRecordsView() {
   ).sort();
 
   // 💡 තෝරාගත් Dispatch Type එකට අදාළව Record හි ඇතුළත දත්ත Filter කිරීම
+  // 💡 තෝරාගත් Dispatch Type එකට අදාළව Record හි ඇතුළත දත්ත Filter කිරීම
   const filteredRecords = records.map((record) => {
-    if (filterDispatchType === "All") return record;
+    if (filterDispatchType === "All") {
+      // 💡 අගයන් අනිවාර්යයෙන්ම Numbers බවට හරවා එකතු කිරීම (එවිට නිවැරදිව එකතු වේ)
+      const dispatchQty = Number(record.dispatch) || 0;
+      const localSaleQty = Number(record.localSaleAndGratis) || 0;
+      
+      return {
+        ...record,
+        dispatch: dispatchQty,
+        localSaleAndGratis: localSaleQty,
+        totalOut: dispatchQty + localSaleQty
+      };
+    }
 
-    // Filter කරන විටත් Normalize කරම පරීක්ෂා කිරීම (එවිට "BOP SP" සහ "BOPSP" දෙකම හරියටම අහුවේ)
+    // Filter කරන විටත් Normalize කරම පරීක්ෂා කිරීම
     const filteredDispatches = (record.dispatches || []).filter((d) => normalizeTeaType(d.teaType) === filterDispatchType);
     const filteredLocalSales = (record.localSales || []).filter((l) => normalizeTeaType(l.teaType) === filterDispatchType);
     const filteredReturns = (record.returns || []).filter((r) => normalizeTeaType(r.teaType) === filterDispatchType);
@@ -215,7 +227,8 @@ export default function DispatchRecordsView() {
       return num.toFixed(2);
     };
 
-    const tableRows = records.map((r) => [
+    // 💡 Export එක සඳහාත් Filter වූ දත්ත (filteredRecords) භාවිතා කිරීම
+    const tableRows = filteredRecords.map((r) => [
       r.date ? r.date.split("T")[0] : "-",
       getArrayInfo(r.dispatches, 'invoiceNo'),
       getArrayInfo(r.dispatches, 'teaType'),
@@ -227,7 +240,7 @@ export default function DispatchRecordsView() {
       formatVal(r.returnAmount || 0),
     ]);
 
-    if (records.length > 0) {
+    if (filteredRecords.length > 0) {
       tableRows.push([
         "TOTAL", "-", "-",
         totalDispatch > 0 ? totalDispatch.toFixed(2) : "-",
@@ -244,7 +257,9 @@ export default function DispatchRecordsView() {
 
   const exportToExcel = () => {
     const periodText = getPeriodText();
-    const dataRows = records.map((r) => [
+    
+    // 💡 Export එක සඳහාත් Filter වූ දත්ත (filteredRecords) භාවිතා කිරීම
+    const dataRows = filteredRecords.map((r) => [
       r.date ? r.date.split("T")[0] : "-",
       getArrayInfo(r.dispatches, 'invoiceNo').replace(/\n/g, ", "),
       getArrayInfo(r.dispatches, 'teaType').replace(/\n/g, ", "),
@@ -256,7 +271,7 @@ export default function DispatchRecordsView() {
       Number((r.returnAmount || 0).toFixed(2)),
     ]);
 
-    if (records.length > 0) {
+    if (filteredRecords.length > 0) {
       dataRows.push([
         "TOTAL", "-", "-",
         Number(totalDispatch.toFixed(2)),
@@ -340,7 +355,6 @@ export default function DispatchRecordsView() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Dispatch Records");
     XLSX.writeFile(workbook, `Dispatch_Report_${periodText.replace(/ /g, "_")}.xlsx`);
   };
-
   return (
     <div className="p-6 md:p-8 max-w-[1400px] mx-auto font-sans flex flex-col min-h-screen bg-[#f3faf7] dark:bg-gray-950 transition-colors duration-300">
       
@@ -611,7 +625,7 @@ export default function DispatchRecordsView() {
 
                         {/* TOTAL OUT */}
                         <td className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 font-black text-gray-800 dark:text-gray-200 bg-gray-100/50 dark:bg-gray-800/50 align-top">
-                          {(record.totalOut || 0).toFixed(2)}
+                          {record.totalOut > 0 ? record.totalOut.toFixed(2) : "-"}
                         </td>
                         
                         {/* RETURN TYPES */}

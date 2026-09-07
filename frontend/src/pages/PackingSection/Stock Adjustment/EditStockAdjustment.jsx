@@ -122,43 +122,43 @@ export default function EditStockAdjustment() {
         }
     };
 
-    const inputStyles = "w-full p-3.5 bg-gray-50 border border-teal-200 rounded-xl font-medium text-gray-700 focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all";
+    const inputStyles = "w-full p-3.5 bg-gray-50 dark:bg-zinc-900/50 border border-teal-200 dark:border-teal-800/50 rounded-xl font-medium text-gray-700 dark:text-gray-200 focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 dark:focus:border-teal-500 outline-none transition-all";
 
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-[#f3faf7]">
-                <div className="w-10 h-10 border-4 border-teal-200 border-t-teal-700 rounded-full animate-spin"></div>
+            <div className="min-h-screen flex items-center justify-center bg-[#f3faf7] dark:bg-zinc-950 transition-colors">
+                <div className="w-10 h-10 border-4 border-teal-200 dark:border-teal-800 border-t-teal-700 dark:border-t-teal-500 rounded-full animate-spin"></div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen p-4 sm:p-6 md:p-8 font-sans" style={{ backgroundColor: THEME.pageBg }}>    
+        <div className="min-h-screen p-4 sm:p-6 md:p-8 font-sans bg-[#f3faf7] dark:bg-zinc-950 transition-colors duration-300">    
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center gap-4 mb-8">
                     <button 
                         onClick={() => navigate('/packing/stock-adjustment-view')}
-                        className="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow-sm hover:bg-gray-100 transition-colors border border-gray-200 text-[#0d5e4d]"
+                        className="w-10 h-10 flex items-center justify-center bg-white dark:bg-zinc-900 rounded-full shadow-sm hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors border border-gray-200 dark:border-zinc-800 text-[#0d5e4d] dark:text-teal-400"
                     >
                         <ArrowLeft size={20} />
                     </button>
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm border bg-white border-teal-200 text-[#0d5e4d]">
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm border bg-white dark:bg-zinc-900 border-teal-200 dark:border-teal-800 text-[#0d5e4d] dark:text-teal-400 transition-colors">
                         <Edit3 size={25} />
                     </div>
                     <div>
-                        <h2 className="text-2xl sm:text-3xl font-black text-[#0d5e4d]">Edit Adjustment</h2>
-                        <p className="font-semibold mt-1 uppercase tracking-wider text-sm text-[#0f766e]">Correct existing inventory record</p>
+                        <h2 className="text-2xl sm:text-3xl font-black text-[#0d5e4d] dark:text-teal-400">Edit Adjustment</h2>
+                        <p className="font-semibold mt-1 uppercase tracking-wider text-sm text-[#0f766e] dark:text-teal-500">Correct existing inventory record</p>
                     </div>
                 </div>
 
-                <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden p-6 md:p-8">
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden p-6 md:p-8 transition-colors">
                     <form onSubmit={handleSubmit} className="space-y-6">
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* DATE SELECTION */}
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
                                     <Calendar size={14} /> Adjustment Date
                                 </label>
                                 <input 
@@ -172,36 +172,48 @@ export default function EditStockAdjustment() {
 
                             {/* ITEM NAME (LOCKED) */}
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                                     Item Selected (Locked)
                                 </label>
-                                <div className="w-full p-3.5 bg-gray-100 border border-gray-200 rounded-xl font-bold text-gray-500 cursor-not-allowed flex justify-between items-center">
+                                <div className="w-full p-3.5 bg-gray-100 dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700 rounded-xl font-bold text-gray-500 dark:text-gray-400 cursor-not-allowed flex justify-between items-center transition-colors">
                                     <span>{selectedItem}</span>
-                                    <span className={`text-[10px] px-2 py-1 rounded uppercase ${activeTab === 'tea' ? 'bg-[#bbf7d0] text-teal-800' : 'bg-[#fed7aa] text-orange-800'}`}>
+                                    <span className={`text-[10px] px-2 py-1 rounded uppercase ${
+                                        activeTab === 'tea' 
+                                        ? 'bg-[#bbf7d0] text-teal-800 dark:bg-green-900/30 dark:text-green-400' 
+                                        : 'bg-[#fed7aa] text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
+                                    }`}>
                                         {activeTab}
                                     </span>
                                 </div>
-                                <p className="text-[10px] text-gray-400 mt-1">* Delete this record if you selected the wrong item.</p>
+                                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">* Delete this record if you selected the wrong item.</p>
                             </div>
                         </div>
 
                         {/* ACTION TYPE */}
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Adjustment Action</label>
+                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Adjustment Action</label>
                             <div className="grid grid-cols-2 gap-4">
-                                <label className={`cursor-pointer border-2 rounded-xl p-4 flex items-center gap-3 transition-all ${adjustmentType === 'add' ? 'border-[#0d5e4d] bg-[#f0fdfa]' : 'border-gray-200 bg-white hover:bg-gray-50'}`}>
+                                <label className={`cursor-pointer border-2 rounded-xl p-4 flex items-center gap-3 transition-all ${
+                                    adjustmentType === 'add' 
+                                    ? 'border-[#0d5e4d] bg-[#f0fdfa] dark:border-teal-500 dark:bg-teal-900/20' 
+                                    : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800'
+                                }`}>
                                     <input type="radio" name="action" value="add" checked={adjustmentType === 'add'} onChange={() => setAdjustmentType('add')} className="hidden" />
-                                    <ArrowDownCircle size={24} className={adjustmentType === 'add' ? 'text-[#0d5e4d]' : 'text-gray-400'} />
+                                    <ArrowDownCircle size={24} className={adjustmentType === 'add' ? 'text-[#0d5e4d] dark:text-teal-400' : 'text-gray-400 dark:text-gray-500'} />
                                     <div>
-                                        <p className={`font-bold ${adjustmentType === 'add' ? 'text-[#0d5e4d]' : 'text-gray-600'}`}>Trans In (Add)</p>
+                                        <p className={`font-bold ${adjustmentType === 'add' ? 'text-[#0d5e4d] dark:text-teal-400' : 'text-gray-600 dark:text-gray-300'}`}>Trans In (Add)</p>
                                     </div>
                                 </label>
                                 
-                                <label className={`cursor-pointer border-2 rounded-xl p-4 flex items-center gap-3 transition-all ${adjustmentType === 'remove' ? 'border-red-600 bg-red-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}>
+                                <label className={`cursor-pointer border-2 rounded-xl p-4 flex items-center gap-3 transition-all ${
+                                    adjustmentType === 'remove' 
+                                    ? 'border-red-600 bg-red-50 dark:border-red-500 dark:bg-red-900/20' 
+                                    : 'border-gray-200 bg-white hover:bg-gray-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800'
+                                }`}>
                                     <input type="radio" name="action" value="remove" checked={adjustmentType === 'remove'} onChange={() => setAdjustmentType('remove')} className="hidden" />
-                                    <ArrowUpCircle size={24} className={adjustmentType === 'remove' ? 'text-red-600' : 'text-gray-400'} />
+                                    <ArrowUpCircle size={24} className={adjustmentType === 'remove' ? 'text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-gray-500'} />
                                     <div>
-                                        <p className={`font-bold ${adjustmentType === 'remove' ? 'text-red-600' : 'text-gray-600'}`}>Issue (Remove)</p>
+                                        <p className={`font-bold ${adjustmentType === 'remove' ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-300'}`}>Issue (Remove)</p>
                                     </div>
                                 </label>
                             </div>
@@ -210,7 +222,7 @@ export default function EditStockAdjustment() {
                         {/* AMOUNT & REASON */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Adjustment Amount</label>
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Adjustment Amount</label>
                                 <input 
                                     type="number" step="0.001" min="0" 
                                     value={amount} onChange={(e) => setAmount(e.target.value)} 
@@ -219,7 +231,7 @@ export default function EditStockAdjustment() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Reason (Optional)</label>
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Reason (Optional)</label>
                                 <textarea 
                                     value={reason} 
                                     onChange={(e) => setReason(e.target.value)} 
