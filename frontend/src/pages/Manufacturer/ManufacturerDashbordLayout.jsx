@@ -145,6 +145,13 @@ const DATA = {
         },
       ],
     },
+     {
+      title: 'TC5 Report',
+      icon: Proportions,
+      items: [
+        { title: 'Enter TC5 Report', url: '/manufacturer/tc5report', nonViewer: true },
+      ],
+    },
   ],
 };
 
