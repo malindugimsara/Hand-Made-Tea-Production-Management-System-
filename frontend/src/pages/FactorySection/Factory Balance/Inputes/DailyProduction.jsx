@@ -84,9 +84,6 @@ export default function DailyProduction() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMonth]);
 
-  // =========================================================================
-  // 💡 ENTER KEY FOCUS LOGIC
-  // =========================================================================
   const focusNextInput = (nextId) => {
     const nextInput = document.getElementById(nextId);
     if (nextInput) {
@@ -170,59 +167,81 @@ export default function DailyProduction() {
           }
         });
 
+        // 💡 1. Find "Total" row coordinates
         const totalLabels = allTextItems.filter(i => i.str.toLowerCase() === "total" && i.x < 150);
+        let targetTotalRowY = null;
+        let totalRowNumbers = [];
         
-        if (totalLabels.length > 0 && dateHeaders.length > 0) {
-            let targetTotalRowY = null;
-            let totalRowNumbers = [];
-
-            for (let i = totalLabels.length - 1; i >= 0; i--) {
-                const candidateY = totalLabels[i].y;
-                const numbersOnThisRow = allTextItems.filter(item => 
-                    Math.abs(item.y - candidateY) <= 6 && /^[\d,]+(\.\d{1,2})?$/.test(item.str)
-                );
-                if (numbersOnThisRow.length > 0) {
-                    targetTotalRowY = candidateY;
-                    totalRowNumbers = numbersOnThisRow;
-                    break;
-                }
+        for (let i = totalLabels.length - 1; i >= 0; i--) {
+            const candidateY = totalLabels[i].y;
+            const numbersOnThisRow = allTextItems.filter(item => 
+                Math.abs(item.y - candidateY) <= 6 && /^[\d,]+(\.\d{1,2})?$/.test(item.str)
+            );
+            if (numbersOnThisRow.length > 0) {
+                targetTotalRowY = candidateY;
+                totalRowNumbers = numbersOnThisRow;
+                break;
             }
+        }
 
-            if (targetTotalRowY !== null) {
-                const routeCandidates = allTextItems.filter(i => i.x < 250 && i.y > targetTotalRowY + 10 && !/^[\d,.\/]+$/.test(i.str) && i.str.length > 3);
-                routeCandidates.sort((a, b) => a.y - b.y); 
-                const closestRoute = routeCandidates.length > 0 ? routeCandidates[0].str.toUpperCase() : "";
-                
-                const isEstateRow = isEstateCollector || closestRoute.includes("ESTATE");
+        // 💡 2. Find "ESTATE TEA" row coordinates (For FA.pdf)
+        const estateLabels = allTextItems.filter(i => i.str.toUpperCase().includes("ESTATE TEA") && i.x < 250);
+        let targetEstateRowY = null;
+        let estateRowNumbers = [];
+        
+        for (let i = estateLabels.length - 1; i >= 0; i--) {
+            const candidateY = estateLabels[i].y;
+            const numbersOnThisRow = allTextItems.filter(item => 
+                Math.abs(item.y - candidateY) <= 6 && /^[\d,]+(\.\d{1,2})?$/.test(item.str)
+            );
+            if (numbersOnThisRow.length > 0) {
+                targetEstateRowY = candidateY;
+                estateRowNumbers = numbersOnThisRow;
+                break;
+            }
+        }
 
-                dateHeaders.forEach(dh => {
-                    let closestNum = null;
-                    let minDiff = 40; 
-                    
-                    totalRowNumbers.forEach(numItem => {
+        // 💡 3. Map numbers to dates
+        if (targetTotalRowY !== null && dateHeaders.length > 0) {
+            dateHeaders.forEach(dh => {
+                let closestTotalNum = null;
+                // 💡 Reduced distance threshold from 40 to 16 to strictly match numbers precisely under the column
+                let minDiffTotal = 16; 
+                totalRowNumbers.forEach(numItem => {
+                    const diff = Math.abs(numItem.x - dh.x);
+                    if (diff < minDiffTotal) { minDiffTotal = diff; closestTotalNum = numItem; }
+                });
+
+                let closestEstateNum = null;
+                // 💡 Reduced distance threshold to avoid pulling blank days from neighboring columns
+                let minDiffEstate = 16; 
+                if (targetEstateRowY !== null) {
+                    estateRowNumbers.forEach(numItem => {
                         const diff = Math.abs(numItem.x - dh.x);
-                        if (diff < minDiff) {
-                            minDiff = diff;
-                            closestNum = numItem;
-                        }
+                        if (diff < minDiffEstate) { minDiffEstate = diff; closestEstateNum = numItem; }
                     });
+                }
 
-                    if (closestNum) {
-                        const val = parseFloat(closestNum.str.replace(/,/g, ''));
-                        if (!isNaN(val)) {
-                            if (!groupedDataByDate[dh.dateStr]) {
-                                groupedDataByDate[dh.dateStr] = { estate: 0, brought: 0 };
-                            }
-                            
-                            if (isEstateRow) {
-                                groupedDataByDate[dh.dateStr].estate += val;
-                            } else {
-                                groupedDataByDate[dh.dateStr].brought += val;
+                if (closestTotalNum) {
+                    const totalVal = parseFloat(closestTotalNum.str.replace(/,/g, ''));
+                    if (!isNaN(totalVal)) {
+                        if (!groupedDataByDate[dh.dateStr]) {
+                            groupedDataByDate[dh.dateStr] = { estate: 0, brought: 0, total: 0 };
+                        }
+                        
+                        groupedDataByDate[dh.dateStr].total += totalVal;
+
+                        if (isEstateCollector) {
+                            groupedDataByDate[dh.dateStr].estate += totalVal;
+                        } else if (closestEstateNum) {
+                            const estVal = parseFloat(closestEstateNum.str.replace(/,/g, ''));
+                            if (!isNaN(estVal)) {
+                                groupedDataByDate[dh.dateStr].estate += estVal;
                             }
                         }
                     }
-                });
-            }
+                }
+            });
         }
       }
 
@@ -234,9 +253,12 @@ export default function DailyProduction() {
         const newQueueItems = [];
         
         datesFound.forEach(dateStr => {
-            const eLeaf = groupedDataByDate[dateStr].estate || 0;
-            const bLeaf = groupedDataByDate[dateStr].brought || 0;
-            const tLeaf = eLeaf + bLeaf;
+            const data = groupedDataByDate[dateStr];
+            
+            const tLeaf = data.total; 
+            const eLeaf = data.estate; 
+            let bLeaf = tLeaf - eLeaf; 
+            if (bLeaf < 0) bLeaf = 0;
             
             const monthNum = parseInt(dateStr.split('-')[1], 10);
             const convRate = monthsWith21Percent.includes(monthNum) ? 0.21 : 0.215;
@@ -269,7 +291,7 @@ export default function DailyProduction() {
              return [...prev, ...uniqueNewItems];
         });
 
-        toast.success(`Automatically mapped Estate/Brought totals for ${datesFound.length} dates!`, { id: toastId, duration: 6000 });
+        toast.success(`Successfully mapped Estate/Brought totals for ${datesFound.length} dates!`, { id: toastId, duration: 6000 });
       }
 
     } catch (error) {
