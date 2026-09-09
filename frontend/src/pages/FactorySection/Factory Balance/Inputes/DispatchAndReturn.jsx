@@ -485,6 +485,8 @@ export default function DispatchAndReturn() {
       dispatches: mergedDispatches.length ? mergedDispatches : [{ invoiceNo: '', teaType: '', weight: '' }],
       localSales: mergedLocalSales.length ? mergedLocalSales : [{ teaType: '', weight: '' }],
       returns: mergedReturns.length ? mergedReturns : [{ teaType: '', amount: '' }],
+      estateLeafToday: existingRecord?.greenLeaf?.estateLeaf?.today || 0,
+      broughtLeafToday: existingRecord?.greenLeaf?.broughtLeaf?.today || 0,
       totalDispatch: newTotalDispatch,
       totalLocalSale: newTotalLocalSale,
       totalReturn: newTotalReturn,
@@ -518,6 +520,8 @@ export default function DispatchAndReturn() {
         // 💡 හිස් අගයන් සඳහා "N/A" යොදා Database Validation Errors මඟ හැරීම
         const payload = {
           date: record.date,
+          estateLeafToday: Number(record.estateLeafToday) || 0,
+          broughtLeafToday: Number(record.broughtLeafToday) || 0,
           greenLeafToday: Number(record.greenLeafToday) || 0,
           dispatch: Number(record.totalDispatch) || 0,
           localSaleAndGratis: Number(record.totalLocalSale) || 0,
