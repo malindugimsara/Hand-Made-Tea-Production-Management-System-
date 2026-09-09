@@ -761,116 +761,117 @@ export default function WeightAverage() {
 
   return (
     <div className="p-4 sm:p-8 max-w-[95vw] mx-auto font-sans relative min-h-screen transition-colors duration-300">
-      {/* HEADER CONTROLS */}
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-[#1B6A31] dark:text-green-500 flex items-center gap-2">
+      {/* --- HEADER --- */}
+      <div className="mb-5 md:mb-8 flex flex-col gap-4 sm:gap-5 bg-white dark:bg-zinc-900 p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800">
+        
+        {/* 💡 Title Part (Top) */}
+        <div className="w-full text-center sm:text-left border-b border-gray-100 dark:border-zinc-800 pb-3 sm:pb-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-[#1B6A31] dark:text-green-500 flex items-center justify-center sm:justify-start gap-2">
             <TableIcon size={24} /> Weight Average View
           </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
             Categorized Weighted Averages (Factory Samples Only - Kg)
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+        {/* 💡 Controls Part (Below Title) */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
           
-          <div className="flex bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg border border-gray-200 dark:border-zinc-700 shadow-sm w-full sm:w-auto">
+          {/* VIEW MODE TOGGLE BUTTONS */}
+          <div className="flex bg-gray-100 dark:bg-zinc-800/80 p-1 rounded-lg border border-gray-200 dark:border-zinc-700 shadow-sm w-full sm:w-auto sm:mr-auto">
             <button
               onClick={() => setViewMode("simplified")}
-              className={`flex-1 sm:flex-none flex justify-center items-center gap-2 px-4 py-2 text-sm font-bold rounded-md transition-all duration-300 ${
-                viewMode === "simplified" ? "bg-white dark:bg-zinc-900 text-[#1B6A31] dark:text-green-500 shadow" : "text-gray-500 hover:text-gray-700"
+              className={`flex-1 sm:flex-none flex justify-center items-center gap-2 px-4 py-2 text-sm font-bold rounded-md transition-colors ${
+                viewMode === "simplified" ? "bg-white dark:bg-zinc-700 text-[#1B6A31] dark:text-green-400 shadow" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               }`}
             >
               <LayoutList size={16} /> Simplified
             </button>
             <button
               onClick={() => setViewMode("detailed")}
-              className={`flex-1 sm:flex-none flex justify-center items-center gap-2 px-4 py-2 text-sm font-bold rounded-md transition-all duration-300 ${
-                viewMode === "detailed" ? "bg-white dark:bg-zinc-900 text-[#1B6A31] dark:text-green-500 shadow" : "text-gray-500 hover:text-gray-700"
+              className={`flex-1 sm:flex-none flex justify-center items-center gap-2 px-4 py-2 text-sm font-bold rounded-md transition-colors ${
+                viewMode === "detailed" ? "bg-white dark:bg-zinc-700 text-[#1B6A31] dark:text-green-400 shadow" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               }`}
             >
               <LayoutGrid size={16} /> Detailed
             </button>
           </div>
 
-          <div className="flex items-center bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg p-1 shadow-sm w-full sm:w-auto">
-            <div className="pl-3 pr-2 text-gray-400"><Calendar size={18} /></div>
+          <div className="relative flex-1 sm:flex-none w-full sm:w-auto">
+            <Calendar size={18} className="absolute left-3 top-3 text-[#1B6A31] dark:text-green-500" />
             <input
               type="month"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-transparent border-none outline-none text-sm font-bold text-gray-700 dark:text-gray-200 p-2 w-full cursor-pointer"
+              className="w-full pl-10 pr-4 py-2.5 border border-green-200 dark:border-zinc-700 rounded-lg text-sm font-bold focus:ring-2 focus:ring-[#1B6A31]/50 outline-none bg-green-50/30 dark:bg-zinc-800 text-[#1B6A31] dark:text-green-400 cursor-pointer transition-all shadow-inner"
             />
           </div>
 
-          <button
-            onClick={fetchRecords}
-            disabled={loading}
-            className={`px-4 py-2.5 bg-gray-200 text-black rounded-lg text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-all duration-300 w-full sm:w-auto ${
-              loading ? "opacity-70 cursor-not-allowed" : "hover:bg-gray-400"
-            }`}
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> 
-          </button>
+          {/* RIGHT SIDE BUTTONS */}
+          <div className="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-3 w-full sm:w-auto">
+            
+            <button
+              onClick={fetchRecords}
+              disabled={loading}
+              className={`p-2.5 flex-1 sm:flex-none flex justify-center bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-600 dark:text-gray-300 rounded-lg transition-colors shadow-sm ${
+                loading ? "opacity-70 cursor-not-allowed" : ""
+              }`}
+              title="Refresh"
+            >
+              <RefreshCw className={loading ? "animate-spin text-[#1B6A31] dark:text-green-500" : "text-[#1B6A31] dark:text-green-500"} size={18} />
+            </button>
 
-          <div className="w-full sm:w-auto">
-              <input 
-                  type="file" 
-                  accept="application/pdf" 
-                  multiple
-                  ref={fileInputRef} 
-                  onChange={handlePdfUpload} 
-                  className="hidden" 
+            <div className="flex-1 sm:flex-none">
+              <input
+                type="file"
+                accept="application/pdf"
+                multiple
+                ref={fileInputRef}
+                onChange={handlePdfUpload}
+                className="hidden"
               />
               <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploadingPdf || loading}
-                  className={`w-full sm:w-auto px-4 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-bold flex justify-center items-center gap-2 shadow-sm transition-all duration-300 ${
-                      isUploadingPdf || loading ? "opacity-70 cursor-not-allowed" : "hover:bg-purple-700"
-                  }`}
-                  title="Upload Monthly Route PDFs to map official Daily & Monthly Totals"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingPdf || loading}
+                className="w-full h-full p-2.5 px-3 sm:px-4 flex justify-center items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-bold transition-colors shadow-sm disabled:opacity-50"
+                title="Upload Monthly Route PDFs to map official Daily & Monthly Totals"
               >
-                  {isUploadingPdf ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
-                  {isUploadingPdf ? "Mapping..." : "Map PDF Totals"}
+                {isUploadingPdf ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
+                <span className="hidden sm:inline">{isUploadingPdf ? "Mapping..." : "Map PDF"}</span>
               </button>
-          </div>
+            </div>
 
-          {Object.keys(uploadedDailyTotals).length > 0 && (
-            <button
+            {Object.keys(uploadedDailyTotals).length > 0 && (
+              <button
                 onClick={handleSavePdfDataToDB}
                 disabled={isSavingPdfData || loading}
-                className={`w-full sm:w-auto px-4 py-2.5 bg-yellow-600 text-white rounded-lg text-sm font-bold flex justify-center items-center gap-2 shadow-sm transition-all duration-300 ${
-                    isSavingPdfData || loading ? "opacity-70 cursor-not-allowed" : "hover:bg-yellow-700"
-                }`}
-            >
+                className="p-2.5 px-3 sm:px-4 flex-1 sm:flex-none flex justify-center items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-bold transition-colors shadow-sm disabled:opacity-50"
+              >
                 {isSavingPdfData ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                {isSavingPdfData ? "Saving..." : "Save PDF Data to DB"}
-            </button>
-          )}
+                <span className="hidden sm:inline">{isSavingPdfData ? "Saving..." : "Save to DB"}</span>
+              </button>
+            )}
 
-          {viewMode === "simplified" && (
-            <button
-              onClick={generateSimplifiedPDF}
-              disabled={loading}
-              className={`w-full sm:w-auto px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-bold flex justify-center items-center gap-2 shadow-sm transition-all duration-300 ${
-                loading ? "opacity-70 cursor-not-allowed" : "hover:bg-green-700"
-              }`}
-            >
-              <FileDown size={16} /> Download PDF
-            </button>
-          )}
+            {viewMode === "simplified" ? (
+              <button
+                onClick={generateSimplifiedPDF}
+                disabled={loading}
+                className="p-2.5 px-3 sm:px-4 flex-1 sm:flex-none flex justify-center items-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold transition-colors shadow-sm disabled:opacity-50"
+              >
+                <FileDown size={18} /> <span className="hidden sm:inline">PDF</span>
+              </button>
+            ) : (
+              <button
+                onClick={exportToExcel}
+                disabled={loading}
+                className="p-2.5 px-3 sm:px-4 flex-1 sm:flex-none flex justify-center items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-colors shadow-sm disabled:opacity-50"
+              >
+                <FileSpreadsheet size={18} /> <span className="hidden sm:inline">Excel</span>
+              </button>
+            )}
 
-          {viewMode === "detailed" && (
-          <button
-            onClick={exportToExcel}
-            disabled={loading}
-            className={`w-full sm:w-auto px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold flex justify-center items-center gap-2 shadow-sm transition-all duration-300 ${
-              loading ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700"
-            }`}
-          >
-            <FileSpreadsheet size={16} /> Export Excel
-          </button>
-          )}
+          </div>
+
         </div>
       </div>
 

@@ -389,45 +389,80 @@ export default function SimpleAverage() {
 
   return (
     <div className="p-4 sm:p-8 max-w-[95vw] mx-auto font-sans relative min-h-screen">
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-blue-700 dark:text-blue-500 flex items-center gap-2">
+      {/* --- HEADER --- */}
+      <div className="mb-5 md:mb-8 flex flex-col gap-4 sm:gap-5 bg-white dark:bg-zinc-900 p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800">
+        
+        {/* 💡 Title Part (Top) */}
+        <div className="w-full text-center sm:text-left border-b border-gray-100 dark:border-zinc-800 pb-3 sm:pb-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-blue-700 dark:text-blue-500 flex items-center justify-center sm:justify-start gap-2">
             <TableIcon size={24} /> Sheet 2: Simple Averages
           </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
             Calculation: Sum of Daily Percentages ÷ Number of Active Days (Factory Samples Only)
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="flex bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg border border-gray-200 dark:border-zinc-700 shadow-sm">
-            <button onClick={() => setViewMode("simplified")} className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-md ${viewMode === "simplified" ? "bg-white text-blue-600 shadow" : "text-gray-500 hover:text-gray-700"}`}>
+        {/* 💡 Controls Part (Below Title) */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
+          
+          {/* VIEW MODE TOGGLE BUTTONS */}
+          <div className="flex bg-gray-100 dark:bg-zinc-800/80 p-1 rounded-lg border border-gray-200 dark:border-zinc-700 shadow-sm w-full sm:w-auto sm:mr-auto">
+            <button 
+              onClick={() => setViewMode("simplified")} 
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold rounded-md transition-colors ${viewMode === "simplified" ? "bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}
+            >
               <LayoutList size={16} /> Simplified
             </button>
-            <button onClick={() => setViewMode("detailed")} className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-md ${viewMode === "detailed" ? "bg-white text-blue-600 shadow" : "text-gray-500 hover:text-gray-700"}`}>
+            <button 
+              onClick={() => setViewMode("detailed")} 
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold rounded-md transition-colors ${viewMode === "detailed" ? "bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}
+            >
               <LayoutGrid size={16} /> Detailed
             </button>
           </div>
-
-          <div className="flex items-center bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg p-1 shadow-sm">
-            <div className="pl-3 pr-2 text-gray-400"><Calendar size={18} /></div>
-            <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="bg-transparent border-none outline-none text-sm font-bold text-gray-700 dark:text-gray-200 p-2 cursor-pointer" />
+          
+          {/* MONTH PICKER */}
+          <div className="relative flex-1 sm:flex-none w-full sm:w-auto">
+            <Calendar size={18} className="absolute left-3 top-3 text-blue-600 dark:text-blue-500" />
+            <input 
+              type="month" 
+              value={selectedMonth} 
+              onChange={(e) => setSelectedMonth(e.target.value)} 
+              className="w-full pl-10 pr-4 py-2.5 border border-blue-200 dark:border-zinc-700 rounded-lg text-sm font-bold focus:ring-2 focus:ring-blue-500/50 outline-none bg-blue-50/30 dark:bg-zinc-800 text-blue-800 dark:text-blue-400 cursor-pointer transition-all shadow-inner"
+            />
           </div>
 
-          <button onClick={fetchRecords} disabled={loading} className="px-4 py-2.5 bg-gray-200 text-black rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-gray-600 disabled:opacity-70">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> 
-          </button>
-          {viewMode === "simplified" && (
-            <button onClick={generateSimplifiedPDF} disabled={loading} className="px-4 py-2.5 bg-green-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-red-700 disabled:opacity-70">
-              <FileDown size={16} /> Download PDF
-            </button>
-          )}
+          <div className="flex gap-2 sm:gap-3 w-full sm:w-auto h-10 sm:h-auto">
+            {/* CONDITIONAL DOWNLOAD/EXPORT BUTTON */}
+            {viewMode === "simplified" ? (
+              <button 
+                onClick={generateSimplifiedPDF} 
+                disabled={loading} 
+                className="p-2.5 px-3 sm:px-4 flex-1 sm:flex-none justify-center bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-500 text-white rounded-lg transition-colors font-bold text-sm disabled:opacity-50 flex items-center gap-2 shadow-sm"
+              >
+                <FileDown size={18} /> <span className="font-bold text-xs sm:text-sm hidden sm:inline">Download PDF</span>
+              </button>
+            ) : (
+              <button 
+                onClick={exportToExcel} 
+                disabled={loading} 
+                className="p-2.5 px-3 sm:px-4 flex-1 sm:flex-none justify-center bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg transition-colors font-bold text-sm disabled:opacity-50 flex items-center gap-2 shadow-sm"
+              >
+                <FileSpreadsheet size={18} /> <span className="font-bold text-xs sm:text-sm hidden sm:inline">Export Excel</span>
+              </button>
+            )}
 
-           {viewMode === "detailed" && (
-          <button onClick={exportToExcel} disabled={loading} className="px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-blue-700 disabled:opacity-70">
-            <FileSpreadsheet size={16} /> Export Excel
-          </button>
-          )}
+            {/* REFRESH BUTTON */}
+            <button 
+              onClick={fetchRecords} 
+              disabled={loading} 
+              className={`p-2.5 flex-1 sm:flex-none flex justify-center bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-600 dark:text-gray-300 rounded-lg transition-colors shadow-sm ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+              title="Refresh Data"
+            >
+              <RefreshCw size={18} className={loading ? "animate-spin text-blue-600 dark:text-blue-500" : "text-blue-600 dark:text-blue-500"} />
+            </button>
+          </div>
+
         </div>
       </div>
 

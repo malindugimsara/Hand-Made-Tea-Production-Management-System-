@@ -301,7 +301,7 @@ const LabourOutputTable = () => {
 
                 <div className="flex flex-wrap items-center gap-2">
                     <button onClick={fetchData} disabled={isLoading} className="px-4 py-2 h-[42px] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all">
-                        <RefreshCcw size={18} className={isLoading ? "animate-spin" : ""} /> Refresh
+                        <RefreshCcw size={18} className={isLoading ? "animate-spin" : ""} /> 
                     </button>
                     <button onClick={exportToExcel} disabled={filteredGroups.length === 0} className="px-4 py-2 h-[42px] bg-white dark:bg-gray-800 text-[#1B6A31] dark:text-green-400 border border-[#1B6A31] dark:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all disabled:opacity-50">
                         <FileSpreadsheet size={18} /> Export Excel

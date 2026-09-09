@@ -640,62 +640,70 @@ const getPdfData = () => {
 
   return (
     <div className="p-4 sm:p-8 max-w-[1200px] mx-auto min-h-screen bg-slate-50 dark:bg-zinc-950 font-sans transition-colors">
-      {/* Header Bar */}
-      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800">
-        <div>
-          <h2 className="text-2xl font-bold text-green-800 dark:text-green-500 flex items-center gap-2">
-            <Award className="text-yellow-500" size={28} /> Green Leaf Monthly
-            Average Ranking
+      {/* --- HEADER --- */}
+      <div className="mb-5 md:mb-8 flex flex-col gap-4 sm:gap-5 bg-white dark:bg-zinc-900 p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800">
+        
+        {/* 💡 Title Part (Top) */}
+        <div className="w-full text-center sm:text-left border-b border-gray-100 dark:border-zinc-800 pb-3 sm:pb-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-green-800 dark:text-green-500 flex items-center justify-center sm:justify-start gap-2">
+            <Award className="text-yellow-500" size={24} /> Green Leaf Monthly Average Ranking
           </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
             Official monthly quality averages and route performance ranking
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <div className="flex items-center bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl px-3 py-2">
-            <Calendar size={18} className="text-gray-400 mr-2" />
+        {/* 💡 Controls Part (Below Title) */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 w-full">
+          
+          <div className="relative flex-1 sm:flex-none w-full sm:w-auto">
+            <Calendar size={18} className="absolute left-3 top-3 text-green-600 dark:text-green-500" />
             <input
               type="month"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-transparent border-none outline-none text-sm font-bold text-gray-700 dark:text-gray-200 cursor-pointer"
+              className="w-full pl-10 pr-4 py-2.5 border border-green-200 dark:border-zinc-700 rounded-lg text-sm font-bold focus:ring-2 focus:ring-green-500/50 outline-none bg-green-50/30 dark:bg-zinc-800 text-green-800 dark:text-green-400 cursor-pointer transition-all shadow-inner"
             />
           </div>
 
-          {/* 💡 PDF Downloader Component භාවිතා කර ඇත */}
-          <PDFDownloader
-            title={`Monthly Average Ranking`}
-            subtitle={`Reporting Month: ${selectedMonth}`}
-            headers={getPdfHeaders()}
-            uniqueCode={uniqueCode}
-            data={getPdfData()}
-            fileName={`Green_Leaf_Ranking_${selectedMonth}.pdf`}
-            orientation="portrait"
-            userName={currentUsername}
-            userRole={userRole}
-            disabled={loading || !reportData}
-            autoTableOptions={{
-              theme: "grid",
-              styles: {
-                fontSize: 14,
-                cellPadding: 3,
-                lineColor: [200, 200, 200],
-                lineWidth: 0.5,
-              },
-            }}
-          />
-          <button
-            onClick={fetchAndCalculateMonthlyData}
-            disabled={loading}
-            className="p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-200 rounded-xl transition-all"
-            title="Refresh"
-          >
-            <RefreshCw
-              size={18}
-              className={loading ? "animate-spin text-green-600" : ""}
+          <div className="flex gap-2 sm:gap-3 w-full sm:w-auto h-10 sm:h-auto">
+            {/* 💡 PDF Downloader Component */}
+            <PDFDownloader
+              title={`Monthly Average Ranking`}
+              subtitle={`Reporting Month: ${selectedMonth}`}
+              headers={getPdfHeaders()}
+              uniqueCode={uniqueCode}
+              data={getPdfData()}
+              fileName={`Green_Leaf_Ranking_${selectedMonth}.pdf`}
+              orientation="portrait"
+              userName={currentUsername}
+              userRole={userRole}
+              disabled={loading || !reportData}
+              className="p-2.5 px-3 sm:px-4 flex-1 sm:flex-none justify-center bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg transition-colors font-bold text-sm disabled:opacity-50 flex items-center gap-2 shadow-sm"
+              autoTableOptions={{
+                theme: "grid",
+                styles: {
+                  fontSize: 14,
+                  cellPadding: 3,
+                  lineColor: [200, 200, 200],
+                  lineWidth: 0.5,
+                },
+              }}
             />
-          </button>
+
+            <button
+              onClick={fetchAndCalculateMonthlyData}
+              disabled={loading}
+              className={`p-2.5 flex-1 sm:flex-none flex justify-center bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-600 dark:text-gray-300 rounded-lg transition-colors shadow-sm ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+              title="Refresh"
+            >
+              <RefreshCw
+                size={18}
+                className={loading ? "animate-spin text-green-600" : ""}
+              />
+            </button>
+          </div>
+
         </div>
       </div>
 

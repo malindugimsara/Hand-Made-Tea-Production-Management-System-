@@ -295,7 +295,7 @@ export default function ViewTransInRecords() {
             </div>
             
             {/* --- MAIN GRID LAYOUT --- */}
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 gap-6">
                 
                 {/* LEFT: MAIN TABLE (Col Span 3) - Rowspan එක පාවිච්චි කරලා "එක පෙළියට" හදලා තියෙනවා */}
                 <div className="xl:col-span-3 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-700 overflow-hidden self-start w-full transition-colors duration-300">
@@ -393,50 +393,6 @@ export default function ViewTransInRecords() {
                             </table>
                         </div>
                     )}
-                </div>
-
-                {/* RIGHT: SUMMARY TABLE (Col Span 1) - ඔයා දුන්න පින්තූරේ විදිහට හරියටම Design කරලා තියෙන්නේ */}
-                <div className="xl:col-span-1">
-                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-700 overflow-hidden sticky top-8">
-                        <div className="bg-gray-100 dark:bg-zinc-800 px-4 py-3 border-b border-gray-200 dark:border-zinc-600">
-                            <h3 className="font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                                <Weight size={18} className="text-[#0d9488]" /> Total Received Summary
-                            </h3>
-                        </div>
-                        {/* padding අයින් කරලා තියෙන්නේ කොටුව සම්පූර්ණයෙන්ම පාට වෙන්න */}
-                        <div className="p-0 overflow-x-auto">
-                            <table className="w-full text-sm border-collapse">
-                                <tbody className="divide-y divide-gray-100 dark:divide-zinc-700">
-                                    {summaryArray.length > 0 ? (
-                                        summaryArray.map(([prodName, qty], idx) => (
-                                            // Zebra striping එකත් දාලා තියෙනවා (even:bg-[#f8fafc])
-                                            <tr key={idx} className="bg-white even:bg-[#f8fafc] dark:bg-zinc-900 dark:even:bg-zinc-800/80 transition-colors">
-                                                
-                                                {/* Cell එක සම්පූර්ණයෙන්ම පාට කරන්න getSafeBgColor පාවිච්චි කලා */}
-                                                <td className={`px-4 py-3 font-bold border-r border-gray-100 dark:border-zinc-800 w-2/3 ${getSafeBgColor(prodName)}`}>
-                                                    {prodName}
-                                                </td>
-                                                
-                                                {/* අංක ටික මැදට (text-center) එන්න හදලා තියෙනවා */}
-                                                <td className="px-4 py-3 text-center font-bold text-slate-700 dark:text-gray-200 w-1/3">
-                                                    {qty % 1 !== 0 ? qty.toFixed(2) : qty}
-                                                </td>
-                                                
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr><td colSpan="2" className="px-4 py-6 text-center text-gray-400 dark:text-gray-500">No data</td></tr>
-                                    )}
-                                </tbody>
-                                <tfoot>
-                                    <tr className="bg-[#f0fdfa] dark:bg-teal-950/30 font-bold text-gray-900 dark:text-gray-100 border-t-2 border-[#0f766e] dark:border-teal-600">
-                                        <td className="px-4 py-3 uppercase border-r border-gray-200 dark:border-teal-800 text-[#0f766e] dark:text-teal-400 text-right">TOTAL</td>
-                                        <td className="px-4 py-3 text-center text-[#0f766e] dark:text-teal-400">{grandTotalReceivedQty % 1 !== 0 ? grandTotalReceivedQty.toFixed(2) : grandTotalReceivedQty}</td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    </div>
                 </div>
 
             </div>

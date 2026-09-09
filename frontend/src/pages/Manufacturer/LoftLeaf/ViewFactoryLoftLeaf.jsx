@@ -545,9 +545,11 @@ export default function ViewLoftLeafCount() {
     <div className="p-3 sm:p-5 md:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
 
       {/* --- HEADER SECTION --- */}
-      <div className="mb-5 md:mb-8 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white dark:bg-zinc-900 p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800">
-        <div className="w-full xl:w-auto text-center xl:text-left">
-          <h2 className="text-xl sm:text-2xl font-bold text-[#3f6212] dark:text-lime-500 flex items-center justify-center xl:justify-start gap-2">
+      <div className="mb-5 md:mb-8 flex flex-col gap-4 sm:gap-5 bg-white dark:bg-zinc-900 p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800">
+        
+        {/* 💡 Title Part (Top) */}
+        <div className="w-full text-center sm:text-left border-b border-gray-100 dark:border-zinc-800 pb-3 sm:pb-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-[#3f6212] dark:text-lime-500 flex items-center justify-center sm:justify-start gap-2">
             <FileSpreadsheet size={24} className="text-[#65a30d]" /> {t.title}
           </h2>
           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -555,19 +557,20 @@ export default function ViewLoftLeafCount() {
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
+        {/* 💡 Controls Part (Below Title) */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
 
-          {/* 💡 LANGUAGE TOGGLE BUTTON */}
+          {/* LANGUAGE TOGGLE BUTTON */}
           <button
             onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')}
-            className="p-2.5 px-4 justify-center bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800/50 rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center gap-2 w-full sm:w-auto"
+            className="p-2.5 px-4 justify-center bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800/50 rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center gap-2 w-full sm:w-auto sm:mr-auto"
             title="Toggle Language"
           >
             <Languages size={18} />
             {lang === 'EN' ? "සිංහල" : "English"}
           </button>
 
-          <div className="relative flex-1 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-none w-full sm:w-auto">
             <Calendar size={18} className="absolute left-3 top-3 text-[#65a30d]" />
             <input 
               type="date" 
@@ -587,7 +590,7 @@ export default function ViewLoftLeafCount() {
               <FileDown size={18} /> <span className="font-bold text-xs sm:text-sm hidden sm:inline">PDF</span>
             </button>
 
-            {/* 💡 WhatsApp Share Dropdown Button */}
+            {/* WhatsApp Share Dropdown Button */}
             <div className="relative flex-1 sm:flex-none" ref={waMenuRef}>
               <button
                 onClick={() => setIsWaMenuOpen(!isWaMenuOpen)}
@@ -617,8 +620,8 @@ export default function ViewLoftLeafCount() {
             >
               <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
             </button>
-
           </div>
+          
         </div>
       </div>
 

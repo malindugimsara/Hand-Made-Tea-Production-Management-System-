@@ -45,14 +45,13 @@ export default function DailyProduction() {
   const userRole = localStorage.getItem('userRole') || '';
   const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
 
-  // --- NEW CALCULATION LOGIC ---
+  // --- CALCULATION LOGIC ---
   const selectedMonthNumber = parseInt(formData.date.split('-')[1], 10);
   const monthsWith21Percent = [4, 5, 6, 9, 10, 11, 12];
   const conversionRate = monthsWith21Percent.includes(selectedMonthNumber) ? 0.21 : 0.215;
   
   const totalGreenLeafToday = (Number(formData.estateLeafToday) || 0) + (Number(formData.broughtLeafToday) || 0);
   const calculatedMadeTea = totalGreenLeafToday * conversionRate;
-  // -----------------------------
 
   useEffect(() => {
     if (isDarkMode) {
@@ -91,8 +90,14 @@ export default function DailyProduction() {
     }
   };
 
+  // 💡 MISSING FUNCTION ADDED HERE
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
+
   // =========================================================================
-  // 💡 PDF AUTO-PARSING AND ESTATE/BROUGHT LEAF CLASSIFICATION
+  // 💡 PDF AUTO-PARSING AND EXTRACTION LOGIC (Secured Data Merge)
   // =========================================================================
   const loadPdfJs = async () => {
     if (window.pdfjsLib) return window.pdfjsLib;
@@ -108,7 +113,7 @@ export default function DailyProduction() {
     });
   };
 
-const handlePdfUpload = async (e) => {
+  const handlePdfUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
@@ -245,7 +250,6 @@ const handlePdfUpload = async (e) => {
       if (datesFound.length === 0) {
         toast.error("No valid daily totals found in the uploaded PDF(s).", { id: toastId });
       } else {
-        // 💡 විසඳුම: PDF එකේ ඇති දිනවලට අදාළ මාස මොනවාදැයි සොයා Database එකෙන් දත්ත Fetch කිරීම
         const monthsInPdf = [...new Set(datesFound.map(d => d.substring(0, 7)))];
         let allExistingRecords = [...records];
         
@@ -270,26 +274,33 @@ const handlePdfUpload = async (e) => {
         
         datesFound.forEach(dateStr => {
             const data = groupedDataByDate[dateStr];
+            const existingRecord = allExistingRecords.find(r => r.date.split('T')[0] === dateStr);
             
-            const tLeaf = data.total; 
-            const eLeaf = data.estate; 
-            let bLeaf = tLeaf - eLeaf; 
-            if (bLeaf < 0) bLeaf = 0;
-            
+            // 💡 පරණ Database එකේ ඇති අගයන් ලබාගැනීම
+            const dbEstate = existingRecord?.greenLeaf?.estateLeaf?.today || 0;
+            const dbBrought = existingRecord?.greenLeaf?.broughtLeaf?.today || 0;
+
+            const pdfTotal = data.total || 0;
+            let pdfEstate = data.estate || 0;
+            let pdfBrought = pdfTotal > 0 ? pdfTotal - pdfEstate : 0;
+            if (pdfBrought < 0) pdfBrought = 0;
+
+            // 💡 PDF එකෙන් අගයන් කියවීමට නොහැකි වුවහොත් පරණ අගයන්ම නැවත ලබාදීම (No data loss)
+            const finalEstate = pdfEstate > 0 ? pdfEstate : dbEstate;
+            const finalBrought = pdfBrought > 0 ? pdfBrought : dbBrought;
+            const finalTotal = finalEstate + finalBrought;
+
             const monthNum = parseInt(dateStr.split('-')[1], 10);
             const convRate = monthsWith21Percent.includes(monthNum) ? 0.21 : 0.215;
-            const calcMadeTea = tLeaf * convRate;
-
-            // 💡 ලබා ගත් සියලුම Records වලින් අදාළ දිනය සෙවීම
-            const existingRecord = allExistingRecords.find(r => r.date.split('T')[0] === dateStr);
+            const calcMadeTea = finalTotal * convRate;
 
             newQueueItems.push({
               date: dateStr,
-              estateLeafToday: eLeaf > 0 ? eLeaf.toFixed(2) : "",
-              broughtLeafToday: bLeaf > 0 ? bLeaf.toFixed(2) : "",
-              greenLeafToday: tLeaf.toFixed(2),
+              estateLeafToday: finalEstate,
+              broughtLeafToday: finalBrought,
+              greenLeafToday: finalTotal.toFixed(2),
               calculatedMadeTea: calcMadeTea,
-              // 💡 පරණ Dispatch දත්ත ඒ ආකාරයෙන්ම තබා ගැනීම
+              // පරණ Dispatch දත්ත සුරක්ෂිත කිරීම
               dispatch: existingRecord?.dispatch || 0,
               localSaleAndGratis: existingRecord?.localSaleAndGratis || 0,
               returnAmount: existingRecord?.returnAmount || 0,
@@ -321,11 +332,9 @@ const handlePdfUpload = async (e) => {
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
+  // =========================================================================
+  // 💡 FORM SUBMIT LOGIC (Secured Data Merge)
+  // =========================================================================
   const handleAddToList = async (e) => {
     e.preventDefault();
     if (isViewer) {
@@ -341,7 +350,7 @@ const handlePdfUpload = async (e) => {
 
     let existingRecord = records.find(r => r.date.split('T')[0] === formData.date);
 
-    // 💡 Manual ඇතුළත් කිරීමකදී වුවද මාසය වෙනස් නම් පමණක් දත්ත අලුතින් ලබා ගනී
+    // වෙනත් මාසයක දත්ත නම් Database එකෙන් ලබා ගනී
     const reqMonth = formData.date.substring(0, 7);
     if (reqMonth !== selectedMonth) {
         try {
@@ -358,11 +367,22 @@ const handlePdfUpload = async (e) => {
         }
     }
 
+    // 💡 හිස්ව (Blank) යැව්වොත් Database එකේ දැනටමත් ඇති අගයන් යොදාගනී
+    const dbEstate = existingRecord?.greenLeaf?.estateLeaf?.today || 0;
+    const dbBrought = existingRecord?.greenLeaf?.broughtLeaf?.today || 0;
+
+    const finalEstate = formData.estateLeafToday !== '' ? Number(formData.estateLeafToday) : dbEstate;
+    const finalBrought = formData.broughtLeafToday !== '' ? Number(formData.broughtLeafToday) : dbBrought;
+    const finalTotalGL = finalEstate + finalBrought;
+    const calcMadeTea = finalTotalGL * conversionRate;
+
     const newRecord = {
-      ...formData,
-      greenLeafToday: totalGreenLeafToday.toFixed(2),
-      calculatedMadeTea,
-      // 💡 පරණ දත්ත සුරක්ෂිත කිරීම
+      date: formData.date,
+      estateLeafToday: finalEstate,
+      broughtLeafToday: finalBrought,
+      greenLeafToday: finalTotalGL.toFixed(2),
+      calculatedMadeTea: calcMadeTea,
+      // පරණ Dispatch දත්ත සුරක්ෂිත කිරීම
       dispatch: existingRecord?.dispatch || 0,
       localSaleAndGratis: existingRecord?.localSaleAndGratis || 0,
       returnAmount: existingRecord?.returnAmount || 0,
@@ -372,7 +392,7 @@ const handlePdfUpload = async (e) => {
     };
 
     setPendingRecords([...pendingRecords, newRecord]);
-    toast.success("Added to list!");
+    toast.success("Added to list securely without losing old data!");
     
     setFormData({ ...formData, estateLeafToday: '', broughtLeafToday: '' }); 
     focusNextInput('date-input');
@@ -394,6 +414,7 @@ const handlePdfUpload = async (e) => {
       for (const record of pendingRecords) {
         const payload = {
           date: record.date,
+          // 💡 සම්පූර්ණයෙන්ම සකස් කළ අගයන් යැවීම
           estateLeafToday: Number(record.estateLeafToday) || 0,
           broughtLeafToday: Number(record.broughtLeafToday) || 0,
           greenLeafToday: Number(record.greenLeafToday) || 0,
