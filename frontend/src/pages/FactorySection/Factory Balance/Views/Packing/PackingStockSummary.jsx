@@ -258,7 +258,7 @@ export default function PackingStockView() {
             disabled={loading}
             className="px-4 py-2 h-[42px] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all"
           >
-            <RefreshCcw size={18} className={loading ? "animate-spin" : ""} /> Refresh
+            <RefreshCcw size={18} className={loading ? "animate-spin" : ""} /> 
           </button>
 
           <button

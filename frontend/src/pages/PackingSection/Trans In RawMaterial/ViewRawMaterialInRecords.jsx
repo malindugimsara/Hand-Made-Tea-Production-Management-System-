@@ -398,7 +398,7 @@ export default function ViewRawMaterialInRecords() {
             </div>
             
             {/* --- MAIN GRID LAYOUT --- */}
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 gap-6">
                 
                 {/* LEFT: MAIN TABLE (Col Span 3) */}
                 <div className="xl:col-span-3 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden self-start w-full transition-colors duration-300">
@@ -414,7 +414,7 @@ export default function ViewRawMaterialInRecords() {
                                     <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-500">
                                         <th className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-500 align-bottom min-w-[120px]"><Calendar size={14} className="inline mr-1"/> Date</th>
                                         <th className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-500 align-bottom"><FileText size={14} className="inline mr-1"/> Invoice Info</th>
-                                        <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 align-bottom min-w-[160px]"><Box size={14} className="inline mr-1"/> Material Name</th>
+                                        <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 align-bottom "><Box size={14} className="inline mr-1"/> Material Name</th>
                                         <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 text-center"><Layers size={14} className="inline mr-1"/> Category</th>
                                         <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 text-center"><Hash size={14} className="inline mr-1"/> Quantity</th>
                                         <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 text-center">Unit</th>
@@ -535,53 +535,6 @@ export default function ViewRawMaterialInRecords() {
                         </div>
                     )}
                 </div>
-
-                {/* RIGHT: SUMMARY TABLE (Col Span 1) */}
-                <div className="xl:col-span-1 w-full">
-                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden sticky top-8">
-                        <div className="bg-gray-100 dark:bg-zinc-800 px-4 py-3 border-b border-gray-200 dark:border-zinc-600">
-                            <h3 className="font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                                <Layers size={18} className="text-[#0d9488] dark:text-teal-400" /> Filtered Summary
-                            </h3>
-                            <p className="text-[10px] text-gray-500 mt-1 uppercase">Totals by Material & Category</p>
-                        </div>
-                        <div className="p-4 overflow-y-auto max-h-[70vh] custom-scrollbar">
-                            <table className="w-full text-sm border border-gray-300 dark:border-zinc-700 border-collapse min-w-full">
-                                <thead>
-                                    <tr className="bg-gray-200 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-500">
-                                        <th className="px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-500">Material/Category</th>
-                                        <th className="px-3 py-2 text-right font-bold text-[#0f766e] dark:text-teal-400">Total Qty</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {summaryArray.length > 0 ? (
-                                        summaryArray.map((item, idx) => (
-                                            <tr key={idx} className="border-b border-gray-300 dark:border-zinc-500">
-                                                <td className={`px-3 py-2 font-semibold border-r border-gray-300 dark:border-zinc-500 ${getMaterialColor(item.materialName)}`}>
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="flex items-center gap-1.5">
-                                                            {item.category === 'flavor' ? <Leaf size={12} className="text-emerald-600"/> : <Box size={12} className="text-blue-600"/>}
-                                                            {item.materialName}
-                                                        </span>
-                                                        <span className={`text-[8px] uppercase font-bold px-1.5 py-0.5 rounded w-max ${item.category === 'spicy' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-                                                            {item.category}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-3 py-2 text-right font-medium text-[#0f766e] dark:text-teal-400 bg-[#f0fdfa]/50 dark:bg-teal-900/10 align-top">
-                                                    {item.qty > 0 ? (item.qty % 1 !== 0 ? item.qty.toFixed(2) : item.qty) : '-'} <span className="text-[10px] text-gray-500 ml-0.5">{item.unit}</span>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr><td colSpan="2" className="px-3 py-6 text-center text-gray-400">No data</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
             </div>
         </div>
     );

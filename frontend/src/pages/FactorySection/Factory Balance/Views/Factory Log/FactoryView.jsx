@@ -439,7 +439,7 @@ export default function FactoryView() {
             Factory Logs View
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Master overview of Green Leaf, Production & Dispatch records with Factory Balance calculations.
+            Detailed view of Green Leaf, Production & Dispatch records with Factory Balance.
           </p>
         </div>
 
@@ -450,7 +450,6 @@ export default function FactoryView() {
             className="px-4 py-2 h-[42px] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all"
           >
             <RefreshCcw size={18} className={loading ? "animate-spin" : ""} />{" "}
-            Refresh
           </button>
 
           <button
