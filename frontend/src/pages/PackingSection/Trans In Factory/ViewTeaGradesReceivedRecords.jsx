@@ -344,7 +344,7 @@ export default function ViewTeaGradesReceivedRecords() {
             </div>
             
             {/* --- MAIN CONTENT AREA --- */}
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 gap-6">
                 
                 {/* LEFT: TABLE AREA (Col Span 3) */}
                 <div className="xl:col-span-3 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden self-start w-full transition-colors duration-300">
@@ -443,49 +443,6 @@ export default function ViewTeaGradesReceivedRecords() {
 
                         </div>
                     )}
-                </div>
-
-                {/* RIGHT: SUMMARY TABLE (Col Span 1) */}
-                <div className="xl:col-span-1 w-full">
-                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden sticky top-8">
-                        <div className="bg-gray-100 dark:bg-zinc-800 px-4 py-3 border-b border-gray-200 dark:border-zinc-600">
-                            <h3 className="font-bold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                                <Weight size={18} className="text-[#0d9488] dark:text-teal-500" /> Summary By Grade
-                            </h3>
-                        </div>
-                        <div className="p-4 overflow-x-auto">
-                            <table className="w-full text-sm border border-gray-300 dark:border-zinc-700 border-collapse min-w-full">
-                                <thead>
-                                    <tr className="bg-gray-200 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-500">
-                                        <th className="px-3 py-2 text-left font-bold border-r border-gray-300 dark:border-zinc-500">Grade</th>
-                                        <th className="px-3 py-2 text-right font-bold">Total (Kg)</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {summaryArray.length > 0 ? (
-                                        summaryArray.map(([gradeName, qty], idx) => (
-                                            <tr key={idx} className="border-b border-gray-300 dark:border-zinc-500">
-                                                <td className={`px-3 py-2 font-semibold border-r border-gray-300 dark:border-zinc-500 ${getTeaColor(gradeName)}`}>
-                                                    {gradeName}
-                                                </td>
-                                                <td className="px-3 py-2 text-right font-medium text-gray-700 dark:text-gray-300">
-                                                    {qty % 1 !== 0 ? qty.toFixed(2) : qty}
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr><td colSpan="2" className="px-3 py-6 text-center text-gray-400">No data</td></tr>
-                                    )}
-                                </tbody>
-                                <tfoot>
-                                    <tr className="bg-gray-200 dark:bg-zinc-800 font-bold text-gray-900 dark:text-gray-100 border-t-2 border-gray-400 dark:border-zinc-500">
-                                        <td className="px-3 py-2 uppercase border-r border-gray-300 dark:border-zinc-500">TOTAL</td>
-                                        <td className="px-3 py-2 text-right">{grandTotalQty % 1 !== 0 ? grandTotalQty.toFixed(2) : grandTotalQty}</td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

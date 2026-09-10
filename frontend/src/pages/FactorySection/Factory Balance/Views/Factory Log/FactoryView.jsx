@@ -173,7 +173,7 @@ export default function FactoryView() {
   const totalMadeTea = records.reduce((sum, r) => sum + (r.madeTea?.today || 0), 0);
   const totalDispatch = records.reduce((sum, r) => sum + (r.dispatch || 0), 0);
   const totalLocalSale = records.reduce((sum, r) => sum + (r.localSaleAndGratis || 0), 0);
-
+  const totalOutPeriod = totalDispatch + totalLocalSale;
   const dispatchOutTurn = totalMadeTea > 0 ? ((totalDispatch / totalMadeTea) * 100).toFixed(2) : "0.00";
   const localSalePercentage = totalMadeTea > 0 ? ((totalLocalSale / totalMadeTea) * 100).toFixed(2) : "0.00";
 
@@ -439,7 +439,7 @@ export default function FactoryView() {
             Factory Logs View
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Master overview of Green Leaf, Production & Dispatch records with Factory Balance calculations.
+            Detailed view of Green Leaf, Production & Dispatch records with Factory Balance.
           </p>
         </div>
 
@@ -450,7 +450,6 @@ export default function FactoryView() {
             className="px-4 py-2 h-[42px] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all"
           >
             <RefreshCcw size={18} className={loading ? "animate-spin" : ""} />{" "}
-            Refresh
           </button>
 
           <button
@@ -940,12 +939,12 @@ export default function FactoryView() {
 
                     <tr className="bg-orange-50 dark:bg-orange-900/20 font-bold border-t-2 border-orange-200 dark:border-orange-800/50">
                       <td colSpan="7" className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 text-right text-orange-800 dark:text-orange-400 uppercase tracking-wider">
-                        Total Dispatch For Period:
+                        Total Outgoing For Period:
                       </td>
-                      <td className="px-3 py-4 border-r border-gray-300 dark:border-gray-700 text-orange-700 dark:text-orange-300 text-lg bg-orange-100 dark:bg-orange-900/40">
-                        {totalDispatch > 0 ? totalDispatch.toFixed(2) : "-"}
+                      <td className="px-3 py-4 border-r border-gray-300 dark:border-gray-700 text-orange-700 dark:text-orange-300 text-lg bg-orange-100 dark:bg-orange-900/40 font-black">
+                        {totalOutPeriod > 0 ? totalOutPeriod.toFixed(2) : "-"}
                       </td>
-                      <td colSpan="5" className="px-3 py-4 bg-gray-50 dark:bg-gray-800/50"></td>
+                      <td colSpan="3" className="px-3 py-4 bg-gray-50 dark:bg-gray-800/50"></td>
                     </tr>
 
                   </>

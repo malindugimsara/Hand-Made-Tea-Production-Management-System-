@@ -148,13 +148,14 @@ export default function EditDispatchLog() {
     const totalLocalSale = formData.localSales.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
     const calculatedTotalOut = totalDispatch + totalLocalSale;
 
-    const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
         e.preventDefault();
         setShowSpinner(true);
         const toastId = toast.loading('Updating dispatch records...');
 
         try {
             const loggedInUser = localStorage.getItem('username') || 'System User';
+            const token = localStorage.getItem('token'); // 💡 Token එක ලබා ගැනීම
 
             const payload = {
                 date: formData.date,
@@ -173,7 +174,10 @@ export default function EditDispatchLog() {
 
             const response = await fetch(`${BACKEND_URL}/api/factory-logs`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // 💡 Headers වලට Token එක එකතු කිරීම
+                },
                 body: JSON.stringify(payload)
             });
 

@@ -245,7 +245,6 @@ export default function DispatchAndReturn() {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    // Validate that all selected files are PDFs
     for (const file of files) {
       if (file.type !== 'application/pdf') {
         toast.error(`"${file.name}" is not a valid PDF file.`);
@@ -258,8 +257,13 @@ export default function DispatchAndReturn() {
 
     try {
       const pdfjs = await loadPdfJs();
-      const groupedDataByDate = {}; // 💡 දින අනුව දත්ත වෙන් කිරීමට
+      const groupedDataByDate = {}; 
       let totalExtractedInvoices = 0;
+      let duplicateCount = 0; 
+
+      const existingPendingInvoices = pendingRecords.flatMap(r => r.dispatches.map(d => d.invoiceNo?.trim()).filter(Boolean));
+      const existingDbInvoices = records.flatMap(r => (r.dispatches || []).map(d => d.invoiceNo?.trim()).filter(inv => inv && inv !== 'N/A'));
+      const allExistingInvoices = new Set([...existingPendingInvoices, ...existingDbInvoices]);
 
       for (const file of files) {
         const arrayBuffer = await file.arrayBuffer();
@@ -280,7 +284,6 @@ export default function DispatchAndReturn() {
             const x = item.transform[4];
             const y = Math.round(item.transform[5]);
 
-            // 💡 PDF එකේ ඇති දිනය හඳුනා ගැනීම (Lowest Y)
             const dateMatch = text.match(/\b(\d{2})[\/\-](\d{2})[\/\-](\d{4})\b/);
             if (dateMatch) {
                 if (y < lowestY) {
@@ -325,16 +328,20 @@ export default function DispatchAndReturn() {
             }
 
             if (invoiceNo && (weight || teaType)) {
-              currentFileDispatches.push({
-                invoiceNo: invoiceNo,
-                teaType: teaType,
-                weight: weight ? String(Number(weight.replace(/,/g, '')) || weight) : ''
-              });
+              if (allExistingInvoices.has(invoiceNo)) {
+                duplicateCount++;
+              } else {
+                currentFileDispatches.push({
+                  invoiceNo: invoiceNo,
+                  teaType: teaType,
+                  weight: weight ? String(Number(weight.replace(/,/g, '')) || weight) : ''
+                });
+                allExistingInvoices.add(invoiceNo); 
+              }
             }
           }
         }
 
-        // 💡 File එකට දිනයක් හමු නොවුණොත් Form එකේ දැනට ඇති දිනය යොදා ගනී
         const finalDate = fileDate || formData.date;
 
         if (currentFileDispatches.length > 0) {
@@ -348,35 +355,44 @@ export default function DispatchAndReturn() {
 
       const datesFound = Object.keys(groupedDataByDate);
 
-      if (datesFound.length === 0) {
+      if (datesFound.length === 0 && duplicateCount > 0) {
+        toast.error(`Found ${duplicateCount} duplicate invoice(s), but no new records to add.`, { id: toastId });
+      } else if (datesFound.length === 0) {
         toast.error("No valid dispatch invoice rows found in the uploaded PDF(s).", { id: toastId });
       } else if (datesFound.length === 1) {
-        // 💡 එක දිනයක් පමණක් තිබේ නම් Form එකට Add කරයි
         const singleDate = datesFound[0];
         setFormData(prev => ({
           ...prev,
           date: singleDate,
           dispatches: [...prev.dispatches.filter(d => d.invoiceNo || d.teaType || d.weight), ...groupedDataByDate[singleDate]]
         }));
-        toast.success(`Successfully imported ${totalExtractedInvoices} items for ${singleDate}!`, { id: toastId });
+        const dupMsg = duplicateCount > 0 ? ` (Ignored ${duplicateCount} duplicates)` : '';
+        toast.success(`Successfully imported ${totalExtractedInvoices} items for ${singleDate}!${dupMsg}`, { id: toastId });
       } else {
-        // 💡 වෙනස් දින කිහිපයක් තිබේ නම් ස්වයංක්‍රීයවම Queue එකට Add කරයි (Group by date)
         const newQueueItems = [];
         
         datesFound.forEach(dateStr => {
             const dispatchesForDate = groupedDataByDate[dateStr];
-            const totalDisp = dispatchesForDate.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
             const existingRecord = records.find(r => r.date.split('T')[0] === dateStr);
+
+            // 💡 PDF එක හරහා දත්ත කෙළින්ම Queue එකට යන විට පරණ දත්ත සුරක්ෂිත කිරීම
+            const mergedDispatches = [...(existingRecord?.dispatches || []), ...dispatchesForDate];
+            const mergedLocalSales = existingRecord?.localSales?.length ? existingRecord.localSales : [{ teaType: '', weight: '' }];
+            const mergedReturns = existingRecord?.returns?.length ? existingRecord.returns : [{ teaType: '', amount: '' }];
+
+            const tDisp = mergedDispatches.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+            const tLocSale = mergedLocalSales.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+            const tRet = mergedReturns.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
             newQueueItems.push({
               date: dateStr,
-              dispatches: dispatchesForDate,
-              localSales: [{ teaType: '', weight: '' }],
-              returns: [{ teaType: '', amount: '' }],
-              calculatedTotalOut: totalDisp,
-              totalDispatch: totalDisp,
-              totalLocalSale: 0,
-              totalReturn: 0,
+              dispatches: mergedDispatches,
+              localSales: mergedLocalSales,
+              returns: mergedReturns,
+              calculatedTotalOut: tDisp + tLocSale,
+              totalDispatch: tDisp,
+              totalLocalSale: tLocSale,
+              totalReturn: tRet,
               greenLeafToday: existingRecord ? (existingRecord.greenLeaf?.today || existingRecord.greenLeafToday || 0) : 0,    
             });
         });
@@ -391,7 +407,8 @@ export default function DispatchAndReturn() {
              return [...prev, ...uniqueNewItems];
         });
 
-        toast.success(`Grouped ${totalExtractedInvoices} items by ${datesFound.length} dates and added to Queue!`, { id: toastId, duration: 5000 });
+        const dupMsg = duplicateCount > 0 ? ` (Ignored ${duplicateCount} duplicates)` : '';
+        toast.success(`Grouped ${totalExtractedInvoices} items by ${datesFound.length} dates and added to Queue!${dupMsg}`, { id: toastId, duration: 5000 });
       }
 
     } catch (error) {
@@ -403,10 +420,39 @@ export default function DispatchAndReturn() {
     }
   };
 
+  // =========================================================================
+  // 💡 FORM SUBMIT LOGIC (Safely Merge with Database Records)
+  // =========================================================================
   const handleAddToList = (e) => {
     e.preventDefault();
     if (isViewer) {
       toast.error("Viewers cannot add records.");
+      return;
+    }
+
+    const currentInvoices = formData.dispatches
+      .map(d => d.invoiceNo?.trim())
+      .filter(inv => inv !== ''); 
+
+    const uniqueCurrentInvoices = new Set(currentInvoices);
+    if (uniqueCurrentInvoices.size !== currentInvoices.length) {
+      toast.error("Duplicate Invoice Numbers found in the current form!");
+      return;
+    }
+
+    const pendingInvoices = pendingRecords.flatMap(r => 
+      r.dispatches.map(d => d.invoiceNo?.trim()).filter(inv => inv !== '')
+    );
+    if (currentInvoices.some(inv => pendingInvoices.includes(inv))) {
+      toast.error("One or more Invoice Numbers already exist in the pending queue!");
+      return;
+    }
+
+    const dbInvoices = records.flatMap(r => 
+      (r.dispatches || []).map(d => d.invoiceNo?.trim()).filter(inv => inv && inv !== 'N/A')
+    );
+    if (currentInvoices.some(inv => dbInvoices.includes(inv))) {
+      toast.error("One or more Invoice Numbers already exist in the database!");
       return;
     }
 
@@ -418,17 +464,38 @@ export default function DispatchAndReturn() {
 
     const existingRecord = records.find(r => r.date.split('T')[0] === formData.date);
 
+    // 💡 අලුතින් ඇතුළත් කළ දත්ත (හිස් පේළි ඉවත් කර)
+    const validNewDispatches = formData.dispatches.filter(d => Number(d.weight) > 0 || d.invoiceNo || d.teaType);
+    const validNewLocalSales = formData.localSales.filter(l => Number(l.weight) > 0 || l.teaType);
+    const validNewReturns = formData.returns.filter(r => Number(r.amount) > 0 || r.teaType);
+
+    // 💡 Database එකේ ඇති පරණ දත්ත සමග අලුත් දත්ත එකතු කිරීම (Merge)
+    const mergedDispatches = [...(existingRecord?.dispatches || []), ...validNewDispatches];
+    const mergedLocalSales = [...(existingRecord?.localSales || []), ...validNewLocalSales];
+    const mergedReturns = [...(existingRecord?.returns || []), ...validNewReturns];
+
+    // 💡 අලුත් එකතූන් (Totals) ගණනය කිරීම
+    const newTotalDispatch = mergedDispatches.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+    const newTotalLocalSale = mergedLocalSales.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+    const newTotalReturn = mergedReturns.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const newCalculatedTotalOut = newTotalDispatch + newTotalLocalSale;
+
     const newRecord = {
       ...formData,
-      calculatedTotalOut,
-      totalDispatch,
-      totalLocalSale,
-      totalReturn,
+      dispatches: mergedDispatches.length ? mergedDispatches : [{ invoiceNo: '', teaType: '', weight: '' }],
+      localSales: mergedLocalSales.length ? mergedLocalSales : [{ teaType: '', weight: '' }],
+      returns: mergedReturns.length ? mergedReturns : [{ teaType: '', amount: '' }],
+      estateLeafToday: existingRecord?.greenLeaf?.estateLeaf?.today || 0,
+      broughtLeafToday: existingRecord?.greenLeaf?.broughtLeaf?.today || 0,
+      totalDispatch: newTotalDispatch,
+      totalLocalSale: newTotalLocalSale,
+      totalReturn: newTotalReturn,
+      calculatedTotalOut: newCalculatedTotalOut,
       greenLeafToday: existingRecord ? (existingRecord.greenLeaf?.today || existingRecord.greenLeafToday || 0) : 0,    
     };
 
     setPendingRecords([...pendingRecords, newRecord]);
-    toast.success("Added to list!");
+    toast.success("Added to list securely without losing old data!");
     
     setFormData({ 
       ...initialFormState,
@@ -453,6 +520,8 @@ export default function DispatchAndReturn() {
         // 💡 හිස් අගයන් සඳහා "N/A" යොදා Database Validation Errors මඟ හැරීම
         const payload = {
           date: record.date,
+          estateLeafToday: Number(record.estateLeafToday) || 0,
+          broughtLeafToday: Number(record.broughtLeafToday) || 0,
           greenLeafToday: Number(record.greenLeafToday) || 0,
           dispatch: Number(record.totalDispatch) || 0,
           localSaleAndGratis: Number(record.totalLocalSale) || 0,

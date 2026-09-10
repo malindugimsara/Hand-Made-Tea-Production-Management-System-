@@ -16,15 +16,6 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const THEME = {
-  pageBg: "#f9fbfb",
-  textPrimary: "#0d5e4d",
-  textSecondary: "#0f766e",
-  accent: "#0d9488",
-  btnGradient: "linear-gradient(135deg,#163d2e 0%,#0d5e4d 45%,#0f766e 100%)",
-  dangerGradient: "linear-gradient(135deg,#7f1d1d 0%,#991b1b 45%,#b91c1c 100%)",
-};
-
 export default function StockAdjustment() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -90,7 +81,6 @@ export default function StockAdjustment() {
     }
   };
 
-  // Filter items for the custom dropdown (Separating Spicy and Packing)
   const filteredItems = useMemo(() => {
     if (activeTab === "tea") {
       return teaStocks
@@ -101,7 +91,7 @@ export default function StockAdjustment() {
         .map((item) => ({
           name: item.productName || item.name || "Unknown Tea",
           category: "Tea Stock",
-          colorClass: "bg-[#bbf7d0]",
+          colorClass: "bg-[#bbf7d0] dark:bg-green-500",
         }));
     } else if (activeTab === "spicy") {
       return rawMaterials
@@ -113,10 +103,10 @@ export default function StockAdjustment() {
         .map((item) => ({
           name: item.materialName || item.itemName || item.name || "Unknown Spice",
           category: "Spicy Stock",
-          colorClass: "bg-blue-300",
+          colorClass: "bg-blue-300 dark:bg-blue-500",
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
-    } else { // activeTab === "raw"
+    } else { 
       return rawMaterials
         .filter((item) => (item.category || "").toLowerCase() !== "flavor")
         .filter((item) => {
@@ -126,13 +116,12 @@ export default function StockAdjustment() {
         .map((item) => ({
           name: item.materialName || item.itemName || item.name || "Unknown Material",
           category: "Packing Material",
-          colorClass: "bg-[#fed7aa]",
+          colorClass: "bg-[#fed7aa] dark:bg-orange-500",
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
     }
   }, [activeTab, teaStocks, rawMaterials, searchQuery]);
 
-  // Calculate Overall Current Stock
   const currentStockInfo = useMemo(() => {
     if (!selectedItem) return null;
 
@@ -147,7 +136,6 @@ export default function StockAdjustment() {
         unit: "kg",
       };
     } else {
-      // Both 'raw' and 'spicy' pull from rawMaterials
       const raw = rawMaterials.find(
         (r) => (r.materialName || r.itemName || r.name) === selectedItem,
       );
@@ -264,29 +252,26 @@ export default function StockAdjustment() {
     }
   };
 
-  const inputStyles = "w-full p-3.5 bg-gray-50 border border-teal-200 rounded-xl font-medium text-gray-700 focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all";
+  const inputStyles = "w-full p-3.5 bg-gray-50 dark:bg-zinc-900/50 border border-teal-200 dark:border-teal-800/50 rounded-xl font-medium text-gray-700 dark:text-gray-200 focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 dark:focus:border-teal-500 outline-none transition-all";
 
   return (
-    <div
-      className="min-h-screen p-4 sm:p-6 md:p-8 font-sans transition-colors duration-300 relative"
-      style={{ backgroundColor: THEME.pageBg }}
-    >
+    <div className="min-h-screen p-4 sm:p-6 md:p-8 font-sans transition-colors duration-300 relative bg-[#f9fbfb] dark:bg-zinc-950">
       <div className="max-w-[1400px] mx-auto relative z-10">
         
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm border bg-white border-teal-200 text-[#0d5e4d]">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm border bg-white dark:bg-zinc-900 border-teal-200 dark:border-teal-800 text-[#0d5e4d] dark:text-teal-400 transition-colors">
               <Settings2 size={25} />
             </div>
             <div>
-              <h2 className="text-2xl sm:text-3xl font-black text-[#0d5e4d]">Stock Adjustments</h2>
-              <p className="font-semibold mt-1 uppercase tracking-wider text-sm text-[#0f766e]">Correct & Balance Inventory</p>
+              <h2 className="text-2xl sm:text-3xl font-black text-[#0d5e4d] dark:text-teal-400">Stock Adjustments</h2>
+              <p className="font-semibold mt-1 uppercase tracking-wider text-sm text-[#0f766e] dark:text-teal-500">Correct & Balance Inventory</p>
             </div>
           </div>
           <button
             onClick={() => navigate("/packing/stock-adjustment-view")}
-            className="px-5 py-2.5 bg-white text-[#0f766e] border border-teal-200 rounded-lg font-bold hover:bg-teal-50 shadow-sm transition-colors"
+            className="px-5 py-2.5 bg-white dark:bg-zinc-900 text-[#0f766e] dark:text-teal-400 border border-teal-200 dark:border-teal-800 rounded-lg font-bold hover:bg-teal-50 dark:hover:bg-teal-900/30 shadow-sm transition-colors"
           >
             View History
           </button>
@@ -296,24 +281,24 @@ export default function StockAdjustment() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* --- LEFT SIDE: FORM --- */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden transition-colors">
               
               {/* TABS (Now 3 Tabs) */}
-              <div className="flex border-b border-gray-200 bg-gray-50 overflow-x-auto whitespace-nowrap">
+              <div className="flex border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50 overflow-x-auto whitespace-nowrap transition-colors">
                 <button
-                  className={`flex-1 min-w-[120px] py-4 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === "tea" ? "bg-green-500 text-white border-b-2 border-green-700" : "text-gray-500 hover:bg-gray-100"}`}
+                  className={`flex-1 min-w-[120px] py-4 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === "tea" ? "bg-green-500 dark:bg-green-600 text-white border-b-2 border-green-700 dark:border-green-800" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800"}`}
                   onClick={() => { setActiveTab("tea"); setSelectedItem(""); setSearchQuery(""); }}
                 >
                   <Leaf size={18} /> Tea Stock
                 </button>
                 <button
-                  className={`flex-1 min-w-[120px] py-4 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === "spicy" ? "bg-blue-500 text-white border-b-2 border-blue-800" : "text-gray-500 hover:bg-gray-100"}`}
+                  className={`flex-1 min-w-[120px] py-4 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === "spicy" ? "bg-blue-500 dark:bg-blue-600 text-white border-b-2 border-blue-800 dark:border-blue-800" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800"}`}
                   onClick={() => { setActiveTab("spicy"); setSelectedItem(""); setSearchQuery(""); }}
                 >
                   <Flame size={18} /> Spicy Stock
                 </button>
                 <button
-                  className={`flex-1 min-w-[120px] py-4 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === "raw" ? "bg-orange-500 text-white border-b-2 border-orange-800" : "text-gray-500 hover:bg-gray-100"}`}
+                  className={`flex-1 min-w-[120px] py-4 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === "raw" ? "bg-orange-500 dark:bg-orange-600 text-white border-b-2 border-orange-800 dark:border-orange-800" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800"}`}
                   onClick={() => { setActiveTab("raw"); setSelectedItem(""); setSearchQuery(""); }}
                 >
                   <Package size={18} /> Packing Materials
@@ -322,16 +307,16 @@ export default function StockAdjustment() {
 
               <div className="p-6 md:p-8">
                 {isLoading ? (
-                  <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                    <div className="w-8 h-8 border-4 border-teal-200 border-t-teal-700 rounded-full animate-spin mb-4"></div>
+                  <div className="flex flex-col items-center justify-center py-10 text-gray-400 dark:text-gray-500">
+                    <div className="w-8 h-8 border-4 border-teal-200 dark:border-teal-800 border-t-teal-700 dark:border-t-teal-500 rounded-full animate-spin mb-4"></div>
                     Loading Inventory Data...
                   </div>
                 ) : (
-                  <form onSubmit={handleAddToList} className="space-y-6 bg-teal-50/40 p-6 rounded-2xl border border-teal-100">
+                  <form onSubmit={handleAddToList} className="space-y-6 bg-teal-50/40 dark:bg-teal-900/10 p-6 rounded-2xl border border-teal-100 dark:border-teal-900/30 transition-colors">
                     
                     {/* 1. DATE SELECTION */}
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
                         <Calendar size={14} /> Adjustment Date
                       </label>
                       <input
@@ -346,14 +331,14 @@ export default function StockAdjustment() {
                     {/* 2. CUSTOM SEARCHABLE DROPDOWN */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="relative" ref={dropdownRef}>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                           Select {activeTab === "tea" ? "Tea Product" : activeTab === "spicy" ? "Spicy Ingredient" : "Packing Material"}
                         </label>
 
-                        <div className={`${inputStyles} flex items-center justify-between cursor-text bg-white`} onClick={() => setIsDropdownOpen(true)}>
+                        <div className={`${inputStyles} flex items-center justify-between cursor-text bg-white dark:bg-zinc-900/50`} onClick={() => setIsDropdownOpen(true)}>
                           <input
                             type="text"
-                            className="w-full bg-transparent outline-none cursor-text placeholder-gray-400"
+                            className="w-full bg-transparent outline-none cursor-text placeholder-gray-400 dark:placeholder-gray-500"
                             placeholder="Select..."
                             value={searchQuery}
                             onChange={(e) => {
@@ -365,12 +350,12 @@ export default function StockAdjustment() {
                         </div>
 
                         {isDropdownOpen && (
-                          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl max-h-60 overflow-y-auto py-2 custom-scrollbar">
+                          <div className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-700 rounded-xl shadow-xl max-h-60 overflow-y-auto py-2 custom-scrollbar">
                             {filteredItems.length > 0 ? (
                               filteredItems.map((item, idx) => (
                                 <div
                                   key={idx}
-                                  className="px-4 py-3 hover:bg-teal-50 cursor-pointer flex items-center justify-between transition-colors border-b border-gray-50 last:border-0"
+                                  className="px-4 py-3 hover:bg-teal-50 dark:hover:bg-teal-900/30 cursor-pointer flex items-center justify-between transition-colors border-b border-gray-50 dark:border-zinc-800 last:border-0"
                                   onClick={() => {
                                     setSelectedItem(item.name);
                                     setSearchQuery(item.name);
@@ -379,12 +364,12 @@ export default function StockAdjustment() {
                                 >
                                   <div className="flex items-center gap-3">
                                     <div className={`w-2.5 h-2.5 rounded-full ${item.colorClass}`}></div>
-                                    <span className="text-gray-700 font-semibold">{item.name}</span>
+                                    <span className="text-gray-700 dark:text-gray-200 font-semibold">{item.name}</span>
                                   </div>
                                   <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md ${
-                                      item.category.includes("Spicy") ? "bg-blue-100 text-blue-800"
-                                      : item.category.includes("Packing") ? "bg-orange-100 text-orange-800"
-                                      : "bg-green-100 text-green-800"
+                                      item.category.includes("Spicy") ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                                      : item.category.includes("Packing") ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
+                                      : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
                                     }`}
                                   >
                                     {item.category}
@@ -392,7 +377,7 @@ export default function StockAdjustment() {
                                 </div>
                               ))
                             ) : (
-                              <div className="px-4 py-3 text-gray-400 text-sm italic">No items found</div>
+                              <div className="px-4 py-3 text-gray-400 dark:text-gray-500 text-sm italic">No items found</div>
                             )}
                           </div>
                         )}
@@ -401,18 +386,18 @@ export default function StockAdjustment() {
 
                     {/* 3. CURRENT STOCK DISPLAY */}
                     {currentStockInfo && (
-                      <div className="bg-white border border-[#99f6e4] rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                      <div className="bg-white dark:bg-zinc-900 border border-[#99f6e4] dark:border-teal-800 rounded-2xl p-4 flex items-center justify-between shadow-sm transition-colors">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-teal-50 rounded-lg text-[#0d5e4d]">
+                          <div className="p-2 bg-teal-50 dark:bg-teal-900/30 rounded-lg text-[#0d5e4d] dark:text-teal-400">
                             <Search size={20} />
                           </div>
                           <div>
-                            <p className="text-[11px] font-bold text-teal-700 uppercase tracking-wider">DB Available Stock</p>
-                            <p className="font-bold text-gray-800 text-sm">{currentStockInfo.name}</p>
+                            <p className="text-[11px] font-bold text-teal-700 dark:text-teal-500 uppercase tracking-wider">DB Available Stock</p>
+                            <p className="font-bold text-gray-800 dark:text-gray-200 text-sm">{currentStockInfo.name}</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <h3 className="text-2xl font-black text-[#0d5e4d]">
+                          <h3 className="text-2xl font-black text-[#0d5e4d] dark:text-teal-400">
                             {currentStockInfo.qty.toFixed(2)} <span className="text-sm">{currentStockInfo.unit}</span>
                           </h3>
                         </div>
@@ -421,35 +406,35 @@ export default function StockAdjustment() {
 
                     {/* 4. ACTION TYPE */}
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
                         Adjustment Action
                       </label>
                       <div className="grid grid-cols-2 gap-4">
-                        <label className={`cursor-pointer border-2 rounded-xl p-4 flex items-center gap-3 transition-all ${adjustmentType === "add" ? "border-[#0d5e4d] bg-[#f0fdfa]" : "border-gray-200 bg-white hover:bg-gray-50"}`}>
+                        <label className={`cursor-pointer border-2 rounded-xl p-4 flex items-center gap-3 transition-all ${adjustmentType === "add" ? "border-[#0d5e4d] bg-[#f0fdfa] dark:border-teal-500 dark:bg-teal-900/20" : "border-gray-200 bg-white hover:bg-gray-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800"}`}>
                           <input
                             type="radio" name="action" value="add"
                             checked={adjustmentType === "add"}
                             onChange={() => setAdjustmentType("add")}
                             className="hidden"
                           />
-                          <ArrowDownCircle size={24} className={adjustmentType === "add" ? "text-[#0d5e4d]" : "text-gray-400"} />
+                          <ArrowDownCircle size={24} className={adjustmentType === "add" ? "text-[#0d5e4d] dark:text-teal-400" : "text-gray-400 dark:text-gray-500"} />
                           <div>
-                            <p className={`font-bold ${adjustmentType === "add" ? "text-[#0d5e4d]" : "text-gray-600"}`}>Trans In (Add)</p>
-                            <p className="text-[10px] text-gray-400 font-semibold">Increase stock level</p>
+                            <p className={`font-bold ${adjustmentType === "add" ? "text-[#0d5e4d] dark:text-teal-400" : "text-gray-600 dark:text-gray-300"}`}>Trans In (Add)</p>
+                            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold">Increase stock level</p>
                           </div>
                         </label>
 
-                        <label className={`cursor-pointer border-2 rounded-xl p-4 flex items-center gap-3 transition-all ${adjustmentType === "remove" ? "border-red-600 bg-red-50" : "border-gray-200 bg-white hover:bg-gray-50"}`}>
+                        <label className={`cursor-pointer border-2 rounded-xl p-4 flex items-center gap-3 transition-all ${adjustmentType === "remove" ? "border-red-600 bg-red-50 dark:border-red-500 dark:bg-red-900/20" : "border-gray-200 bg-white hover:bg-gray-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800"}`}>
                           <input
                             type="radio" name="action" value="remove"
                             checked={adjustmentType === "remove"}
                             onChange={() => setAdjustmentType("remove")}
                             className="hidden"
                           />
-                          <ArrowUpCircle size={24} className={adjustmentType === "remove" ? "text-red-600" : "text-gray-400"} />
+                          <ArrowUpCircle size={24} className={adjustmentType === "remove" ? "text-red-600 dark:text-red-400" : "text-gray-400 dark:text-gray-500"} />
                           <div>
-                            <p className={`font-bold ${adjustmentType === "remove" ? "text-red-600" : "text-gray-600"}`}>Issue (Remove)</p>
-                            <p className="text-[10px] text-gray-400 font-semibold">Decrease stock level</p>
+                            <p className={`font-bold ${adjustmentType === "remove" ? "text-red-600 dark:text-red-400" : "text-gray-600 dark:text-gray-300"}`}>Issue (Remove)</p>
+                            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold">Decrease stock level</p>
                           </div>
                         </label>
                       </div>
@@ -458,7 +443,7 @@ export default function StockAdjustment() {
                     {/* 5. AMOUNT & REASON */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Adjustment Amount</label>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Adjustment Amount</label>
                         <input
                           type="number" step="0.001" min="0"
                           value={amount}
@@ -470,7 +455,7 @@ export default function StockAdjustment() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Reason (Optional)</label>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Reason (Optional)</label>
                         <textarea
                           value={reason}
                           onChange={(e) => setReason(e.target.value)}
@@ -482,7 +467,7 @@ export default function StockAdjustment() {
                     </div>
 
                     {adjustmentType === "remove" && (
-                      <div className="flex items-start gap-3 p-3 bg-orange-50 border border-orange-200 rounded-xl text-orange-800 text-sm font-semibold">
+                      <div className="flex items-start gap-3 p-3 bg-orange-50 border border-orange-200 text-orange-800 dark:bg-orange-900/20 dark:border-orange-800 dark:text-orange-400 rounded-xl text-sm font-semibold transition-colors">
                         <ShieldAlert size={18} className="shrink-0 mt-0.5" />
                         <p>Ensure the amount is correct to avoid negative overall stock.</p>
                       </div>
@@ -492,7 +477,7 @@ export default function StockAdjustment() {
                     <button
                       type="submit"
                       disabled={!selectedItem}
-                      className="w-full py-4 rounded-2xl text-[#0f766e] font-black text-lg border border-[#0d9488] bg-white hover:bg-teal-50 flex justify-center items-center gap-2 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full py-4 rounded-2xl text-[#0f766e] dark:text-teal-400 font-black text-lg border border-[#0d9488] dark:border-teal-600 bg-white dark:bg-zinc-900 hover:bg-teal-50 dark:hover:bg-teal-900/30 flex justify-center items-center gap-2 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       + Add to Pending List
                     </button>
@@ -504,32 +489,32 @@ export default function StockAdjustment() {
 
           {/* --- RIGHT SIDE: PENDING LIST & SUMMARY --- */}
           <div className="lg:col-span-1 flex flex-col gap-6">
-            <div className="bg-white rounded-3xl shadow-sm border border-teal-200 overflow-hidden flex flex-col max-h-[70vh] transition-colors duration-300">
-              <div className="bg-teal-50 flex items-center justify-between p-5 border-b border-teal-100">
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-sm border border-teal-200 dark:border-teal-800 overflow-hidden flex flex-col max-h-[70vh] transition-colors duration-300">
+              <div className="bg-teal-50 dark:bg-teal-900/20 flex items-center justify-between p-5 border-b border-teal-100 dark:border-teal-800">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white rounded-lg text-[#0f766e] shadow-sm">
+                  <div className="p-2 bg-white dark:bg-zinc-800 rounded-lg text-[#0f766e] dark:text-teal-400 shadow-sm transition-colors">
                     <ListChecks size={20} />
                   </div>
-                  <h3 className="font-bold text-[#0d5e4d] text-lg">Pending List</h3>
+                  <h3 className="font-bold text-[#0d5e4d] dark:text-teal-400 text-lg">Pending List</h3>
                 </div>
-                <span className="bg-[#0f766e] text-white text-xs font-bold px-3 py-1 rounded-full shadow-inner">
+                <span className="bg-[#0f766e] dark:bg-teal-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-inner">
                   {pendingRecords.length} Items
                 </span>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-gray-50/50">
+              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-gray-50/50 dark:bg-zinc-900/50 transition-colors">
                 {pendingRecords.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-gray-400 py-10">
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 py-10">
                     <ListChecks size={40} className="mb-3 opacity-20" />
                     <p className="text-sm font-medium">List is empty.</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {pendingRecords.map((record) => (
-                      <div key={record.id} className="p-4 border border-gray-200 rounded-xl bg-white relative group shadow-sm hover:border-[#2dd4bf] transition-colors">
+                      <div key={record.id} className="p-4 border border-gray-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-800/50 relative group shadow-sm hover:border-[#2dd4bf] dark:hover:border-teal-500 transition-colors">
                         <button
                           onClick={() => handleRemoveFromList(record.id)}
-                          className="absolute top-2 right-2 text-gray-300 hover:text-red-500 bg-gray-50 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                          className="absolute top-2 right-2 text-gray-300 hover:text-red-500 bg-gray-50 hover:bg-red-50 dark:text-gray-500 dark:bg-zinc-800 dark:hover:bg-red-900/30 dark:hover:text-red-400 p-1.5 rounded-lg transition-colors"
                           title="Remove"
                         >
                           <Trash2 size={16} />
@@ -537,28 +522,28 @@ export default function StockAdjustment() {
 
                         <div className="flex items-center gap-2 mb-2">
                           <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
-                            record.itemType === "tea" ? "bg-green-100 text-green-800" 
-                            : record.itemType === "spicy" ? "bg-blue-100 text-blue-800" 
-                            : "bg-orange-100 text-orange-800"
+                            record.itemType === "tea" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" 
+                            : record.itemType === "spicy" ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" 
+                            : "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
                           }`}>
                             {record.itemType}
                           </span>
-                          <span className="text-[10px] text-gray-400 font-semibold">{record.date}</span>
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold">{record.date}</span>
                         </div>
 
-                        <h4 className="font-bold text-gray-800 text-sm mb-2 pr-6">{record.itemName}</h4>
+                        <h4 className="font-bold text-gray-800 dark:text-gray-200 text-sm mb-2 pr-6">{record.itemName}</h4>
 
-                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 dark:border-zinc-700">
                           {record.action === "add" ? (
-                            <span className="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded-md flex items-center gap-1">
+                            <span className="text-xs font-bold text-teal-600 bg-teal-50 dark:text-teal-400 dark:bg-teal-900/30 px-2 py-1 rounded-md flex items-center gap-1">
                               <ArrowDownCircle size={12} /> Add
                             </span>
                           ) : (
-                            <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-md flex items-center gap-1">
+                            <span className="text-xs font-bold text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/30 px-2 py-1 rounded-md flex items-center gap-1">
                               <ArrowUpCircle size={12} /> Issue
                             </span>
                           )}
-                          <span className={`font-black ${record.action === "add" ? "text-teal-600" : "text-red-600"}`}>
+                          <span className={`font-black ${record.action === "add" ? "text-teal-600 dark:text-teal-400" : "text-red-600 dark:text-red-400"}`}>
                             {record.action === "add" ? "+" : "-"}{record.amount} <span className="text-[10px] text-gray-400">{record.unit}</span>
                           </span>
                         </div>
@@ -568,11 +553,11 @@ export default function StockAdjustment() {
                 )}
               </div>
 
-              <div className="p-4 bg-white border-t border-gray-200">
+              <div className="p-4 bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 transition-colors">
                 <button
                   onClick={handleSaveAll}
                   disabled={isSavingAll || pendingRecords.length === 0}
-                  className={`w-full py-3.5 rounded-xl text-white text-base uppercase tracking-wider font-bold flex justify-center items-center gap-2 shadow-lg transition-all ${isSavingAll || pendingRecords.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-gradient-to-r from-[#0f766e] to-[#0d9488] hover:-translate-y-0.5 hover:shadow-teal-500/30"}`}
+                  className={`w-full py-3.5 rounded-xl text-white text-base uppercase tracking-wider font-bold flex justify-center items-center gap-2 shadow-lg transition-all ${isSavingAll || pendingRecords.length === 0 ? "bg-gray-400 dark:bg-zinc-700 dark:text-gray-400 cursor-not-allowed" : "bg-gradient-to-r from-[#0f766e] to-[#0d9488] hover:-translate-y-0.5 hover:shadow-teal-500/30"}`}
                 >
                   <Save size={20} /> {isSavingAll ? "Saving..." : "Save All Records"}
                 </button>

@@ -389,47 +389,62 @@ export default function GreenLeafMonthlyReport() {
   return (
     <div className="p-4 sm:p-8 max-w-[1400px] mx-auto min-h-screen bg-[#f8fafc] dark:bg-zinc-950 font-sans transition-colors">
       
-      {/* --- TOP CONTROLS --- */}
-      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800">
-        <div>
-          <h2 className="text-2xl font-bold text-[#1B6A31] dark:text-green-500 flex items-center gap-2">
-            <Award className="text-yellow-500" size={28} /> {t.pageTitle}
+
+      {/* --- HEADER --- */}
+      <div className="mb-5 md:mb-8 flex flex-col gap-4 sm:gap-5 bg-white dark:bg-zinc-900 p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800">
+        
+        {/* 💡 Title Part (Top) */}
+        <div className="w-full text-center sm:text-left border-b border-gray-100 dark:border-zinc-800 pb-3 sm:pb-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-[#1B6A31] dark:text-green-500 flex items-center justify-center sm:justify-start gap-2">
+            <Award className="text-yellow-500" size={24} /> {t.pageTitle}
           </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t.pageSubtitle}</p>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {t.pageSubtitle}
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+        {/* 💡 Controls Part (Below Title) */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
+          
+          {/* LANGUAGE TOGGLE BUTTON */}
           <button
             onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')}
-            className="px-4 py-2.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-xl font-bold text-sm flex items-center gap-2 transition-colors"
+            className="p-2.5 px-4 justify-center bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800/50 rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center gap-2 w-full sm:w-auto sm:mr-auto"
           >
             <Languages size={18} /> {lang === 'EN' ? "සිංහල" : "English"}
           </button>
-
-          <div className="flex items-center bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-xl px-4 py-2.5">
-            <Calendar size={18} className="text-[#1B6A31] mr-2" />
+          
+          <div className="relative flex-1 sm:flex-none w-full sm:w-auto">
+            <Calendar size={18} className="absolute left-3 top-3 text-[#1B6A31] dark:text-green-500" />
             <input
               type="month"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-transparent border-none outline-none text-sm font-bold text-gray-700 dark:text-gray-200 cursor-pointer"
+              className="w-full pl-10 pr-4 py-2.5 border border-green-200 dark:border-zinc-700 rounded-lg text-sm font-bold focus:ring-2 focus:ring-[#1B6A31]/50 outline-none bg-green-50/30 dark:bg-zinc-800 text-[#1B6A31] dark:text-green-400 cursor-pointer transition-all shadow-inner"
             />
           </div>
 
-          <button
-            onClick={generatePDF}
-            disabled={loading || !reportData || isGeneratingPDF}
-            className="p-2.5 px-4 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg transition-colors font-bold text-sm disabled:opacity-50 flex items-center gap-2 shadow-sm"          >
-            <FileDown size={18} /> {isGeneratingPDF ? "Generating..." : "Download PDF"}
-          </button>
-          
-          <button
-            onClick={fetchAndCalculateMonthlyData}
-            disabled={loading}
-            className="p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-200 rounded-xl transition-all"
-          >
-            <RefreshCw size={18} className={loading ? "animate-spin text-[#1B6A31]" : ""} />
-          </button>
+          <div className="flex gap-2 sm:gap-3 w-full sm:w-auto h-10 sm:h-auto">
+            <button
+              onClick={generatePDF}
+              disabled={loading || !reportData || isGeneratingPDF}
+              className="p-2.5 px-3 sm:px-4 flex-1 sm:flex-none justify-center bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg transition-colors font-bold text-sm disabled:opacity-50 flex items-center gap-2 shadow-sm"
+            >
+              <FileDown size={18} /> 
+              <span className="font-bold text-xs sm:text-sm hidden sm:inline">
+                {isGeneratingPDF ? "Generating..." : "Download PDF"}
+              </span>
+            </button>
+            
+            <button
+              onClick={fetchAndCalculateMonthlyData}
+              disabled={loading}
+              className={`p-2.5 flex-1 sm:flex-none flex justify-center bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-600 dark:text-gray-300 rounded-lg transition-colors shadow-sm ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+            >
+              <RefreshCw size={18} className={loading ? "animate-spin text-[#1B6A31] dark:text-green-500" : "text-[#1B6A31] dark:text-green-500"} />
+            </button>
+          </div>
+
         </div>
       </div>
 
@@ -579,50 +594,47 @@ export default function GreenLeafMonthlyReport() {
           `}</style>
 
           {/* 📄 PAGE 1: MAIN REPORT */}
-          <div id="pdf-page-1" ref={page1Ref} className="p-10 font-sans flex flex-col justify-between" style={{ backgroundColor: '#ffffff', color: '#000000', width: '1123px', minHeight: '794px' }}>
-              <div className="flex justify-between items-start mb-6 border-b border-[#d1d5db] pb-4">
-                  <div className="flex items-center gap-4">
-                      <img src="/logo.png" alt="Logo" className="w-20 h-20 object-contain" onError={(e) => e.target.style.display = 'none'} />
+          <div id="pdf-page-1" ref={page1Ref} className="p-16 font-sans flex flex-col justify-between" style={{ backgroundColor: '#ffffff', color: '#000000',  width: '1600px', minHeight: '1130px'  }}>
+              <div className="flex justify-between items-start mb-10 border-b-[3px] border-[#d1d5db] pb-6">
+                  <div className="flex items-center gap-6">
+                      <img src="/logo.png" alt="Logo" className="w-32 h-32 object-contain" onError={(e) => e.target.style.display = 'none'} />
                       <div>
-                          <h1 className="text-3xl font-bold text-[#1B6A31] uppercase" style={{ fontFamily: 'sans-serif' }}>
+                          <h1 className="text-5xl font-bold text-[#1B6A31] uppercase" style={{ fontFamily: 'sans-serif' }}>
                               Athukorala Group (Pvt) Ltd
                           </h1>
-                          <h2 className="text-2xl font-bold mt-2" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
+                          <h2 className="text-4xl font-bold mt-4" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
                                {t.reportTitle1} - {t.reportTitle2}
                           </h2>                          
-                          <h3 className="text-xl font-black mt-1" style={{ color: '#1f2937', fontFamily: 'Iskoola Pota, sans-serif' }}>
+                          <h3 className="text-3xl font-black mt-2" style={{ color: '#1f2937', fontFamily: 'Iskoola Pota, sans-serif' }}>
                               {lang === 'SI' ? `${reportData?.currMonthNameSI} මාසය` : reportData?.currMonthNameEN} {reportData?.year}
                           </h3>
                       </div>
                   </div>
-                  <div className="text-right text-sm text-[#6b7280] flex flex-col gap-1.5" style={{ fontFamily: 'sans-serif' }}>
+                  <div className="text-right text-lg text-[#6b7280] flex flex-col gap-2 pt-2" style={{ fontFamily: 'sans-serif' }}>
                       <p><strong className="text-[#4b5563]">{t.docRef}:</strong> {uniqueCode}</p>
                       <p><strong className="text-[#4b5563]">{t.genTime}:</strong> {generatedDateTime}</p>
                   </div>
               </div>
 
-              {/* text-center border border-[#cbd5e1] p-2.5 font-extrabold bg-[#f3f4f6] text-[#000000] */}
-
-              <table className="w-full table-fixed border-collapse border border-[#cbd5e1] text-center text-[16px]" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
+              <table className="w-full table-fixed border-collapse border-[2px] border-[#cbd5e1] text-center text-[20px]" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
                   <thead>
                       <tr>
-                          {/* 💡 rowSpan={2} යොදා align-middle මඟින් අකුරු මැදට ගෙන ඇත */}
-                          <th rowSpan={2} className="border p-2 font-extrabold text-center pl-4 w-[16%] align-middle pdf-bg-gray">{t.route}</th>
-                          <th colSpan={3} className="border p-2 font-extrabold w-[21%] pdf-bg-gray">{t.qualityDist}</th>
-                          <th colSpan={3} className="border p-2 font-extrabold w-[43%] pdf-bg-gray">Weights (KG)</th>
-                          <th colSpan={2} className="border p-2 font-extrabold w-[20%] pdf-bg-gray">Manual Inputs</th>
+                          <th rowSpan={2} className="border-[2px] p-3 font-extrabold text-center pl-6 w-[16%] align-middle pdf-bg-gray text-[20px]">{t.route}</th>
+                          <th colSpan={3} className="border-[2px] p-3 font-extrabold w-[21%] pdf-bg-gray text-[22px]">{t.qualityDist}</th>
+                          <th colSpan={3} className="border-[2px] p-3 font-extrabold w-[43%] pdf-bg-gray text-[22px]">Weights (KG)</th>
+                          <th colSpan={2} className="border-[2px] p-3 font-extrabold w-[20%] pdf-bg-gray text-[22px]">Manual Inputs</th>
                       </tr>
-                      <tr className="text-[13px]">
-                          <th className="border p-2 font-bold w-[7%] pdf-text-blue pdf-bg-light">{t.best}</th>
-                          <th className="border p-2 font-bold w-[7%] pdf-text-yellow pdf-bg-light">{t.belowBest}</th>
-                          <th className="border p-2 font-bold w-[7%] pdf-text-red pdf-bg-light">{t.poor}</th>
+                      <tr className="text-[16px]">
+                          <th className="border-[2px] p-3 font-bold w-[7%] pdf-text-blue pdf-bg-light text-[22px]">{t.best}</th>
+                          <th className="border-[2px] p-3 font-bold w-[7%] pdf-text-yellow pdf-bg-light text-[22px]">{t.belowBest}</th>
+                          <th className="border-[2px] p-3 font-bold w-[7%] pdf-text-red pdf-bg-light text-[22px]">{t.poor}</th>
+
+                          <th className="border-[2px] p-3 font-bold w-[15%] pdf-text-green pdf-bg-light text-[22px]">{t.currMonth}</th>
+                          <th className="border-[2px] p-3 font-bold w-[14%] pdf-text-dark pdf-bg-light text-[22px]">{t.prevMonth}</th>
+                          <th className="border-[2px] p-3 font-bold w-[14%] text-[22px]" style={{ color: '#1f2937' }}>{t.diff}</th>
                           
-                          <th className="border p-2 font-bold w-[15%] pdf-text-green pdf-bg-light">{t.currMonth}</th>
-                          <th className="border p-2 font-bold w-[14%] pdf-text-dark pdf-bg-light">{t.prevMonth}</th>
-                          <th className="border p-2 font-bold w-[14%]" style={{ color: '#1f2937' }}>{t.diff}</th>
-                          
-                          <th className="border p-2 font-bold w-[10%] ">{t.manual1}</th>
-                          <th className="border p-2 font-bold w-[10%] ">{t.manual2}</th>
+                          <th className="border-[2px] p-3 font-bold w-[10%] text-[22px]">{t.manual1}</th>
+                          <th className="border-[2px] p-3 font-bold w-[10%] text-[22px]">{t.manual2}</th>
                       </tr>
                   </thead>
                   <tbody>
@@ -635,92 +647,89 @@ export default function GreenLeafMonthlyReport() {
 
                           return (
                               <tr key={`pdf-${it.routeKey}`}>
-                                  <td className="border p-2 font-bold text-center pl-4">{it.displayName}</td>
-                                  <td className="border p-2 font-bold pdf-text-blue">{it.bestPct}</td>
-                                  <td className="border p-2 font-bold pdf-text-yellow">{it.bbPct}</td>
-                                  <td className="border p-2 font-bold pdf-text-red">{it.poorPct}</td>
+                                  <td className="border-[2px] p-2.5 font-bold text-center text-[22px]">{it.displayName}</td>
+                                  <td className="border-[2px] p-2.5 font-bold pdf-text-blue text-[22px]">{it.bestPct}</td>
+                                  <td className="border-[2px] p-2.5 font-bold pdf-text-yellow text-[22px]">{it.bbPct}</td>
+                                  <td className="border-[2px] p-2.5 font-bold pdf-text-red text-[22px]">{it.poorPct}</td>
                                   
-                                  <td className="border p-2 font-bold text-center pr-4">{formatNumber(it.totalKg)}</td>
-                                  <td className="border p-2 pdf-text-gray text-center pr-4">{formatNumber(prevKg)}</td>
-                                  <td className="border p-2 text-center pr-4" style={{ color: diff > 0 ? '#16a34a' : diff < 0 ? '#dc2626' : '#6b7280' }}>{formatDiff(it.totalKg, prevKg)}</td>
+                                  <td className="border-[2px] p-2.5 font-black text-center pr-6 text-[22px]">{formatNumber(it.totalKg)}</td>
+                                  <td className="border-[2px] p-2.5 font-bold pdf-text-gray text-center pr-6 text-[22px]">{formatNumber(prevKg)}</td>
+                                  <td className="border-[2px] p-2.5 font-bold text-center pr-6 text-[22px]" style={{ color: diff > 0 ? '#16a34a' : diff < 0 ? '#dc2626' : '#6b7280' }}>{formatDiff(it.totalKg, prevKg)}</td>
                                   
-                                  <td className="border p-2 font-semibold">{col1Val}</td>
-                                  <td className="border p-2 font-semibold">{col2Val}</td>
+                                  <td className="border-[2px] p-2.5 font-semibold text-[22px]">{col1Val}</td>
+                                  <td className="border-[2px] p-2.5 font-semibold text-[22px]">{col2Val}</td>
                               </tr>
                           );
                       })}
                       
                       {reportData && (
                           <tr className="pdf-bg-yellow">
-                              <td className="border p-3 font-extrabold text-center pl-4 italic">{t.avgThisMonth}</td>
-                              <td className="border p-3 font-black pdf-text-blue text-lg">{reportData.currentStats.avgBest}</td>
-                              <td className="border p-3 font-black pdf-text-yellow text-lg">{reportData.currentStats.avgBelow}</td>
-                              <td className="border p-3 font-black pdf-text-red text-lg">{reportData.currentStats.avgPoor}</td>
+                              <td className="border-[2px] p-2.5 font-extrabold text-center italic">{t.avgThisMonth}</td>
+                              <td className="border-[2px] p-2.5 font-black pdf-text-blue text-2xl">{reportData.currentStats.avgBest}</td>
+                              <td className="border-[2px] p-2.5 font-black pdf-text-yellow text-2xl">{reportData.currentStats.avgBelow}</td>
+                              <td className="border-[2px] p-2.5 font-black pdf-text-red text-2xl">{reportData.currentStats.avgPoor}</td>
                               
-                              <td className="border p-3 font-black text-center pr-4 text-lg pdf-bg-green" style={{ color: '#14532d' }}>{formatNumber(reportData.currentStats.grandTotal)}</td>
-                              <td className="border p-3 font-bold text-center pr-4 pdf-text-dark">{formatNumber(reportData.prevStats.grandTotal)}</td>
-                              <td className="border p-3 font-bold text-center pr-4">{formatDiff(reportData.currentStats.grandTotal, reportData.prevStats.grandTotal)}</td>
+                              <td className="border-[2px] p-2.5 font-black text-center pr-6 text-2xl pdf-bg-green" style={{ color: '#14532d' }}>{formatNumber(reportData.currentStats.grandTotal)}</td>
+                              <td className="border-[2px] p-2.5 font-bold text-center pr-6 pdf-text-dark text-xl">{formatNumber(reportData.prevStats.grandTotal)}</td>
+                              <td className="border-[2px] p-2.5 font-bold text-center pr-6 text-xl">{formatDiff(reportData.currentStats.grandTotal, reportData.prevStats.grandTotal)}</td>
                               
-                              <td colSpan={2} className="border pdf-bg-gray"></td>
+                              <td colSpan={2} className="border-[2px] pdf-bg-gray"></td>
                           </tr>
                       )}
                   </tbody>
               </table>
 
-              <div className="mt-auto pt-16 pb-12 w-full flex flex-row justify-between px-16 items-end text-[16px] font-bold font-sans text-[#374151]">                  
-                  <div className="w-56 flex flex-col items-center">
-                      <p className="text-[#4b5563] mb-2">.............................................................</p>
+              <div className="mt-auto pt-20 pb-16 w-full flex flex-row justify-between px-20 items-end text-[20px] font-bold font-sans text-[#374151]">                  
+                  <div className="w-72 flex flex-col items-center">
+                      <p className="text-[#4b5563] mb-3">.............................................................</p>
                       <p className="pdf-text-dark">{t.sign1Pre}</p>
                       <p className="pdf-text-dark">{t.sign1Post}</p>
-                      {/* <p className="pdf-text-dark">{t.sign1Name || "H.V.O.B. Senevirathna"}</p> */}
                   </div>
-                  <div className="w-56 flex flex-col items-center">
-                      <p className="text-[#4b5563] mb-2">.............................................................</p>
+                  <div className="w-72 flex flex-col items-center">
+                      <p className="text-[#4b5563] mb-3">.............................................................</p>
                       <p className="pdf-text-dark">{t.sign2Pre}</p>
                       <p className="pdf-text-dark">{t.sign2Post}</p>
-                      {/* <p className="pdf-text-dark">{t.sign2Name || "Mr. Alwis"}</p> */}
                   </div>
-                  <div className="w-64 flex flex-col items-center">
-                      <p className="text-[#4b5563] mb-2">.............................................................</p>
+                  <div className="w-80 flex flex-col items-center">
+                      <p className="text-[#4b5563] mb-3">.............................................................</p>
                       <p className="pdf-text-dark">{t.sign3Pre}</p>
                       <p className="pdf-text-dark">{t.sign3Post}</p>
-                      {/* <p className="pdf-text-dark">{t.sign3Name || "Athukorala Tea Factory"}</p> */}
                   </div>
               </div>
           </div>
 
           {/* 📄 PAGE 2: SUPPLIER TABLE */}
-          <div id="pdf-page-2" ref={page2Ref} className="p-10 font-sans flex flex-col justify-between" style={{ backgroundColor: '#ffffff', color: '#000000', width: '1123px', minHeight: '794px' }}>
+          <div id="pdf-page-2" ref={page2Ref} className="p-16 font-sans flex flex-col justify-between" style={{ backgroundColor: '#ffffff', color: '#000000',  width: '1600px', minHeight: '1130px'  }}>
               
-              <div className="flex justify-between items-start mb-6 border-b border-[#d1d5db] pb-4">
-                  <div className="flex items-center gap-4">
-                      <img src="/logo.png" alt="Logo" className="w-20 h-20 object-contain" onError={(e) => e.target.style.display = 'none'} />
+              <div className="flex justify-between items-start mb-10 border-b-[3px] border-[#d1d5db] pb-6">
+                  <div className="flex items-center gap-6">
+                      <img src="/logo.png" alt="Logo" className="w-32 h-32 object-contain" onError={(e) => e.target.style.display = 'none'} />
                       <div>
-                          <h1 className="text-3xl font-bold text-[#1B6A31] uppercase" style={{ fontFamily: 'sans-serif' }}>
+                          <h1 className="text-5xl font-bold text-[#1B6A31] uppercase" style={{ fontFamily: 'sans-serif' }}>
                               Athukorala Group (Pvt) Ltd
                           </h1>
-                          <h2 className="text-2xl font-bold mt-2" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
+                          <h2 className="text-4xl font-bold mt-4" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
                                {t.reportTitle1} - {t.reportTitle2}
                           </h2>                          
-                          <h3 className="text-xl font-black mt-1" style={{ color: '#1f2937', fontFamily: 'Iskoola Pota, sans-serif' }}>
+                          <h3 className="text-3xl font-black mt-2" style={{ color: '#1f2937', fontFamily: 'Iskoola Pota, sans-serif' }}>
                               {lang === 'SI' ? `${reportData?.currMonthNameSI} මාසය` : reportData?.currMonthNameEN} {reportData?.year}
                           </h3>
                       </div>
                   </div>
-                  <div className="text-right text-sm text-[#6b7280] flex flex-col gap-1.5" style={{ fontFamily: 'sans-serif' }}>
+                  <div className="text-right text-lg text-[#6b7280] flex flex-col gap-2 pt-2" style={{ fontFamily: 'sans-serif' }}>
                       <p><strong className="text-[#4b5563]">{t.docRef}:</strong> {uniqueCode}</p>
                       <p><strong className="text-[#4b5563]">{t.genTime}:</strong> {generatedDateTime}</p>
                   </div>
               </div>
 
-              <div className="flex-grow flex items-start justify-center mt-4">
-                  <table className="w-full border-collapse text-center text-[15px]" style={{ border: '2px solid #000000' }}>
-                      <thead>
+              <div className="flex-grow flex items-start justify-center mt-8">
+                  <table className="w-[60%] border-collapse text-center text-[22px]" style={{ border: '3px solid #cbd5e1' }}>
+                      <thead className="pdf-bg-gray">
                           <tr>
-                              <th className="border p-3 font-bold text-center pl-6 w-[40%]">SUPPLIER</th>
-                              <th className="border p-3 font-bold">B</th>
-                              <th className="border p-3 font-bold">B/B</th>
-                              <th className="border p-3 font-bold">P</th>
+                              <th className="border-[2px] border-[#cbd5e1] p-5 font-black text-center w-[40%]">SUPPLIER</th>
+                              <th className="border-[2px] border-[#cbd5e1] p-5 font-black pdf-text-blue">B</th>
+                              <th className="border-[2px] border-[#cbd5e1] p-5 font-black pdf-text-yellow">B/B</th>
+                              <th className="border-[2px] border-[#cbd5e1] p-5 font-black pdf-text-red">P</th>
                           </tr>
                       </thead>
                       <tbody>
@@ -728,55 +737,52 @@ export default function GreenLeafMonthlyReport() {
                               const stat = reportData.currentStats.items.find(it => it.routeKey === r.key);
                               return (
                                   <tr key={`page2-${r.key}`}>
-                                      <td className="border p-2.5 font-bold text-center pl-6 pdf-text-gray">{r.display}</td>
-                                      <td className="border p-2.5 font-bold" style={{ color: '#1f2937' }}>{stat ? stat.bestPct : "-"}</td>
-                                      <td className="border p-2.5 font-bold" style={{ color: '#1f2937' }}>{stat ? stat.bbPct : "-"}</td>
-                                      <td className="border p-2.5 font-bold" style={{ color: '#1f2937' }}>{stat ? stat.poorPct : "-"}</td>
+                                      <td className="border-[2px] border-[#cbd5e1] p-4 font-bold text-center pdf-text-gray">{r.display}</td>
+                                      <td className="border-[2px] border-[#cbd5e1] p-4 font-bold" style={{ color: '#1f2937' }}>{stat ? stat.bestPct : "-"}</td>
+                                      <td className="border-[2px] border-[#cbd5e1] p-4 font-bold" style={{ color: '#1f2937' }}>{stat ? stat.bbPct : "-"}</td>
+                                      <td className="border-[2px] border-[#cbd5e1] p-4 font-bold" style={{ color: '#1f2937' }}>{stat ? stat.poorPct : "-"}</td>
                                   </tr>
                               );
                           })}
                           {reportData && (
                               <tr className="pdf-bg-yellow">
-                                  <td className="border p-3 font-bold text-center pl-6 uppercase pdf-text-red">
+                                  <td className="border-[2px] border-[#cbd5e1] p-5 font-black text-center uppercase pdf-text-red">
                                       {lang === 'SI' ? `${reportData.currMonthNameSI} සාමාන්‍යය` : `${reportData.currMonthNameEN} AVERAGE`}
                                   </td>
-                                  <td className="border p-3 font-bold pdf-text-red">{reportData.currentStats.avgBest}</td>
-                                  <td className="border p-3 font-bold pdf-text-red">{reportData.currentStats.avgBelow}</td>
-                                  <td className="border p-3 font-bold pdf-text-red">{reportData.currentStats.avgPoor}</td>
+                                  <td className="border-[2px] border-[#cbd5e1] p-5 font-black pdf-text-red text-2xl">{reportData.currentStats.avgBest}</td>
+                                  <td className="border-[2px] border-[#cbd5e1] p-5 font-black pdf-text-red text-2xl">{reportData.currentStats.avgBelow}</td>
+                                  <td className="border-[2px] border-[#cbd5e1] p-5 font-black pdf-text-red text-2xl">{reportData.currentStats.avgPoor}</td>
                               </tr>
                           )}
                           {reportData && (
                               <tr className="pdf-bg-light">
-                                  <td className="border p-3 font-bold text-center pl-6 uppercase" style={{ color: '#be123c' }}>
+                                  <td className="border-[2px] border-[#cbd5e1] p-5 font-black text-center uppercase" style={{ color: '#be123c' }}>
                                       {lang === 'SI' ? `${reportData.prevMonthNameSI} සාමාන්‍යය` : `${reportData.prevMonthNameEN} AVERAGE`}
                                   </td>
-                                  <td className="border p-3 font-bold" style={{ color: '#be123c' }}>{reportData.prevStats.avgBest}</td>
-                                  <td className="border p-3 font-bold" style={{ color: '#be123c' }}>{reportData.prevStats.avgBelow}</td>
-                                  <td className="border p-3 font-bold" style={{ color: '#be123c' }}>{reportData.prevStats.avgPoor}</td>
+                                  <td className="border-[2px] border-[#cbd5e1] p-5 font-black text-xl" style={{ color: '#be123c' }}>{reportData.prevStats.avgBest}</td>
+                                  <td className="border-[2px] border-[#cbd5e1] p-5 font-black text-xl" style={{ color: '#be123c' }}>{reportData.prevStats.avgBelow}</td>
+                                  <td className="border-[2px] border-[#cbd5e1] p-5 font-black text-xl" style={{ color: '#be123c' }}>{reportData.prevStats.avgPoor}</td>
                               </tr>
                           )}
                       </tbody>
                   </table>
               </div>
 
-              <div className="mt-auto pt-16 pb-12 w-full flex flex-row justify-between px-16 items-end text-[16px] font-bold font-sans text-[#374151]">                  
-                  <div className="w-56 flex flex-col items-center">
-                      <p className="text-[#4b5563] mb-2">.............................................................</p>
+              <div className="mt-auto pt-20 pb-16 w-full flex flex-row justify-between px-20 items-end text-[20px] font-bold font-sans text-[#374151]">                  
+                  <div className="w-72 flex flex-col items-center">
+                      <p className="text-[#4b5563] mb-3">.............................................................</p>
                       <p className="pdf-text-dark">{t.sign1Pre}</p>
                       <p className="pdf-text-dark">{t.sign1Post}</p>
-                      {/* <p className="pdf-text-dark">{t.sign1Name || "H.V.O.B. Senevirathna"}</p> */}
                   </div>
-                  <div className="w-56 flex flex-col items-center">
-                      <p className="text-[#4b5563] mb-2">.............................................................</p>
+                  <div className="w-72 flex flex-col items-center">
+                      <p className="text-[#4b5563] mb-3">.............................................................</p>
                       <p className="pdf-text-dark">{t.sign2Pre}</p>
                       <p className="pdf-text-dark">{t.sign2Post}</p>
-                      {/* <p className="pdf-text-dark">{t.sign2Name || "Mr. Alwis"}</p> */}
                   </div>
-                  <div className="w-64 flex flex-col items-center">
-                      <p className="text-[#4b5563] mb-2">.............................................................</p>
+                  <div className="w-80 flex flex-col items-center">
+                      <p className="text-[#4b5563] mb-3">.............................................................</p>
                       <p className="pdf-text-dark">{t.sign3Pre}</p>
                       <p className="pdf-text-dark">{t.sign3Post}</p>
-                      {/* <p className="pdf-text-dark">{t.sign3Name || "Athukorala Tea Factory"}</p> */}
                   </div>
               </div>
           </div>
