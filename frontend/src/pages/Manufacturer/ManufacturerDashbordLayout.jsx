@@ -141,17 +141,11 @@ const DATA = {
             { title: 'Weight Average', url: '/manufacturer/weight-avg-factory-loft-leaf', adminOnly: true, nonViewer: true },
             { title: 'G/L Ranking Report', url: '/manufacturer/green-leaf-monthly-ranking', adminOnly: true, nonViewer: true },
             { title: 'G/L Quality Report', url: '/manufacturer/green-leaf-monthly-report', adminOnly: true, nonViewer: true },
+            { title: 'TC5 Report', url: '/manufacturer/tc5report'},
           ],
         },
       ],
-    },
-     {
-      title: 'TC5 Report',
-      icon: Proportions,
-      items: [
-        { title: 'Enter TC5 Report', url: '/manufacturer/tc5report', nonViewer: true },
-      ],
-    },
+    }
   ],
 };
 
