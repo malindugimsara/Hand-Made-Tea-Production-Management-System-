@@ -11,7 +11,7 @@ const routeOptions = [
 ];
 
 const PREDEFINED_GRADES = [
-  'FBOP', 'FBOP1', 'FBOPF', 'FBOPF1', 'OP', 'OPA', 'OP1', 'PEKOE', 
+  'FBOP', 'FBOP1', 'FBOPF', 'FBOPF1', 'OP', 'OPA', 'OP1', 'PEKOE',
   'PEKOE1', 'BOP1', 'BOPSP', 'BOPA', 'BM', 'FNGS', 'BOPF', 'BOPIA'
 ];
 
@@ -35,7 +35,7 @@ export default function TC5Report() {
 
   // Editable fields state for manual adjustment
   const [refuseTea, setRefuseTea] = useState({ bf: "", manufactured: "", sold: "", manure: "", other: "" });
-  
+
   const [reportData, setReportData] = useState({
     sec2: { bf: 0, ownLeaf: 0, boughtLeaf: 0, otherEstate: 0, otherFactory: 0, total: 0, disposals: 0, closing: 0 },
     sec3: { best: 0, below: 0, poor: 0 },
@@ -107,21 +107,7 @@ export default function TC5Report() {
         });
 
         (r.localSales || []).forEach(l => {
-          let grade = normalizeTeaType(l.teaType);
-
-          if (grade === 'ALL') {
-            dispMap['BOPF'].gifts += (Number(l.weight) || 0);
-            return;
-          }
-
-          if (!dispMap[grade]) {
-            dispMap[grade] = { auction: 0, private: 0, forward: 0, exFactory: 0, direct: 0, gifts: 0, other: 0, total: 0 };
-          }
-          if (grade === 'BOPF') {
-            dispMap[grade].gifts += (Number(l.weight) || 0);
-          } else {
-            dispMap[grade].exFactory += (Number(l.weight) || 0);
-          }
+          dispMap['BOPF'].gifts += (Number(l.weight) || 0);
         });
       });
 
@@ -135,7 +121,6 @@ export default function TC5Report() {
       sec2.total = sec2.bf + sec2.ownLeaf + sec2.boughtLeaf + sec2.otherEstate + sec2.otherFactory;
       sec2.closing = sec2.total - sec2.disposals;
 
-      // Allow overriding Section 2 values from DB if saved report exists
       if (savedReport && savedReport.section2_manufacture) {
         sec2.bf = savedReport.section2_manufacture.bf ?? sec2.bf;
         sec2.ownLeaf = savedReport.section2_manufacture.ownLeaf ?? sec2.ownLeaf;
@@ -205,7 +190,8 @@ export default function TC5Report() {
         sec3.poor = savedReport.section3_averageLeaf.poor ?? sec3.poor;
       }
 
-      setReportData({ sec2, sec3, sec8: savedReport?.section8_disposals?.length ? savedReport.section8_disposals : sec8Array });
+      // UPDATED LINE: sec8 now strictly uses the live sec8Array instead of the savedReport
+      setReportData({ sec2, sec3, sec8: sec8Array });
 
     } catch (error) {
       console.error("TC5 Fetch Error:", error);
@@ -519,10 +505,10 @@ export default function TC5Report() {
                         <div style={{ flex: 1, display: 'flex', alignItems: 'baseline' }}>
                           <span style={{ fontWeight: 'bold' }}>20</span>
                           <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '30px', textAlign: 'center', fontWeight: 'bold', padding: '0 2px' }}>
-                            {reportYearText}
+
                           </span>
                           <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', flex: 1, maxWidth: '240px', textAlign: 'center', fontWeight: 'bold', padding: '0 8px' }}>
-                            {reportMonthText}
+
                           </span>
                           <span style={{ marginLeft: '6px' }}>මස තේ නිෂ්පාදනය පිළිබඳ මාසික වාර්තාව</span>
                         </div>
@@ -624,10 +610,11 @@ export default function TC5Report() {
                   <tr>
                     <th className="tc5-th" rowSpan="3" style={{ width: '3%', textAlign: 'center', verticalAlign: 'middle', padding: 0 }}>
                       <div style={{ fontWeight: 'bold', fontSize: '9px', lineHeight: '1.3', letterSpacing: '1px' }}>
-                        O D<br />
-                        R T<br />
-                        T X<br />
-                        H
+                        OD<br />
+                        RO<br />
+                        TX<br />
+                        H<br />
+                        O
                       </div>
                     </th>
                     <th className="tc5-th" rowSpan="3" style={{ width: '13%' }}>
@@ -689,23 +676,23 @@ export default function TC5Report() {
                   <tr className="bg-shade" style={{ fontWeight: 'bold', fontSize: '13px', textAlign: 'center' }}>
                     <td className="tc5-td-c" style={{ padding: '8px 2px', fontSize: '9px' }}>&nbsp;</td>
                     <td className="tc5-td-c" style={{ padding: '0' }}>
-                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{reportData.sec2.bf.toFixed(1)}</span> : <input type="number" value={reportData.sec2.bf} onChange={(e) => handleSec2Change('bf', e.target.value)} className="tc5-input py-2" placeholder="0" />}
+                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{reportData.sec2.bf > 0 ? reportData.sec2.bf.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.bf || ""} onChange={(e) => handleSec2Change('bf', e.target.value)} className="tc5-input py-2" placeholder="-" />}
                     </td>
                     <td className="tc5-td-c" style={{ padding: '0' }}>
-                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{reportData.sec2.ownLeaf.toFixed(1)}</span> : <input type="number" value={reportData.sec2.ownLeaf} onChange={(e) => handleSec2Change('ownLeaf', e.target.value)} className="tc5-input py-2" placeholder="0" />}
+                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{reportData.sec2.ownLeaf > 0 ? reportData.sec2.ownLeaf.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.ownLeaf || ""} onChange={(e) => handleSec2Change('ownLeaf', e.target.value)} className="tc5-input py-2" placeholder="-" />}
                     </td>
                     <td className="tc5-td-c" style={{ padding: '0' }}>
-                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{reportData.sec2.otherEstate.toFixed(1)}</span> : <input type="number" value={reportData.sec2.otherEstate} onChange={(e) => handleSec2Change('otherEstate', e.target.value)} className="tc5-input py-2" placeholder="0" />}
+                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{reportData.sec2.otherEstate > 0 ? reportData.sec2.otherEstate.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.otherEstate || ""} onChange={(e) => handleSec2Change('otherEstate', e.target.value)} className="tc5-input py-2" placeholder="-" />}
                     </td>
                     <td className="tc5-td-c" style={{ padding: '0' }}>
-                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{reportData.sec2.boughtLeaf.toFixed(1)}</span> : <input type="number" value={reportData.sec2.boughtLeaf} onChange={(e) => handleSec2Change('boughtLeaf', e.target.value)} className="tc5-input py-2" placeholder="0" />}
+                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{reportData.sec2.boughtLeaf > 0 ? reportData.sec2.boughtLeaf.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.boughtLeaf || ""} onChange={(e) => handleSec2Change('boughtLeaf', e.target.value)} className="tc5-input py-2" placeholder="-" />}
                     </td>
                     <td className="tc5-td-c" style={{ padding: '0' }}>
-                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{reportData.sec2.otherFactory.toFixed(1)}</span> : <input type="number" value={reportData.sec2.otherFactory} onChange={(e) => handleSec2Change('otherFactory', e.target.value)} className="tc5-input py-2" placeholder="0" />}
+                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{reportData.sec2.otherFactory > 0 ? reportData.sec2.otherFactory.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.otherFactory || ""} onChange={(e) => handleSec2Change('otherFactory', e.target.value)} className="tc5-input py-2" placeholder="-" />}
                     </td>
-                    <td className="tc5-td-c" style={{ padding: '8px 4px' }}>{reportData.sec2.total.toFixed(1)}</td>
-                    <td className="tc5-td-c" style={{ padding: '8px 4px' }}>{reportData.sec2.disposals.toFixed(1)}</td>
-                    <td className="tc5-td-c" style={{ padding: '8px 4px' }}>{reportData.sec2.closing.toFixed(1)}</td>
+                    <td className="tc5-td-c" style={{ padding: '8px 4px' }}>{reportData.sec2.total > 0 ? reportData.sec2.total.toFixed(1) : '-'}</td>
+                    <td className="tc5-td-c" style={{ padding: '8px 4px' }}>{reportData.sec2.disposals > 0 ? reportData.sec2.disposals.toFixed(1) : '-'}</td>
+                    <td className="tc5-td-c" style={{ padding: '8px 4px' }}>{reportData.sec2.closing > 0 ? reportData.sec2.closing.toFixed(1) : '-'}</td>
                   </tr>
                 </tbody>
               </table>
@@ -721,10 +708,10 @@ export default function TC5Report() {
                     <td className="tc5-td-c" style={{ width: '14%', padding: '4px' }}>
                       Best<br /><span style={{ fontSize: '9px' }}>හොඳ</span><br />
                       {generatingPdf ? (
-                        <span style={{ display: 'block', fontWeight: 'bold', marginTop: '4px', fontSize: '16px' }}>{reportData.sec3.best}%</span>
+                        <span style={{ display: 'block', fontWeight: 'bold', marginTop: '4px', fontSize: '16px' }}>{reportData.sec3.best > 0 ? `${reportData.sec3.best}%` : '-'}</span>
                       ) : (
                         <div className="flex items-center justify-center mt-1">
-                          <input type="number" value={reportData.sec3.best} onChange={(e) => handleSec3Change('best', e.target.value)} className="tc5-input text-center text-base" style={{ width: '50px' }} />
+                          <input type="number" value={reportData.sec3.best || ""} onChange={(e) => handleSec3Change('best', e.target.value)} className="tc5-input text-center text-base" style={{ width: '50px' }} placeholder="-" />
                           <span className="font-bold text-base">%</span>
                         </div>
                       )}
@@ -732,10 +719,10 @@ export default function TC5Report() {
                     <td className="tc5-td-c" style={{ width: '14%', padding: '4px' }}>
                       Below Best<br /><span style={{ fontSize: '9px' }}>සාමාන්‍ය</span><br />
                       {generatingPdf ? (
-                        <span style={{ display: 'block', fontWeight: 'bold', marginTop: '4px', fontSize: '16px' }}>{reportData.sec3.below}%</span>
+                        <span style={{ display: 'block', fontWeight: 'bold', marginTop: '4px', fontSize: '16px' }}>{reportData.sec3.below > 0 ? `${reportData.sec3.below}%` : '-'}</span>
                       ) : (
                         <div className="flex items-center justify-center mt-1">
-                          <input type="number" value={reportData.sec3.below} onChange={(e) => handleSec3Change('below', e.target.value)} className="tc5-input text-center text-base" style={{ width: '50px' }} />
+                          <input type="number" value={reportData.sec3.below || ""} onChange={(e) => handleSec3Change('below', e.target.value)} className="tc5-input text-center text-base" style={{ width: '50px' }} placeholder="-" />
                           <span className="font-bold text-base">%</span>
                         </div>
                       )}
@@ -743,10 +730,10 @@ export default function TC5Report() {
                     <td className="tc5-td-c" style={{ width: '14%', padding: '4px' }}>
                       Poor<br /><span style={{ fontSize: '9px' }}>දුර්වල</span><br />
                       {generatingPdf ? (
-                        <span style={{ display: 'block', fontWeight: 'bold', marginTop: '4px', fontSize: '16px' }}>{reportData.sec3.poor}%</span>
+                        <span style={{ display: 'block', fontWeight: 'bold', marginTop: '4px', fontSize: '16px' }}>{reportData.sec3.poor > 0 ? `${reportData.sec3.poor}%` : '-'}</span>
                       ) : (
                         <div className="flex items-center justify-center mt-1">
-                          <input type="number" value={reportData.sec3.poor} onChange={(e) => handleSec3Change('poor', e.target.value)} className="tc5-input text-center text-base" style={{ width: '50px' }} />
+                          <input type="number" value={reportData.sec3.poor || ""} onChange={(e) => handleSec3Change('poor', e.target.value)} className="tc5-input text-center text-base" style={{ width: '50px' }} placeholder="-" />
                           <span className="font-bold text-base">%</span>
                         </div>
                       )}
@@ -889,21 +876,21 @@ export default function TC5Report() {
                   </tr>
                   <tr>
                     <td className="tc5-td-c" style={{ padding: '0' }}>
-                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{refuseTea.bf !== "" ? refuseTea.bf : "0"}</span> : <input type="number" name="bf" value={refuseTea.bf} onChange={handleRefuseChange} className="tc5-input py-2" placeholder="0" />}
+                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{Number(refuseTea.bf) > 0 ? refuseTea.bf : "-"}</span> : <input type="number" name="bf" value={refuseTea.bf || ""} onChange={handleRefuseChange} className="tc5-input py-2" placeholder="-" />}
                     </td>
                     <td className="tc5-td-c" style={{ padding: '0' }}>
-                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{refuseTea.manufactured !== "" ? refuseTea.manufactured : "0"}</span> : <input type="number" name="manufactured" value={refuseTea.manufactured} onChange={handleRefuseChange} className="tc5-input py-2" placeholder="0" />}
+                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{Number(refuseTea.manufactured) > 0 ? refuseTea.manufactured : "-"}</span> : <input type="number" name="manufactured" value={refuseTea.manufactured || ""} onChange={handleRefuseChange} className="tc5-input py-2" placeholder="-" />}
                     </td>
                     <td className="tc5-td-c" style={{ padding: '0' }}>
-                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{refuseTea.sold !== "" ? refuseTea.sold : "0"}</span> : <input type="number" name="sold" value={refuseTea.sold} onChange={handleRefuseChange} className="tc5-input py-2" placeholder="0" />}
+                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{Number(refuseTea.sold) > 0 ? refuseTea.sold : "-"}</span> : <input type="number" name="sold" value={refuseTea.sold || ""} onChange={handleRefuseChange} className="tc5-input py-2" placeholder="-" />}
                     </td>
                     <td className="tc5-td-c" style={{ padding: '0' }}>
-                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{refuseTea.manure !== "" ? refuseTea.manure : "0"}</span> : <input type="number" name="manure" value={refuseTea.manure} onChange={handleRefuseChange} className="tc5-input py-2" placeholder="0" />}
+                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{Number(refuseTea.manure) > 0 ? refuseTea.manure : "-"}</span> : <input type="number" name="manure" value={refuseTea.manure || ""} onChange={handleRefuseChange} className="tc5-input py-2" placeholder="-" />}
                     </td>
                     <td className="tc5-td-c" style={{ padding: '0' }}>
-                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{refuseTea.other !== "" ? refuseTea.other : "0"}</span> : <input type="number" name="other" value={refuseTea.other} onChange={handleRefuseChange} className="tc5-input py-2" placeholder="0" />}
+                      {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{Number(refuseTea.other) > 0 ? refuseTea.other : "-"}</span> : <input type="number" name="other" value={refuseTea.other || ""} onChange={handleRefuseChange} className="tc5-input py-2" placeholder="-" />}
                     </td>
-                    <td className="tc5-td-c bg-shade" style={{ fontWeight: 'bold', fontSize: '13px' }}>{refBalance > 0 ? refBalance.toFixed(2) : '0.00'}</td>
+                    <td className="tc5-td-c bg-shade" style={{ fontWeight: 'bold', fontSize: '13px' }}>{refBalance > 0 ? refBalance.toFixed(2) : '-'}</td>
                   </tr>
                 </tbody>
               </table>
@@ -1064,62 +1051,62 @@ export default function TC5Report() {
                       <td className="tc5-td-c" style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>{row.grade}</td>
                       <td className="tc5-td-c" style={{ padding: 0 }}>
                         {generatingPdf ? (
-                          <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{row.auction > 0 ? row.auction.toFixed(1) : ''}</span>
+                          <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{row.auction > 0 ? row.auction.toFixed(1) : '-'}</span>
                         ) : (
-                          <input type="number" value={row.auction || ""} onChange={(e) => handleSec8Change(idx, 'auction', e.target.value)} className="tc5-input" placeholder="" />
+                          <input type="number" value={row.auction || ""} onChange={(e) => handleSec8Change(idx, 'auction', e.target.value)} className="tc5-input" placeholder="-" />
                         )}
                       </td>
                       <td className="tc5-td-c" style={{ padding: 0 }}>
                         {generatingPdf ? (
-                          <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{row.private > 0 ? row.private.toFixed(1) : ''}</span>
+                          <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{row.private > 0 ? row.private.toFixed(1) : '-'}</span>
                         ) : (
-                          <input type="number" value={row.private || ""} onChange={(e) => handleSec8Change(idx, 'private', e.target.value)} className="tc5-input" placeholder="" />
+                          <input type="number" value={row.private || ""} onChange={(e) => handleSec8Change(idx, 'private', e.target.value)} className="tc5-input" placeholder="-" />
                         )}
                       </td>
                       <td className="tc5-td-c" style={{ padding: 0 }}>
                         {generatingPdf ? (
-                          <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{row.forward > 0 ? row.forward.toFixed(1) : ''}</span>
+                          <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{row.forward > 0 ? row.forward.toFixed(1) : '-'}</span>
                         ) : (
-                          <input type="number" value={row.forward || ""} onChange={(e) => handleSec8Change(idx, 'forward', e.target.value)} className="tc5-input" placeholder="" />
+                          <input type="number" value={row.forward || ""} onChange={(e) => handleSec8Change(idx, 'forward', e.target.value)} className="tc5-input" placeholder="-" />
                         )}
                       </td>
                       <td className="tc5-td-c" style={{ padding: 0 }}>
                         {generatingPdf ? (
-                          <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{row.exFactory > 0 ? row.exFactory.toFixed(1) : ''}</span>
+                          <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{row.exFactory > 0 ? row.exFactory.toFixed(1) : '-'}</span>
                         ) : (
-                          <input type="number" value={row.exFactory || ""} onChange={(e) => handleSec8Change(idx, 'exFactory', e.target.value)} className="tc5-input" placeholder="" />
+                          <input type="number" value={row.exFactory || ""} onChange={(e) => handleSec8Change(idx, 'exFactory', e.target.value)} className="tc5-input" placeholder="-" />
                         )}
                       </td>
                       <td className="tc5-td-c" style={{ padding: 0 }}>
                         {generatingPdf ? (
-                          <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{row.direct > 0 ? row.direct.toFixed(1) : ''}</span>
+                          <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{row.direct > 0 ? row.direct.toFixed(1) : '-'}</span>
                         ) : (
-                          <input type="number" value={row.direct || ""} onChange={(e) => handleSec8Change(idx, 'direct', e.target.value)} className="tc5-input" placeholder="" />
+                          <input type="number" value={row.direct || ""} onChange={(e) => handleSec8Change(idx, 'direct', e.target.value)} className="tc5-input" placeholder="-" />
                         )}
                       </td>
                       <td className="tc5-td-c" style={{ padding: 0 }}>
                         {generatingPdf ? (
-                          <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{row.gifts > 0 ? row.gifts.toFixed(1) : ''}</span>
+                          <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{row.gifts > 0 ? row.gifts.toFixed(1) : '-'}</span>
                         ) : (
-                          <input type="number" value={row.gifts || ""} onChange={(e) => handleSec8Change(idx, 'gifts', e.target.value)} className="tc5-input" placeholder="" />
+                          <input type="number" value={row.gifts || ""} onChange={(e) => handleSec8Change(idx, 'gifts', e.target.value)} className="tc5-input" placeholder="-" />
                         )}
                       </td>
                       <td className="tc5-td-c" style={{ padding: 0 }}>
                         {generatingPdf ? (
-                          <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{row.other > 0 ? row.other.toFixed(1) : ''}</span>
+                          <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{row.other > 0 ? row.other.toFixed(1) : '-'}</span>
                         ) : (
-                          <input type="number" value={row.other || ""} onChange={(e) => handleSec8Change(idx, 'other', e.target.value)} className="tc5-input" placeholder="" />
+                          <input type="number" value={row.other || ""} onChange={(e) => handleSec8Change(idx, 'other', e.target.value)} className="tc5-input" placeholder="-" />
                         )}
                       </td>
                       <td className="tc5-td-c">&nbsp;</td>
-                      <td className="tc5-td-c bg-shade" style={{ fontWeight: 'bold', fontSize: '11px' }}>{row.total > 0 ? row.total.toFixed(1) : ''}</td>
+                      <td className="tc5-td-c bg-shade" style={{ fontWeight: 'bold', fontSize: '11px' }}>{row.total > 0 ? row.total.toFixed(1) : '-'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
               {/* TABLE 9: DIRECT SALES */}
-              <div style={{ fontWeight: 'bold', fontSize: '12px', marginBottom: '4px', marginTop: '-10px' }}>
+              <div style={{ fontWeight: 'bold', fontSize: '12px', marginBottom: '4px', marginTop: '-12px' }}>
                 09. Direct sales - Sales made without the services of a broker<br />
                 <span style={{ fontSize: '10px', fontWeight: 'normal' }}>සෘජු විකිණීම් - තැරැව්කරුවෙකුගේ සේවාවකින් තොරව විකිණෙන ලද සකස් කළ තේ</span>
               </div>
@@ -1156,17 +1143,17 @@ export default function TC5Report() {
                     <td className="tc5-td" colSpan="9" style={{ padding: '12px 16px' }}>
                       <p style={{ margin: '0 0 4px 0', fontSize: '11px' }}>I/We hereby declare that all the particulars furnished in this return are true and accurate.<br />මෙම වාර්තාවේ සපයා ඇති සියලු විස්තර සත්‍ය බවත් නිවැරදි බවත් මම / අපි මෙයින් ප්‍රකාශ කර සිටිමු / සිටිමි.</p>
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '40px', marginBottom: '8px', textAlign: 'center', fontSize: '11px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '10px', marginBottom: '0px', textAlign: 'center', fontSize: '11px' }}>
                         <div style={{ textAlign: 'left', width: '20%' }}>
                           Date :<br />දිනය
                         </div>
                         <div style={{ width: '50%' }}>
-                          <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '100%', marginBottom: '4px' }}></span><br />
+                          <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '100%', marginBottom: '-6px' }}></span><br />
                           Name of registered Manufacture / Superintendent<br />
                           ලි.ප නිෂ්පාදකයාගේ / අධිකාරීගේ නම
                         </div>
                         <div style={{ width: '25%' }}>
-                          <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '100%', marginBottom: '4px' }}></span><br />
+                          <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '100%', marginBottom: '-6px' }}></span><br />
                           Signature<br />
                           අත්සන
                         </div>
@@ -1178,8 +1165,8 @@ export default function TC5Report() {
                       <div style={{ fontSize: '11px' }}>
                         State if any special remarks<br />
                         විශේෂ විමර්ශන ඇත්නම් දක්වන්න
-                        <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '100%', marginTop: '12px' }}></span>
-                        <br /><br /><br />
+                        <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '100%', marginTop: '1px' }}></span>
+                        <br />
                         Date :<br />
                         දිනය
                         <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '150px', marginLeft: '16px' }}></span>
