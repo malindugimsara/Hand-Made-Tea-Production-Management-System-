@@ -20,6 +20,11 @@ const normalizeTeaType = (type) => {
   return type.toUpperCase().replace(/\s+/g, "");
 };
 
+// Initial empty 17 rows to prevent undefined errors before fetch
+const initialSec8 = Array.from({ length: 17 }, () => ({
+  grade: '', auction: 0, private: 0, forward: 0, exFactory: 0, direct: 0, gifts: 0, other: 0, total: 0
+}));
+
 export default function TC5Report() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
@@ -39,7 +44,7 @@ export default function TC5Report() {
   const [reportData, setReportData] = useState({
     sec2: { bf: 0, ownLeaf: 0, boughtLeaf: 0, otherEstate: 0, otherFactory: 0, total: 0, disposals: 0, closing: 0 },
     sec3: { best: 0, below: 0, poor: 0 },
-    sec8: []
+    sec8: initialSec8
   });
 
   useEffect(() => {
@@ -111,11 +116,18 @@ export default function TC5Report() {
         });
       });
 
-      const sec8Array = Object.keys(dispMap).map(grade => {
+      // Filter out grades that have NO tea at all
+      let activeSec8 = Object.keys(dispMap).map(grade => {
         const row = dispMap[grade];
         row.total = row.auction + row.private + row.forward + row.exFactory + row.direct + row.gifts + row.other;
         return { grade, ...row };
-      });
+      }).filter(row => row.total > 0);
+
+      // Pad remaining empty rows up to 17 total data rows
+      while (activeSec8.length < 17) {
+        activeSec8.push({ grade: '', auction: 0, private: 0, forward: 0, exFactory: 0, direct: 0, gifts: 0, other: 0, total: 0 });
+      }
+      activeSec8 = activeSec8.slice(0, 17); // Ensure strictly 17 rows
 
       const sec2 = { bf, ownLeaf, boughtLeaf, otherEstate: 0, otherFactory: 0, disposals: totalDispatch + totalLocalSale };
       sec2.total = sec2.bf + sec2.ownLeaf + sec2.boughtLeaf + sec2.otherEstate + sec2.otherFactory;
@@ -190,8 +202,7 @@ export default function TC5Report() {
         sec3.poor = savedReport.section3_averageLeaf.poor ?? sec3.poor;
       }
 
-      // UPDATED LINE: sec8 now strictly uses the live sec8Array instead of the savedReport
-      setReportData({ sec2, sec3, sec8: sec8Array });
+      setReportData({ sec2, sec3, sec8: activeSec8 });
 
     } catch (error) {
       console.error("TC5 Fetch Error:", error);
@@ -223,9 +234,13 @@ export default function TC5Report() {
 
   const handleSec8Change = (index, field, val) => {
     const updatedSec8 = [...reportData.sec8];
-    const num = Number(val) || 0;
-    updatedSec8[index][field] = num;
-    updatedSec8[index].total = (updatedSec8[index].auction || 0) + (updatedSec8[index].private || 0) + (updatedSec8[index].forward || 0) + (updatedSec8[index].exFactory || 0) + (updatedSec8[index].direct || 0) + (updatedSec8[index].gifts || 0) + (updatedSec8[index].other || 0);
+    if (field === 'grade') {
+      updatedSec8[index][field] = val;
+    } else {
+      const num = Number(val) || 0;
+      updatedSec8[index][field] = num;
+      updatedSec8[index].total = (updatedSec8[index].auction || 0) + (updatedSec8[index].private || 0) + (updatedSec8[index].forward || 0) + (updatedSec8[index].exFactory || 0) + (updatedSec8[index].direct || 0) + (updatedSec8[index].gifts || 0) + (updatedSec8[index].other || 0);
+    }
     setReportData({ ...reportData, sec8: updatedSec8 });
   };
 
@@ -270,7 +285,6 @@ export default function TC5Report() {
     }
   };
 
-  // Auto-save before triggering PDF download if user hasn't saved
   const generatePDF = async () => {
     setGeneratingPdf(true);
     const saveSuccess = await saveToDB();
@@ -353,19 +367,27 @@ export default function TC5Report() {
     }
   };
 
-  const paddedSec8 = [...reportData.sec8];
-  while (paddedSec8.length < 18) {
-    paddedSec8.push({ grade: '', auction: 0, private: 0, forward: 0, exFactory: 0, direct: 0, gifts: 0, other: 0, total: 0 });
-  }
-
   const reportMonthText = new Date(`${selectedMonth}-01`).toLocaleString('en-US', { month: 'long' }).toUpperCase();
   const reportYearText = selectedMonth.substring(2, 4);
+
+  // Calculate totals for section 8
+  const sec8Totals = reportData.sec8.reduce((acc, row) => {
+    acc.auction += Number(row.auction) || 0;
+    acc.private += Number(row.private) || 0;
+    acc.forward += Number(row.forward) || 0;
+    acc.exFactory += Number(row.exFactory) || 0;
+    acc.direct += Number(row.direct) || 0;
+    acc.gifts += Number(row.gifts) || 0;
+    acc.other += Number(row.other) || 0;
+    acc.total += Number(row.total) || 0;
+    return acc;
+  }, { auction: 0, private: 0, forward: 0, exFactory: 0, direct: 0, gifts: 0, other: 0, total: 0 });
 
   return (
     <div className="w-full min-h-screen bg-slate-100 p-3 md:p-6 font-sans">
       <Toaster position="bottom-right" />
 
-      {/* Modern Full-Width Header Bar matching your requested layout */}
+      {/* Modern Full-Width Header Bar */}
       <div className="w-full max-w-[1200px] mx-auto mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 rounded-xl shadow-md border border-slate-200">
         <div>
           <h2 className="text-xl font-black text-slate-800 flex items-center gap-2 uppercase tracking-tight">
@@ -471,7 +493,10 @@ export default function TC5Report() {
               color: #000000; 
               padding: 2px 0; 
             }
+            
+            /* Helper classes */
             .bg-shade { background-color: #f8fafc !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .border-left-fix { border-left: 1px solid #000000 !important; }
           `}</style>
 
           {/* ============================== PAGE 1 ============================== */}
@@ -622,7 +647,7 @@ export default function TC5Report() {
                       <span style={{ fontSize: '8px' }}>මාසය ආරම්භයේ දී තේ තොගය</span>
                     </th>
                     <th className="tc5-th" colSpan="4" style={{ textAlign: 'left', padding: '3px 6px' }}>
-                      Tel No / දුරකථන අංකය : <strong>091-2283000</strong>
+                      Tel No / දුරකථන අංකය : <strong></strong>
                     </th>
                     <th className="tc5-th" colSpan="3" style={{ textAlign: 'left', padding: '3px 6px' }}>
                       Miscellaneous receipt of made tea<br />
@@ -630,7 +655,7 @@ export default function TC5Report() {
                     </th>
                   </tr>
                   <tr>
-                    <th className="tc5-th bg-shade" colSpan="4" style={{ textAlign: 'center', padding: '2px' }}>
+                    <th className="tc5-th bg-shade border-left-fix" colSpan="4" style={{ textAlign: 'center', padding: '2px' }}>
                       <strong>Manufacture / නිෂ්පාදනය කිරීම</strong>
                     </th>
                     <th className="tc5-th" rowSpan="2" style={{ width: '11%' }}>
@@ -650,7 +675,7 @@ export default function TC5Report() {
                     </th>
                   </tr>
                   <tr>
-                    <th className="tc5-th" style={{ width: '11%' }}>
+                    <th className="tc5-th border-left-fix" style={{ width: '11%' }}>
                       From own leaf<br /><br />
                       <span style={{ fontSize: '8px' }}>තම වත්තේ දළු වලින්</span><br />
                       <center style={{ marginTop: '4px' }}><strong>1</strong></center>
@@ -742,7 +767,7 @@ export default function TC5Report() {
                 </tbody>
               </table>
 
-              {/* TABLE 5: DETAILS OF PRIVATE SALES (With explicit right border on index 4) */}
+              {/* TABLE 5: DETAILS OF PRIVATE SALES (With border-left-fix on rows adjacent to rowspan 4) */}
               <table className="tc5-table no-top" style={{ textAlign: 'center' }}>
                 <tbody>
                   <tr>
@@ -752,7 +777,7 @@ export default function TC5Report() {
                     </td>
                   </tr>
                   <tr className="bg-shade">
-                    <td className="tc5-td-c" style={{ width: '12%', lineHeight: '1.25', padding: '5px 3px' }}>
+                    <td className="tc5-td-c" style={{ width: '12%', lineHeight: '1.25', padding: '5px 3px', border: '10px solid #000' }}>
                       <div style={{ fontSize: '10px', fontWeight: 'bold' }}>Garden marks</div>
                       <div style={{ fontSize: '8.5px' }}>වෙළඳ ලකුණ</div>
                     </td>
@@ -760,7 +785,7 @@ export default function TC5Report() {
                       <div style={{ fontSize: '10px', fontWeight: 'bold' }}>Invoice No</div>
                       <div style={{ fontSize: '8.5px' }}>ඉන්වොයිස් අංකය</div>
                     </td>
-                    <td className="tc5-td-c" style={{ width: '9%', lineHeight: '1.25', padding: '5px 3px' }}>
+                    <td className="tc5-td-c" style={{ width: '14%', lineHeight: '1.25', padding: '5px 3px' }}>
                       <div style={{ fontSize: '10px', fontWeight: 'bold' }}>Grade</div>
                       <div style={{ fontSize: '8.5px' }}>වර්ගය</div>
                     </td>
@@ -794,7 +819,7 @@ export default function TC5Report() {
                   </tr>
                   {/* Row 1 */}
                   <tr>
-                    <td className="tc5-td" style={{ height: '20px' }}>&nbsp;</td>
+                    <td className="tc5-td border-left-fix" style={{ height: '20px' }}>&nbsp;</td>
                     <td className="tc5-td">&nbsp;</td>
                     <td className="tc5-td">&nbsp;</td>
                     <td className="tc5-td">&nbsp;</td>
@@ -810,7 +835,7 @@ export default function TC5Report() {
                   </tr>
                   {/* Row 2: Centered static NIL */}
                   <tr>
-                    <td className="tc5-td" style={{ height: '20px' }}>&nbsp;</td>
+                    <td className="tc5-td border-left-fix" style={{ height: '20px' }}>&nbsp;</td>
                     <td className="tc5-td">&nbsp;</td>
                     <td className="tc5-td">&nbsp;</td>
                     <td className="tc5-td-c" style={{ color: '#cbd5e1', fontWeight: 'bold', fontSize: '15px', letterSpacing: '0.3em' }}>
@@ -828,7 +853,7 @@ export default function TC5Report() {
                   </tr>
                   {/* Row 3 */}
                   <tr>
-                    <td className="tc5-td" style={{ height: '20px' }}>&nbsp;</td>
+                    <td className="tc5-td border-left-fix" style={{ height: '20px' }}>&nbsp;</td>
                     <td className="tc5-td">&nbsp;</td>
                     <td className="tc5-td">&nbsp;</td>
                     <td className="tc5-td">&nbsp;</td>
@@ -844,7 +869,7 @@ export default function TC5Report() {
                   </tr>
                   {/* Row 4: Totals */}
                   <tr>
-                    <td className="tc5-td" colSpan="4" style={{ height: '20px' }}>&nbsp;</td>
+                    <td className="tc5-td border-left-fix" colSpan="4" style={{ height: '20px' }}>&nbsp;</td>
                     <td className="tc5-td-c" colSpan="2" style={{ fontWeight: 'bold', textAlign: 'right', paddingRight: '8px' }}>Total / එකතුව</td>
                     <td className="tc5-td bg-shade" style={{ padding: 0 }}>
                       <div style={{ display: 'flex', height: '100%', minHeight: '20px' }}>
@@ -857,7 +882,7 @@ export default function TC5Report() {
                 </tbody>
               </table>
 
-              {/* TABLE 6: REFUSE TEA (With explicit right border on index 5) */}
+              {/* TABLE 6: REFUSE TEA (With border-left-fix on rows adjacent to rowspan 5) */}
               <table className="tc5-table no-top" style={{ textAlign: 'center' }}>
                 <tbody>
                   <tr>
@@ -867,7 +892,7 @@ export default function TC5Report() {
                     </td>
                   </tr>
                   <tr className="bg-shade">
-                    <td className="tc5-td" style={{ width: '16%', textAlign: 'left' }}>Stock brought<br />forward from previous month<br /><span style={{ fontSize: '9px' }}>ඉකුත් මාසයෙන් ඉදිරියට ගෙන ආ තොගය</span><br /><br /><center><strong>1</strong></center></td>
+                    <td className="tc5-td border-left-fix" style={{ width: '16%', textAlign: 'left' }}>Stock brought<br />forward from previous month<br /><span style={{ fontSize: '9px' }}>ඉකුත් මාසයෙන් ඉදිරියට ගෙන ආ තොගය</span><br /><br /><center><strong>1</strong></center></td>
                     <td className="tc5-td" style={{ width: '16%', textAlign: 'left' }}>Manufactured<br />during the month<br /><span style={{ fontSize: '9px' }}>මාසය තුල නිපැයුම</span><br /><br /><br /><center><strong>2</strong></center></td>
                     <td className="tc5-td" style={{ width: '16%', textAlign: 'left' }}>Quantity<br />sold<br /><span style={{ fontSize: '9px' }}>විකුණු ප්‍රමාණය</span><br /><br /><br /><center><strong>3</strong></center></td>
                     <td className="tc5-td" style={{ width: '16%', textAlign: 'left' }}>Quantity used<br />as manure<br /><span style={{ fontSize: '9px' }}>පොහොර ලෙස යෙදූ ප්‍රමාණය</span><br /><br /><center><strong>4</strong></center></td>
@@ -875,7 +900,7 @@ export default function TC5Report() {
                     <td className="tc5-td" style={{ width: '15%', textAlign: 'left' }}>Balance stock<br /><br /><span style={{ fontSize: '9px' }}>ඉතිරි තොගය</span><br /><br /><br /><center><strong>6</strong></center></td>
                   </tr>
                   <tr>
-                    <td className="tc5-td-c" style={{ padding: '0' }}>
+                    <td className="tc5-td-c border-left-fix" style={{ padding: '0' }}>
                       {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '6px 0', fontSize: '13px' }}>{Number(refuseTea.bf) > 0 ? refuseTea.bf : "-"}</span> : <input type="number" name="bf" value={refuseTea.bf || ""} onChange={handleRefuseChange} className="tc5-input py-2" placeholder="-" />}
                     </td>
                     <td className="tc5-td-c" style={{ padding: '0' }}>
@@ -1045,10 +1070,16 @@ export default function TC5Report() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paddedSec8.map((row, idx) => (
+                  {reportData.sec8.map((row, idx) => (
                     <tr key={idx} style={{ height: '20px' }}>
                       <td className="tc5-td">&nbsp;</td>
-                      <td className="tc5-td-c" style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>{row.grade}</td>
+                      <td className="tc5-td-c" style={{ padding: 0 }}>
+                        {generatingPdf ? (
+                          <span style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' }}>{row.grade}</span>
+                        ) : (
+                          <input type="text" value={row.grade || ""} onChange={(e) => handleSec8Change(idx, 'grade', e.target.value)} className="tc5-input" style={{ textTransform: 'uppercase' }} placeholder="" />
+                        )}
+                      </td>
                       <td className="tc5-td-c" style={{ padding: 0 }}>
                         {generatingPdf ? (
                           <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{row.auction > 0 ? row.auction.toFixed(1) : '-'}</span>
@@ -1102,6 +1133,20 @@ export default function TC5Report() {
                       <td className="tc5-td-c bg-shade" style={{ fontWeight: 'bold', fontSize: '11px' }}>{row.total > 0 ? row.total.toFixed(1) : '-'}</td>
                     </tr>
                   ))}
+                  {/* NEW TOTAL ROW */}
+                  <tr style={{ height: '20px' }} className="bg-shade">
+                    <td className="tc5-td">&nbsp;</td>
+                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '11px' }}>TOTAL</td>
+                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '11px' }}>{sec8Totals.auction > 0 ? sec8Totals.auction.toFixed(1) : '-'}</td>
+                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '11px' }}>{sec8Totals.private > 0 ? sec8Totals.private.toFixed(1) : '-'}</td>
+                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '11px' }}>{sec8Totals.forward > 0 ? sec8Totals.forward.toFixed(1) : '-'}</td>
+                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '11px' }}>{sec8Totals.exFactory > 0 ? sec8Totals.exFactory.toFixed(1) : '-'}</td>
+                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '11px' }}>{sec8Totals.direct > 0 ? sec8Totals.direct.toFixed(1) : '-'}</td>
+                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '11px' }}>{sec8Totals.gifts > 0 ? sec8Totals.gifts.toFixed(1) : '-'}</td>
+                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '11px' }}>{sec8Totals.other > 0 ? sec8Totals.other.toFixed(1) : '-'}</td>
+                    <td className="tc5-td-c">&nbsp;</td>
+                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '11px' }}>{sec8Totals.total > 0 ? sec8Totals.total.toFixed(1) : '-'}</td>
+                  </tr>
                 </tbody>
               </table>
 
@@ -1165,6 +1210,8 @@ export default function TC5Report() {
                       <div style={{ fontSize: '11px' }}>
                         State if any special remarks<br />
                         විශේෂ විමර්ශන ඇත්නම් දක්වන්න
+                        <br />
+                        <br />
                         <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '100%', marginTop: '1px' }}></span>
                         <br />
                         Date :<br />
