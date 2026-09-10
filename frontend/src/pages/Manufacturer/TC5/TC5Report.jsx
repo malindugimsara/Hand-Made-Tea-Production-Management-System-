@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { Calendar, RefreshCw, FileText, Download, Save } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -26,7 +26,7 @@ const initialSec8 = Array.from({ length: 17 }, () => ({
 }));
 
 export default function TC5Report() {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const getCurrentMonth = () => {
     const d = new Date();
@@ -385,34 +385,65 @@ export default function TC5Report() {
 
   return (
     <div className="w-full min-h-screen bg-slate-100 p-3 md:p-6 font-sans">
-      <Toaster position="bottom-right" />
-
-      {/* Modern Full-Width Header Bar */}
-      <div className="w-full max-w-[1200px] mx-auto mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 rounded-xl shadow-md border border-slate-200">
-        <div>
-          <h2 className="text-xl font-black text-slate-800 flex items-center gap-2 uppercase tracking-tight">
-            <FileText className="text-emerald-600" size={24} /> T.C.5 Monthly Return Document Generator
+      
+      {/* --- HEADER --- */}
+      <div className="w-full max-w-[1200px] mx-auto mb-5 md:mb-8 flex flex-col gap-4 sm:gap-5 bg-white dark:bg-zinc-900 p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 transition-colors">
+        
+        {/* 💡 Title Part (Top) */}
+        <div className="w-full text-center sm:text-left border-b border-gray-100 dark:border-zinc-800 pb-3 sm:pb-4">
+          <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-gray-100 flex items-center justify-center sm:justify-start gap-2 uppercase tracking-tight">
+            <FileText className="text-emerald-600 dark:text-emerald-500" size={24} /> T.C.5 Monthly Return Document Generator
           </h2>
-          <p className="text-xs text-slate-500 font-medium mt-1">Review official production metrics, customize input data, persist changes to database, and download verified PDFs.</p>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-gray-400 font-medium mt-1">
+            Review official production metrics, customize input data, persist changes to database, and download verified PDFs.
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 shadow-sm">
-            <Calendar size={16} className="text-slate-500 mr-2" />
-            <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="bg-transparent border-none outline-none text-sm font-bold text-slate-700 cursor-pointer" />
+        {/* 💡 Controls Part (Below Title) */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 w-full">
+          
+          {/* MONTH PICKER */}
+          <div className="relative flex-1 sm:flex-none w-full sm:w-auto sm:mr-auto">
+            <Calendar size={18} className="absolute left-3 top-3 text-slate-500 dark:text-gray-400" />
+            <input 
+              type="month" 
+              value={selectedMonth} 
+              onChange={(e) => setSelectedMonth(e.target.value)} 
+              className="w-full pl-10 pr-4 py-2.5 border border-slate-300 dark:border-zinc-700 rounded-lg text-sm font-bold focus:ring-2 focus:ring-emerald-500/50 outline-none bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-gray-200 cursor-pointer transition-all shadow-inner"
+            />
           </div>
 
-          <button onClick={fetchTC5Data} disabled={loading || savingDb || generatingPdf} className="p-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-all" title="Refresh Data">
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-          </button>
+          {/* ACTION BUTTONS */}
+          <div className="flex flex-wrap sm:flex-nowrap gap-2 sm:gap-3 w-full sm:w-auto">
+            
+            <button 
+              onClick={saveToDB} 
+              disabled={loading || savingDb || generatingPdf} 
+              className="p-2.5 px-3 sm:px-4 flex-1 sm:flex-none justify-center bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg transition-colors font-bold text-sm disabled:opacity-50 flex items-center gap-2 shadow-sm"
+            >
+              <Save size={18} /> 
+              <span className="font-bold text-xs sm:text-sm hidden sm:inline">{savingDb ? "Saving..." : "Save to DB"}</span>
+            </button>
 
-          <button onClick={saveToDB} disabled={loading || savingDb || generatingPdf} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all">
-            <Save size={16} /> {savingDb ? "Saving..." : "Save to DB"}
-          </button>
+            <button 
+              onClick={generatePDF} 
+              disabled={loading || savingDb || generatingPdf} 
+              className="p-2.5 px-3 sm:px-4 flex-1 sm:flex-none justify-center bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white rounded-lg transition-colors font-bold text-sm disabled:opacity-50 flex items-center gap-2 shadow-sm"
+            >
+              <Download size={18} /> 
+              <span className="font-bold text-xs sm:text-sm hidden sm:inline">{generatingPdf ? "Processing..." : "Download PDF"}</span>
+            </button>
 
-          <button onClick={generatePDF} disabled={loading || savingDb || generatingPdf} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all">
-            <Download size={16} /> {generatingPdf ? "Processing..." : "Download PDF"}
-          </button>
+            <button 
+              onClick={fetchTC5Data} 
+              disabled={loading || savingDb || generatingPdf} 
+              className={`p-2.5 flex-1 sm:flex-none flex justify-center bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-gray-300 rounded-lg transition-colors shadow-sm ${(loading || savingDb || generatingPdf) ? "opacity-70 cursor-not-allowed" : ""}`}
+              title="Refresh Data"
+            >
+              <RefreshCw size={18} className={loading ? "animate-spin text-emerald-600" : ""} />
+            </button>
+
+          </div>
         </div>
       </div>
 
@@ -500,7 +531,7 @@ export default function TC5Report() {
           `}</style>
 
           {/* ============================== PAGE 1 ============================== */}
-          <div className="bg-white shadow-2xl border border-gray-300 overflow-hidden" style={{ width: '794px', height: '1123px' }}>
+          <div className="bg-white shadow-2xl border border-gray-300 overflow-hidden"  style={{ width: '794px', height: '1123px' }}>
             <div id="tc5-page-1" className="tc5-paper h-full flex flex-col relative">
 
               {/* TABLE 1: TOP HEADER */}
@@ -776,33 +807,33 @@ export default function TC5Report() {
                       Details of Private Sales<br /><span style={{ fontSize: '9px', fontWeight: 'normal' }}>පෞද්ගලික විකිණීම් පිළිබඳ විස්තර</span>
                     </td>
                   </tr>
-                  <tr className="bg-shade">
-                    <td className="tc5-td-c" style={{ width: '12%', lineHeight: '1.25', padding: '5px 3px', border: '10px solid #000' }}>
+                  <tr>
+                    <td className="tc5-td-c bg-shade" style={{ width: '12%', lineHeight: '1.25', padding: '5px 3px' }}>
                       <div style={{ fontSize: '10px', fontWeight: 'bold' }}>Garden marks</div>
                       <div style={{ fontSize: '8.5px' }}>වෙළඳ ලකුණ</div>
                     </td>
-                    <td className="tc5-td-c" style={{ width: '10%', lineHeight: '1.25', padding: '5px 3px' }}>
+                    <td className="tc5-td-c bg-shade" style={{ width: '10%', lineHeight: '1.25', padding: '5px 3px' }}>
                       <div style={{ fontSize: '10px', fontWeight: 'bold' }}>Invoice No</div>
                       <div style={{ fontSize: '8.5px' }}>ඉන්වොයිස් අංකය</div>
                     </td>
-                    <td className="tc5-td-c" style={{ width: '14%', lineHeight: '1.25', padding: '5px 3px' }}>
+                    <td className="tc5-td-c bg-shade" style={{ width: '9%', lineHeight: '1.25', padding: '5px 3px' }}>
                       <div style={{ fontSize: '10px', fontWeight: 'bold' }}>Grade</div>
                       <div style={{ fontSize: '8.5px' }}>වර්ගය</div>
                     </td>
-                    <td className="tc5-td" style={{ width: '23%', textAlign: 'left', lineHeight: '1.25', padding: '5px 6px' }}>
+                    <td className="tc5-td bg-shade" style={{ width: '23%', textAlign: 'left', lineHeight: '1.25', padding: '5px 6px' }}>
                       <div style={{ fontSize: '10px', fontWeight: 'bold' }}>Name of buyers</div>
                       <div style={{ fontSize: '8.5px' }}>ගැණුම්කරුවන්ගේ නම</div>
                     </td>
-                    <td className="tc5-td-c" style={{ width: '10%', lineHeight: '1.25', padding: '5px 3px' }}>
+                    <td className="tc5-td-c bg-shade" style={{ width: '10%', lineHeight: '1.25', padding: '5px 3px' }}>
                       <div style={{ fontSize: '10px', fontWeight: 'bold' }}>Date of sale</div>
                       <div style={{ fontSize: '8.5px' }}>විකුණුම් දිනය</div>
                     </td>
-                    <td className="tc5-td-c" style={{ width: '11%', lineHeight: '1.2', verticalAlign: 'middle', padding: '5px 2px' }}>
+                    <td className="tc5-td-c bg-shade" style={{ width: '11%', lineHeight: '1.2', verticalAlign: 'middle', padding: '5px 2px' }}>
                       <div style={{ fontSize: '10px', fontWeight: 'bold' }}>Date of panel</div>
                       <div style={{ fontSize: '10px', fontWeight: 'bold' }}>approved</div>
                       <div style={{ fontSize: '8px', marginTop: '1px' }}>මණ්ඩල අනුමත...</div>
                     </td>
-                    <td className="tc5-td-c" style={{ width: '11%', padding: 0, verticalAlign: 'top' }}>
+                    <td className="tc5-td-c bg-shade" style={{ width: '11%', padding: 0, verticalAlign: 'top' }}>
                       <div style={{ padding: '3px 2px', borderBottom: '1px solid #000', fontWeight: 'bold', fontSize: '10px', lineHeight: '1.2' }}>
                         <div>Price per Kg</div>
                         <div style={{ fontSize: '8px', fontWeight: 'normal' }}>මිල කිලෝ එකකට</div>
@@ -812,7 +843,7 @@ export default function TC5Report() {
                         <div style={{ width: '50%', padding: '3px 0', textAlign: 'center' }}>Cts ශත</div>
                       </div>
                     </td>
-                    <td className="tc5-td-c" style={{ width: '10%', lineHeight: '1.25', padding: '5px 3px' }}>
+                    <td className="tc5-td-c bg-shade" style={{ width: '10%', lineHeight: '1.25', padding: '5px 3px' }}>
                       <div style={{ fontSize: '10px', fontWeight: 'bold' }}>Weight</div>
                       <div style={{ fontSize: '8.5px' }}>Kgs බර</div>
                     </td>
@@ -891,13 +922,13 @@ export default function TC5Report() {
                       <strong>Refuse Tea</strong> <span style={{ fontSize: '10px' }}>කසල තේ</span>
                     </td>
                   </tr>
-                  <tr className="bg-shade">
-                    <td className="tc5-td border-left-fix" style={{ width: '16%', textAlign: 'left' }}>Stock brought<br />forward from previous month<br /><span style={{ fontSize: '9px' }}>ඉකුත් මාසයෙන් ඉදිරියට ගෙන ආ තොගය</span><br /><br /><center><strong>1</strong></center></td>
-                    <td className="tc5-td" style={{ width: '16%', textAlign: 'left' }}>Manufactured<br />during the month<br /><span style={{ fontSize: '9px' }}>මාසය තුල නිපැයුම</span><br /><br /><br /><center><strong>2</strong></center></td>
-                    <td className="tc5-td" style={{ width: '16%', textAlign: 'left' }}>Quantity<br />sold<br /><span style={{ fontSize: '9px' }}>විකුණු ප්‍රමාණය</span><br /><br /><br /><center><strong>3</strong></center></td>
-                    <td className="tc5-td" style={{ width: '16%', textAlign: 'left' }}>Quantity used<br />as manure<br /><span style={{ fontSize: '9px' }}>පොහොර ලෙස යෙදූ ප්‍රමාණය</span><br /><br /><center><strong>4</strong></center></td>
-                    <td className="tc5-td" style={{ width: '18%', textAlign: 'left' }}>Other disposals<br /><br /><span style={{ fontSize: '9px' }}>වෙනත් අපහරණයන්</span><br /><br /><br /><center><strong>5</strong></center></td>
-                    <td className="tc5-td" style={{ width: '15%', textAlign: 'left' }}>Balance stock<br /><br /><span style={{ fontSize: '9px' }}>ඉතිරි තොගය</span><br /><br /><br /><center><strong>6</strong></center></td>
+                  <tr>
+                    <td className="tc5-td bg-shade" style={{ width: '16%', textAlign: 'left' }}>Stock brought<br />forward from previous month<br /><span style={{ fontSize: '9px' }}>ඉකුත් මාසයෙන් ඉදිරියට ගෙන ආ තොගය</span><br /><br /><center><strong>1</strong></center></td>
+                    <td className="tc5-td bg-shade" style={{ width: '16%', textAlign: 'left' }}>Manufactured<br />during the month<br /><span style={{ fontSize: '9px' }}>මාසය තුල නිපැයුම</span><br /><br /><br /><center><strong>2</strong></center></td>
+                    <td className="tc5-td bg-shade" style={{ width: '16%', textAlign: 'left' }}>Quantity<br />sold<br /><span style={{ fontSize: '9px' }}>විකුණු ප්‍රමාණය</span><br /><br /><br /><center><strong>3</strong></center></td>
+                    <td className="tc5-td bg-shade" style={{ width: '16%', textAlign: 'left' }}>Quantity used<br />as manure<br /><span style={{ fontSize: '9px' }}>පොහොර ලෙස යෙදූ ප්‍රමාණය</span><br /><br /><center><strong>4</strong></center></td>
+                    <td className="tc5-td bg-shade" style={{ width: '18%', textAlign: 'left' }}>Other disposals<br /><br /><span style={{ fontSize: '9px' }}>වෙනත් අපහරණයන්</span><br /><br /><br /><center><strong>5</strong></center></td>
+                    <td className="tc5-td bg-shade" style={{ width: '15%', textAlign: 'left' }}>Balance stock<br /><br /><span style={{ fontSize: '9px' }}>ඉතිරි තොගය</span><br /><br /><br /><center><strong>6</strong></center></td>
                   </tr>
                   <tr>
                     <td className="tc5-td-c border-left-fix" style={{ padding: '0' }}>

@@ -1,18 +1,26 @@
 import express from 'express';
-import { saveHydroMeterData, getHydroMeterDataByDate, getAllHydroMeters, deleteHydroMeter } from '../controllers/hydroMeterController.js';
+import { 
+  saveHydroMeterData, 
+  getHydroMeterDataByDate, 
+  getAllHydroMeters, 
+  deleteHydroMeter 
+} from '../controllers/hydroMeterController.js';
 
-// ඔබගේ project එකේ Authentication Middleware එක import කරගන්න (ඇත්නම්)
-// import { protect } from '../middleware/authMiddleware.js'; 
+// 💡 Authentication Middlewares import කිරීම
+import { authorizeRoles, verifyToken } from '../../middleware/auth.js'; 
 
 const hydroMeterRouter = express.Router();
 
-// POST request to Save/Update
-hydroMeterRouter.post('/save', /* protect, */ saveHydroMeterData);
+// POST request to Save/Update (Admin සහ User සඳහා පමණි)
+hydroMeterRouter.post('/save', verifyToken, authorizeRoles('Admin', 'User'), saveHydroMeterData);
 
-// GET request to Fetch data by date
-hydroMeterRouter.get('/get', /* protect, */ getHydroMeterDataByDate);
+// GET request to Fetch data by date (Viewer ඇතුළු සියලුම දෙනාට)
+hydroMeterRouter.get('/get', verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getHydroMeterDataByDate);
 
-hydroMeterRouter.get('/get-all', getAllHydroMeters);
-hydroMeterRouter.delete('/delete', deleteHydroMeter);
+// GET request to Fetch all data (Viewer ඇතුළු සියලුම දෙනාට)
+hydroMeterRouter.get('/get-all', verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getAllHydroMeters);
+
+// DELETE request to delete data (Admin සහ User සඳහා පමණි)
+hydroMeterRouter.delete('/delete', verifyToken, authorizeRoles('Admin', 'User'), deleteHydroMeter);
 
 export default hydroMeterRouter;

@@ -8,14 +8,14 @@ const authRouter = express.Router();
 authRouter.post('/login', loginUser);
 
 // Protected Route: ONLY logged-in users with the 'Admin' role can register new users
-// authRouter.post(
-//   '/register', 
-//   verifyToken, 
-//   authorizeRoles('Admin'), 
-//   registerUser
-// );
+authRouter.post(
+  '/register', 
+  verifyToken, 
+  authorizeRoles('Admin'), 
+  registerUser
+);
 
-authRouter.post('/register', registerUser);
+//authRouter.post('/register', registerUser);
 
 
 export default authRouter;

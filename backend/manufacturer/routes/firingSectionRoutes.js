@@ -5,17 +5,17 @@ import {
   getFiringSectionById,
   deleteFiringSection
 } from '../controllers/firingSectionController.js';
-
+import { authorizeRoles, verifyToken } from '../../middleware/auth.js'; // 💡 Middleware ඉම්පෝට් කිරීම
 
 const FiringRouter = express.Router();
 
-// Optional: Apply protect middleware to secure all endpoint
+// 💡 Secure endpoints using verifyToken and authorizeRoles
 FiringRouter.route('/')
-  .post(saveFiringSection)
-  .get(getFiringSections);
+  .post(verifyToken, authorizeRoles('Admin', 'User'), saveFiringSection)
+  .get(verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getFiringSections);
 
 FiringRouter.route('/:id')
-  .get(getFiringSectionById)
-  .delete(deleteFiringSection);
+  .get(verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getFiringSectionById)
+  .delete(verifyToken, authorizeRoles('Admin', 'User'), deleteFiringSection);
 
 export default FiringRouter;
