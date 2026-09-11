@@ -84,9 +84,8 @@ export default function DailyExtendedStockView() {
     const tableData = useMemo(() => {
         const dataMap = {};
 
-        // 💡 1. Exact list with custom 'sortOrder' and new Pitigala order/display sizes
+        // 💡 1. Exact list with custom 'sortOrder'
         const productCategories = [
-            // --- Typical Tea ---
             { categoryId: 'athukorala', size: '400g', name: 'Athukorala BOPF 400g', group: 'Main', sortOrder: 1 },
             { categoryId: 'athukorala', size: '200g', name: 'Athukorala BOPF 200g', group: 'Main', sortOrder: 2 },
             { categoryId: 'athukorala', size: '100g', name: 'Athukorala BOPF 100g', group: 'Main', sortOrder: 3 },
@@ -97,7 +96,6 @@ export default function DailyExtendedStockView() {
             { categoryId: 'bopfPremium', size: '400g', name: 'Athukorala BOPF PREMIUM 400g', group: 'Main', sortOrder: 6 },
             { categoryId: 'bopfPremium', size: '200g', name: 'Athukorala BOPF PREMIUM 200g', group: 'Main', sortOrder: 7 },
 
-            // --- Requested Pitigala Order & Gram Sizes ---
             { categoryId: 'pitigala', size: '200g', name: 'Pitigala tea 200g', group: 'Main', sortOrder: 8 },
             { categoryId: 'pitigala', size: '400g', name: 'Pitigala tea 400g', group: 'Main', sortOrder: 9 },
             { categoryId: 'tb', size: '25', name: 'Pitigala tea 25 bag', displaySize: '50g', group: 'Main', sortOrder: 10 },
@@ -107,36 +105,37 @@ export default function DailyExtendedStockView() {
             { categoryId: 'gt', size: '200g', name: 'Green tea 200g', group: 'Main', sortOrder: 13 },
             { categoryId: 'gt', size: 'T/B 25', name: 'Green tea 25 bag', displaySize: '50g', group: 'Main', sortOrder: 14 },
 
-            // --- Other Tea Types & Grades ---
             { categoryId: 'others', size: 'BOPF', name: 'BOPF', displaySize: 'KG', group: 'Other', sortOrder: 99 },
             { categoryId: 'others', size: 'DUST', name: 'DUST', displaySize: 'KG', group: 'Other', sortOrder: 99 },
             { categoryId: 'others', size: 'DUST 1', name: 'DUST 1', displaySize: 'KG', group: 'Other', sortOrder: 99 }
         ];
 
-        // 💡 2. Auto-Correction Key Generator
+        // 💡 2. Auto-Correction Key Generator (FIXED FOR SPACES, DASHES, CAPITALS)
+        // 💡 2. Auto-Correction Key Generator (FIXED FOR SPACES, DASHES, CAPITALS & G/T 25 BAGS)
         const generateKey = (catId, catTitle, size) => {
-            let cleanId = (catId || '').toLowerCase().trim();
-            let cleanTitle = (catTitle || '').toLowerCase().trim();
-            let cleanSize = (size || '').toLowerCase().trim();
+            let cleanId = (catId || '').toLowerCase();
+            let cleanTitle = (catTitle || '').toLowerCase();
 
             if (!cleanId && cleanTitle) {
                 cleanId = cleanTitle;
             }
 
-            // Standardize IDs
-            if (cleanId === 'g/t' || cleanTitle === 'g/t' || cleanId.includes('green')) cleanId = 'gt';
-            if (cleanId === 'bopf premium' || cleanId === 'bopfpremium') cleanId = 'bopfPremium';
-            if (cleanId === 'bopf sp' || cleanId === 'bopfsp' || cleanId === 'bopf sp.') cleanId = 'bopfSp';
-            if (cleanId === 'pitigala tea' || cleanId === 'pitigala') cleanId = 'pitigala';
-            if (cleanId === 't/b' || cleanId === 'tb') cleanId = 'tb';
-            if (cleanId === 'other grades' || cleanTitle === 'other grades') cleanId = 'others';
+            cleanId = cleanId.replace(/[^a-z0-9]/g, '');
+            let cleanSize = (size || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-            // Standardize Sizes
-            if (cleanSize === 'bopf (kg)' || cleanSize === 'kg') cleanSize = 'bopf';
-            if (cleanSize === 'dust (kg)') cleanSize = 'dust';
-            if (cleanSize === 'dust 1 (kg)') cleanSize = 'dust 1';
+            // 💡 විශේෂ වෙනස මෙතැනයි: 'gttb25' ලෙස එන ID එකත් 'gt' (Green Tea) ලෙස සමමිතික කිරීම
+            if (cleanId === 'gt' || cleanId === 'gttb25' || cleanId.includes('greentea')) cleanId = 'gt';
+            
+            if (cleanId === 'bopfpremium') cleanId = 'bopfpremium';
+            if (cleanId === 'bopfsp') cleanId = 'bopfsp';
+            if (cleanId.includes('pitigala')) cleanId = 'pitigala';
+            if (cleanId === 'tb') cleanId = 'tb';
+            if (cleanId.includes('othergrades')) cleanId = 'others';
 
-            // Match DB tea bags to the base sizes
+            if (cleanSize === 'bopfkg' || cleanSize === 'kg') cleanSize = 'bopf';
+            if (cleanSize === 'dustkg') cleanSize = 'dust';
+            if (cleanSize === 'dust1kg') cleanSize = 'dust1';
+
             if (cleanId === 'tb') {
                 if (cleanSize.includes('25')) cleanSize = '25';
                 if (cleanSize.includes('50')) cleanSize = '50';
@@ -154,7 +153,7 @@ export default function DailyExtendedStockView() {
                 displayTitle: cat.name,
                 size: cat.displaySize || cat.size,
                 group: cat.group,
-                sortOrder: cat.sortOrder, // Add sort order to map
+                sortOrder: cat.sortOrder,
                 openingBalance: 0,
                 inToday: 0,
                 cumulativeIn: 0,
@@ -167,18 +166,23 @@ export default function DailyExtendedStockView() {
             };
         });
 
+        // 💡 Display Title එක ලස්සනට පෙන්වීමට (උදා: welfare pack -> Welfare Pack)
+        const formatTitle = (str) => {
+            if (!str) return 'Unknown';
+            return str.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        };
+
         // 💡 4. Initialize Function for Dynamic Database Items
         const initItem = (categoryId, categoryTitle, size) => {
             const key = generateKey(categoryId, categoryTitle, size);
 
-            // If an unknown item comes from the database, push it to 'Other' group
             if (!dataMap[key]) {
                 dataMap[key] = {
                     categoryId: categoryId || 'Unknown',
-                    displayTitle: categoryTitle || categoryId || 'Unknown Product',
+                    displayTitle: formatTitle(categoryTitle || categoryId),
                     size: size || '-',
-                    group: 'Other', // Always classify extra DB items as "Other"
-                    sortOrder: 100, // Put unknown items at the very bottom
+                    group: 'Other',
+                    sortOrder: 100, // Put unknown items at the bottom
                     openingBalance: 0,
                     inToday: 0,
                     cumulativeIn: 0,
@@ -274,29 +278,23 @@ export default function DailyExtendedStockView() {
         // 💡 5. Calculate Final Balances, Filter, and Sort
         return Object.values(dataMap)
             .map(row => {
-                row.balanceToDate = row.openingBalance + row.cumulativeIn - row.cumulativeOutSold;
+                // 💡 OUT (Sold) සහ OUT (Issue) යන දෙකම Balance එකෙන් අඩු කිරීම
+                row.balanceToDate = row.openingBalance + row.cumulativeIn - row.cumulativeOutSold
                 return row;
             })
             .filter(row => {
-                // 1. Always show Typical Teas
                 if (row.group === 'Main') return true;
-
-                // 2. For Other Tea Types, only show if they have available stock OR had activity today
                 const hasStock = row.balanceToDate !== 0 || row.openingBalance !== 0;
                 const hasActivity = row.inToday > 0 || row.outSoldToday > 0 || row.outIssueToday > 0;
-
                 return hasStock || hasActivity;
             })
             .sort((a, b) => {
-                // Group sorting (Main first, then Other)
                 if (a.group !== b.group) {
                     return a.group === 'Main' ? -1 : 1;
                 }
-                // Use custom sortOrder to bypass alphabetical sorting
                 if (a.sortOrder !== b.sortOrder) {
                     return a.sortOrder - b.sortOrder;
                 }
-                // Fallback for dynamically generated "Other" items
                 return a.displayTitle.localeCompare(b.displayTitle);
             });
 
