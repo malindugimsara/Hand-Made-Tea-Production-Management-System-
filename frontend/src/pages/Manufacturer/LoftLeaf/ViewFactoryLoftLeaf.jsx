@@ -247,30 +247,39 @@ export default function ViewLoftLeafCount() {
   }, [records]);
 
   // 💡 DYNAMIC RANKING CALCULATOR
+  // 💡 DYNAMIC RANKING CALCULATOR
   const rankedRecords = useMemo(() => {
       const processed = records.map(r => {
+          // Factory sample එක තිබේ නම් එය ගනී, නැත්නම් Collector sample එක ගනී
           const sample = r.factorySample?.isEntered ? r.factorySample : (r.collectorSample?.isEntered ? r.collectorSample : null);
-          let goodScore = -1;
+          
           let bestScore = -1;
+          let belowBestScore = -1;
           
           if (sample) {
-              goodScore = Number(sample.bestPct || 0) + Number(sample.belowBestPct || 0);
               bestScore = Number(sample.bestPct || 0);
+              belowBestScore = Number(sample.belowBestPct || 0);
           }
-          return { ...r, _goodScore: goodScore, _bestScore: bestScore };
+          return { ...r, _bestScore: bestScore, _belowBestScore: belowBestScore };
       });
 
+      // 💡 Sorting Logic: මුලින්ම Best % බලයි, එය සමාන නම් Below Best % බලයි
       const sorted = [...processed].sort((a, b) => {
-          if (b._goodScore !== a._goodScore) return b._goodScore - a._goodScore;
-          return b._bestScore - a._bestScore; 
+          if (b._bestScore !== a._bestScore) {
+              return b._bestScore - a._bestScore; // 1. Best % වැඩි එක උඩට
+          }
+          return b._belowBestScore - a._belowBestScore; // 2. Best % සමාන නම් Below Best % වැඩි එක උඩට
       });
 
+      // 💡 Rank කිරීම
       let currentRank = 1;
       sorted.forEach((r, idx) => {
-          if (r._goodScore === -1) {
+          if (r._bestScore === -1) {
+              // Sample දත්ත නැති අයට Rank එකක් නොදෙයි
               r._calculatedRank = "-";
           } else {
-              if (idx > 0 && r._goodScore === sorted[idx - 1]._goodScore && r._bestScore === sorted[idx - 1]._bestScore) {
+              // කලින් කෙනාගේ Best සහ Below Best අගයන් දෙකම සමාන නම් එකම Rank එක ලබාදෙයි
+              if (idx > 0 && r._bestScore === sorted[idx - 1]._bestScore && r._belowBestScore === sorted[idx - 1]._belowBestScore) {
                   r._calculatedRank = sorted[idx - 1]._calculatedRank; 
               } else {
                   r._calculatedRank = currentRank;
@@ -279,6 +288,7 @@ export default function ViewLoftLeafCount() {
           }
       });
 
+      // මුල් Records පිළිවෙළටම අදාළ Rank එක Map කිරීම
       return processed.map(r => {
           const rankedItem = sorted.find(s => s._id === r._id);
           return { ...r, _calculatedRank: rankedItem ? rankedItem._calculatedRank : "-" };
