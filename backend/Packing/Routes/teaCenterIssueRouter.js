@@ -6,9 +6,6 @@ import {
     updateTeaCenterIssue
 } from '../controllers/TeaCenterIssueController.js';
 import { authorizeRoles, verifyToken } from '../../middleware/auth.js';
-
-// Authentication සහ Role-based Authorization Middlewares Import කිරීම
-
 const teaCenterIssueRouter = express.Router();
 
 // GET: View all records (Admins, Users, and Viewers can view)

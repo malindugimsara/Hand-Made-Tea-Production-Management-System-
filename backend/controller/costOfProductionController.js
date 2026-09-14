@@ -9,7 +9,6 @@ export const saveCostOfProduction = async (req, res) => {
         let record = await CostOfProduction.findOne({ month });
 
         if (record) {
-            // තිබේ නම්, එය යාවත්කාලීන කිරීම (Update)
             record.monthlyGlRate = monthlyGlRate;
             record.labourRate = labourRate;
             record.electricityRate = electricityRate;

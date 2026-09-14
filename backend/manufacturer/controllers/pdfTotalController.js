@@ -1,6 +1,6 @@
 import PdfTotal from '../models/PdfTotal.js';
 
-// PDF දත්ත සියල්ල එකවර Save කිරීම (Bulk Upsert)
+// save or update PDF totals
 export const savePdfTotals = async (req, res) => {
     try {
         const { totals } = req.body; 
@@ -24,7 +24,7 @@ export const savePdfTotals = async (req, res) => {
     }
 };
 
-// මාසයට අදාළ Save කළ PDF දත්ත ලබාගැනීම
+// get PDF totals by month
 export const getPdfTotalsByMonth = async (req, res) => {
     try {
         const { month } = req.query;

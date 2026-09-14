@@ -6,7 +6,6 @@ import {
     deleteIssueTypeItem 
 } from '../controllers/issueTypeController.js';
 
-// Authentication සහ Role-based Authorization Middlewares Import කිරීම
 import { verifyToken, authorizeRoles } from '../../middleware/auth.js';
 
 const issueTypeRouter = express.Router();

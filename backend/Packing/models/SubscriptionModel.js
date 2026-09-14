@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 
 const subscriptionSchema = new mongoose.Schema({
-  // Subscription object එක ඒ විදියටම සේව් කරන්න පුළුවන් වෙන්න
   endpoint: { type: String, required: true, unique: true },
   expirationTime: { type: Date, default: null },
   keys: {
@@ -9,7 +8,6 @@ const subscriptionSchema = new mongoose.Schema({
     auth: { type: String, required: true }
   },
   role: { type: String },
-  // මොන අංශයේ කෙනාද කියලා දැනගන්න (Packing/Factory)
   section: { type: String, default: "Packing" } 
 }, { timestamps: true });
 

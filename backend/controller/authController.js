@@ -20,7 +20,7 @@ export const loginUser = async (req, res) => {
           id: user._id, 
           role: user.role, 
           name: user.username,
-          allowedPaths: user.allowedPaths // අලුතින් token එකට දැමූ කොටස
+          allowedPaths: user.allowedPaths 
       }, 
       process.env.JWT_KEY, 
       { expiresIn: '12h' } // Token expires in 12 hours
@@ -31,7 +31,7 @@ export const loginUser = async (req, res) => {
       token, 
       role: user.role, 
       username: user.username,
-      allowedPaths: user.allowedPaths // Frontend එකට localStorage හි save කිරීමට යවන කොටස
+      allowedPaths: user.allowedPaths 
     });
   } catch (error) {
     console.error("Login Error:", error);
@@ -48,8 +48,8 @@ export const registerUser = async (req, res) => {
     const newUser = new User({ 
         username, 
         password, 
-        role: role || 'User', // Role එකක් එව්වේ නැත්නම් සාමාන්‍ය 'User' ලෙස සකසයි
-        allowedPaths: allowedPaths || [] // තෝරාගත් අංශ (sections) ටික save කරයි
+        role: role || 'User', 
+        allowedPaths: allowedPaths || [] 
     });
     
     await newUser.save();

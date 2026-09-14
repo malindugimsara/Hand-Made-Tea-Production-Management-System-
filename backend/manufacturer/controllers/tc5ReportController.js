@@ -1,5 +1,6 @@
 import TC5Report from '../models/TC5Report.js';
 
+// Save or Update TC5 Report
 export const saveTC5Report = async (req, res) => {
   try {
     const { 
@@ -41,6 +42,7 @@ export const saveTC5Report = async (req, res) => {
   }
 };
 
+// Get TC5 Report by Month
 export const getTC5ReportByMonth = async (req, res) => {
   try {
     const { month } = req.query;

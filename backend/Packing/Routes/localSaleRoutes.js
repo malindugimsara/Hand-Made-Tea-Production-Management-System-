@@ -6,7 +6,6 @@ import {
     deleteLocalSale
 } from '../controllers/localSaleController.js';
 
-// Authentication සහ Role-based Authorization Middlewares Import කිරීම
 import { authorizeRoles, verifyToken } from '../../middleware/auth.js';
 
 const localSaleRouter = express.Router();

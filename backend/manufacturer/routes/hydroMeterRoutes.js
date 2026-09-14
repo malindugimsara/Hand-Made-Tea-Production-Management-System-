@@ -6,21 +6,20 @@ import {
   deleteHydroMeter 
 } from '../controllers/hydroMeterController.js';
 
-// 💡 Authentication Middlewares import කිරීම
 import { authorizeRoles, verifyToken } from '../../middleware/auth.js'; 
 
 const hydroMeterRouter = express.Router();
 
-// POST request to Save/Update (Admin සහ User සඳහා පමණි)
+// POST request to Save or Update Hydro Meter Data
 hydroMeterRouter.post('/save', verifyToken, authorizeRoles('Admin', 'User'), saveHydroMeterData);
 
-// GET request to Fetch data by date (Viewer ඇතුළු සියලුම දෙනාට)
+// GET request to Fetch data by date 
 hydroMeterRouter.get('/get', verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getHydroMeterDataByDate);
 
-// GET request to Fetch all data (Viewer ඇතුළු සියලුම දෙනාට)
+// GET request to Fetch all data 
 hydroMeterRouter.get('/get-all', verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getAllHydroMeters);
 
-// DELETE request to delete data (Admin සහ User සඳහා පමණි)
+// DELETE request to delete data 
 hydroMeterRouter.delete('/delete', verifyToken, authorizeRoles('Admin', 'User'), deleteHydroMeter);
 
 export default hydroMeterRouter;

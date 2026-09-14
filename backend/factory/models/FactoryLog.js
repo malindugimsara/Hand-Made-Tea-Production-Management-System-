@@ -13,7 +13,6 @@ const factoryLogSchema = new mongoose.Schema({
       today: { type: Number, default: 0 }, 
       toDate: { type: Number, default: 0 } 
     },
-    // මේ දෙකේම එකතුව (Total) පහසුවෙන් ලබාගැනීමට
     totalToday: { type: Number, default: 0 }, 
     totalToDate: { type: Number, default: 0 } 
   },

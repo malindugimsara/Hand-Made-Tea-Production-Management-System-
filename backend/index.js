@@ -23,7 +23,6 @@ import labourRouter from './router/labourRoutes.js';
 
 // Packing Section Routes
 import localSaleRouter from './Packing/Routes/localSaleRoutes.js';
-import teaCenterIssueRouter from './Packing/Routes/teaCenterIssueRouter.js';
 
 import packingTransferRouter from './Packing/Routes/packingTransferRouter.js';
 import handmadeTransferRouter from './router/handmadeTransferRouter.js';
@@ -55,6 +54,7 @@ import hydroMeterRouter from './manufacturer/routes/hydroMeterRoutes.js';
 import { Production } from './models/Production.js';
 import pdfTotalRouter from './manufacturer/routes/pdfTotalRoutes.js';
 import tc5router from './manufacturer/routes/tc5ReportRoutes.js';
+import teaCenterIssueRouter from './Packing/Routes/TeaCenterIssueRouter.js';
 
 dotenv.config();
 const app = express();
@@ -96,19 +96,17 @@ cron.schedule('1 0 1 * *', async () => {
         console.error('Automated B/M Stock Generation Failed:', error);
     }
 });
-// ==============================================================
-// 💡 අලුත්: DAILY MORNING JOB - EXPECTED DRYER DATE NOTIFICATIONS
-// ==============================================================
+
+// --- DAILY NOTIFICATION CRON JOB ---
 // Runs at 07:00 AM every day
 cron.schedule('30 8 * * *', async () => {
     try {
         console.log('Checking for pending dryer tasks for today...');
         
-        // අද දිනය ලබාගැනීම (Format: YYYY-MM-DD)
+        // Get today's date (Format: YYYY-MM-DD)
         const todayDate = new Date().toISOString().split('T')[0];
         
-        // Production Collection එකෙන් අද දිනට (Expected Dryer Date) අදාළව ඇති Tasks සෙවීම
-        // මෙහි "madeTeaWeight: 0" වැනි Filter එකක් දැමීමෙන් දැනටමත් කම්ප්ලීට් වුණු ඒවා මඟ හැරිය හැක.
+        // Fetch all Production records that have expectedDryerDate matching today
         const pendingTasks = await Production.find({
             expectedDryerDate: { $regex: `^${todayDate}` }
         });
@@ -116,22 +114,18 @@ cron.schedule('30 8 * * *', async () => {
         if (pendingTasks.length > 0) {
             console.log(`Found ${pendingTasks.length} tasks for today. Sending notifications...`);
 
-            // Handmade අංශයේ Users ලාගේ Subscriptions පමණක් ලබාගැනීම
-            // (ඔබ Subscription model එකේ role එක save කරන්නේ නැත්නම්, 'await Subscription.find({})' යොදා සියලුම දෙනාට යැවිය හැක)
+            // Fetch all subscriptions from the database
             const subscriptions = await Subscription.find({}); 
             
             const payload = JSON.stringify({
                 title: 'Dryer Tasks Pending Today! 🍂',
                 body: `You have ${pendingTasks.length} handmade/production task(s) scheduled to be dried today. Please check the system.`,
-                // Action link එකක් click කරාම යන්න ඕන තැන
                 data: { url: '/view-green-leaf' } 
             });
 
-            // අදාළ සියලුම Devices වලට Notification එක යැවීම
             const sendPromises = subscriptions.map(sub => 
                 webpush.sendNotification(sub, payload).catch(err => {
                     console.error('Push error (maybe unsubscribed):', err.statusCode);
-                    // අවශ්‍ය නම් Expired වුණු subscriptions DB එකෙන් අයින් කරන්න මෙතන කේතය ලිවිය හැක.
                 })
             );
 

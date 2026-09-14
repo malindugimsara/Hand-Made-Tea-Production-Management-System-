@@ -6,7 +6,6 @@ import {
     updateLabourOutputByDate
 }  from '../controller/labourOutputController.js';
 
-// Authentication සහ Role-based Authorization Middlewares Import කිරීම
 import { verifyToken, authorizeRoles } from '../../middleware/auth.js'; 
 
 const labourOutputRouter = express.Router();

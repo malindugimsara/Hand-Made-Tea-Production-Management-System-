@@ -8,7 +8,6 @@ import {
     getRawMaterialStock
 } from '../controllers/rawMaterialInController.js'; 
 
-// Authentication සහ Role-based Authorization Middlewares Import කිරීම
 import { verifyToken, authorizeRoles } from '../../middleware/auth.js'; 
 
 const rawMaterialInRouter = express.Router();

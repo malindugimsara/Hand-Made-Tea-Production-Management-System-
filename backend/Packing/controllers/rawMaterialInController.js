@@ -1,7 +1,7 @@
 import RawMaterialIn from '../models/RawMaterialIn.js';
 import RawMaterialStock from '../models/RawMaterialStock.js';
 
-// 1. අලුත් Raw Material තොගයක් ඇතුළත් කිරීම (Create & Update Stock)
+// CREATE NEW RAW MATERIAL IN RECORD
 export const createRawMaterialIn = async (req, res) => {
     try {
         const { date, invoiceNo, supplierName, items, receivedBy, remarks } = req.body;
@@ -53,19 +53,18 @@ export const createRawMaterialIn = async (req, res) => {
     }
 };
 
-// 2. UPDATE එකක් කිරීමේ Function එක (NEWLY ADDED)
+// 2. UPDATE RAW MATERIAL IN RECORD
 export const updateRawMaterialInRecord = async (req, res) => {
     try {
         const { id } = req.params;
         const { date, invoiceNo, supplierName, remarks, editorName, items } = req.body;
 
-        // පැරණි Record එක සොයා ගැනීම
+        // 1. Check if the record exists
         const existingRecord = await RawMaterialIn.findById(id);
         if (!existingRecord) {
             return res.status(404).json({ success: false, message: "Record not found" });
         }
 
-        // 1. පැරණි Items වල Stock එක Revert (අඩු) කිරීම
         for (const oldItem of existingRecord.items) {
             const oldQty = Number(oldItem.quantity || 0);
             if (oldQty <= 0) continue;
@@ -80,7 +79,6 @@ export const updateRawMaterialInRecord = async (req, res) => {
             }
         }
 
-        // 2. අලුත් Items වල Stock එක Add (එකතු) කිරීම
         for (const newItem of items) {
             const newQty = Number(newItem.quantity || 0);
             if (newQty <= 0) continue;
@@ -105,20 +103,14 @@ export const updateRawMaterialInRecord = async (req, res) => {
         }
 
         // 3. Record එක Update කිරීම
-        // ... (ඉහළ කේතය එලෙසම තබන්න)
-
-        // 3. Record එක Update කිරීම
         existingRecord.date = date;
         existingRecord.invoiceNo = invoiceNo;
         existingRecord.supplierName = supplierName;
         existingRecord.remarks = remarks;
         existingRecord.items = items;
 
-        // 👇 අලුතින් එකතු කළ කොටස: Update කරන කෙනාගේ නම Database එකේ සේව් කිරීම 👇
-        // ඔබගේ Schema එකේ නම 'updatedBy' නම්:
         if (req.body.updatedBy) existingRecord.updatedBy = req.body.updatedBy;
         
-        // ඔබගේ Schema එකේ නම 'editorName' නම්:
         if (req.body.editorName) existingRecord.editorName = req.body.editorName;
         
         const updatedRecord = await existingRecord.save();

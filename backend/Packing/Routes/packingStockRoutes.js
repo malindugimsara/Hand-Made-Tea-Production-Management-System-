@@ -8,7 +8,6 @@ import {
     getHistoricalPackingStock
 } from '../controllers/packingStockController.js'; 
 
-// Authentication සහ Role-based Authorization Middlewares Import කිරීම
 import { verifyToken, authorizeRoles } from '../../middleware/auth.js'; 
 
 const packingStockRouter = express.Router();

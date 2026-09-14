@@ -1,6 +1,5 @@
 import SellingDetails from '../models/SellingDetails.js';
 
-// @desc    Get selling details for a specific month
 // @route   GET /api/selling-details
 export const getSellingDetailsByMonth = async (req, res) => {
   try {

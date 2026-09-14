@@ -6,7 +6,6 @@ const sourceStockSchema = new mongoose.Schema({
         required: true,
         enum: ['Factory', 'Other', 'Handmade']
     }, 
-    // 👇 මේ අලුත් Fields දෙක දාන්න ඕනේ 👇
     transInAmount: { type: Number, default: 0 }, 
     issueAmount: { type: Number, default: 0 }, 
     // ------------------------------------

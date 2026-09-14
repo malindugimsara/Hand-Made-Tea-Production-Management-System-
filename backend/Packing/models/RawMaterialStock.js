@@ -11,7 +11,6 @@ const rawMaterialStockSchema = new mongoose.Schema({
         enum: ['flavor', 'other'],
         default: 'other'
     },
-    // 👇 අලුතින් එකතු කළ Fields 👇
     transInAmount: { 
         type: Number, 
         default: 0 
@@ -20,7 +19,6 @@ const rawMaterialStockSchema = new mongoose.Schema({
         type: Number, 
         default: 0 
     },
-    // ----------------------------
     totalQuantity: { 
         type: Number, 
         default: 0 
