@@ -19,6 +19,7 @@ import { useNavigate } from "react-router-dom";
 // PDF & HTML to Image Imports
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { createPortal } from "react-dom";
 
 const routeOptions = [
   "C1 - MATHTHAKA", "C2 - WALALLAWITA", "C3 - PELAWATHTHA", "C4 - POLGAMPALA",
@@ -121,20 +122,24 @@ export default function ViewLoftLeafCount() {
 
   // --- EDIT LOGIC ---
   const openEditModal = (record) => {
+      // 💡 අදාළ Route එක හරියටම මැච් කරගැනීම
+      const recordRoutePrefix = (record.route || "").split(" - ")[0].trim().toUpperCase();
+      const matchedRoute = routeOptions.find(r => r.startsWith(recordRoutePrefix)) || record.route || '';
+
       const timeParts = (record.arrivalTime || "").split(" ");
       const timeVal = timeParts[0] || "";
       const amPmVal = timeParts[1] || "PM";
 
       setEditForm({
           _id: record._id,
-          route: record.route || '',
+          route: matchedRoute, // 💡 නිවැරදිව මැච් වූ Route එක ලබාදීම
           arrivalTime: timeVal,
           arrivalAmPm: amPmVal, 
           totalLeafQtyKg: record.totalLeafQtyKg || '',
-          factoryBest: record.factorySample?.bestG || '',
-          factoryBelow: record.factorySample?.belowBestG || '',
-          collectorBest: record.collectorSample?.bestG || '',
-          collectorBelow: record.collectorSample?.belowBestG || '',
+          factoryBest: record.factorySample?.bestPct || '',
+          factoryBelow: record.factorySample?.belowBestPct || '',
+          collectorBest: record.collectorSample?.bestPct || '',
+          collectorBelow: record.collectorSample?.belowBestPct || '',
           factorySupervisorName: record.factorySupervisorName || '', 
           leafCollectorName: record.leafCollectorName || '', 
       });
@@ -838,8 +843,8 @@ export default function ViewLoftLeafCount() {
       {/* ========================================================================================= */}
       {/* 💡 EDIT MODAL POPUP */}
       {/* ========================================================================================= */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      {isEditModalOpen && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-zinc-800">
                 
                 <div className="sticky top-0 z-10 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md">
@@ -863,10 +868,10 @@ export default function ViewLoftLeafCount() {
                                 className="w-full p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-gray-50 dark:bg-zinc-800 focus:ring-2 focus:ring-lime-500 outline-none"
                             >
                                 <option value="" disabled>Select route...</option>
-                                {routeOptions.map((r, i) => {
-                                    const val = r.split(' - ')[0]; 
-                                    return <option key={i} value={val}>{r}</option>
-                                })}
+                                {/* 💡 value එකට සම්පූර්ණ නම (r) ලබාදීම */}
+                                {routeOptions.map((r, i) => (
+                                    <option key={i} value={r}>{r}</option>
+                                ))}
                             </select>
                         </div>
                         
@@ -888,14 +893,20 @@ export default function ViewLoftLeafCount() {
                                         const formattedTime = formatTime12Hour(e.target.value);
                                         setEditForm(prev => ({ ...prev, arrivalTime: formattedTime }));
                                     }} 
-                                    required 
-                                    className="w-full p-2.5 text-center border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-gray-50 dark:bg-zinc-800 focus:ring-2 focus:ring-lime-500 outline-none" 
+                                    required={!editForm.route.startsWith("FA") && !editForm.route.startsWith("E")} 
+                                    disabled={editForm.route.startsWith("FA") || editForm.route.startsWith("E")}
+                                    className={`w-full p-2.5 text-center border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-gray-50 dark:bg-zinc-800 focus:ring-2 focus:ring-lime-500 outline-none ${
+                                        editForm.route.startsWith("FA") || editForm.route.startsWith("E") ? "opacity-50 cursor-not-allowed" : ""
+                                    }`} 
                                 />
                                 <select
                                     name="arrivalAmPm"
                                     value={editForm.arrivalAmPm}
                                     onChange={handleEditChange}
-                                    className="w-20 p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm font-bold bg-gray-50 dark:bg-zinc-800 focus:ring-2 focus:ring-lime-500 outline-none text-center"
+                                    disabled={editForm.route.startsWith("FA") || editForm.route.startsWith("E")}
+                                    className={`w-20 p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm font-bold bg-gray-50 dark:bg-zinc-800 focus:ring-2 focus:ring-lime-500 outline-none text-center ${
+                                        editForm.route.startsWith("FA") || editForm.route.startsWith("E") ? "opacity-50 cursor-not-allowed" : ""
+                                    }`}
                                 >
                                     <option value="PM">PM</option>
                                     <option value="AM">AM</option>
@@ -958,7 +969,8 @@ export default function ViewLoftLeafCount() {
                     </div>
                 </form>
             </div>
-        </div>
+        </div>,
+        document.body 
       )}
 
       {/* ========================================================================================= */}
