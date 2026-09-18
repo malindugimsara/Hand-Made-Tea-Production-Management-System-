@@ -55,7 +55,7 @@ export const createTeaCenterIssue = async (req, res) => {
         }
 
         // ====================================================================
-        // 1. AGGREGATE QUANTITIES (එකම ජාතියේ ඒවා එකට එකතු කිරීම)
+        // 1. AGGREGATE QUANTITIES 
         // ====================================================================
         const requiredTea = {};
         const requiredRM = {};
@@ -179,7 +179,7 @@ export const updateTeaCenterIssue = async (req, res) => {
         }
 
         // ====================================================================
-        // 1. Calculate Old Quantities (පරණ රෙකෝඩ් එකේ ගණන්)
+        // 1. Calculate Old Quantities 
         // ====================================================================
         const oldTea = {};
         const oldRM = {};
@@ -204,7 +204,7 @@ export const updateTeaCenterIssue = async (req, res) => {
         }
 
         // ====================================================================
-        // 2. Calculate New Requested Quantities (අලුතින් යවන ගණන්)
+        // 2. Calculate New Requested Quantities 
         // ====================================================================
         const requiredTea = {};
         const requiredRM = {};
@@ -344,7 +344,6 @@ export const updateTeaCenterIssue = async (req, res) => {
 
 // @desc    Delete a tea center issue record
 // @route   DELETE /api/tea-center-issues/:id
-// @access  Private
 export const deleteTeaCenterIssue = async (req, res) => {
     try {
         const issueRecord = await TeaCenterIssue.findById(req.params.id);

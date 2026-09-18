@@ -6,7 +6,6 @@ const receivedItemSchema = new mongoose.Schema({
         type: String, 
         required: true 
     },
-    // පිරිසිදු කළ නම save කිරීමට
     teaType: { 
         type: String 
     },
@@ -26,14 +25,12 @@ const teaReceivedSchema = new mongoose.Schema({
         type: String, 
         required: true
     },
-    // Packing එකට ලැබුණු ගාණ (Received Qty)
     totalQtyKg: { 
         type: Number, 
         required: true 
     },
     receivedItems: [receivedItemSchema],
     
-    // Update කළ කෙනාගේ නම
     updatedBy: { 
         type: String 
     }

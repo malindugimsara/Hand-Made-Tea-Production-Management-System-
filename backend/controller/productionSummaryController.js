@@ -1,6 +1,5 @@
 import ProductionSummary from '../models/ProductionSummary.js';
 
-// @desc    Save or Update a monthly production summary
 // @route   POST /api/production-summary
 export const saveProductionSummary = async (req, res) => {
     try {
@@ -26,7 +25,6 @@ export const saveProductionSummary = async (req, res) => {
 };
 
 // @desc    Get all production summaries
-// @route   GET /api/production-summary
 export const getAllProductionSummaries = async (req, res) => {
     try {
         // Sort by newest month first
@@ -39,7 +37,6 @@ export const getAllProductionSummaries = async (req, res) => {
 };
 
 // @desc    Delete a specific production summary
-// @route   DELETE /api/production-summary/:id
 export const deleteProductionSummary = async (req, res) => {
     try {
         await ProductionSummary.findByIdAndDelete(req.params.id);

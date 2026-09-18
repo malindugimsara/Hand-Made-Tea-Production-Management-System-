@@ -14,7 +14,6 @@ export const getAllUsers = async (req, res) => {
 // CREATE USER
 export const createUser = async (req, res) => {
   try {
-    // 👇 Frontend එකෙන් එවන allowedPaths ලබාගැනීම
     const { username, password, role, allowedPaths } = req.body;
 
     const existingUser = await User.findOne({ username });
@@ -26,7 +25,7 @@ export const createUser = async (req, res) => {
         username, 
         password, 
         role: role || 'User',
-        allowedPaths: allowedPaths || [] // 👇 අලුතින් save කරන කොටස
+        allowedPaths: allowedPaths || [] 
     });
     
     await newUser.save();
@@ -42,7 +41,6 @@ export const createUser = async (req, res) => {
 // UPDATE USER
 export const updateUser = async (req, res) => {
   try {
-    // 👇 Update කරද්දී එවන allowedPaths ලබාගැනීම
     const { username, role, password, allowedPaths } = req.body;
 
     const user = await User.findById(req.params.id);
@@ -53,7 +51,6 @@ export const updateUser = async (req, res) => {
     if (username) user.username = username;
     if (role) user.role = role;
     
-    // 👇 allowedPaths එවා ඇත්නම් එය යාවත්කාලීන කිරීම
     if (allowedPaths) user.allowedPaths = allowedPaths;
 
     // FIX: only set password if exists

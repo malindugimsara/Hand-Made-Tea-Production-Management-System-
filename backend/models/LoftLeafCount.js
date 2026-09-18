@@ -10,25 +10,20 @@ const loftLeafCountSchema = new mongoose.Schema(
         type: String, 
         required: true 
     },
-    
-    // මේ record එක Factory sample එකක්ද Leaf collector කෙනෙක්ගේ එකක්ද යන්න
-    sampleType: {
+        sampleType: {
         type: String,
         enum: ['Factory', 'LeafCollector'],
         required: true
     },
     
-    // Factory sample එකක් නම් අදාල Officer ගේ නම
     officerName: {
         type: String,
         default: "",
     },
 
-    // --- යාවත්කාලීන කළ Total Leaf Qty Field එක ---
     totalLeafQty: {
         type: Number,
         required: function() {
-            // මේ වාර්තාව 'Factory' එකක් නම් පමණක් මේ Field එක අනිවාර්ය (Required) වේ.
             return this.sampleType === 'Factory';
         },
         default: null,

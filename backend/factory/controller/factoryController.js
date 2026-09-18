@@ -108,9 +108,9 @@ export const saveDailyFactoryLog = async (req, res) => {
   try {
     const { 
       date, 
-      estateLeafToday, // 💡 අලුත්: Estate Leaf සඳහා
-      broughtLeafToday, // 💡 අලුත්: Brought Leaf සඳහා
-      greenLeafToday, // Fallback එකක් ලෙස පරණ Data ආවොත් අල්ලගන්න
+      estateLeafToday, 
+      broughtLeafToday, 
+      greenLeafToday, 
       dispatches, 
       localSales, 
       returns, 
@@ -131,10 +131,8 @@ export const saveDailyFactoryLog = async (req, res) => {
     const finalLocalSales = localSales !== undefined ? localSales : (existingRecord?.localSales || []);
     const finalReturns = returns !== undefined ? returns : (existingRecord?.returns || []);
 
-    // 💡 අලුත්: Estate සහ Brought අගයන් වෙන් වෙන්ව ගැනීම
     const eLeaf = Number(estateLeafToday) || (existingRecord?.greenLeaf?.estateLeaf?.today || 0);
     
-    // Frontend එක Update කරලා නැත්නම් පරණ greenLeafToday එක Brought Leaf එකට වැටෙන්න සකසා ඇත (ආරක්ෂිත පියවරක්)
     const bLeaf = broughtLeafToday !== undefined 
                     ? Number(broughtLeafToday) 
                     : (greenLeafToday !== undefined ? Number(greenLeafToday) : (existingRecord?.greenLeaf?.broughtLeaf?.today || 0));
@@ -147,7 +145,6 @@ export const saveDailyFactoryLog = async (req, res) => {
     
     const madeTeaToday = totalGlToday * conversionRate; // 💡 අලුත් මුළු එකතුවෙන් Made Tea සෑදීම
 
-    // --- Arrays වලින් Totals ගණනය කිරීම ---
     const totalDispatch = finalDispatches.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
     const totalLocalSale = finalLocalSales.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
     const totalReturnAmount = finalReturns.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -165,7 +162,6 @@ export const saveDailyFactoryLog = async (req, res) => {
 
     if (currentBalance < 0) return res.status(400).json({ message: `Total Out exceeds available Factory Balance.` });
 
-    // 💡 අලුත්: Update Fields සෑදීම (New DB Schema එකට අනුකූලව)
     let updateFields = {
       greenLeaf: { 
         estateLeaf: { today: eLeaf },
@@ -209,10 +205,6 @@ export const deleteFactoryLog = async (req, res) => {
     }
 
     if (clearDispatchOnly === 'true') {
-        
-        // ==========================================
-        // 🟢 DISPATCH පමනක් මකා දැමීම (Green Leaf ඉතුරු වේ)
-        // ==========================================
         log.dispatches = [];
         log.dispatch = 0;
         
@@ -224,7 +216,6 @@ export const deleteFactoryLog = async (req, res) => {
         
         log.totalOut = 0;
 
-        // අලුතින් Factory Balance එක ගණනය කිරීම
         const aggrResult = await FactoryLog.aggregate([
           { $match: { date: { $lt: log.date } } },
           { $group: { 
@@ -247,9 +238,6 @@ export const deleteFactoryLog = async (req, res) => {
         return res.status(200).json({ message: "Dispatch data cleared successfully." });
         
     } else {
-        // ==========================================
-        // 🔴 සම්පූර්ණ රෙකෝඩ් එකම මකා දැමීම (Factory View සඳහා)
-        // ==========================================
         await FactoryLog.findByIdAndDelete(id);
         return res.status(200).json({ message: "Record completely deleted." });
     }

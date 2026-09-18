@@ -5,7 +5,7 @@ import {
   getFiringSectionById,
   deleteFiringSection
 } from '../controllers/firingSectionController.js';
-import { authorizeRoles, verifyToken } from '../../middleware/auth.js'; // 💡 Middleware ඉම්පෝට් කිරීම
+import { authorizeRoles, verifyToken } from '../../middleware/auth.js';
 
 const FiringRouter = express.Router();
 

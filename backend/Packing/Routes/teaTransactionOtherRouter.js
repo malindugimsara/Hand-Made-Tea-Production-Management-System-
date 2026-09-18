@@ -6,9 +6,8 @@ import {
     getTransactionById, 
     updateTransaction 
 } from '../controllers/teaTransactionOtherController.js';
-
-// Authentication සහ Role-based Authorization Middlewares Import කිරීම
 import { authorizeRoles, verifyToken } from '../../middleware/auth.js';
+
 const teaTransactionOtherRouter = express.Router();
 
 // POST: Create transaction (Admins and Users only)

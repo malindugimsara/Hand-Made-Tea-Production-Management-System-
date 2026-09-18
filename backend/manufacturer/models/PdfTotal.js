@@ -8,7 +8,6 @@ const pdfTotalSchema = new mongoose.Schema({
     totalKg: { type: Number, required: true }
 }, { timestamps: true });
 
-// දිනකට එක් Route එකක් සඳහා තිබිය හැක්කේ එක් වාර්තාවක් පමණක් නිසා Unique Index එකක් යෙදීම
 pdfTotalSchema.index({ date: 1, routeKey: 1 }, { unique: true });
 
 export default mongoose.model('PdfTotal', pdfTotalSchema);

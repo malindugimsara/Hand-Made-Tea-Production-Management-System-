@@ -66,7 +66,7 @@ export const createTeaReceivedRecord = async (req, res) => {
 };
 
 // ==========================================
-// 3. UPDATE TEA RECEIVED RECORD (Auto Stock Update එක්ක)
+// 3. UPDATE TEA RECEIVED RECORD 
 // ==========================================
 export const updateTeaReceivedRecord = async (req, res) => {
     try {
@@ -124,9 +124,9 @@ export const updateTeaReceivedRecord = async (req, res) => {
     }
 };
 
-// ==========================================
-// 4. DELETE TEA RECEIVED RECORD (Auto Reversal එක්ක)
-// ==========================================
+// =============================
+// 4. DELETE TEA RECEIVED RECORD 
+// =============================
 export const deleteTeaReceivedRecord = async (req, res) => {
     try {
         const record = await TeaReceived.findById(req.params.id);

@@ -27,7 +27,7 @@ export const saveFactorySample = async (req, res) => {
 
         const updateData = {
             arrivalTime,
-            factorySupervisorName, // 💡 Update ඩේටා එකට ඇතුළත් කිරීම
+            factorySupervisorName, 
             totalLeafQtyKg: totalKg,
             factorySample: {
                 isEntered: true,
@@ -62,7 +62,7 @@ export const saveCollectorSample = async (req, res) => {
         const { bestPct, belowBestPct, poorPct } = calculatePercentages(bestG, belowBestG, poorG);
 
         const updateData = {
-            leafCollectorName, // 💡 Update ඩේටා එකට ඇතුළත් කිරීම
+            leafCollectorName, 
             collectorSample: {
                 isEntered: true,
                 bestG: Number(bestG),
@@ -92,11 +92,9 @@ export const getDailyReport = async (req, res) => {
         const { date, month } = req.query;
         let query = {};
 
-        // Date එකක් හෝ Month එකක් එව්වොත් ඒ අනුව Query එක හැදේ
         if (date) {
             query.date = date;
         } else if (month) {
-            // මාසයක් නම් (උදා: 2026-08), ඒ මාසයෙන් පටන් ගන්නා සියලුම දින ගනී
             query.date = { $regex: `^${month}` }; 
         } else {
             return res.status(400).json({ success: false, message: "Date or Month is required" });
@@ -127,15 +125,14 @@ export const updateRecord = async (req, res) => {
     try {
         const { id } = req.params;
         
-        // 💡 අලුත් නම් දෙක ලබා ගැනීම
         const { route, arrivalTime, totalLeafQtyKg, factorySample, collectorSample, editedBy, factorySupervisorName, leafCollectorName } = req.body;
 
         let updateData = { 
             route, 
             arrivalTime,
             totalLeafQtyKg: Number(totalLeafQtyKg) || 0,
-            factorySupervisorName, // 💡 අලුතින් එක් කළා
-            leafCollectorName,     // 💡 අලුතින් එක් කළා
+            factorySupervisorName, 
+            leafCollectorName,     
             editedBy 
         };
 

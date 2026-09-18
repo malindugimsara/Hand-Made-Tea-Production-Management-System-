@@ -1,5 +1,5 @@
 import TeaTransactionOther from '../models/TeaTransactionOther.js';
-import PackingStock from '../models/PackingStock.js'; // <-- PackingStock model එක අනිවාර්යයෙන් import කරන්න
+import PackingStock from '../models/PackingStock.js'; 
 
 export const createTransaction = async (req, res) => {
     try {
@@ -102,7 +102,6 @@ export const updateTransaction = async (req, res) => {
     try {
         const { date, transactionNo, totalQtyKg, items, partyName, updatedBy } = req.body;
 
-        // 1. පරණ Record එක Database එකෙන් ලබා ගැනීම
         const oldRecord = await TeaTransactionOther.findById(req.params.id);
 
         if (!oldRecord) {
@@ -110,17 +109,14 @@ export const updateTransaction = async (req, res) => {
         }
 
         // 👇 AUTOMATED STOCK UPDATE LOGIC 👇
-        
-        // 2. අලුත් Items වල Quantity වෙනස ගණනය කිරීම
-        for (const newItem of items) {
+                for (const newItem of items) {
             const productName = newItem.grade;
             const newQty = Number(newItem.qtyKg || 0);
 
-            // පරණ record එකෙන් මේ item එක හොයාගන්නවා
             const oldItem = oldRecord.items.find(i => i.grade === productName);
             const oldQty = oldItem ? Number(oldItem.qtyKg || 0) : 0;
 
-            const difference = newQty - oldQty; // කොච්චර වෙනස් වෙලාද (අලුත් ගාණ - පරණ ගාණ)
+            const difference = newQty - oldQty; 
 
             if (difference !== 0) {
                 let stock = await PackingStock.findOne({ productName: productName });
@@ -146,7 +142,6 @@ export const updateTransaction = async (req, res) => {
                     
                     await stock.save();
                 } else if (difference > 0) {
-                    // Stock එකක් කලින් තිබිලම නැත්නම් අලුතින් හදනවා
                     const newStock = new PackingStock({
                         productName: productName,
                         stockBySource: [{
@@ -163,7 +158,6 @@ export const updateTransaction = async (req, res) => {
             }
         }
 
-        // 3. Edit කරද්දී පරණ Item එකක් සම්පූර්ණයෙන්ම Delete කරලා නම් ඒක Stock එකෙන් අඩු කිරීම
         for (const oldItem of oldRecord.items) {
             const isStillPresent = items.find(i => i.grade === oldItem.grade);
             
@@ -187,9 +181,6 @@ export const updateTransaction = async (req, res) => {
                 }
             }
         }
-        // 👆 END OF AUTOMATED STOCK UPDATE LOGIC 👆
-
-        // 4. අලුත් දත්ත සමඟ Record එක Update කිරීම
         oldRecord.date = date;
         oldRecord.transactionNo = transactionNo;
         oldRecord.totalQtyKg = totalQtyKg;

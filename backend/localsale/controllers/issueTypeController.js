@@ -53,7 +53,6 @@ export const getIssueTypeSummaries = async (req, res) => {
 export const updateIssueTypeItem = async (req, res) => {
     try {
         const { recordId, itemId } = req.params;
-        // Frontend එකෙන් එවන out අගය සහ edit කරන කෙනාගේ නම ලබාගැනීම
         const { out, editedBy } = req.body; 
 
         const updatedSummary = await IssueTypeSummary.findOneAndUpdate(
@@ -61,7 +60,7 @@ export const updateIssueTypeItem = async (req, res) => {
             { 
                 $set: { 
                     "items.$.out": out,
-                    "items.$.lastEditedBy": editedBy || 'Unknown User', // අදාළ Item එකටම සෙට් කිරීම
+                    "items.$.lastEditedBy": editedBy || 'Unknown User', 
                     "items.$.lastEditedAt": new Date() 
                 } 
             },

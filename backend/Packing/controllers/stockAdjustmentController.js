@@ -6,7 +6,6 @@ import StockAdjustmentLog from '../models/StockAdjustmentLog.js';
 // GET All Stock Adjustment Logs
 export const getStockAdjustmentLogs = async (req, res) => {
     try {
-        // අලුත්ම logs මුලින්ම එන විදිහට (-1) sort කරලා තියෙන්නේ
         const logs = await StockAdjustmentLog.find().sort({ createdAt: -1 });
         res.status(200).json(logs);
     } catch (error) {

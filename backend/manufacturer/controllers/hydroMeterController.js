@@ -1,6 +1,6 @@
 import HydroMeter from '../models/HydroMeter.js'; // අගට .js තිබිය යුතුය
 
-// 💡 දත්ත Save කිරීම හෝ Update කිරීම (Upsert)
+// Save or Update Hydro Meter Data
 export const saveHydroMeterData = async (req, res) => {
     try {
         const { date, formData } = req.body;
@@ -10,7 +10,6 @@ export const saveHydroMeterData = async (req, res) => {
             return res.status(400).json({ message: "Date and formData are required." });
         }
 
-        // අදාළ දිනයට දත්ත ඇත්නම් Update කරයි, නැත්නම් අලුතින් සාදයි (upsert: true)
         const savedData = await HydroMeter.findOneAndUpdate(
             { date: date },
             { $set: { formData: formData, enteredBy: enteredBy } },
@@ -28,7 +27,7 @@ export const saveHydroMeterData = async (req, res) => {
     }
 };
 
-// 💡 අදාළ දිනයට අයත් දත්ත ලබා ගැනීම
+// Get Hydro Meter Data by Date
 export const getHydroMeterDataByDate = async (req, res) => {
     try {
         const { date } = req.query;
@@ -49,10 +48,9 @@ export const getHydroMeterDataByDate = async (req, res) => {
     }
 };
 
-// 💡 සියලුම දත්ත ලබා ගැනීම (List View එක සඳහා)
+// get all records with only date and enteredBy fields
 export const getAllHydroMeters = async (req, res) => {
     try {
-        // දින අනුපිළිවෙලට (අලුත්ම දින මුලින් එන ලෙස) ලබාගැනීම. formData එක මෙහිදී අවශ්‍ය නැත.
         const records = await HydroMeter.find().sort({ date: -1 }).select('date enteredBy updatedAt');
         
         res.status(200).json({ 
@@ -65,7 +63,7 @@ export const getAllHydroMeters = async (req, res) => {
     }
 };
 
-// 💡 වාර්තාවක් Delete කිරීම
+// delete a record by date
 export const deleteHydroMeter = async (req, res) => {
     try {
         const { date } = req.query;

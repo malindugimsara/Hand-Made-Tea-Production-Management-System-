@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-// Item Schema (එක් එක් තේ වර්ගය සහ එහි IN/OUT ප්‍රමාණය සඳහා)
+// Item Schema 
 const itemSchema = new mongoose.Schema({
     categoryId: { type: String, required: true },
     categoryTitle: { type: String, required: true },
@@ -16,7 +16,7 @@ const dailySummarySchema = new mongoose.Schema({
     date: { 
         type: String, 
         required: true, 
-        unique: true // එක දවසකට තිබිය හැක්කේ එක් වාර්තාවක් පමණි
+        unique: true 
     }, 
     items: [itemSchema]
 }, { 

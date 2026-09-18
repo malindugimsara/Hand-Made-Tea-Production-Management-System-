@@ -6,11 +6,11 @@ const pendingTransferSchema = new mongoose.Schema({
   fromSection: { type: String, default: "Factory" },
   toSection: { type: String, default: "Packing" },
   grade: { type: String, required: true },
-  teaType: { type: String, default: "" }, // අලුතින් එකතු කළ Field එක
+  teaType: { type: String, default: "" }, 
   sentQtyKg: { type: Number, required: true },
   status: { type: String, enum: ["Pending", "Accepted", "Rejected"], default: "Pending" },
-  factoryUsername: { type: String }, // යැව්වේ කවුද
-  acceptedBy: { type: String }, // Packing එකෙන් accept කරේ කවුද
+  factoryUsername: { type: String },
+  acceptedBy: { type: String }, 
   acceptedDate: { type: Date }
 }, { timestamps: true });
 

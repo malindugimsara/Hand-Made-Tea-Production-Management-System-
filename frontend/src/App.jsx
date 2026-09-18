@@ -48,19 +48,17 @@ export default function App() {
           applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY)
         });
 
-        // 🌟 අලුත් වෙනස 1: LocalStorage එකෙන් ලොග් වෙලා ඉන්න කෙනාගේ Role එක ගැනීම 
         const userRole = localStorage.getItem('userRole') || 'Unknown';
 
-        // 🌟 අලුත් වෙනස 2: Subscription එකට Role එකයි Section එකයි එකතු කිරීම
         const payload = {
-          ...subscription.toJSON(), // Subscription විස්තර ටික දිගහැරීම
-          role: userRole,           // User ගේ Role එක (උදා: "Packing Officer")
-          section: "Packing"        // අදාල අංශය 
+          ...subscription.toJSON(), 
+          role: userRole,           
+          section: "Packing"        
         };
 
         await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/notifications/subscribe`, {
           method: 'POST',
-          body: JSON.stringify(payload), // 🌟 අලුත් වෙනස 3: කලින් යැව්ව subscription වෙනුවට අලුත් payload එක යැවීම
+          body: JSON.stringify(payload), 
           headers: { 'content-type': 'application/json' }
         });
 

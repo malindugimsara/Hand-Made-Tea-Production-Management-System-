@@ -65,7 +65,6 @@ export const updateProduction = async (req, res) => {
             updatedData.dryerDetails.units = Number(updatedData.dryerDetails.meterEnd) - Number(updatedData.dryerDetails.meterStart);
         }
         
-        // Note: updatedData.dryerDetails.rollerPoints is automatically passed from the frontend payload
         // Note: updatedData.selectedTeaWeight is automatically applied to the document via findByIdAndUpdate
 
         const record = await Production.findByIdAndUpdate(id, updatedData, { new: true });

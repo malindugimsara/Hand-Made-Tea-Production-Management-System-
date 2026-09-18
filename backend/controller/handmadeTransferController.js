@@ -5,8 +5,6 @@ import Subscription from '../Packing/models/SubscriptionModel.js';
 
 // @desc    Create a new stock transfer (Handmade -> Packing)
 // @route   POST /api/handmade/transfers
-// @desc    Create a new stock transfer (Handmade -> Packing)
-// @route   POST /api/handmade/transfers
 export const createHandmadeTransfer = async (req, res) => {
     try {
         const { items, remarks } = req.body;
@@ -16,8 +14,6 @@ export const createHandmadeTransfer = async (req, res) => {
         }
 
         const currentUserName = req.user?.name || req.user?.username || 'Handmade Officer';
-
-        // Generate Transfer ID (e.g., TR-20260423-XXXX)
         const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, '');
         const randomNum = Math.floor(1000 + Math.random() * 9000);
         const transferId = `TR-${dateStr}-${randomNum}`;
@@ -37,13 +33,11 @@ export const createHandmadeTransfer = async (req, res) => {
         const savedTransfer = await newTransfer.save();
 
         // ========================================================
-        // 🌟 PUSH NOTIFICATION CODE (Packing Officer ට පමණක් යැවීම) 🌟
+        // 🌟 PUSH NOTIFICATION CODE 🌟
         // ========================================================
         try {
-            // "Packing Officer" Role එක තියෙන අයව පමණක් තෝරාගැනීම
             const subscriptions = await Subscription.find({ role: "Packing Officer" });
             
-            // යවන සම්පූර්ණ ප්‍රමාණය (Total Qty) එකතු කරගැනීම
             const totalQty = items.reduce((sum, item) => sum + Number(item.issuedQtyKg), 0);
 
             const payload = JSON.stringify({

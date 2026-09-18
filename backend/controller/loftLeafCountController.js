@@ -1,6 +1,5 @@
 import LoftLeafCount from '../models/LoftLeafCount.js';
 
-// ප්‍රතිශතයන් (Percentages) සහ එකතුව (Total) ගණනය කිරීම සඳහා කුඩා Helper Function එකක්
 const calculateLeafStats = (best, belowBest, poor) => {
     const b = Number(best) || 0;
     const bb = Number(belowBest) || 0;
@@ -26,7 +25,7 @@ export const getAllLoftLeafCounts = async (req, res) => {
         const { month, sampleType } = req.query; // e.g., month='2026-04', sampleType='Factory'
         let filter = {};
 
-        // මාසය අනුව filter කිරීම
+        // Filter by month if provided
         if (month) {
             const [yearStr, monthStr] = month.split('-');
             const year = parseInt(yearStr, 10);
@@ -41,7 +40,7 @@ export const getAllLoftLeafCounts = async (req, res) => {
             };
         }
 
-        // sampleType එක අනුව filter කිරීම (Factory හෝ LeafCollector)
+        // Filter by sampleType if provided
         if (sampleType) {
             filter.sampleType = sampleType;
         }
@@ -57,7 +56,6 @@ export const getAllLoftLeafCounts = async (req, res) => {
 // 2. CREATE NEW RECORD
 export const createLoftLeafCount = async (req, res) => {
     try {
-        // අලුතින් totalLeafQty මෙතනට extract කරගෙන ඇත
         const { date, route, sampleType, officerName, totalLeafQty, bestQty, belowBestQty, poorQty, updatedBy } = req.body;
 
         // Validation
@@ -79,7 +77,6 @@ export const createLoftLeafCount = async (req, res) => {
             route,
             sampleType,
             officerName: officerName || "",
-            // Factory එකක් නම් පමණක් අගය ගන්නවා, නැතිනම් null කරනවා
             totalLeafQty: sampleType === 'Factory' && totalLeafQty !== undefined ? Number(totalLeafQty) : null, 
             bestQty: Number(bestQty) || 0,
             belowBestQty: Number(belowBestQty) || 0,
@@ -103,7 +100,6 @@ export const createLoftLeafCount = async (req, res) => {
 // 3. UPDATE RECORD
 export const updateLoftLeafCount = async (req, res) => {
     try {
-        // අලුතින් totalLeafQty මෙතනට extract කරගෙන ඇත
         const { date, route, sampleType, officerName, totalLeafQty, bestQty, belowBestQty, poorQty, updatedBy } = req.body;
         const record = await LoftLeafCount.findById(req.params.id);
 
@@ -111,13 +107,11 @@ export const updateLoftLeafCount = async (req, res) => {
             return res.status(404).json({ message: "Record not found." });
         }
 
-        // අලුත් දත්ත update කිරීම
         if (date) record.date = date;
         if (route) record.route = route;
         if (sampleType) record.sampleType = sampleType;
         if (officerName !== undefined) record.officerName = officerName; 
         
-        // totalLeafQty එක update කිරීම
         if (totalLeafQty !== undefined) {
             const currentSampleType = sampleType || record.sampleType;
             record.totalLeafQty = currentSampleType === 'Factory' && totalLeafQty !== "" ? Number(totalLeafQty) : null;
@@ -128,7 +122,6 @@ export const updateLoftLeafCount = async (req, res) => {
         if (poorQty !== undefined) record.poorQty = Number(poorQty);
         if (updatedBy) record.updatedBy = updatedBy;
 
-        // අලුත් දත්ත අනුව Total සහ Percentages නැවත Calculate කිරීම
         const stats = calculateLeafStats(record.bestQty, record.belowBestQty, record.poorQty);
         
         record.totalQty = stats.totalQty;

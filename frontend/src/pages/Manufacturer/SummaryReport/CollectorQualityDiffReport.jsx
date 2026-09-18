@@ -320,7 +320,14 @@ return (
                                                <td className="border border-gray-300 dark:border-zinc-700 p-1.5 text-gray-800 dark:text-gray-300">{d.b}</td>
                                                <td className="border border-gray-300 dark:border-zinc-700 p-1.5 text-gray-800 dark:text-gray-300">{d.bb}</td>
                                                <td className="border border-gray-300 dark:border-zinc-700 p-1.5 text-gray-800 dark:text-gray-300">{d.p}</td>
-                                               <td className="border border-gray-300 dark:border-zinc-700 p-1.5 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 font-bold">{d.diff}</td>
+                                               {/* 💡 DIFF එක 0 ට වඩා වැඩි නම් Red, නැත්නම් Black */}
+                                               <td className={`border border-gray-300 dark:border-zinc-700 p-1.5 font-bold ${
+                                                   Number(d.diff) > 0 
+                                                       ? 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20' 
+                                                       : 'text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-zinc-800/50'
+                                               }`}>
+                                                   {d.diff}
+                                               </td>
                                            </React.Fragment>
                                        );
                                    })}
@@ -426,7 +433,14 @@ return (
                                               <td className="border border-[#cbd5e1] p-1.5 text-[#1f2937]">{d.b}</td>
                                               <td className="border border-[#cbd5e1] p-1.5 text-[#1f2937]">{d.bb}</td>
                                               <td className="border border-[#cbd5e1] p-1.5 text-[#1f2937]">{d.p}</td>
-                                              <td className="border border-[#cbd5e1] p-1.5 text-[#dc2626] bg-[#FFEBEB] font-bold">{d.diff}</td>
+                                              {/* 💡 PDF එකේ DIFF එක 0 ට වඩා වැඩි නම් Red, නැත්නම් Black */}
+                                              <td className={`border border-[#cbd5e1] p-1.5 font-bold ${
+                                                  Number(d.diff) > 0 
+                                                      ? 'text-[#dc2626] bg-[#FFEBEB]' 
+                                                      : 'text-[#000000] bg-[#f8fafc]'
+                                              }`}>
+                                                  {d.diff}
+                                              </td>
                                           </React.Fragment>
                                       );
                                   })}

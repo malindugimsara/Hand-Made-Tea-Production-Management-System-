@@ -5,7 +5,7 @@ export const createDehydrator = async (req, res) => {
     try {
         const { 
             date, 
-            trialsData,            // --- NEW: Array replacing trial, weights, and moisture ---
+            trialsData,            
             meterStart, 
             meterEnd, 
             timePeriodHours,
@@ -21,7 +21,7 @@ export const createDehydrator = async (req, res) => {
         
         const newRecord = new Dehydrator({
             date,
-            trialsData,            // --- NEW ---
+            trialsData,            
             meterStart,
             meterEnd,
             totalUnits,
