@@ -132,7 +132,7 @@ export default function ViewLoftLeafCount() {
 
       setEditForm({
           _id: record._id,
-          route: matchedRoute, // 💡 නිවැරදිව මැච් වූ Route එක ලබාදීම
+          route: matchedRoute, 
           arrivalTime: timeVal,
           arrivalAmPm: amPmVal, 
           totalLeafQtyKg: record.totalLeafQtyKg || '',
@@ -151,9 +151,6 @@ export default function ViewLoftLeafCount() {
       setEditForm(prev => ({ ...prev, [name]: value }));
   };
 
-  // ==============================================================
-  // 💡 අලුතින් එකතු කළ යුතු TIME VALIDATION FUNCTION එක (මෙතනින් දාන්න)
-  // ==============================================================
   const formatTime12Hour = (value) => {
       let raw = value.replace(/\D/g, ''); 
       raw = raw.substring(0, 4); 
@@ -252,10 +249,8 @@ export default function ViewLoftLeafCount() {
   }, [records]);
 
   // 💡 DYNAMIC RANKING CALCULATOR
-  // 💡 DYNAMIC RANKING CALCULATOR
   const rankedRecords = useMemo(() => {
       const processed = records.map(r => {
-          // Factory sample එක තිබේ නම් එය ගනී, නැත්නම් Collector sample එක ගනී
           const sample = r.factorySample?.isEntered ? r.factorySample : (r.collectorSample?.isEntered ? r.collectorSample : null);
           
           let bestScore = -1;
@@ -268,22 +263,20 @@ export default function ViewLoftLeafCount() {
           return { ...r, _bestScore: bestScore, _belowBestScore: belowBestScore };
       });
 
-      // 💡 Sorting Logic: මුලින්ම Best % බලයි, එය සමාන නම් Below Best % බලයි
+      // 💡 Sorting Logic
       const sorted = [...processed].sort((a, b) => {
           if (b._bestScore !== a._bestScore) {
-              return b._bestScore - a._bestScore; // 1. Best % වැඩි එක උඩට
+              return b._bestScore - a._bestScore;
           }
-          return b._belowBestScore - a._belowBestScore; // 2. Best % සමාන නම් Below Best % වැඩි එක උඩට
+          return b._belowBestScore - a._belowBestScore;
       });
 
-      // 💡 Rank කිරීම
+      // 💡 Assigning Ranks
       let currentRank = 1;
       sorted.forEach((r, idx) => {
           if (r._bestScore === -1) {
-              // Sample දත්ත නැති අයට Rank එකක් නොදෙයි
               r._calculatedRank = "-";
           } else {
-              // කලින් කෙනාගේ Best සහ Below Best අගයන් දෙකම සමාන නම් එකම Rank එක ලබාදෙයි
               if (idx > 0 && r._bestScore === sorted[idx - 1]._bestScore && r._belowBestScore === sorted[idx - 1]._belowBestScore) {
                   r._calculatedRank = sorted[idx - 1]._calculatedRank; 
               } else {
@@ -293,7 +286,7 @@ export default function ViewLoftLeafCount() {
           }
       });
 
-      // මුල් Records පිළිවෙළටම අදාළ Rank එක Map කිරීම
+      // 💡 Merging Ranks Back to Original Records
       return processed.map(r => {
           const rankedItem = sorted.find(s => s._id === r._id);
           return { ...r, _calculatedRank: rankedItem ? rankedItem._calculatedRank : "-" };
@@ -868,7 +861,6 @@ export default function ViewLoftLeafCount() {
                                 className="w-full p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-gray-50 dark:bg-zinc-800 focus:ring-2 focus:ring-lime-500 outline-none"
                             >
                                 <option value="" disabled>Select route...</option>
-                                {/* 💡 value එකට සම්පූර්ණ නම (r) ලබාදීම */}
                                 {routeOptions.map((r, i) => (
                                     <option key={i} value={r}>{r}</option>
                                 ))}
@@ -1070,7 +1062,6 @@ export default function ViewLoftLeafCount() {
 
                         return (
                         <tr key={idx} style={showHighlight ? { backgroundColor: '#dcfce7' } : {}}>
-                            {/* p-2 වෙනුවට p-1 යොදා text-[14px] මගින් අකුරු ලොකු කර ඇත */}
                             <td className="border border-[#8F8F8F] p-1 text-[18px] font-bold font-sans">
                                 {((r.route || "-").split(" - ")[0]).toUpperCase()}
                             </td>                            

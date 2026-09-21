@@ -15,7 +15,6 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// System එකේ තියෙන ප්‍රධාන අංශ (Sections) ලැයිස්තුව
 const SYSTEM_SECTIONS = [
     { id: 'localsale', label: 'Local Sale Section' },
     { id: 'handmade', label: 'Handmade Section' },
@@ -101,11 +100,9 @@ export default function ManageUsers() {
         let mappedRole = user.role;
         let mappedPaths = user.allowedPaths ? [...user.allowedPaths] : [];
 
-        // 💡 කලින් හදපු පරණ Users ලව අලුත් ක්‍රමයට හරවන කොටස (Auto Migration)
         if (mappedRole !== 'Admin' && mappedRole !== 'User') {
-            mappedRole = 'User'; // පරණ මොන නම තිබුණත් 'User' බවට පත් කරනවා
+            mappedRole = 'User'; 
             
-            // එයාලට කලින් තිබුණු Role එක අනුව Checkbox එක Tick කරනවා
             if (mappedPaths.length === 0) {
                 if (user.role === 'Local Sale') mappedPaths = ['localsale'];
                 else if (user.role === 'HandMade Officer') mappedPaths = ['handmade'];
@@ -212,7 +209,6 @@ export default function ManageUsers() {
                                                 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/50'}`}
                                             >
                                                 {user.role === 'Admin' ? <Shield size={12}/> : <UserIcon size={12}/>}
-                                                {/* පරණ Role නම පෙන්වයි, එය Admin හෝ User නොවේ නම් */}
                                                 {user.role === 'Admin' || user.role === 'User' ? user.role : `Legacy: ${user.role}`}
                                             </span>
 

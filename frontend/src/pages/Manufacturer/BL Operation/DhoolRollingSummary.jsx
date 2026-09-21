@@ -68,7 +68,7 @@ const formatDecimalHoursToHms = (decimalHours) => {
 };
 
 const RollingRoomSheetSummary = () => {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const userRole = localStorage.getItem("userRole") || "Admin";
   const currentUsername = localStorage.getItem("username") || "admin";

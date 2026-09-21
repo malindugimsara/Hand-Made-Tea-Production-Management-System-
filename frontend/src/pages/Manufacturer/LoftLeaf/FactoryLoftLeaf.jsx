@@ -319,9 +319,9 @@ export default function LoftLeafCount() {
                 row.items.push({ x, text });
             });
 
-            // Y අක්ෂය අනුව Top to Bottom සකස් කිරීම
+            // Sort rows by Y coordinate (top to bottom)
             rows.sort((a, b) => b.y - a.y);
-            // X අක්ෂය අනුව Left to Right සකස් කිරීම
+            // Sort items within each row by X coordinate (left to right)
             rows.forEach(r => r.items.sort((a, b) => a.x - b.x));
 
             for (const r of rows) {

@@ -110,7 +110,6 @@ export default function DailyExtendedStockView() {
             { categoryId: 'others', size: 'DUST 1', name: 'DUST 1', displaySize: 'KG', group: 'Other', sortOrder: 99 }
         ];
 
-        // 💡 2. Auto-Correction Key Generator (FIXED FOR SPACES, DASHES, CAPITALS)
         // 💡 2. Auto-Correction Key Generator (FIXED FOR SPACES, DASHES, CAPITALS & G/T 25 BAGS)
         const generateKey = (catId, catTitle, size) => {
             let cleanId = (catId || '').toLowerCase();
@@ -123,7 +122,6 @@ export default function DailyExtendedStockView() {
             cleanId = cleanId.replace(/[^a-z0-9]/g, '');
             let cleanSize = (size || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-            // 💡 විශේෂ වෙනස මෙතැනයි: 'gttb25' ලෙස එන ID එකත් 'gt' (Green Tea) ලෙස සමමිතික කිරීම
             if (cleanId === 'gt' || cleanId === 'gttb25' || cleanId.includes('greentea')) cleanId = 'gt';
             
             if (cleanId === 'bopfpremium') cleanId = 'bopfpremium';
@@ -166,7 +164,7 @@ export default function DailyExtendedStockView() {
             };
         });
 
-        // 💡 Display Title එක ලස්සනට පෙන්වීමට (උදා: welfare pack -> Welfare Pack)
+        // 💡 4. Helper Function to Format Titles
         const formatTitle = (str) => {
             if (!str) return 'Unknown';
             return str.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -305,7 +303,6 @@ export default function DailyExtendedStockView() {
     };
 
     // 💡 --- DIRECT SHARE ON WHATSAPP (ONLY IMAGE NOW) ---
-    // මෙහි PDF share කිරීමේ කොටස ඉවත් කර ඇත. PDF share කිරීම සඳහා PDFDownloader භාවිතා වේ.
     const shareImageOnWhatsApp = async () => {
         setIsWaMenuOpen(false);
         if (tableData.length === 0) {
@@ -332,7 +329,7 @@ export default function DailyExtendedStockView() {
             });
 
             printElement.style.display = "none"; 
-            if (imgFooter) imgFooter.style.display = 'none'; // ආපසු සැඟවීම
+            if (imgFooter) imgFooter.style.display = 'none'; 
 
             let file;
             let fileName = `Daily_Stock_${selectedDate}`;
@@ -487,7 +484,6 @@ export default function DailyExtendedStockView() {
                                 <Image size={18} className="text-[#25D366]" /> Share Image
                             </button>
                             
-                            {/* 💡 අලුත් Share PDF ක්‍රමය (PDFDownloader භාවිතා කර ඇත) */}
                             <PDFDownloader
                                 title={`Daily IN/OUT & Balance Report - ${selectedDate}`}
                                 subtitle={`Opening Balance as of 1st ${getMonthName()}`}

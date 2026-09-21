@@ -142,7 +142,6 @@ export default function GreenLeafMonthlyRanking() {
           if (d.totalKg > 0) {
             let diff = 100 - (bestPct + bbPct + poorPct);
             
-            // 💡 එකතුව 100 වන තුරු දශම ශේෂයන් (remainders) මත පදනම්ව වෙනස පියවීම (අගයන් 1කින් හෝ 2කින් වෙනස් වුවද ක්‍රියාත්මක වේ)
             while (diff !== 0) {
               const remBest = rawBest - bestPct;
               const remBb = rawBb - bbPct;
@@ -858,10 +857,8 @@ const getPdfData = () => {
 
                         {/* Current Rank */}
                         <td className="relative border-l border-gray-200 bg-green-50 px-4 py-3.5 dark:border-zinc-800 dark:bg-green-950/30">
-                            {/* gap-2 ඉවත් කර w-full යොදා ඇත */}
                             <div className="flex items-center justify-center w-full">
                                 
-                                {/* අංකය හරියටම මැද (Center) පිහිටයි */}
                                 <span
                                 className={`
                                     flex h-9 min-w-9 items-center justify-center rounded-xl
@@ -880,7 +877,6 @@ const getPdfData = () => {
                                 {stat.rank}
                                 </span>
 
-                                {/* පදක්කම් අභ්‍යන්තර ලෙස දකුණු පසට (absolute right-4) යොමු කර ඇත */}
                                 {stat.rank === 1 && (
                                 <span className="absolute right-4 text-base" title="1st Place">
                                     🥇

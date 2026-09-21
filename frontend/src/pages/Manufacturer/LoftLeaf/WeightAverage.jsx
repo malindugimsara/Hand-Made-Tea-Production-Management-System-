@@ -242,7 +242,7 @@ export default function WeightAverage() {
         });
       });
 
-      // 💡 අලුත් API Endpoint එකට දත්ත යැවීම
+    
       const res = await fetch(`${BACKEND_URL}/api/pdf-totals/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

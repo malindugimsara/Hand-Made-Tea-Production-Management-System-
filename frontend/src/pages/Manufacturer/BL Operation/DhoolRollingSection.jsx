@@ -60,7 +60,7 @@ const initialBatchRow = (batchNum = 1) => ({
 });
 
 const RollingRoomSheetForm = () => {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   
   // Language State
   const [lang, setLang] = useState('EN');

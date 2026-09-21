@@ -39,7 +39,7 @@ const getTodayDate = () => {
 };
 
 const FiringSectionSummary = () => {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const userRole = localStorage.getItem("userRole") || "Admin";
   const currentUsername = localStorage.getItem("username") || "admin";
@@ -472,7 +472,6 @@ const FiringSectionSummary = () => {
     return rows;
   }, [currentRecord, calcData]);
 
-  // =========================================================================
   const autoTableOptions = useMemo(() => ({
     startY: 56,
     margin: { top: 12, bottom: 12, left: 12, right: 12 },

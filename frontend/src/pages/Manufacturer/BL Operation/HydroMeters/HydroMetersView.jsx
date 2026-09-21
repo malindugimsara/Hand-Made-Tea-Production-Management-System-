@@ -59,7 +59,6 @@ export default function HydroMetersView() {
 
     const [formData, setFormData] = useState(initializeData());
 
-    // දත්ත ඇතුළත් කර ඇති Time Slots පමණක් වෙන් කර ගැනීම
     const rowHasData = (time) => TROUGHS.some(t => formData[time]?.[t]?.dry !== '' || formData[time]?.[t]?.wet !== '');
     const activeTimeSlots = TIME_SLOTS.filter(rowHasData);
     const hasData = activeTimeSlots.length > 0;

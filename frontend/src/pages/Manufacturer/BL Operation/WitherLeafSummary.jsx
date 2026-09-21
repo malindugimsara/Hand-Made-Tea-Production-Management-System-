@@ -12,9 +12,6 @@ import {
   Info, 
   FileDown, 
   Languages,
-  Clock,
-  Building,
-  CheckCircle2
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import jsPDF from "jspdf";
@@ -39,8 +36,8 @@ const getTodayDate = () => {
 };
 
 const WitherLeafSummary = () => {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-  
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState({});
