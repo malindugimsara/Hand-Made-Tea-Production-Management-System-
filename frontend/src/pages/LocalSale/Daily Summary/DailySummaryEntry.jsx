@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Save, Calendar, PlusCircle, Trash2, ListChecks, Package, ArrowRight, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -40,6 +40,40 @@ export default function DailySummaryEntry() {
   const [customTeaSize, setCustomTeaSize] = useState('');
   const [customIn, setCustomIn] = useState('');
   const [customOut, setCustomOut] = useState('');
+  const [suggestedTeaData, setSuggestedTeaData] = useState({});
+
+  useEffect(() => {
+    const fetchExistingNames = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(`${BACKEND_URL}/api/summary`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (response.ok && data.data) {
+          const teaDataMap = {};
+          // දත්ත වලින් Category Titles (නම්) සහ Size එක වෙන්කර ගැනීම
+          data.data.forEach(record => {
+            (record.items || []).forEach(item => {
+              if (item.categoryTitle && item.size) {
+                const title = item.categoryTitle.trim();
+                // නම කලින් Map එකේ නැත්නම් පමණක් එකතු කරයි (එකම නම ආයෙත් ආවොත් replace නොකරයි)
+                if (!teaDataMap[title]) {
+                  teaDataMap[title] = item.size.trim();
+                }
+              }
+            });
+          });
+          setSuggestedTeaData(teaDataMap);
+        }
+      } catch (error) {
+        console.error("Error fetching tea names for suggestions:", error);
+      }
+    };
+
+    fetchExistingNames();
+  }, [BACKEND_URL]);
 
   const handleInputChange = (categoryId, size, type, value) => {
     if (value !== '' && Number(value) < 0) return;
@@ -56,6 +90,18 @@ export default function DailySummaryEntry() {
     }));
   };
 
+  // 💡 Tea Name එක Type කරද්දී / Dropdown එකෙන් තෝරද්දී Size එක Auto Fill කිරීම
+  const handleCustomNameChange = (e) => {
+    const val = e.target.value;
+    setCustomTeaName(val);
+    
+    // Select කරපු නම map එකේ තියෙනවද කියල බලල Size එක auto fill කරනවා
+    if (suggestedTeaData[val.trim()]) {
+      setCustomTeaSize(suggestedTeaData[val.trim()]);
+    }
+  };
+
+  // අලුත් (Custom) අයිතමයක් දැනට පුරවන ලිස්ට් එකට එකතු කිරීම
   // අලුත් (Custom) අයිතමයක් දැනට පුරවන ලිස්ට් එකට එකතු කිරීම
   const handleAddCustomItem = () => {
     if (!customTeaName.trim() || !customTeaSize.trim()) {
@@ -67,10 +113,18 @@ export default function DailySummaryEntry() {
       return;
     }
 
+    const newName = customTeaName.trim();
+    const newSize = customTeaSize.trim();
+
+    // 💡 අලුත් නම දැනටමත් list එකේ නැත්නම් තාවකාලිකව දාගැනීම
+    if (!suggestedTeaData[newName]) {
+      setSuggestedTeaData(prev => ({ ...prev, [newName]: newSize }));
+    }
+
     const newItem = {
-      categoryId: customTeaName.toLowerCase().replace(/\s+/g, '-'), // Generate ID from name
-      categoryTitle: customTeaName.trim(),
-      size: customTeaSize.trim(),
+      categoryId: newName.toLowerCase().replace(/\s+/g, '-'), 
+      categoryTitle: newName,
+      size: newSize,
       in: customIn || '0',
       out: customOut || '0'
     };
@@ -296,11 +350,19 @@ export default function DailySummaryEntry() {
                     <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Tea Name</label>
                     <input 
                       type="text" 
+                      list="tea-name-suggestions" 
+                      autoComplete="off"
                       value={customTeaName} 
-                      onChange={e => setCustomTeaName(e.target.value)} 
+                      onChange={handleCustomNameChange} /* 💡 අලුත් Function එක මෙතනට දාලා තියෙන්නේ */
                       className="w-full p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-blue-400/50" 
                       placeholder="e.g. Special Green" 
                     />
+                    {/* 💡 Database එකෙන් ආපු නම් ටික පෙන්නන Datalist එක */}
+                    <datalist id="tea-name-suggestions">
+                      {Object.keys(suggestedTeaData).map((name, index) => (
+                        <option key={index} value={name} />
+                      ))}
+                    </datalist>
                   </div>
                   <div className="sm:col-span-3">
                     <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Size / Type</label>
