@@ -8,15 +8,12 @@ import {
   Truck,
   Store,
   FileText,
-  Tag,
   TrendingDown
 } from "lucide-react";
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
 import { useLocation, useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import PDFDownloader from "@/components/PDFDownloader";
-
-// අත්‍යවශ්‍ය Dialog Components (UI Folder එකෙන්)
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,8 +49,7 @@ export default function DispatchRecordsView() {
   });
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  
-  // 💡 අලුතින් එකතු කළ State එක (Dispatch Type එක සඳහා)
+
   const [filterDispatchType, setFilterDispatchType] = useState("All");
 
   useEffect(() => {
@@ -152,14 +148,11 @@ export default function DispatchRecordsView() {
     }
   };
 
-  // 💡 Tea Type හි ඇති හිස්තැන් (Spaces) සහ Simple/Capital අකුරු වෙනස්කම් මකා එකම Standard එකකට (උදා: BOPSP, OP1) සැකසීමට Helper Function එකක්
   const normalizeTeaType = (type) => {
     if (!type) return "";
     return type.toUpperCase().replace(/\s+/g, ""); 
   };
 
-  // 💡 Unique Dispatch Types සියල්ල එකතු කරගැනීම (Dropdown එකට)
-  // dispatches, localSales, returns යන සියල්ලෙන්ම Types එකතු කර, ඒවා Normalize කර, Duplicates ඉවත් කරයි.
   const uniqueDispatchTypes = Array.from(
     new Set(
       records.flatMap((r) => [
@@ -170,11 +163,9 @@ export default function DispatchRecordsView() {
     )
   ).sort();
 
-  // 💡 තෝරාගත් Dispatch Type එකට අදාළව Record හි ඇතුළත දත්ත Filter කිරීම
-  // 💡 තෝරාගත් Dispatch Type එකට අදාළව Record හි ඇතුළත දත්ත Filter කිරීම
+  // 💡 Filtered Records with Totals Calculation
   const filteredRecords = records.map((record) => {
     if (filterDispatchType === "All") {
-      // 💡 අගයන් අනිවාර්යයෙන්ම Numbers බවට හරවා එකතු කිරීම (එවිට නිවැරදිව එකතු වේ)
       const dispatchQty = Number(record.dispatch) || 0;
       const localSaleQty = Number(record.localSaleAndGratis) || 0;
       
@@ -186,7 +177,7 @@ export default function DispatchRecordsView() {
       };
     }
 
-    // Filter කරන විටත් Normalize කරම පරීක්ෂා කිරීම
+    // 💡 Filter dispatches, local sales, and returns based on selected tea type
     const filteredDispatches = (record.dispatches || []).filter((d) => normalizeTeaType(d.teaType) === filterDispatchType);
     const filteredLocalSales = (record.localSales || []).filter((l) => normalizeTeaType(l.teaType) === filterDispatchType);
     const filteredReturns = (record.returns || []).filter((r) => normalizeTeaType(r.teaType) === filterDispatchType);
@@ -227,7 +218,6 @@ export default function DispatchRecordsView() {
       return num.toFixed(2);
     };
 
-    // 💡 Export එක සඳහාත් Filter වූ දත්ත (filteredRecords) භාවිතා කිරීම
     const tableRows = filteredRecords.map((r) => [
       r.date ? r.date.split("T")[0] : "-",
       getArrayInfo(r.dispatches, 'invoiceNo'),
@@ -258,7 +248,6 @@ export default function DispatchRecordsView() {
   const exportToExcel = () => {
     const periodText = getPeriodText();
     
-    // 💡 Export එක සඳහාත් Filter වූ දත්ත (filteredRecords) භාවිතා කිරීම
     const dataRows = filteredRecords.map((r) => [
       r.date ? r.date.split("T")[0] : "-",
       getArrayInfo(r.dispatches, 'invoiceNo').replace(/\n/g, ", "),
@@ -545,10 +534,8 @@ export default function DispatchRecordsView() {
               </thead>
 
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {/* 💡 වෙනස් කළා */}
                 {filteredRecords.length > 0 ? (
                   <>
-                    {/* 💡 වෙනස් කළා */}
                     {filteredRecords.map((record) => {
                       const dispatches = record.dispatches || [];
                       const localSales = record.localSales || [];

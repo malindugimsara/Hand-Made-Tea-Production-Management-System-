@@ -155,7 +155,7 @@ const handleSubmit = async (e) => {
 
         try {
             const loggedInUser = localStorage.getItem('username') || 'System User';
-            const token = localStorage.getItem('token'); // 💡 Token එක ලබා ගැනීම
+            const token = localStorage.getItem('token');
 
             const payload = {
                 date: formData.date,
@@ -176,7 +176,7 @@ const handleSubmit = async (e) => {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` // 💡 Headers වලට Token එක එකතු කිරීම
+                    'Authorization': `Bearer ${token}` 
                 },
                 body: JSON.stringify(payload)
             });

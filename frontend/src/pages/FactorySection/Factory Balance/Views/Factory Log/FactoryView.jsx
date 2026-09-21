@@ -120,7 +120,6 @@ export default function FactoryView() {
           mtToDate = 0;
         }
 
-        // 💡 අලුත්: Estate සහ Brought Leaf වෙන් කර ගැනීම (පරණ රෙකෝඩ්ස් සඳහා Fallback සහිතව)
         const estate = record.greenLeaf?.estateLeaf?.today || 0;
         const brought = record.greenLeaf?.broughtLeaf?.today || 0;
         const legacyToday = record.greenLeaf?.today || record.greenLeafToday || 0;
@@ -809,7 +808,6 @@ export default function FactoryView() {
                             </div>
                           </td>
 
-                          {/* 💡 අලුත්: G/L Today හි Estate සහ Brought පෙන්වීම */}
                           <td className="px-3 py-3 border-r border-gray-200 dark:border-gray-700 align-middle">
                             <div className="flex flex-col items-center justify-center">
                               <span className="font-bold text-gray-900 dark:text-gray-200">

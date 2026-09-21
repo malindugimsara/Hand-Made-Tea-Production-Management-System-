@@ -374,8 +374,6 @@ export default function DispatchAndReturn() {
         datesFound.forEach(dateStr => {
             const dispatchesForDate = groupedDataByDate[dateStr];
             const existingRecord = records.find(r => r.date.split('T')[0] === dateStr);
-
-            // 💡 PDF එක හරහා දත්ත කෙළින්ම Queue එකට යන විට පරණ දත්ත සුරක්ෂිත කිරීම
             const mergedDispatches = [...(existingRecord?.dispatches || []), ...dispatchesForDate];
             const mergedLocalSales = existingRecord?.localSales?.length ? existingRecord.localSales : [{ teaType: '', weight: '' }];
             const mergedReturns = existingRecord?.returns?.length ? existingRecord.returns : [{ teaType: '', amount: '' }];
@@ -464,17 +462,17 @@ export default function DispatchAndReturn() {
 
     const existingRecord = records.find(r => r.date.split('T')[0] === formData.date);
 
-    // 💡 අලුතින් ඇතුළත් කළ දත්ත (හිස් පේළි ඉවත් කර)
+    // 💡 Filter out empty or invalid entries before merging
     const validNewDispatches = formData.dispatches.filter(d => Number(d.weight) > 0 || d.invoiceNo || d.teaType);
     const validNewLocalSales = formData.localSales.filter(l => Number(l.weight) > 0 || l.teaType);
     const validNewReturns = formData.returns.filter(r => Number(r.amount) > 0 || r.teaType);
 
-    // 💡 Database එකේ ඇති පරණ දත්ත සමග අලුත් දත්ත එකතු කිරීම (Merge)
+    // 💡 Merge with existing database records if available, otherwise use new entries
     const mergedDispatches = [...(existingRecord?.dispatches || []), ...validNewDispatches];
     const mergedLocalSales = [...(existingRecord?.localSales || []), ...validNewLocalSales];
     const mergedReturns = [...(existingRecord?.returns || []), ...validNewReturns];
 
-    // 💡 අලුත් එකතූන් (Totals) ගණනය කිරීම
+    // 💡 Calculate totals after merging
     const newTotalDispatch = mergedDispatches.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
     const newTotalLocalSale = mergedLocalSales.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
     const newTotalReturn = mergedReturns.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -517,7 +515,6 @@ export default function DispatchAndReturn() {
       const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
       for (const record of pendingRecords) {
-        // 💡 හිස් අගයන් සඳහා "N/A" යොදා Database Validation Errors මඟ හැරීම
         const payload = {
           date: record.date,
           estateLeafToday: Number(record.estateLeafToday) || 0,
@@ -558,7 +555,6 @@ export default function DispatchAndReturn() {
           body: JSON.stringify(payload)
         });
 
-        // 💡 Backend එකෙන් එන හරියටම Error එක අල්ලාගෙන පෙන්වීම
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
           console.error("Backend Error Response:", errData);

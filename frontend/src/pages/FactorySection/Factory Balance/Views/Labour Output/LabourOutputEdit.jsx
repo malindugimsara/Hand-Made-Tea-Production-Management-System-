@@ -42,7 +42,6 @@ const LabourOutputEdit = () => {
 
     // --- Initialize Data on Mount & Role Check ---
     useEffect(() => {
-        // Viewer කෙනෙක් කෙලින්ම URL එකෙන් ආවොත් ආපහු හරවලා යවනවා
         if (isViewer) {
             toast.error("You don't have permission to edit records.");
             navigate("/factory/labouroutputlist");

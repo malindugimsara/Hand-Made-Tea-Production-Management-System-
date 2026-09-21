@@ -17,16 +17,14 @@ export default function EditFactoryLog() {
         : '';
 
     // =========================================================================
-    // 💡 අලුත්: පැරණි (Legacy) දත්ත නිවැරදිව Brought Leaf එකට Map කිරීම
+    // Initialize Estate and Brought Leaf values, considering legacy data
     // =========================================================================
     let initialEstate = record?.greenLeaf?.estateLeaf?.today ?? record?.greenLeaf?.estate ?? 0;
     let initialBrought = record?.greenLeaf?.broughtLeaf?.today ?? record?.greenLeaf?.brought ?? 0;
     
-    // පරණ දත්තවල ඇති මුළු අගය ලබා ගැනීම
     const legacyTotal = record?.greenLeaf?.today ?? record?.greenLeafToday ?? 0;
 
-    // පරණ මාසවල දත්ත නම් (Estate සහ Brought දෙකම 0 නම්, නමුත් පරණ Total එකක් තියෙනවා නම්)
-    // එය ස්වයංක්‍රීයව Brought Leaf එකට ඇතුළත් කරයි.
+    // If both Estate and Brought are zero, but legacyTotal is greater than zero, assign legacyTotal to initialBrought
     if (initialEstate === 0 && initialBrought === 0 && legacyTotal > 0) {
         initialBrought = legacyTotal;
     }
@@ -35,7 +33,7 @@ export default function EditFactoryLog() {
     const [formData, setFormData] = useState({
         date: safeDate,
         
-        // 0 අගයන් Inputs වල හිස්ව (Empty string) පෙන්වීමට
+      
         estateLeafToday: initialEstate > 0 ? initialEstate : '',
         broughtLeafToday: initialBrought > 0 ? initialBrought : '',
         
@@ -70,7 +68,7 @@ export default function EditFactoryLog() {
     // Determine conversion rate based on the month
     const conversionRate = monthsWith21Percent.includes(selectedMonthNumber) ? 0.21 : 0.215;
     
-    // Real-time calculations (Total එක සහ Made Tea එක)
+    // Real-time calculations 
     const totalGreenLeafToday = (Number(formData.estateLeafToday) || 0) + (Number(formData.broughtLeafToday) || 0);
     const calculatedMadeTea = totalGreenLeafToday * conversionRate;
     const calculatedTotalOut = (Number(formData.dispatch) || 0) + (Number(formData.localSaleAndGratis) || 0);
@@ -100,7 +98,6 @@ export default function EditFactoryLog() {
             const payload = {
                 date: formData.date,
                 
-                // Backend Payload එකට Estate සහ Brought යැවීම
                 estateLeafToday: Number(formData.estateLeafToday) || 0,
                 broughtLeafToday: Number(formData.broughtLeafToday) || 0,
                 greenLeafToday: totalGreenLeafToday, // Fallback

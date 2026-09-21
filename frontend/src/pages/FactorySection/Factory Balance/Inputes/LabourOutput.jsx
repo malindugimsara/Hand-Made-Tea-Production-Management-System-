@@ -96,7 +96,7 @@ export default function LabourOutput() {
                         if (savedMadeTea > 0) {
                             setMadeTeaToday(savedMadeTea);
                         } else {
-                            // Fallback: Green Leaf එකෙන් Made Tea ගණනය කිරීම
+                            // Fallback: Calculate Made Tea based on Green Leaf and month-specific conversion rate
                             const totalGL = todaysRecord.greenLeaf?.totalToday || todaysRecord.greenLeaf?.today || 0;
                             const selectedMonthNumber = parseInt(recordDate.split('-')[1], 10);
                             const monthsWith21Percent = [4, 5, 6, 9, 10, 11, 12];
