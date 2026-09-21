@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, FileSpreadsheet, RefreshCw, AlertCircle, FileText, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PDFDownloader from '@/components/PDFDownloader'; 
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
-// Define structure - FIXED: 'dusts' changed to 'others' to match database
-const teaCategories = [
+// 💡 1. Define base structure
+// Standard sizes for 'others' are defined here. Custom ones will be injected dynamically.
+const baseTeaCategories = [
     { id: 'athukorala', title: 'Athukorala', sizes: ['400g', '200g', '100g'] },
     { id: 'bopfSp', title: 'BOPF Sp.', sizes: ['400g', '200g'] },
     { id: 'bopfPremium', title: 'BOPF Premium', sizes: ['400g', '200g'] },
@@ -28,6 +29,7 @@ export default function MonthEndSummary() {
     const [datesOfMonth, setDatesOfMonth] = useState([]);
     const [dailyDataMap, setDailyDataMap] = useState({});
     const [issueDataMap, setIssueDataMap] = useState({ free: {}, labour: {}, staff: {} });
+    const [teaCategories, setTeaCategories] = useState(baseTeaCategories);
 
     const fetchMonthEndData = async () => {
         if (!month) return;
@@ -63,33 +65,75 @@ export default function MonthEndSummary() {
         }
     };
 
-    // Auto-Correction Key Generator (Same as DailyExtendedStockView)
+   // 💡 1. Auto-Correction Key Generator
     const generateKey = (catId, catTitle, size) => {
         let cleanId = (catId || '').toLowerCase().trim();
         let cleanTitle = (catTitle || '').toLowerCase().trim();
-        let cleanSize = (size || '').toLowerCase().trim();
+        let cleanSize = (size || '').trim();
 
         if (!cleanId && cleanTitle) {
-            cleanId = cleanTitle; 
+            cleanId = cleanTitle.replace(/\s+/g, '-'); 
         }
 
-        let finalId = catId;
-        let finalSize = size;
+        let finalId = cleanId || 'unknown';
+        let finalSize = cleanSize || catTitle || '-';
 
-        // Fix Mismatches
-        if (cleanId === 'g/t' || cleanTitle === 'g/t') finalId = 'gt';
-        if (cleanId === 'other grades' || cleanTitle === 'other grades' || cleanId === 'others') finalId = 'others';
-        if (cleanSize === 'bopf (kg)' || cleanSize === 'kg' || cleanSize === 'bopf') finalSize = 'BOPF';
-        if (cleanSize === 'dust (kg)' || cleanSize === 'dust') finalSize = 'DUST';
-        if (cleanSize === 'dust 1 (kg)' || cleanSize === 'dust 1') finalSize = 'DUST 1';
+        // 💡 ප්‍රධාන කාණ්ඩ වලට අදාළ නම් නිවැරදි කිරීම (bopfsp සහ bopfpremium විශේෂයෙන් එකතු කර ඇත)
+        if (cleanId === 'g/t' || cleanTitle === 'g/t' || cleanId === 'gt') finalId = 'gt';
+        else if (cleanId === 'other grades' || cleanTitle === 'other grades' || cleanId === 'others') finalId = 'others';
+        else if (cleanId === 'bopf sp' || cleanId === 'bopf sp.' || cleanId === 'bopfsp') finalId = 'bopfSp';
+        else if (cleanId === 'bopf premium' || cleanId === 'bopfpremium') finalId = 'bopfPremium';
+        else if (cleanId === 't/b' || cleanId === 'tb') finalId = 'tb';
+        else if (cleanId === 'pitigala tea' || cleanId === 'pitigala') finalId = 'pitigala';
+        else if (cleanId === 'athukorala') finalId = 'athukorala';
+        else {
+             finalId = cleanTitle.replace(/[^a-z0-9]/g, ''); 
+        }
 
-        return `${finalId}_${finalSize}`;
+        // Base Sizes Standardize කිරීම
+        if (finalSize.toLowerCase() === 'bopf (kg)' || finalSize.toLowerCase() === 'kg' || finalSize.toLowerCase() === 'bopf') finalSize = 'BOPF';
+        if (finalSize.toLowerCase() === 'dust (kg)' || finalSize.toLowerCase() === 'dust') finalSize = 'DUST';
+        if (finalSize.toLowerCase() === 'dust 1 (kg)' || finalSize.toLowerCase() === 'dust 1') finalSize = 'DUST 1';
+
+        return { 
+            id: finalId, 
+            title: catTitle || cleanId.toUpperCase(),
+            size: finalSize, 
+            key: `${finalId}_${finalSize}` 
+        };
     };
 
+    // 💡 2. Data Processing & Dynamic Columns Builder
     const processReportData = (dailyRecords, issueRecords) => {
         const activeDates = new Set(); 
         const dailyMap = {};
         const issueMap = { free: {}, labour: {}, staff: {} };
+
+        const dynamicCategoriesMap = {};
+        const dynamicBaseSizesMap = {}; // 💡 ප්‍රධාන කාණ්ඩ වලට එන අලුත් Sizes (උදා: 5kg) තබා ගැනීමට
+        const baseCategoryIds = baseTeaCategories.map(c => c.id);
+
+        const scanForDynamicCategories = (items) => {
+             items.forEach(item => {
+                 const { id, title, size } = generateKey(item.categoryId, item.categoryTitle, item.size);
+                 
+                 if (!baseCategoryIds.includes(id)) {
+                     // 💡 අලුත්ම කාණ්ඩයක් නම් (උදා: Welfare Pack)
+                     if (!dynamicCategoriesMap[id]) {
+                         dynamicCategoriesMap[id] = { id: id, title: title, sizes: new Set() };
+                     }
+                     dynamicCategoriesMap[id].sizes.add(size);
+                 } else {
+                     // 💡 දැනටමත් තියෙන කාණ්ඩයකට අලුත් Size එකක් ඇවිත් නම් (උදා: BOPF Premium එකට 5kg)
+                     const baseCat = baseTeaCategories.find(c => c.id === id);
+                     const sizeExists = baseCat.sizes.some(s => s.toLowerCase() === size.toLowerCase());
+                     if (!sizeExists) {
+                         if (!dynamicBaseSizesMap[id]) dynamicBaseSizesMap[id] = new Set();
+                         dynamicBaseSizesMap[id].add(size);
+                     }
+                 }
+             });
+        };
 
         // 1. Process Daily Data
         dailyRecords.forEach(record => {
@@ -97,8 +141,11 @@ export default function MonthEndSummary() {
             if (record.items && record.items.length > 0) {
                 activeDates.add(date);
                 if (!dailyMap[date]) dailyMap[date] = {};
+                
+                scanForDynamicCategories(record.items);
+
                 record.items.forEach(item => {
-                    const key = generateKey(item.categoryId, item.categoryTitle, item.size);
+                    const { key } = generateKey(item.categoryId, item.categoryTitle, item.size);
                     dailyMap[date][key] = {
                         out: (dailyMap[date][key]?.out || 0) + (Number(item.out) || 0),
                         in: (dailyMap[date][key]?.in || 0) + (Number(item.in) || 0)
@@ -112,6 +159,9 @@ export default function MonthEndSummary() {
             const date = record.date;
             if (record.items && record.items.length > 0) {
                 activeDates.add(date);
+                
+                scanForDynamicCategories(record.items);
+
                 let targetMap;
                 if (record.issueType === 'Free issued') targetMap = issueMap.free;
                 else if (record.issueType === 'Labour issued') targetMap = issueMap.labour;
@@ -120,14 +170,35 @@ export default function MonthEndSummary() {
                 if (targetMap) {
                     if (!targetMap[date]) targetMap[date] = {};
                     record.items.forEach(item => {
-                        const key = generateKey(item.categoryId, item.categoryTitle, item.size);
+                        const { key } = generateKey(item.categoryId, item.categoryTitle, item.size);
                         targetMap[date][key] = (targetMap[date][key] || 0) + (Number(item.out) || 0);
                     });
                 }
             }
         });
 
-        // 3. Sort Dates Descending
+        // 💡 3. ප්‍රධාන කාණ්ඩ වලට අලුත් Sizes (5kg) එකතු කිරීම
+        const updatedBaseCats = baseTeaCategories.map(cat => {
+             if (dynamicBaseSizesMap[cat.id]) {
+                 return { ...cat, sizes: [...cat.sizes, ...Array.from(dynamicBaseSizesMap[cat.id])] };
+             }
+             return cat;
+        });
+
+        // 💡 4. අලුත් Categories (Welfare pack) සකස් කිරීම
+        const customCatsArray = Object.values(dynamicCategoriesMap).map(cat => {
+            const cleanTitle = cat.title.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            return {
+                id: cat.id,
+                title: cleanTitle,
+                sizes: Array.from(cat.sizes)
+            };
+        });
+        
+        // 💡 Base + Custom සියල්ල එකතු කර Table එකට යැවීම
+        setTeaCategories([...updatedBaseCats, ...customCatsArray]);
+
+        // 5. Sort Dates Descending
         const sortedDates = Array.from(activeDates)
             .filter(d => d.startsWith(month))
             .sort((a, b) => new Date(a) - new Date(b));
@@ -142,7 +213,45 @@ export default function MonthEndSummary() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [month]);
 
-    // --- FILTERING & DYNAMIC TOTALS ---
+    // 💡 4. Prepare Flat Columns (Hide Columns with No Data for the Month)
+    const flatColumns = useMemo(() => {
+        const columns = [];
+        teaCategories.forEach(cat => {
+            cat.sizes.forEach(size => {
+                const key = `${cat.id}_${size}`;
+                let hasData = false;
+
+                datesOfMonth.forEach(date => {
+                    if (dailyDataMap[date] && dailyDataMap[date][key]) {
+                        if (dailyDataMap[date][key].out > 0 || dailyDataMap[date][key].in > 0) hasData = true;
+                    }
+                    if (issueDataMap.free[date] && issueDataMap.free[date][key] > 0) hasData = true;
+                    if (issueDataMap.labour[date] && issueDataMap.labour[date][key] > 0) hasData = true;
+                    if (issueDataMap.staff[date] && issueDataMap.staff[date][key] > 0) hasData = true;
+                });
+
+                // දත්ත තියෙනවා නම් විතරක් Column එක Render කරන්න දානවා
+                if (hasData || baseTeaCategories.some(b => b.id === cat.id)) {
+                    columns.push({ catId: cat.id, size, type: 'out', catTitle: cat.title });
+                    columns.push({ catId: cat.id, size, type: 'in', catTitle: cat.title });
+                }
+            });
+        });
+        return columns;
+    }, [teaCategories, datesOfMonth, dailyDataMap, issueDataMap]);
+
+    // 💡 5. Filter empty categories from the view
+    const visibleCategories = useMemo(() => {
+        const grouped = {};
+        flatColumns.forEach(col => {
+            if (!grouped[col.catId]) {
+                grouped[col.catId] = { id: col.catId, title: col.catTitle, sizes: new Set() };
+            }
+            grouped[col.catId].sizes.add(col.size);
+        });
+        return Object.values(grouped).map(g => ({ ...g, sizes: Array.from(g.sizes) }));
+    }, [flatColumns]);
+
     const filteredDates = datesOfMonth.filter(date =>
         !searchQuery || date.replace(/-/g, '.').includes(searchQuery)
     );
@@ -170,7 +279,6 @@ export default function MonthEndSummary() {
 
     const currentTotals = calculateTotals();
 
-    // --- UTILS ---
     const clearFilters = () => setSearchQuery('');
     const getMonthName = () => {
         if (!month) return "";
@@ -187,15 +295,6 @@ export default function MonthEndSummary() {
         return dateStr;
     };
 
-    // Prepare flat columns for easy grid rendering & crosshair math
-    const flatColumns = [];
-    teaCategories.forEach(cat => {
-        cat.sizes.forEach(size => {
-            flatColumns.push({ catId: cat.id, size, type: 'out' });
-            flatColumns.push({ catId: cat.id, size, type: 'in' });
-        });
-    });
-
     // --- EXPORT PDF LOGIC ---
     const getPdfHeaders = () => {
         const row1 = [{
@@ -207,7 +306,7 @@ export default function MonthEndSummary() {
         const row2 = []; 
         const row3 = []; 
 
-        teaCategories.forEach(cat => {
+        visibleCategories.forEach(cat => {
             row1.push({
                 content: cat.title.toUpperCase(),
                 colSpan: cat.sizes.length * 2,
@@ -289,7 +388,6 @@ export default function MonthEndSummary() {
     };
 
     // --- EXPORT EXCEL LOGIC ---
-    // --- EXPORT EXCEL LOGIC ---
     const exportToExcel = async () => {
         try {
             const workbook = new ExcelJS.Workbook();
@@ -307,7 +405,7 @@ export default function MonthEndSummary() {
 
             const catRow = worksheet.addRow(['DATE']);
             let colIndex = 2;
-            teaCategories.forEach(cat => {
+            visibleCategories.forEach(cat => {
                 catRow.getCell(colIndex).value = cat.title.toUpperCase();
                 const span = cat.sizes.length * 2;
                 if (span > 1) worksheet.mergeCells(2, colIndex, 2, colIndex + span - 1);
@@ -316,7 +414,7 @@ export default function MonthEndSummary() {
 
             const sizeRow = worksheet.addRow(['']);
             colIndex = 2;
-            teaCategories.forEach(cat => {
+            visibleCategories.forEach(cat => {
                 cat.sizes.forEach(size => {
                     sizeRow.getCell(colIndex).value = size;
                     worksheet.mergeCells(3, colIndex, 3, colIndex + 1);
@@ -326,7 +424,7 @@ export default function MonthEndSummary() {
 
             const outInRow = worksheet.addRow(['']);
             colIndex = 2;
-            teaCategories.forEach(cat => {
+            visibleCategories.forEach(cat => {
                 cat.sizes.forEach(() => {
                     outInRow.getCell(colIndex).value = 'OUT';
                     outInRow.getCell(colIndex + 1).value = 'IN';
@@ -360,11 +458,10 @@ export default function MonthEndSummary() {
                     const val = dailyDataMap[date]?.[`${col.catId}_${col.size}`]?.[col.type];
                     const cell = dataRow.getCell(idx + 2);
                     
-                    // 💡 අගයන් අංක (Numbers) ලෙසම ලබා දීම (Formulas නිසිලෙස ක්‍රියා කිරීමට මෙය අත්‍යවශ්‍යයි)
                     if (val && Number(val) > 0) {
                         cell.value = Number(val);
                     } else {
-                        cell.value = ''; // හිස් අගයන් හිස්ව තැබීම (Excel SUM සඳහා)
+                        cell.value = ''; 
                     }
                 });
                 
@@ -382,7 +479,7 @@ export default function MonthEndSummary() {
             worksheet.addRow([]);
             currentRow++;
 
-            // 3. 💡 FOOTER SUMMARY ROWS (WITH EXCEL FORMULAS)
+            // 3. FOOTER SUMMARY ROWS (WITH EXCEL FORMULAS)
             const endDataRow = startDataRow + filteredDates.length - 1;
 
             const fTotalRow = worksheet.addRow(['TOTAL ISSUED']);
@@ -399,7 +496,7 @@ export default function MonthEndSummary() {
 
             const footerRows = [fTotalRow, fFreeRow, fLabourRow, fStaffRow, fNetRow, fTransInRow];
 
-            // Column Letter Converter (e.g. 1 -> B, 2 -> C)
+            // Column Letter Converter
             const numToCol = (n) => {
                 let s = "";
                 while(n >= 0) {
@@ -423,25 +520,20 @@ export default function MonthEndSummary() {
                 const cTransIn = fTransInRow.getCell(colIdx);
 
                 if (isOut) {
-                    // TOTAL ISSUED Formula -> SUM(B5:B10)
                     cTotal.value = filteredDates.length > 0 ? { formula: `SUM(${colLetter}${startDataRow}:${colLetter}${endDataRow})` } : '';
                     
-                    // Static existing values
                     cFree.value = currentTotals.free[key] > 0 ? Number(currentTotals.free[key]) : '';
                     cLabour.value = currentTotals.labour[key] > 0 ? Number(currentTotals.labour[key]) : '';
                     cStaff.value = currentTotals.staff[key] > 0 ? Number(currentTotals.staff[key]) : '';
                     
-                    // NET SALE Formula -> B16 - SUM(B17:B19) [Total - Sum of Free, Labour, Staff]
                     cNet.value = { formula: `${colLetter}${trIdx}-SUM(${colLetter}${frIdx}:${colLetter}${srIdx})` };
                     cTransIn.value = '-';
                 } else {
-                    // IN columns
                     cTotal.value = '-';
                     cFree.value = '-';
                     cLabour.value = '-';
                     cStaff.value = '-';
                     cNet.value = '-';
-                    // TRANSFER IN Formula -> SUM(C5:C10)
                     cTransIn.value = filteredDates.length > 0 ? { formula: `SUM(${colLetter}${startDataRow}:${colLetter}${endDataRow})` } : '';
                 }
             });
@@ -457,7 +549,6 @@ export default function MonthEndSummary() {
                     else if (cIdx % 2 === 0) cell.font = { bold: true, color: { argb: 'FFDC2626' } }; 
                     else cell.font = { bold: true, color: { argb: 'FF16A34A' } }; 
                     
-                    // Dash ('-') අගයන් ලා අළු පැහැයෙන් පෙන්වීමට
                     if (cell.value === '-') {
                         cell.font = { bold: true, color: { argb: 'FF9CA3AF' } }; 
                     }
@@ -593,7 +684,7 @@ export default function MonthEndSummary() {
                                     <th rowSpan={3} className="px-4 py-3 align-middle border border-[#dcebdc] dark:border-green-800/50 sticky left-0 z-30 text-xs font-bold uppercase tracking-wider bg-[#eaf5ec] dark:bg-green-900/80">
                                         Date
                                     </th>
-                                    {teaCategories.map((cat, idx) => (
+                                    {visibleCategories.map((cat, idx) => (
                                         <th key={idx} colSpan={cat.sizes.length * 2} className="px-4 py-2 border border-[#dcebdc] dark:border-green-800/50 text-[11px] font-bold uppercase tracking-wider">
                                             {cat.title}
                                         </th>
@@ -602,7 +693,7 @@ export default function MonthEndSummary() {
 
                                 {/* Level 2: Sizes */}
                                 <tr>
-                                    {teaCategories.map(cat => (
+                                    {visibleCategories.map(cat => (
                                         cat.sizes.map((size, sIdx) => (
                                             <th key={`${cat.id}-${sIdx}`} colSpan={2} className="px-3 py-1.5 text-[11px] font-bold border border-[#dcebdc] dark:border-green-800/50">
                                                 {size}

@@ -5,24 +5,15 @@ import PDFDownloader from '@/components/PDFDownloader';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
-// Mapping exact product categories and keys to match backend/frontend consistently
-const productCategories = [
-    { id: 'athukorala_400g', categoryId: 'athukorala', size: '400g', name: 'Athukorala BOPF 400g' },
-    { id: 'athukorala_200g', categoryId: 'athukorala', size: '200g', name: 'Athukorala BOPF 200g' },
-    { id: 'athukorala_100g', categoryId: 'athukorala', size: '100g', name: 'Athukorala BOPF 100g' },
-    { id: 'bopfSp_400g', categoryId: 'bopfSp', size: '400g', name: 'Athukorala BOPF SP 400g' },
-    { id: 'bopfSp_200g', categoryId: 'bopfSp', size: '200g', name: 'Athukorala BOPF SP 200g' },
-    { id: 'bopfPremium_400g', categoryId: 'bopfPremium', size: '400g', name: 'Athukorala BOPF PREMIUM 400g' },
-    { id: 'bopfPremium_200g', categoryId: 'bopfPremium', size: '200g', name: 'Athukorala BOPF PREMIUM 200g' },
-    { id: 'pitigala_400g', categoryId: 'pitigala', size: '400g', name: 'Pitigala tea 400g' },
-    { id: 'pitigala_200g', categoryId: 'pitigala', size: '200g', name: 'Pitigala tea 200g' },
-    { id: 'tb_25', categoryId: 'tb', size: '25', name: 'Pitigala tea 25 bag' },
-    { id: 'tb_100', categoryId: 'tb', size: '100', name: 'Pitigala tea 100 bag' },
-    { id: 'gt_200g', categoryId: 'gt', size: '200g', name: 'Green tea 200g' },
-    { id: 'gt_tb25', categoryId: 'gt', size: 't/b 25', name: 'Green tea 25 bag' },
-    { id: 'others_bopf', categoryId: 'others', size: 'bopf', name: 'BOPF' }, // Bulk BOPF
-    { id: 'others_dust', categoryId: 'others', size: 'dust', name: 'DUST' },
-    { id: 'others_dust1', categoryId: 'others', size: 'dust 1', name: 'DUST 1' }
+// 💡 1. Define base structure (Same as MonthEndSummary)
+const baseTeaCategories = [
+    { id: 'athukorala', title: 'Athukorala', sizes: ['400g', '200g', '100g'] },
+    { id: 'bopfSp', title: 'BOPF Sp.', sizes: ['400g', '200g'] },
+    { id: 'bopfPremium', title: 'BOPF Premium', sizes: ['400g', '200g'] },
+    { id: 'tb', title: 'T/B', sizes: ['100', '25'] },
+    { id: 'pitigala', title: 'PITIGALA TEA', sizes: ['400g', '200g'] },
+    { id: 'gt', title: 'G/T', sizes: ['200g', 'T/B 25'] },
+    { id: 'others', title: 'Other Grades', sizes: ['DUST', 'DUST 1', 'BOPF'] }
 ];
 
 export default function BalanceReport() {
@@ -39,35 +30,40 @@ export default function BalanceReport() {
         return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
     };
 
-    // 💡 Auto-Correction Key Generator (Highly Strict Normalization to fix mapping issues)
+    // 💡 2. Auto-Correction Key Generator
     const generateKey = (catId, catTitle, size) => {
         let cleanId = (catId || '').toLowerCase().trim();
         let cleanTitle = (catTitle || '').toLowerCase().trim();
-        let cleanSize = (size || '').toLowerCase().trim();
+        let cleanSize = (size || '').trim();
 
-        // ID එකක් නැත්නම් Title එක පාවිච්චි කරනවා
         if (!cleanId && cleanTitle) {
-            cleanId = cleanTitle;
+            cleanId = cleanTitle.replace(/\s+/g, '-'); 
         }
 
-        let finalId = catId || cleanId;
-        let finalSize = size || cleanSize;
+        let finalId = cleanId || 'unknown';
+        let finalSize = cleanSize || catTitle || '-';
 
-        // Fix Mismatches (MonthEndSummary එකේ තියෙන විදිහටම)
-        if (cleanId === 'g/t' || cleanTitle === 'g/t' || cleanId === 'green tea') finalId = 'gt';
+        if (cleanId === 'g/t' || cleanTitle === 'g/t' || cleanId === 'gt') finalId = 'gt';
         else if (cleanId === 'other grades' || cleanTitle === 'other grades' || cleanId === 'others') finalId = 'others';
-
-        if (cleanSize === 'bopf (kg)' || cleanSize === 'kg' || cleanSize === 'bopf') finalSize = 'bopf';
-        else if (cleanSize === 'dust (kg)' || cleanSize === 'dust') finalSize = 'dust';
-        else if (cleanSize === 'dust 1 (kg)' || cleanSize === 'dust 1') finalSize = 'dust 1';
-
-        // Green Tea 25 bag fallback
-        if (finalId === 'gt' && (cleanSize.includes('25') || cleanSize === 't/b' || cleanId.includes('25'))) {
-            finalSize = 't/b 25';
+        else if (cleanId === 'bopf sp' || cleanId === 'bopf sp.' || cleanId === 'bopfsp') finalId = 'bopfSp';
+        else if (cleanId === 'bopf premium' || cleanId === 'bopfpremium') finalId = 'bopfPremium';
+        else if (cleanId === 't/b' || cleanId === 'tb') finalId = 'tb';
+        else if (cleanId === 'pitigala tea' || cleanId === 'pitigala') finalId = 'pitigala';
+        else if (cleanId === 'athukorala') finalId = 'athukorala';
+        else {
+             finalId = cleanTitle.replace(/[^a-z0-9]/g, ''); 
         }
 
-        // 100% ක් match වෙන්න simple අකුරුවලින් return කරනවා
-        return `${finalId}_${finalSize}`.toLowerCase();
+        if (finalSize.toLowerCase() === 'bopf (kg)' || finalSize.toLowerCase() === 'kg' || finalSize.toLowerCase() === 'bopf') finalSize = 'BOPF';
+        if (finalSize.toLowerCase() === 'dust (kg)' || finalSize.toLowerCase() === 'dust') finalSize = 'DUST';
+        if (finalSize.toLowerCase() === 'dust 1 (kg)' || finalSize.toLowerCase() === 'dust 1') finalSize = 'DUST 1';
+
+        return { 
+            id: finalId, 
+            title: catTitle || cleanId.toUpperCase(),
+            size: finalSize, 
+            key: `${finalId}_${finalSize}` 
+        };
     };
 
     const fetchBalanceData = async () => {
@@ -81,7 +77,6 @@ export default function BalanceReport() {
 
         setIsLoading(true);
         try {
-            // Fetch Monthly Balance (for bmStock), Daily Summary (for IN & Sold OUT), and Issue Summary (for Issue OUT)
             const [balanceRes, summaryRes, issueRes] = await Promise.all([
                 fetch(`${BACKEND_URL}/api/monthly-balance?month=${month}`, { headers: getHeaders() }).catch(() => ({ ok: false })),
                 fetch(`${BACKEND_URL}/api/summary?month=${month}`, { headers: getHeaders() }).catch(() => ({ ok: false })),
@@ -92,24 +87,49 @@ export default function BalanceReport() {
             const summaryJson = summaryRes.ok ? await summaryRes.json() : null;
             const issueJson = issueRes.ok ? await issueRes.json() : null;
 
-            // Extract bmStock map
             const bmStockMap = {};
-            const balanceItems = balanceJson?.data?.items || balanceJson?.items || [];
-            balanceItems.forEach(item => {
-                const key = generateKey(item.categoryId, item.categoryTitle, item.size);
-                bmStockMap[key] = Number(item.bmStock) || 0;
-            });
-
-            // Extract IN and Sold OUT from daily summary
             const inMap = {};
             const soldOutMap = {};
+            const issueOutMap = {};
+
+            const dynamicCategoriesMap = {};
+            const dynamicBaseSizesMap = {}; 
+            const baseCategoryIds = baseTeaCategories.map(c => c.id);
+
+            // 💡 3. Dynamic Category Scanner
+            const scanItem = (id, title, size) => {
+                if (!baseCategoryIds.includes(id)) {
+                    if (!dynamicCategoriesMap[id]) {
+                        dynamicCategoriesMap[id] = { id, title, sizes: new Set() };
+                    }
+                    dynamicCategoriesMap[id].sizes.add(size);
+                } else {
+                    const baseCat = baseTeaCategories.find(c => c.id === id);
+                    const sizeExists = baseCat.sizes.some(s => s.toLowerCase() === size.toLowerCase());
+                    if (!sizeExists) {
+                        if (!dynamicBaseSizesMap[id]) dynamicBaseSizesMap[id] = new Set();
+                        dynamicBaseSizesMap[id].add(size);
+                    }
+                }
+            };
+
+            // Process BM Stock
+            const balanceItems = balanceJson?.data?.items || balanceJson?.items || [];
+            balanceItems.forEach(item => {
+                const { id, title, size, key } = generateKey(item.categoryId, item.categoryTitle, item.size);
+                scanItem(id, title, size);
+                bmStockMap[key] = (bmStockMap[key] || 0) + (Number(item.bmStock) || 0);
+            });
+
+            // Process IN & Sold OUT
             const summaries = summaryJson?.data || summaryJson || [];
             if (Array.isArray(summaries)) {
                 summaries.forEach(day => {
                     const recordDate = day.date || '';
                     if (recordDate.startsWith(month) && Array.isArray(day.items)) {
                         day.items.forEach(item => {
-                            const key = generateKey(item.categoryId, item.categoryTitle, item.size);
+                            const { id, title, size, key } = generateKey(item.categoryId, item.categoryTitle, item.size);
+                            scanItem(id, title, size);
                             inMap[key] = (inMap[key] || 0) + (Number(item.in) || 0);
                             soldOutMap[key] = (soldOutMap[key] || 0) + (Number(item.out) || 0);
                         });
@@ -117,44 +137,67 @@ export default function BalanceReport() {
                 });
             }
 
-            // Extract Issue OUT from issue summary
-            const issueOutMap = {};
+            // Process Issue OUT
             const issues = issueJson?.data || issueJson || [];
             if (Array.isArray(issues)) {
                 issues.forEach(issueRecord => {
                     const recordDate = issueRecord.date || '';
                     if (recordDate.startsWith(month) && Array.isArray(issueRecord.items)) {
                         issueRecord.items.forEach(item => {
-                            const key = generateKey(item.categoryId, item.categoryTitle, item.size);
+                            const { id, title, size, key } = generateKey(item.categoryId, item.categoryTitle, item.size);
+                            scanItem(id, title, size);
                             issueOutMap[key] = (issueOutMap[key] || 0) + (Number(item.out) || 0);
                         });
                     }
                 });
             }
 
-            const formattedData = productCategories.map(cat => {
-                // 💡 මෙතන හරියටම categoryId එකයි size එකයි එකතු කරලා Key එක හදනවා
-                const standardKey = `${cat.categoryId}_${cat.size}`.toLowerCase();
+            // 💡 4. Merge Categories
+            const updatedBaseCats = baseTeaCategories.map(cat => {
+                if (dynamicBaseSizesMap[cat.id]) {
+                    return { ...cat, sizes: [...cat.sizes, ...Array.from(dynamicBaseSizesMap[cat.id])] };
+                }
+                return cat;
+            });
 
-                const bmStock = bmStockMap[standardKey] || 0;
-                const inQty = inMap[standardKey] || 0;
-                const total = bmStock + inQty;
+            const customCatsArray = Object.values(dynamicCategoriesMap).map(cat => {
+                const cleanTitle = cat.title.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                return { id: cat.id, title: cleanTitle, sizes: Array.from(cat.sizes) };
+            });
+            
+            const finalCategories = [...updatedBaseCats, ...customCatsArray];
 
-                const outQty = (soldOutMap[standardKey] || 0);
-                const balance = total - outQty;
+            // 💡 5. Format Output Data & Filter Empties
+            const formattedData = [];
+            
+            finalCategories.forEach(cat => {
+                cat.sizes.forEach(size => {
+                    const { key } = generateKey(cat.id, cat.title, size);
 
-                const formatNum = (num) => (num % 1 !== 0 ? num.toFixed(2) : num);
+                    const bmStock = bmStockMap[key] || 0;
+                    const inQty = inMap[key] || 0;
+                    const total = bmStock + inQty;
+                    const outQty = (soldOutMap[key] || 0) + (issueOutMap[key] || 0);
+                    const balance = total - outQty;
 
-                return {
-                    id: cat.id,
-                    name: cat.name,
-                    bmStock: formatNum(bmStock),
-                    inQty: formatNum(inQty),
-                    total: formatNum(total),
-                    outQty: formatNum(outQty),
-                    balance: formatNum(balance),
-                    rawBalance: balance
-                };
+                    // Hide rows with absolutely no data
+                    if (bmStock !== 0 || inQty !== 0 || outQty !== 0) {
+                        
+                        // 💡 Other Grades වල "Other Grades" කෑල්ල අයින් කර Size එක (DUST, DUST 1, BOPF) පමණක් පෙන්වීම
+                        const displayName = cat.id === 'others' ? size : `${cat.title} ${size}`;
+
+                        formattedData.push({
+                            id: key,
+                            name: displayName,
+                            bmStock: bmStock % 1 !== 0 ? bmStock.toFixed(2) : bmStock,
+                            inQty: inQty % 1 !== 0 ? inQty.toFixed(2) : inQty,
+                            total: total % 1 !== 0 ? total.toFixed(2) : total,
+                            outQty: outQty % 1 !== 0 ? outQty.toFixed(2) : outQty,
+                            balance: balance % 1 !== 0 ? balance.toFixed(2) : balance,
+                            rawBalance: balance
+                        });
+                    }
+                });
             });
 
             setReportData(formattedData);
@@ -243,40 +286,35 @@ export default function BalanceReport() {
             });
 
             reportData.forEach((row, index) => {
-                const rowIndex = index + 3; // Row 1: Title, Row 2: Headers, Data starts at Row 3
+                const rowIndex = index + 3; 
 
-                // String අගයන් Number බවට පත් කිරීම (Formula සඳහා අත්‍යවශ්‍යයි)
                 const bmVal = Number(row.bmStock) || 0;
                 const inVal = Number(row.inQty) || 0;
                 const outVal = Number(row.outQty) || 0;
 
-                // 💡 Static අගයන් වෙනුවට Excel Formulas යොදා ඇත
                 const dataRow = worksheet.addRow([
                     row.name,
-                    bmVal,
-                    inVal,
-                    { formula: `B${rowIndex}+C${rowIndex}` }, // Total = B/M + IN
-                    outVal,
-                    { formula: `D${rowIndex}-E${rowIndex}` }  // Balance = Total - Out
+                    bmVal || '',
+                    inVal || '',
+                    { formula: `B${rowIndex}+C${rowIndex}` }, 
+                    outVal || '',
+                    { formula: `D${rowIndex}-E${rowIndex}` } 
                 ]);
 
                 dataRow.eachCell((cell, colNumber) => {
                     cell.border = { top: { style: 'thin', color: { argb: 'FFCCCCCC' } }, bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } }, left: { style: 'thin', color: { argb: 'FFCCCCCC' } }, right: { style: 'thin', color: { argb: 'FFCCCCCC' } } };
                     cell.alignment = { horizontal: colNumber === 1 ? 'left' : 'right', vertical: 'middle' };
 
-                    // ඉලක්කම් දශමස්ථාන දෙකකින් පෙන්වීමට
                     if (colNumber > 1) {
                         cell.numFmt = '#,##0.00';
                     }
 
-                    // Total සහ Balance තීරු Bold කිරීම
                     if (colNumber === 4 || colNumber === 6) {
                         cell.font = { bold: true };
                     }
                 });
             });
 
-            // 💡 Excel Conditional Formatting (Balance එක < 0 නම් රතු, නැතිනම් නිල්)
             worksheet.addConditionalFormatting({
                 ref: `F3:F${reportData.length + 2}`,
                 rules: [
@@ -284,13 +322,13 @@ export default function BalanceReport() {
                         type: 'cellIs',
                         operator: 'lessThan',
                         formulae: ['0'],
-                        style: { font: { color: { argb: 'FFDC2626' }, bold: true } } // Red color
+                        style: { font: { color: { argb: 'FFDC2626' }, bold: true } }
                     },
                     {
                         type: 'cellIs',
                         operator: 'greaterThanOrEqual',
                         formulae: ['0'],
-                        style: { font: { color: { argb: 'FF2563EB' }, bold: true } } // Blue color
+                        style: { font: { color: { argb: 'FF2563EB' }, bold: true } }
                     }
                 ]
             });
