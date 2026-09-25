@@ -104,11 +104,11 @@ const DATA = {
       ],
     },
     {
-      title: 'Factory Packing',
+      title: 'Packing Materials',
       icon: PackageCheck,
       items: [
-        { title: 'Enter Factory Packing', url: '/factory/factorypacking', nonViewer: true },
-        { title: 'Packing Summary', url: '/factory/packingsummary' }
+        { title: 'Enter Packing Materials', url: '/factory/factorypacking', nonViewer: true },
+        { title: 'View Packing Summary', url: '/factory/packingsummary' }
       ],
     },
 

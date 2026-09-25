@@ -239,7 +239,7 @@ export default function PackingStockView() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-[1500px] mx-auto font-sans flex flex-col min-h-screen bg-[#f3faf7] dark:bg-gray-950 transition-colors duration-300">
+    <div className="p-6 md:p-8 max-w-[1500px] mx-auto font-sans flex flex-col min-h-screen dark:bg-gray-950 transition-colors duration-300">
       
       {/* TOP HEADER & BUTTONS */}
       <div className="mb-5 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -362,7 +362,7 @@ export default function PackingStockView() {
           <div>
             <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">A / G / Super</h3>
             <div className="text-xl font-black text-teal-700 dark:text-teal-400">
-              Rec: {totals.agSuperRec} <span className="text-gray-300 dark:text-gray-600 mx-1">|</span> Used: {totals.agSuperUsed}
+              Received : {totals.agSuperRec} <span className="text-gray-300 dark:text-gray-600 mx-1">|</span> Used : {totals.agSuperUsed}
             </div>
           </div>
         </div>
@@ -374,7 +374,7 @@ export default function PackingStockView() {
           <div>
             <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">A / Group</h3>
             <div className="text-xl font-black text-blue-700 dark:text-blue-400">
-              Rec: {totals.aGroupRec} <span className="text-gray-300 dark:text-gray-600 mx-1">|</span> Used: {totals.aGroupUsed}
+              Received : {totals.aGroupRec} <span className="text-gray-300 dark:text-gray-600 mx-1">|</span> Used : {totals.aGroupUsed}
             </div>
           </div>
         </div>
@@ -386,7 +386,7 @@ export default function PackingStockView() {
           <div>
             <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Sample Bags</h3>
             <div className="text-xl font-black text-indigo-700 dark:text-indigo-400">
-              Rec: {totals.sampleRec} <span className="text-gray-300 dark:text-gray-600 mx-1">|</span> Used: {totals.sampleUsed}
+              Received : {totals.sampleRec} <span className="text-gray-300 dark:text-gray-600 mx-1">|</span> Used : {totals.sampleUsed}
             </div>
           </div>
         </div>
@@ -412,13 +412,13 @@ export default function PackingStockView() {
                   {!isViewer && <th rowSpan="2" className="px-4 py-4 align-middle text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800/80 w-24 print:hidden">Action</th>}
                 </tr>
                 <tr className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-bold uppercase text-[10px] tracking-wider border-b border-gray-300 dark:border-gray-700">
-                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Rec</th>
+                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Received </th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Used</th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 bg-gray-200/50 dark:bg-gray-900/40 font-black">Balance</th>
-                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Rec</th>
+                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Received </th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Used</th>
-                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 bg-gray-200/50 dark:bg-gray-900/40 font-black">Bala</th>
-                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Rec</th>
+                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 bg-gray-200/50 dark:bg-gray-900/40 font-black">Balance</th>
+                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Received </th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Used</th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 bg-gray-200/50 dark:bg-gray-900/40 font-black">Balance</th>
                 </tr>
