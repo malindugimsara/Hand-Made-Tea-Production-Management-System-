@@ -132,7 +132,6 @@ export default function FactoryDashboard() {
   }, []);
 
   // API Data Fetching
-  // API Data Fetching
   useEffect(() => {
     const fetchDashboardData = async () => {
       setIsLoading(true);
@@ -147,15 +146,13 @@ export default function FactoryDashboard() {
 
         if (res.ok) {
           const data = await res.json();
-          // 💡 FIXED: data.records හෝ data.data හෝ කෙළින්ම Array එකක් ආවත් වැඩ කිරීමට සකසා ඇත
           const recordsArray = data.records || data.data || (Array.isArray(data) ? data : []);
           
           const sortedRecords = recordsArray.sort((a, b) => new Date(a.date) - new Date(b.date));
           setFactoryRecords(sortedRecords);
           setMonthBF(data.bfFromLastMonth || 0);
           
-          // 💡 දත්ත එන නම් බලාගැනීමට මෙය Console එකේ පරීක්ෂා කරන්න (F12 > Console)
-          console.log("Fetched Factory Records:", sortedRecords);
+          
         } else {
           toast.error("Failed to load factory data.");
         }
@@ -199,7 +196,6 @@ export default function FactoryDashboard() {
     let totalReturnsToDate = 0;
 
     const mainChartData = factoryRecords.map((rec) => {
-      // 💡 FIXED: Backend Schema එකේ ඇති 'totalToday' හරියටම ලබා ගැනීම
       const glToday = Number(rec.greenLeaf?.totalToday) || 0;
       const mtToday = Number(rec.madeTea?.today) || 0;
       const outToday = Number(rec.totalOut) || 0;
@@ -225,7 +221,6 @@ export default function FactoryDashboard() {
     // 🌟 3. Calculate Daily Balance Trend for the Area Chart
     let runningBalance = monthBF;
     const balanceChartData = factoryRecords.map((rec) => {
-      // 💡 Schema එකට අදාළව හරියටම අගයන් ලබා ගැනීම
       const mtToday = Number(rec.madeTea?.today) || 0;
       const outToday = Number(rec.totalOut) || 0;
       const retToday = Number(rec.returnAmount) || 0;
