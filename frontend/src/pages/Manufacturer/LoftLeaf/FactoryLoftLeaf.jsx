@@ -279,171 +279,181 @@ export default function LoftLeafCount() {
   };
 
   const handlePdfUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    // 💡 1. Upload කරන ලද සියලුම PDF ගොනු Array එකක් ලෙස ලබා ගැනීම
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    if (file.type !== 'application/pdf') {
-        toast.error("Please upload a valid PDF file.");
-        return;
+    for (const file of files) {
+        if (file.type !== 'application/pdf') {
+            toast.error(`"${file.name}" is not a valid PDF file.`);
+            return;
+        }
     }
 
     setIsUploadingPdf(true);
-    const toastId = toast.loading("Reading PDF and extracting data...");
+    const toastId = toast.loading(`Reading & Parsing ${files.length} PDF file(s)...`);
 
     try {
         const pdfjs = await loadPdfJs();
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+        const allNewPending = []; // සියලුම PDF වල දත්ත අවසානයේ එකතු කිරීමට
 
-        let mode = 'factory';
-        let parsedRecords = {};
-        let extractedDate = selectedDate;
-        let extractedSupervisor = supervisorName;
+        // 💡 2. සෑම PDF ගොනුවක් සඳහාම වෙන වෙනම Loop වීම
+        for (const file of files) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
 
-        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-            const page = await pdf.getPage(pageNum);
-            const textContent = await page.getTextContent();
-            
-            const rows = [];
-            textContent.items.forEach(item => {
-                const text = item.str.trim();
-                if (!text) return;
-                const x = item.transform[4];
-                const y = Math.round(item.transform[5]);
+            let mode = 'factory';
+            let parsedRecords = {};
+            let extractedDate = selectedDate; 
+            let extractedSupervisor = supervisorName;
 
-                let row = rows.find(r => Math.abs(r.y - y) <= 4);
-                if (!row) {
-                    row = { y, items: [] };
-                    rows.push(row);
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const textContent = await page.getTextContent();
+                
+                // 💡 3. Extract Date Globally
+                const fullPageText = textContent.items.map(i => i.str).join(" ");
+                const dateMatch = fullPageText.match(/(?:TRANSACTION\s*DATE\s*:?\s*)?(\d{4})[\.\-\/](\d{2})[\.\-\/](\d{2})/i);
+                if (dateMatch) {
+                    extractedDate = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`; 
                 }
-                row.items.push({ x, text });
+
+                const rows = [];
+                textContent.items.forEach(item => {
+                    const text = item.str.trim();
+                    if (!text) return;
+                    const x = item.transform[4];
+                    const y = Math.round(item.transform[5]);
+
+                    let row = rows.find(r => Math.abs(r.y - y) <= 4);
+                    if (!row) {
+                        row = { y, items: [] };
+                        rows.push(row);
+                    }
+                    row.items.push({ x, text });
+                });
+
+                rows.sort((a, b) => b.y - a.y);
+                rows.forEach(r => r.items.sort((a, b) => a.x - b.x));
+
+                for (const r of rows) {
+                    const lineText = r.items.map(i => i.text).join(' ');
+                    const lowerLine = lineText.toLowerCase();
+
+                    // Fallback Date Check
+                    if (!dateMatch && (lowerLine.includes("transaction") || lowerLine.includes("date"))) {
+                        const match = lineText.match(/(\d{4})[\.\-\/](\d{2})[\.\-\/](\d{2})/);
+                        if (match) extractedDate = `${match[1]}-${match[2]}-${match[3]}`;
+                    }
+
+                    if (lowerLine.includes("officer name:")) {
+                        const parts = lineText.split(/name[:\s]+/i);
+                        if (parts.length > 1) {
+                            extractedSupervisor = parts[1].trim();
+                        }
+                    }
+
+                    if (lowerLine.includes("collector's sample") || lowerLine.includes("collector")) {
+                        mode = 'collector';
+                    }
+
+                    const routeMatch = lineText.match(/^(C[1-8]|FA|E)\b/i);
+                    if (routeMatch) {
+                        const rawRoute = routeMatch[1].toUpperCase();
+                        const fullRoute = routeOptions.find(opt => opt.startsWith(rawRoute)) || rawRoute;
+
+                        if (!parsedRecords[rawRoute]) {
+                            parsedRecords[rawRoute] = { route: fullRoute, collectorName: collectorNameMapping[rawRoute] || "" };
+                        }
+
+                        let timeStr = "";
+                        const timeToken = lineText.match(/\b([0-1]?[0-9]|2[0-3]):[0-5][0-9]\b/);
+                        if (timeToken) {
+                            let [h, m] = timeToken[0].split(':').map(Number);
+                            let ampm = h >= 12 ? 'PM' : 'AM';
+                            let h12 = h % 12 || 12;
+                            timeStr = `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+                            parsedRecords[rawRoute].facTime = timeStr;
+                        }
+
+                        let cleanLine = lineText.replace(/^(C[1-8]|FA|E)\b\s*(\([^\)]+\))?/i, '').replace(/,/g, '');
+                        if (timeToken) cleanLine = cleanLine.replace(timeToken[0], ''); 
+                        
+                        const numbers = cleanLine.match(/\d+(?:\.\d+)?/g);
+                        if (!numbers) continue;
+
+                        if (mode === 'factory') {
+                            const idx100 = numbers.findIndex(n => Number(n) === 100);
+                            if (idx100 !== -1) {
+                                if (idx100 > 0) parsedRecords[rawRoute].facTotalQty = Number(numbers[idx100 - 1]);
+                                if (idx100 + 1 < numbers.length) parsedRecords[rawRoute].facBest = Number(numbers[idx100 + 1]);
+                                if (idx100 + 4 < numbers.length) parsedRecords[rawRoute].facBelowBest = Number(numbers[idx100 + 4]);
+                            }
+                        } else if (mode === 'collector') {
+                            const zeroIdx = numbers.findIndex(n => Number(n) === 0);
+                            if (zeroIdx !== -1 && zeroIdx + 2 < numbers.length) {
+                                parsedRecords[rawRoute].colBest = Number(numbers[zeroIdx + 2]);
+                                parsedRecords[rawRoute].colBelowBest = Number(numbers[zeroIdx + 4]);
+                            }
+                        }
+                    }
+                }
+            } // End of single PDF Page Loop
+
+            // 💡 4. ඒ ඒ PDF එකට අදාළ දත්ත, අදාළ Date එක සමග Global Array එකට (allNewPending) එකතු කිරීම
+            Object.keys(parsedRecords).forEach(key => {
+                const rec = parsedRecords[key];
+                
+                if (rec.facBest !== undefined) {
+                    allNewPending.push({
+                        id: Date.now().toString() + Math.random().toString() + 'fac',
+                        date: extractedDate || selectedDate,
+                        sampleType: 'Factory',
+                        route: rec.route,
+                        arrivalTime: rec.facTime || "",
+                        leafCollectorName: "",
+                        totalLeafQty: rec.facTotalQty || 0,
+                        bestQty: rec.facBest || 0,
+                        belowBestQty: rec.facBelowBest || 0,
+                        poorQty: Math.max(0, 100 - ((rec.facBest || 0) + (rec.facBelowBest || 0))),
+                        totalQty: 100
+                    });
+                }
+                
+                if (rec.colBest !== undefined) {
+                    allNewPending.push({
+                        id: Date.now().toString() + Math.random().toString() + 'col',
+                        date: extractedDate || selectedDate,
+                        sampleType: 'LeafCollector',
+                        route: rec.route,
+                        arrivalTime: "",
+                        leafCollectorName: rec.collectorName,
+                        totalLeafQty: null, 
+                        bestQty: rec.colBest || 0,
+                        belowBestQty: rec.colBelowBest || 0,
+                        poorQty: Math.max(0, 100 - ((rec.colBest || 0) + (rec.colBelowBest || 0))),
+                        totalQty: 100
+                    });
+                }
             });
 
-            // Sort rows by Y coordinate (top to bottom)
-            rows.sort((a, b) => b.y - a.y);
-            // Sort items within each row by X coordinate (left to right)
-            rows.forEach(r => r.items.sort((a, b) => a.x - b.x));
-
-            for (const r of rows) {
-                const lineText = r.items.map(i => i.text).join(' ');
-                const lowerLine = lineText.toLowerCase();
-
-                // Extract Date
-                if (lowerLine.includes("transaction date:")) {
-                    const match = lineText.match(/(\d{4}\.\d{2}\.\d{2})/);
-                    if (match) extractedDate = match[1].replace(/\./g, '-');
-                }
-                // Extract Supervisor Name
-                if (lowerLine.includes("officer name:")) {
-                    const parts = lineText.split(/name[:\s]+/i);
-                    if (parts.length > 1) {
-                        extractedSupervisor = parts[1].trim();
-                    }
-                }
-
-                // Identify Table Section
-                if (lowerLine.includes("collector's sample") || lowerLine.includes("collector")) {
-                    mode = 'collector';
-                }
-
-                // Match Rows starting with C1, FA, E etc.
-                const routeMatch = lineText.match(/^(C[1-8]|FA|E)\b/i);
-                if (routeMatch) {
-                    const rawRoute = routeMatch[1].toUpperCase();
-                    const fullRoute = routeOptions.find(opt => opt.startsWith(rawRoute)) || rawRoute;
-
-                    if (!parsedRecords[rawRoute]) {
-                        parsedRecords[rawRoute] = { route: fullRoute, collectorName: collectorNameMapping[rawRoute] || "" };
-                    }
-
-                    // Extract Arrival Time
-                    let timeStr = "";
-                    const timeToken = lineText.match(/\b([0-1]?[0-9]|2[0-3]):[0-5][0-9]\b/);
-                    if (timeToken) {
-                        let [h, m] = timeToken[0].split(':').map(Number);
-                        let ampm = h >= 12 ? 'PM' : 'AM';
-                        let h12 = h % 12 || 12;
-                        timeStr = `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
-                        parsedRecords[rawRoute].facTime = timeStr;
-                    }
-
-                    // Remove Route name (e.g. "C1 (MATHTHKA)") and commas to extract clean numbers
-                    let cleanLine = lineText.replace(/^(C[1-8]|FA|E)\b\s*(\([^\)]+\))?/i, '').replace(/,/g, '');
-                    if (timeToken) cleanLine = cleanLine.replace(timeToken[0], ''); // Remove time token as well
-                    
-                    const numbers = cleanLine.match(/\d+(?:\.\d+)?/g);
-                    if (!numbers) continue;
-
-                    if (mode === 'factory') {
-                        const idx100 = numbers.findIndex(n => Number(n) === 100);
-                        if (idx100 !== -1) {
-                            if (idx100 > 0) parsedRecords[rawRoute].facTotalQty = Number(numbers[idx100 - 1]);
-                            if (idx100 + 1 < numbers.length) parsedRecords[rawRoute].facBest = Number(numbers[idx100 + 1]);
-                            if (idx100 + 4 < numbers.length) parsedRecords[rawRoute].facBelowBest = Number(numbers[idx100 + 4]);
-                        }
-                    } else if (mode === 'collector') {
-                        const zeroIdx = numbers.findIndex(n => Number(n) === 0);
-                        if (zeroIdx !== -1 && zeroIdx + 2 < numbers.length) {
-                            parsedRecords[rawRoute].colBest = Number(numbers[zeroIdx + 2]);
-                            parsedRecords[rawRoute].colBelowBest = Number(numbers[zeroIdx + 4]);
-                        }
-                    }
-                }
+            if (files.length === 1) {
+                setSupervisorName(extractedSupervisor);
+                setSelectedDate(extractedDate); 
             }
-        }
+        } // End of File Loop
 
-        setSupervisorName(extractedSupervisor);
-        setSelectedDate(extractedDate); // Automatically set form date to report date
-
-        const newPending = [];
-        Object.keys(parsedRecords).forEach(key => {
-            const rec = parsedRecords[key];
-            
-            // Push Factory Sample Record
-            if (rec.facBest !== undefined) {
-                newPending.push({
-                    id: Date.now().toString() + Math.random().toString() + 'fac',
-                    date: extractedDate || selectedDate,
-                    sampleType: 'Factory',
-                    route: rec.route,
-                    arrivalTime: rec.facTime || "",
-                    leafCollectorName: "",
-                    totalLeafQty: rec.facTotalQty || 0,
-                    bestQty: rec.facBest || 0,
-                    belowBestQty: rec.facBelowBest || 0,
-                    poorQty: Math.max(0, 100 - ((rec.facBest || 0) + (rec.facBelowBest || 0))),
-                    totalQty: 100
-                });
-            }
-            
-            // Push Collector Sample Record
-            if (rec.colBest !== undefined) {
-                newPending.push({
-                    id: Date.now().toString() + Math.random().toString() + 'col',
-                    date: extractedDate || selectedDate,
-                    sampleType: 'LeafCollector',
-                    route: rec.route,
-                    arrivalTime: "",
-                    leafCollectorName: rec.collectorName,
-                    totalLeafQty: null, 
-                    bestQty: rec.colBest || 0,
-                    belowBestQty: rec.colBelowBest || 0,
-                    poorQty: Math.max(0, 100 - ((rec.colBest || 0) + (rec.colBelowBest || 0))),
-                    totalQty: 100
-                });
-            }
-        });
-
-        if (newPending.length > 0) {
-            setPendingRecords(prev => [...prev, ...newPending]);
-            toast.success(`Successfully extracted ${newPending.length} records from PDF!`, { id: toastId });
+        // 💡 5. සියල්ල අවසානයේ State එකට යැවීම
+        if (allNewPending.length > 0) {
+            setPendingRecords(prev => [...prev, ...allNewPending]);
+            toast.success(`Successfully extracted ${allNewPending.length} records from ${files.length} PDF(s)!`, { id: toastId });
         } else {
-            toast.error("Could not extract any valid data from the PDF.", { id: toastId });
+            toast.error("Could not extract any valid data from the PDF(s).", { id: toastId });
         }
 
     } catch (error) {
         console.error("PDF Parsing Error:", error);
-        toast.error("Failed to parse the PDF file.", { id: toastId });
+        toast.error("Failed to parse the PDF file(s).", { id: toastId });
     } finally {
         setIsUploadingPdf(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -597,7 +607,7 @@ export default function LoftLeafCount() {
     }
   };
 
-  // 💡 FIXED: Render Pending Table helper function (Prevents Input Focus Loss on Edit)
+  // Render Pending Table helper function
   const renderPendingTable = (sampleType, title, icon) => {
     const filteredRecords = pendingRecords.filter(r => r.sampleType === sampleType);
     if (filteredRecords.length === 0) return null;
@@ -613,6 +623,7 @@ export default function LoftLeafCount() {
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-zinc-800 dark:text-gray-400">
                   <tr>
                     <th className="px-4 py-3 whitespace-nowrap">Route</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Date</th>
                     {sampleType === 'LeafCollector' && <th className="px-4 py-3 whitespace-nowrap">Collector Name</th>}
                     {sampleType === 'Factory' && (
                         <>
@@ -633,6 +644,7 @@ export default function LoftLeafCount() {
                       return (
                       <tr key={item.id} className="bg-white border-b dark:bg-zinc-900 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800/50">
                         <td className="px-4 py-3 font-bold text-gray-900 dark:text-white whitespace-nowrap">{data.route.toUpperCase()}</td>
+                        <td className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">{data.date}</td>
                         
                         {sampleType === 'LeafCollector' && (
                             <td className="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">
@@ -741,27 +753,25 @@ export default function LoftLeafCount() {
             </div>
         </div>
 
-        {/* 💡 Show Upload Button ONLY if a date is selected */}
-        {selectedDate && (
-            <div className="w-full sm:w-auto sm:ml-auto">
-                <input 
-                    type="file" 
-                    accept="application/pdf" 
-                    ref={fileInputRef} 
-                    onChange={handlePdfUpload} 
-                    className="hidden" 
-                />
-                <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploadingPdf}
-                    className="w-full sm:w-auto px-5 py-3.5 sm:py-2.5 bg-green-600 dark:bg-green-900/70 dark:border dark:border-green-600 text-white hover:bg-green-700 rounded-xl sm:rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-                    title="Upload Report PDF to Auto-fill"
-                >
-                    {isUploadingPdf ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
-                    {isUploadingPdf ? "Scanning PDF..." : "Upload Report PDF"}
-                </button>
-            </div>
-        )}
+        <div className="w-full sm:w-auto sm:ml-auto">
+            <input 
+                type="file" 
+                accept="application/pdf" 
+                ref={fileInputRef} 
+                onChange={handlePdfUpload} 
+                multiple
+                className="hidden" 
+            />
+            <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingPdf}
+                className="w-full sm:w-auto px-5 py-3.5 sm:py-2.5 bg-green-600 dark:bg-green-900/70 dark:border dark:border-green-600 text-white hover:bg-green-700 rounded-xl sm:rounded-lg transition-colors shadow-sm font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                title="Upload Report PDF to Auto-fill"
+            >
+                {isUploadingPdf ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
+                {isUploadingPdf ? "Scanning PDF..." : "Upload Report PDF"}
+            </button>
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -772,7 +782,6 @@ export default function LoftLeafCount() {
                 <Factory size={20} /> {t.facSampleEntry}
             </h3>
 
-            {/* SUPERVISOR NAME (GLOBAL FOR FACTORY) */}
             <div className="mb-6 bg-lime-50/50 dark:bg-lime-900/10 p-4 rounded-xl border border-lime-100 dark:border-lime-900/50 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <label className="text-sm font-bold text-lime-800 dark:text-lime-400 min-w-max flex items-center gap-2">
                     <UserCheck size={16} /> {t.supervisorName}:
@@ -787,7 +796,6 @@ export default function LoftLeafCount() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 
-                {/* Route */}
                 <div className="relative" ref={factoryRouteDropdownRef}>
                     <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Tag size={12} /> {t.route}</label>
                     <input type="text" id="fac-route" placeholder="Select route..." name="route" value={factoryForm.route} onChange={(e) => { handleInputChange(e, 'factory'); setIsFactoryRouteDropdownOpen(true); }} onFocus={() => setIsFactoryRouteDropdownOpen(true)} onKeyDown={handleFacRouteKeyDown} required className="w-full p-2.5 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950 placeholder-gray-400/70 dark:placeholder-zinc-600" />
@@ -804,7 +812,6 @@ export default function LoftLeafCount() {
                     </AnimatePresence>
                 </div>
                 
-                {/* Arrival Time */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Clock size={12} /> {t.arrTime}</label>
                     <div className="flex gap-2">
@@ -834,7 +841,6 @@ export default function LoftLeafCount() {
                     </div>
                 </div>
 
-                {/* Total Leaf Qty */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Weight size={12} /> {t.totalKg}</label>
                     <input type="number" id="fac-totalQty" name="totalLeafQty" placeholder="e.g. 250" value={factoryForm.totalLeafQty} onChange={(e) => handleInputChange(e, 'factory')} onKeyDown={(e) => handleEnterKey(e, 'fac-bestQty')} required min="0" step="any" className="w-full p-2.5 placeholder-gray-400/70 dark:placeholder-zinc-600 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
@@ -899,7 +905,7 @@ export default function LoftLeafCount() {
             </button>
             </form>
 
-            {/* 💡 CALL RENDER PENDING TABLE HELPER FUNCTION */}
+            {/* CALL RENDER PENDING TABLE HELPER FUNCTION */}
             {renderPendingTable('Factory', 'Factory Entries', <Factory size={16}/>)}
         </div>
 
@@ -960,7 +966,6 @@ export default function LoftLeafCount() {
                 </AnimatePresence>
                 </div>
 
-                {/* Leaf Collector Name Input */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1">
                         <User size={12} /> {t.collectorName}
@@ -1036,7 +1041,7 @@ export default function LoftLeafCount() {
             </button>
             </form>
 
-            {/* 💡 CALL RENDER PENDING TABLE HELPER FUNCTION */}
+            {/* CALL RENDER PENDING TABLE HELPER FUNCTION */}
             {renderPendingTable('LeafCollector', 'Collector Entries', <Users size={16}/>)}
         </div>
       </div>
