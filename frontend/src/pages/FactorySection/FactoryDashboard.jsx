@@ -132,6 +132,7 @@ export default function FactoryDashboard() {
   }, []);
 
   // API Data Fetching
+  // API Data Fetching
   useEffect(() => {
     const fetchDashboardData = async () => {
       setIsLoading(true);
@@ -146,10 +147,15 @@ export default function FactoryDashboard() {
 
         if (res.ok) {
           const data = await res.json();
-          // Sort records by date to ensure calculations run in chronological order
-          const sortedRecords = (data.records || []).sort((a, b) => new Date(a.date) - new Date(b.date));
+          // 💡 FIXED: data.records හෝ data.data හෝ කෙළින්ම Array එකක් ආවත් වැඩ කිරීමට සකසා ඇත
+          const recordsArray = data.records || data.data || (Array.isArray(data) ? data : []);
+          
+          const sortedRecords = recordsArray.sort((a, b) => new Date(a.date) - new Date(b.date));
           setFactoryRecords(sortedRecords);
           setMonthBF(data.bfFromLastMonth || 0);
+          
+          // 💡 දත්ත එන නම් බලාගැනීමට මෙය Console එකේ පරීක්ෂා කරන්න (F12 > Console)
+          console.log("Fetched Factory Records:", sortedRecords);
         } else {
           toast.error("Failed to load factory data.");
         }
@@ -186,17 +192,18 @@ export default function FactoryDashboard() {
       };
     }
 
-    // 🌟 1. Calculate Totals Manually since the Backend only sends daily raw data now
+    // 🌟 1. Calculate Totals Manually
     let totalGreenLeafToDate = 0;
     let totalMadeTeaToDate = 0;
     let totalOutToDate = 0;
     let totalReturnsToDate = 0;
 
     const mainChartData = factoryRecords.map((rec) => {
-      const glToday = rec.greenLeaf?.today || rec.greenLeafToday || 0;
-      const mtToday = rec.madeTea?.today || rec.madeTeaToday || 0;
-      const outToday = rec.totalOut || 0;
-      const retToday = rec.returnAmount || 0;
+      // 💡 FIXED: Backend Schema එකේ ඇති 'totalToday' හරියටම ලබා ගැනීම
+      const glToday = Number(rec.greenLeaf?.totalToday) || 0;
+      const mtToday = Number(rec.madeTea?.today) || 0;
+      const outToday = Number(rec.totalOut) || 0;
+      const retToday = Number(rec.returnAmount) || 0;
 
       totalGreenLeafToDate += glToday;
       totalMadeTeaToDate += mtToday;
@@ -218,9 +225,10 @@ export default function FactoryDashboard() {
     // 🌟 3. Calculate Daily Balance Trend for the Area Chart
     let runningBalance = monthBF;
     const balanceChartData = factoryRecords.map((rec) => {
-      const mtToday = rec.madeTea?.today || rec.madeTeaToday || 0;
-      const outToday = rec.totalOut || 0;
-      const retToday = rec.returnAmount || 0;
+      // 💡 Schema එකට අදාළව හරියටම අගයන් ලබා ගැනීම
+      const mtToday = Number(rec.madeTea?.today) || 0;
+      const outToday = Number(rec.totalOut) || 0;
+      const retToday = Number(rec.returnAmount) || 0;
 
       runningBalance = runningBalance + mtToday - outToday + retToday;
 
@@ -319,37 +327,6 @@ export default function FactoryDashboard() {
 
       {/* 2. STATS OVERVIEW CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
-        {/* FACTORY BALANCE */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden transition-all hover:shadow-md hover:border-teal-300 dark:hover:border-teal-500/50 group">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-12 h-12 bg-teal-50 dark:bg-teal-900/30 rounded-xl flex items-center justify-center text-teal-700 dark:text-teal-400 group-hover:scale-110 transition-transform">
-              <Scale size={24} />
-            </div>
-            <span className="text-[10px] font-bold px-2.5 py-1 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 border border-teal-100 dark:border-teal-800 rounded-lg uppercase">
-              Current Month
-            </span>
-          </div>
-          <div>
-            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
-              Factory Balance
-            </p>
-            <h3
-              className={`text-3xl font-black ${
-                currentFactoryBalance < 0 
-                  ? "text-red-500 dark:text-red-400" 
-                  : "text-gray-800 dark:text-gray-100"
-              }`}
-            >
-              {isLoading ? "..." : currentFactoryBalance.toFixed(2)}{" "}
-              <span className="text-sm text-gray-400 dark:text-gray-500 font-semibold lowercase">
-                kg
-              </span>
-            </h3>
-            <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 mt-2">
-              B/F: {monthBF.toFixed(2)} kg
-            </p>
-          </div>
-        </div>
 
         {/* GREEN LEAF */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden transition-all hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-500/50 group">
@@ -417,6 +394,38 @@ export default function FactoryDashboard() {
                 kg
               </span>
             </h3>
+          </div>
+        </div>
+
+        {/* FACTORY BALANCE */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden transition-all hover:shadow-md hover:border-teal-300 dark:hover:border-teal-500/50 group">
+          <div className="flex justify-between items-start mb-4">
+            <div className="w-12 h-12 bg-teal-50 dark:bg-teal-900/30 rounded-xl flex items-center justify-center text-teal-700 dark:text-teal-400 group-hover:scale-110 transition-transform">
+              <Scale size={24} />
+            </div>
+            <span className="text-[10px] font-bold px-2.5 py-1 bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 border border-teal-100 dark:border-teal-800 rounded-lg uppercase">
+              Current Month
+            </span>
+          </div>
+          <div>
+            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+              Factory Balance
+            </p>
+            <h3
+              className={`text-3xl font-black ${
+                currentFactoryBalance < 0 
+                  ? "text-red-500 dark:text-red-400" 
+                  : "text-gray-800 dark:text-gray-100"
+              }`}
+            >
+              {isLoading ? "..." : currentFactoryBalance.toFixed(2)}{" "}
+              <span className="text-sm text-gray-400 dark:text-gray-500 font-semibold lowercase">
+                kg
+              </span>
+            </h3>
+            <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 mt-2">
+              B/F: {monthBF.toFixed(2)} kg
+            </p>
           </div>
         </div>
       </div>
