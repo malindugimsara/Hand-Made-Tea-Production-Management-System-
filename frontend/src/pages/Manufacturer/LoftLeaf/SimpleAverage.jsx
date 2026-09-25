@@ -40,7 +40,6 @@ export default function SimpleAverage() {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      // 💡 අලුත් Endpoint එක
       const response = await fetch(`${BACKEND_URL}/api/factory-loft-leaf/report?month=${selectedMonth}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -76,14 +75,13 @@ export default function SimpleAverage() {
   });
 
   records.forEach((r) => {
-    // 💡 අලුත් ක්‍රමයට Factory Sample එක Enter කරලා තියෙනවද බලනවා
+    // Skip records that don't have a date or factorySample data
     if (!r.date || !r.factorySample || !r.factorySample.isEntered) return; 
 
     const recordRouteKey = (r.route || "").split(" - ")[0].toLowerCase();
     const day = parseInt(r.date.split("-")[2], 10); // Extract day from "YYYY-MM-DD"
 
     if (matrixData[recordRouteKey] && matrixData[recordRouteKey][day]) {
-      // 💡 අලුත් Schema එකෙන් Data ගන්නවා
       matrixData[recordRouteKey][day].bestPercentage = Number(r.factorySample.bestPct) || 0;
       matrixData[recordRouteKey][day].belowBestPercentage = Number(r.factorySample.belowBestPct) || 0;
       matrixData[recordRouteKey][day].poorPercentage = Number(r.factorySample.poorPct) || 0;
@@ -198,7 +196,6 @@ export default function SimpleAverage() {
     }
   };
 
-  // --- EXCEL EXPORT LOGIC ---
   // --- EXCEL EXPORT LOGIC ---
   const exportToExcel = () => {
     if (Object.keys(matrixData).length === 0) { toast.error("No data to export!"); return; }

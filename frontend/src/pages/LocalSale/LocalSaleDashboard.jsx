@@ -233,7 +233,7 @@ export default function LocalSaleDashboard() {
     } = dashboardData;
 
     return (
-        <div className="p-4 md:p-8 max-w-[1600px] mx-auto h-full flex flex-col space-y-8 bg-[#fefce8] dark:bg-zinc-950 transition-colors duration-300 min-h-screen font-sans">
+        <div className="p-4 md:p-8 max-w-[1600px] mx-auto h-full flex flex-col space-y-8 dark:bg-zinc-950 transition-colors duration-300 min-h-screen font-sans">
             
             {/* 1. HERO WELCOME BANNER (Green to Yellow Gradient) */}
             <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden px-5 py-8 sm:px-8 sm:py-10 md:py-12 min-h-[180px] md:min-h-[220px] flex flex-col justify-center shadow-lg border border-green-700/20 z-10"

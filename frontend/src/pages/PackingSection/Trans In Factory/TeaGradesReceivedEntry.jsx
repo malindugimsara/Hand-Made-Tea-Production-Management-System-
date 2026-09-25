@@ -150,8 +150,8 @@ export default function TeaGradesReceivedEntry() {
             
             // Navigate to view page after successful save
             setTimeout(() => {
-                navigate('/packing/tea-received-records');
-            }, 1500);
+                navigate('/packing//trans-in-factory-view');
+            }, 1000);
 
         } catch (error) {
             console.error(error);

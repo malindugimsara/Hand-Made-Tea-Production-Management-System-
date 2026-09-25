@@ -1,10 +1,41 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { Calendar, Share2, RefreshCw, FileText, Box, SearchX, Image, FileDown } from 'lucide-react';
+import { Calendar, RefreshCw, FileText, Box, Image } from 'lucide-react';
 import { FaWhatsapp } from "react-icons/fa";
 import PDFDownloader from '@/components/PDFDownloader';
-import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+
+// Base structure
+const baseTableStructure = [
+    { 
+        id: 'athukorala', title: 'ATHUKORALA', 
+        columns: [{ size: '400g', key: 'athukorala_400g' }, { size: '200g', key: 'athukorala_200g' }, { size: '100g', key: 'athukorala_100g' }] 
+    },
+    { 
+        id: 'bopfSp', title: 'BOPF SP.', 
+        columns: [{ size: '400g', key: 'bopfSp_400g' }, { size: '200g', key: 'bopfSp_200g' }] 
+    },
+    { 
+        id: 'bopfPremium', title: 'BOPF PRE.', 
+        columns: [{ size: '400g', key: 'bopfPremium_400g' }, { size: '200g', key: 'bopfPremium_200g' }] 
+    },
+    { 
+        id: 'tb', title: 'T/B', 
+        columns: [{ size: '100', key: 'tb_100' }, { size: '25', key: 'tb_25' }] 
+    },
+    { 
+        id: 'pitigala', title: 'PITIGALA TEA', 
+        columns: [{ size: '400g', key: 'pitigala_400g' }, { size: '200g', key: 'pitigala_200g' }] 
+    },
+    { 
+        id: 'gt', title: 'G/T', 
+        columns: [{ size: '200g', key: 'gt_200g' }, { size: 'T/B 25', key: 'gttb25_T/B 25' }] 
+    },
+    { 
+        id: 'others', title: 'OTHER', 
+        columns: [{ size: 'DUST', key: 'others_DUST (KG)' }, { size: 'DUST 1', key: 'others_DUST 1 (KG)' }, { size: 'BOPF', key: 'others_BOPF (KG)' }] 
+    }
+];
 
 export default function DailyExtendedStockView() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -18,7 +49,6 @@ export default function DailyExtendedStockView() {
         outs: null
     });
 
-    // 💡 WhatsApp Dropdown State & Ref
     const [isWaMenuOpen, setIsWaMenuOpen] = useState(false);
     const waMenuRef = useRef(null);
 
@@ -36,6 +66,7 @@ export default function DailyExtendedStockView() {
 
     useEffect(() => {
         fetchMonthData(selectedMonth);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedMonth]);
 
     const fetchMonthData = async (monthStr) => {
@@ -72,19 +103,9 @@ export default function DailyExtendedStockView() {
         }
     };
 
-    const hasDataForSelectedDate = useMemo(() => {
-        const insArray = Array.isArray(monthData.ins) ? monthData.ins : (monthData.ins?.data || monthData.ins?.records || []);
-        const outsArray = Array.isArray(monthData.outs) ? monthData.outs : (monthData.outs?.data || monthData.outs?.records || []);
-
-        const hasSummary = insArray.some(d => d.date && d.date === selectedDate);
-        const hasIssue = outsArray.some(d => d.date && d.date === selectedDate);
-        return hasSummary || hasIssue;
-    }, [selectedDate, monthData]);
-
     const tableData = useMemo(() => {
         const dataMap = {};
 
-        // 💡 1. Exact list with custom 'sortOrder'
         const productCategories = [
             { categoryId: 'athukorala', size: '400g', name: 'Athukorala BOPF 400g', group: 'Main', sortOrder: 1 },
             { categoryId: 'athukorala', size: '200g', name: 'Athukorala BOPF 200g', group: 'Main', sortOrder: 2 },
@@ -110,8 +131,6 @@ export default function DailyExtendedStockView() {
             { categoryId: 'others', size: 'DUST 1', name: 'DUST 1', displaySize: 'KG', group: 'Other', sortOrder: 99 }
         ];
 
-        // 💡 2. Auto-Correction Key Generator (FIXED FOR SPACES, DASHES, CAPITALS)
-        // 💡 2. Auto-Correction Key Generator (FIXED FOR SPACES, DASHES, CAPITALS & G/T 25 BAGS)
         const generateKey = (catId, catTitle, size) => {
             let cleanId = (catId || '').toLowerCase();
             let cleanTitle = (catTitle || '').toLowerCase();
@@ -123,7 +142,6 @@ export default function DailyExtendedStockView() {
             cleanId = cleanId.replace(/[^a-z0-9]/g, '');
             let cleanSize = (size || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-            // 💡 විශේෂ වෙනස මෙතැනයි: 'gttb25' ලෙස එන ID එකත් 'gt' (Green Tea) ලෙස සමමිතික කිරීම
             if (cleanId === 'gt' || cleanId === 'gttb25' || cleanId.includes('greentea')) cleanId = 'gt';
             
             if (cleanId === 'bopfpremium') cleanId = 'bopfpremium';
@@ -145,45 +163,26 @@ export default function DailyExtendedStockView() {
             return `${cleanId}_${cleanSize}`;
         };
 
-        // 💡 3. Pre-fill Map with Standard Categories
-        productCategories.forEach(cat => {
-            const key = generateKey(cat.categoryId, cat.name, cat.size);
-            dataMap[key] = {
-                categoryId: cat.categoryId,
-                displayTitle: cat.name,
-                size: cat.displaySize || cat.size,
-                group: cat.group,
-                sortOrder: cat.sortOrder,
-                openingBalance: 0,
-                inToday: 0,
-                cumulativeIn: 0,
-                outSoldToday: 0,
-                cumulativeOutSold: 0,
-                outIssueToday: 0,
-                cumulativeOutIssue: 0,
-                issueBreakdown: { labour: 0, staff: 0, free: 0 },
-                balanceToDate: 0
-            };
-        });
-
-        // 💡 Display Title එක ලස්සනට පෙන්වීමට (උදා: welfare pack -> Welfare Pack)
         const formatTitle = (str) => {
             if (!str) return 'Unknown';
             return str.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         };
 
         // 💡 4. Initialize Function for Dynamic Database Items
-        const initItem = (categoryId, categoryTitle, size) => {
+        const initItem = (categoryId, categoryTitle, size, displaySize = null) => {
+            // Key එක හැමවිටම Database එකේ එන මුල් Size එකෙන් (cat.size) නිර්මාණය වේ
             const key = generateKey(categoryId, categoryTitle, size);
 
             if (!dataMap[key]) {
                 dataMap[key] = {
                     categoryId: categoryId || 'Unknown',
                     displayTitle: formatTitle(categoryTitle || categoryId),
-                    size: size || '-',
+                    // UI එකට පෙන්වීමට displaySize එකක් ඇත්නම් එය යොදාගනී
+                    size: displaySize || size || '-', 
                     group: 'Other',
-                    sortOrder: 100, // Put unknown items at the bottom
+                    sortOrder: 100, 
                     openingBalance: 0,
+                    openingBalanceToday: 0,
                     inToday: 0,
                     cumulativeIn: 0,
                     outSoldToday: 0,
@@ -196,6 +195,14 @@ export default function DailyExtendedStockView() {
             }
             return key;
         };
+
+        // Pre-fill Map with Standard Categories
+        productCategories.forEach(cat => {
+            // 💡 මෙහිදී Key එක සෑදීමට 'cat.size' ද, UI එකට පෙන්වීමට 'cat.displaySize' ද වෙන වෙනම යවනු ලැබේ
+            const key = initItem(cat.categoryId, cat.name, cat.size, cat.displaySize);
+            dataMap[key].group = cat.group;
+            dataMap[key].sortOrder = cat.sortOrder;
+        });
 
         const extractItems = (dbResponse) => {
             if (!dbResponse) return [];
@@ -214,7 +221,6 @@ export default function DailyExtendedStockView() {
             return [];
         };
 
-        // A. Map Opening Balance
         const currBalanceItems = extractItems(monthData.currBalances);
         currBalanceItems.forEach(b => {
             const key = initItem(b.categoryId, b.categoryTitle, b.size);
@@ -227,7 +233,6 @@ export default function DailyExtendedStockView() {
         const insArray = Array.isArray(monthData.ins) ? monthData.ins : (monthData.ins?.data || monthData.ins?.records || []);
         const outsArray = Array.isArray(monthData.outs) ? monthData.outs : (monthData.outs?.data || monthData.outs?.records || []);
 
-        // B. Map INs and OUTs (Sold)
         insArray.forEach(daily => {
             const recordDate = daily.date || '';
             if (recordDate.startsWith(selectedMonth) && recordDate <= selectedDate) {
@@ -249,7 +254,6 @@ export default function DailyExtendedStockView() {
             }
         });
 
-        // C. Map OUTs (Issues)
         outsArray.forEach(issue => {
             const recordDate = issue.date || '';
             if (recordDate.startsWith(selectedMonth) && recordDate <= selectedDate) {
@@ -275,16 +279,19 @@ export default function DailyExtendedStockView() {
             }
         });
 
-        // 💡 5. Calculate Final Balances, Filter, and Sort
+        // Calculate Final Balances including "Opening Balance Today"
         return Object.values(dataMap)
             .map(row => {
-                // 💡 OUT (Sold) සහ OUT (Issue) යන දෙකම Balance එකෙන් අඩු කිරීම
-                row.balanceToDate = row.openingBalance + row.cumulativeIn - row.cumulativeOutSold
+                row.balanceToDate = row.openingBalance + row.cumulativeIn - row.cumulativeOutSold;
+                
+                // 💡 අද දවසට අදාළ Opening Balance එක සෙවීම (අද දවසේ ගනුදෙනු වලට පෙර තිබූ අගය)
+                row.openingBalanceToday = row.balanceToDate - row.inToday + row.outSoldToday;
+
                 return row;
             })
             .filter(row => {
                 if (row.group === 'Main') return true;
-                const hasStock = row.balanceToDate !== 0 || row.openingBalance !== 0;
+                const hasStock = row.balanceToDate !== 0 || row.openingBalance !== 0 || row.openingBalanceToday !== 0;
                 const hasActivity = row.inToday > 0 || row.outSoldToday > 0 || row.outIssueToday > 0;
                 return hasStock || hasActivity;
             })
@@ -298,14 +305,12 @@ export default function DailyExtendedStockView() {
                 return a.displayTitle.localeCompare(b.displayTitle);
             });
 
-    }, [selectedDate, monthData]);
+    }, [selectedDate, monthData, selectedMonth]);
 
     const handleSync = () => {
         fetchMonthData(selectedMonth);
     };
 
-    // 💡 --- DIRECT SHARE ON WHATSAPP (ONLY IMAGE NOW) ---
-    // මෙහි PDF share කිරීමේ කොටස ඉවත් කර ඇත. PDF share කිරීම සඳහා PDFDownloader භාවිතා වේ.
     const shareImageOnWhatsApp = async () => {
         setIsWaMenuOpen(false);
         if (tableData.length === 0) {
@@ -332,7 +337,7 @@ export default function DailyExtendedStockView() {
             });
 
             printElement.style.display = "none"; 
-            if (imgFooter) imgFooter.style.display = 'none'; // ආපසු සැඟවීම
+            if (imgFooter) imgFooter.style.display = 'none'; 
 
             let file;
             let fileName = `Daily_Stock_${selectedDate}`;
@@ -372,19 +377,17 @@ export default function DailyExtendedStockView() {
         return months[mIndex] || "Month";
     };
 
-    // Modified PDF Export to include separators
     const getPdfData = () => {
         const rows = [];
         let currentGroup = null;
 
         tableData.forEach(row => {
-            // Add Separator Row in PDF
             if (currentGroup !== row.group) {
                 currentGroup = row.group;
                 rows.push([
                     {
                         content: currentGroup === 'Main' ? 'TEA PACKS' : 'Other Tea Types & Grades',
-                        colSpan: 7,
+                        colSpan: 8, // Updated ColSpan for PDF
                         styles: { fillColor: [243, 244, 246], fontStyle: 'bold', textColor: [75, 85, 99], halign: 'left' }
                     }
                 ]);
@@ -394,6 +397,7 @@ export default function DailyExtendedStockView() {
                 { content: row.displayTitle, styles: { fontStyle: 'bold' } },
                 row.size,
                 row.openingBalance !== 0 ? row.openingBalance.toFixed(2) : '-',
+                row.openingBalanceToday !== 0 ? row.openingBalanceToday.toFixed(2) : '-', // NEW: Opening Balance Today (PDF)
                 row.outSoldToday > 0 ? row.outSoldToday.toFixed(2) : '-',
                 row.outIssueToday > 0 ? row.outIssueToday.toFixed(2) : '-',
                 row.inToday > 0 ? row.inToday.toFixed(2) : '-',
@@ -418,6 +422,7 @@ export default function DailyExtendedStockView() {
                 { content: 'CATEGORY / TITLE', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [107, 114, 128] } },
                 { content: 'SIZE / TYPE', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [107, 114, 128] } },
                 { content: `OPENING BALANCE\n(${getMonthName()} 1st)`, rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [107, 114, 128] } },
+                { content: `OPENING BALANCE\n(TODAY)`, rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [107, 114, 128] } }, 
                 { content: 'OUT (TODAY)', colSpan: 2, styles: { halign: 'center', textColor: [239, 68, 68] } },
                 { content: 'IN (TODAY)', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [20, 147, 82] } },
                 { content: 'BALANCE\nTO DATE', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [67, 56, 202] } }
@@ -439,10 +444,11 @@ export default function DailyExtendedStockView() {
         },
         columnStyles: {
             2: { halign: 'center' },
-            3: { halign: 'center', textColor: [220, 38, 38] },
-            4: { halign: 'center', textColor: [102, 163, 191] },
-            5: { halign: 'center', textColor: [34, 197, 94] },
-            6: { halign: 'center' }
+            3: { halign: 'center' }, 
+            4: { halign: 'center', textColor: [220, 38, 38] },
+            5: { halign: 'center', textColor: [102, 163, 191] },
+            6: { halign: 'center', textColor: [34, 197, 94] },
+            7: { halign: 'center' }
         }
     };
 
@@ -459,10 +465,11 @@ export default function DailyExtendedStockView() {
                     </div>
                 </div>
 
-                <div className="flex items-center justify-center w-full sm:w-auto gap-3 pt-2 sm:pt-0">                    <PDFDownloader
+                <div className="flex items-center justify-center w-full sm:w-auto gap-3 pt-2 sm:pt-0">                    
+                    <PDFDownloader
                         title={`Daily IN/OUT & Balance Report - ${selectedDate}`}
                         subtitle={`Opening Balance as of 1st ${getMonthName()}`}
-                        headers={["Category / Title", "Size / Type", "Opening Balance", "OUT (Sold)", "OUT (Free Issue)", "IN", "Balance To Date"]}
+                        headers={["Category / Title", "Size / Type", "Opening Balance", "Opening Balance (Today)", "OUT (Sold)", "OUT (Free Issue)", "IN", "Balance To Date"]}
                         data={getPdfData()}
                         uniqueCode={uniqueCode}
                         fileName={`Daily_Stock_${selectedDate}.pdf`}
@@ -471,7 +478,6 @@ export default function DailyExtendedStockView() {
                         autoTableOptions={pdfTableConfig}
                     />
                     
-                    {/* 💡 WhatsApp Share Dropdown Button */}
                     <div className="relative flex-1 sm:flex-none" ref={waMenuRef}>
                         <button
                             onClick={() => setIsWaMenuOpen(!isWaMenuOpen)}
@@ -487,20 +493,19 @@ export default function DailyExtendedStockView() {
                                 <Image size={18} className="text-[#25D366]" /> Share Image
                             </button>
                             
-                            {/* 💡 අලුත් Share PDF ක්‍රමය (PDFDownloader භාවිතා කර ඇත) */}
                             <PDFDownloader
                                 title={`Daily IN/OUT & Balance Report - ${selectedDate}`}
                                 subtitle={`Opening Balance as of 1st ${getMonthName()}`}
-                                headers={["Category / Title", "Size / Type", "Opening Balance", "OUT (Sold)", "OUT (Free Issue)", "IN", "Balance To Date"]}
+                                headers={["Category / Title", "Size / Type", "Opening Balance", "Opening Balance (Today)", "OUT (Sold)", "OUT (Free Issue)", "IN", "Balance To Date"]}
                                 data={getPdfData()}
                                 uniqueCode={uniqueCode}
                                 fileName={`Daily_Stock_${selectedDate}.pdf`}
                                 orientation="portrait"
                                 disabled={loading || tableData.length === 0}
                                 autoTableOptions={pdfTableConfig}
-                                isWhatsApp={true} // <-- WhatsApp වලට යැවීමට
-                                onActionStart={() => setIsWaMenuOpen(false)} // <-- Menu එක Close කිරීමට
-                                customButton={ // <-- Dropdown style Button එකක් ලබා දීමට
+                                isWhatsApp={true} 
+                                onActionStart={() => setIsWaMenuOpen(false)} 
+                                customButton={ 
                                     <button className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-3 border-t border-gray-100 dark:border-zinc-700">
                                         <FileText size={18} className="text-red-500" /> Share PDF
                                     </button>
@@ -555,6 +560,10 @@ export default function DailyExtendedStockView() {
                                         Opening Balance<br />
                                         <span className="text-[9px] font-medium text-gray-400 capitalize">({getMonthName()} 1st)</span>
                                     </th>
+                                    <th rowSpan="2" className="px-6 py-4 font-black text-center bg-amber-50/30 dark:bg-amber-900/10">
+                                        Opening Balance<br />
+                                        <span className="text-[9px] font-medium text-gray-400 capitalize">(Today)</span>
+                                    </th>
                                     <th colSpan="2" className="px-6 py-2 font-black text-center text-red-500 border-b border-gray-200 dark:border-zinc-800">
                                         OUT (Today)
                                     </th>
@@ -576,7 +585,7 @@ export default function DailyExtendedStockView() {
                                         <React.Fragment key={idx}>
                                             {isNewGroup && (
                                                 <tr className="bg-gray-100 dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700">
-                                                    <td colSpan="7" className="px-6 py-2.5 text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-widest">
+                                                    <td colSpan="8" className="px-6 py-2.5 text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-widest">
                                                         {row.group === 'Main' ? 'TEA PACKS' : 'Other Tea Types & Grades'}
                                                     </td>
                                                 </tr>
@@ -591,6 +600,10 @@ export default function DailyExtendedStockView() {
 
                                                 <td className="px-6 py-4 font-bold text-center bg-gray-50/50 dark:bg-zinc-800/20 text-gray-700 dark:text-gray-300">
                                                     {row.openingBalance !== 0 ? row.openingBalance.toFixed(2) : '-'}
+                                                </td>
+
+                                                <td className="px-6 py-4 font-bold text-center bg-amber-50/50 dark:bg-zinc-800/40 text-gray-700 dark:text-gray-300">
+                                                    {row.openingBalanceToday !== 0 ? row.openingBalanceToday.toFixed(2) : '-'}
                                                 </td>
 
                                                 <td className="px-6 py-4 font-bold text-center text-red-600 bg-red-50/10 dark:bg-red-900/5">
@@ -632,35 +645,29 @@ export default function DailyExtendedStockView() {
                 )}
             </div>
 
-            {/* 💡 HIDDEN PRINT AREA (100% MATCHED TO PDF DESIGN) */}
             <div id="stock-print-area" className="bg-[#ffffff] p-10 font-sans text-[#000000]" style={{ width: '1000px', display: 'none' }}>
                 
-                {/* --- PDF Header Section Match --- */}
                 <div className="flex justify-between items-start mb-6">
                     <div className="flex items-start gap-4">
-                        {/* Logo */}
                         <img src="/logo.png" alt="Logo" className="w-[85px] h-[85px] object-contain mt-1" onError={(e) => e.target.style.display = 'none'} />
                         <div className="mt-2">
-                            {/* PDF Titles */}
                             <h1 className="text-[22px] text-[#1B6A31]">Daily IN/OUT & Balance Report - {selectedDate}</h1>
                             <h2 className="text-[14px] text-[#646464] mt-1">Opening Balance as of 1st {getMonthName()}</h2>
                         </div>
                     </div>
-                    {/* PDF Document Ref Details */}
                     <div className="text-right text-[12px] text-[#969696] mt-2 font-semibold">
                         <p>Doc Ref: {uniqueCode}</p>
                         <p>Generated: {new Date().toLocaleString()}</p>
                     </div>
                 </div>
 
-                {/* --- PDF Table Match --- */}
                 <table className="w-full border-collapse border border-[#BFC9D1] text-[12px]">
                     <thead className="bg-[#D9EFBD]">
-                        {/* Top Header Row matched to autoTable options */}
                         <tr className="text-[#6B7280]">
                             <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold uppercase">Category / Title</th>
                             <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold uppercase">Size / Type</th>
                             <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold uppercase">Opening Balance<br/>({getMonthName()} 1st)</th>
+                            <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold uppercase">Opening Balance<br/>(Today)</th>
                             <th colSpan={2} className="border border-[#BFC9D1] p-2 text-center font-bold text-[#EF4444] uppercase">OUT (Today)</th>
                             <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold text-[#149352] uppercase">IN (Today)</th>
                             <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold text-[#4338CA] uppercase">Balance<br/>To Date</th>
@@ -675,19 +682,19 @@ export default function DailyExtendedStockView() {
                             const isNewGroup = idx === 0 || tableData[idx - 1].group !== row.group;
                             return (
                                 <React.Fragment key={idx}>
-                                    {/* Separator Row inside PDF */}
                                     {isNewGroup && (
                                         <tr className="bg-[#F3F4F6]">
-                                            <td colSpan="7" className="border border-[#BFC9D1] p-2 text-left font-bold text-[#4B5563] uppercase">
+                                            <td colSpan="8" className="border border-[#BFC9D1] p-2 text-left font-bold text-[#4B5563] uppercase">
                                                 {row.group === 'Main' ? 'TEA PACKS' : 'Other Tea Types & Grades'}
                                             </td>
                                         </tr>
                                     )}
-                                    {/* Data Row */}
                                     <tr>
                                         <td className="border border-[#BFC9D1] p-2 text-left font-bold text-[#000000]">{row.displayTitle}</td>
                                         <td className="border border-[#BFC9D1] p-2 text-[#000000]">{row.size}</td>
                                         <td className="border border-[#BFC9D1] p-2 text-[#000000]">{row.openingBalance !== 0 ? row.openingBalance.toFixed(2) : '-'}</td>
+                                        
+                                        <td className="border border-[#BFC9D1] p-2 text-[#000000]">{row.openingBalanceToday !== 0 ? row.openingBalanceToday.toFixed(2) : '-'}</td>
                                         
                                         <td className="border border-[#BFC9D1] p-2 text-[#DC2626]">
                                             {row.outSoldToday > 0 ? row.outSoldToday.toFixed(2) : '-'}
@@ -711,7 +718,6 @@ export default function DailyExtendedStockView() {
                     </tbody>
                 </table>
 
-                {/* --- PDF Signature Section Match --- */}
                 <div className="mt-14 flex justify-between items-end text-[13px]">
                     <div>
                         <p className="text-[#646464]">Generated By:</p>
@@ -725,7 +731,6 @@ export default function DailyExtendedStockView() {
                     </div>
                 </div>
                 
-                {/* PDF Footer Match */}
                 <div id="sys-image-footer" className="mt-10 text-center text-[10px] text-[#808080] font-sans" style={{ display: 'none' }}>
                     Page 1 of 1 - Generated by Unified Management System
                 </div>

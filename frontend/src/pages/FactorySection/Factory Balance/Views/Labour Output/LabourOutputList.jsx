@@ -85,10 +85,10 @@ const LabourOutputTable = () => {
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
+            const token = localStorage.getItem("token"); 
             const response = await fetch(`${BACKEND_URL}/api/labour-output`, {
                 headers: { 
-                    'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
+                    'Authorization': `Bearer ${token}` 
                 }
             });
             if (!response.ok) throw new Error("Failed to fetch data");
@@ -195,12 +195,12 @@ const LabourOutputTable = () => {
         if (!recordToDelete) return;
         const toastId = toast.loading("Deleting records...");
         try {
-            const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
+            const token = localStorage.getItem("token"); 
             const response = await fetch(`${BACKEND_URL}/api/labour-output/date/${recordToDelete.date}`, {
                 method: "DELETE",
                 headers: { 
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}` // 👈 Token එක යැවීම
+                    "Authorization": `Bearer ${token}`
                 }
             });
             if (!response.ok) throw new Error("Failed to delete the record");

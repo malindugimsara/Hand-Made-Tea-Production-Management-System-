@@ -78,7 +78,7 @@ export default function MonthEndSummary() {
         let finalId = cleanId || 'unknown';
         let finalSize = cleanSize || catTitle || '-';
 
-        // 💡 ප්‍රධාන කාණ්ඩ වලට අදාළ නම් නිවැරදි කිරීම (bopfsp සහ bopfpremium විශේෂයෙන් එකතු කර ඇත)
+        // 💡 Special Cases for Category IDs
         if (cleanId === 'g/t' || cleanTitle === 'g/t' || cleanId === 'gt') finalId = 'gt';
         else if (cleanId === 'other grades' || cleanTitle === 'other grades' || cleanId === 'others') finalId = 'others';
         else if (cleanId === 'bopf sp' || cleanId === 'bopf sp.' || cleanId === 'bopfsp') finalId = 'bopfSp';
@@ -185,7 +185,7 @@ export default function MonthEndSummary() {
              return cat;
         });
 
-        // 💡 4. අලුත් Categories (Welfare pack) සකස් කිරීම
+        // 💡 Custom Categories Array
         const customCatsArray = Object.values(dynamicCategoriesMap).map(cat => {
             const cleanTitle = cat.title.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
             return {
@@ -195,7 +195,7 @@ export default function MonthEndSummary() {
             };
         });
         
-        // 💡 Base + Custom සියල්ල එකතු කර Table එකට යැවීම
+        // 💡 Final Combined Categories (Base + Custom)
         setTeaCategories([...updatedBaseCats, ...customCatsArray]);
 
         // 5. Sort Dates Descending
@@ -230,7 +230,7 @@ export default function MonthEndSummary() {
                     if (issueDataMap.staff[date] && issueDataMap.staff[date][key] > 0) hasData = true;
                 });
 
-                // දත්ත තියෙනවා නම් විතරක් Column එක Render කරන්න දානවා
+                // 💡 Only include columns that have data or are part of the base categories
                 if (hasData || baseTeaCategories.some(b => b.id === cat.id)) {
                     columns.push({ catId: cat.id, size, type: 'out', catTitle: cat.title });
                     columns.push({ catId: cat.id, size, type: 'in', catTitle: cat.title });

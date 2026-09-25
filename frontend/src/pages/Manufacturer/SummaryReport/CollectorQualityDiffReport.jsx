@@ -13,7 +13,6 @@ const ROUTE_ORDER = [
 export default function CollectorQualityDiffReport() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const currentUsername = localStorage.getItem("username") || "Unknown User";
-  const userRole = localStorage.getItem("userRole") || "";
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   
   const [weekData, setWeekData] = useState([]);
@@ -109,9 +108,7 @@ export default function CollectorQualityDiffReport() {
       });
 
       weekData.forEach(record => {
-         const routeStr = record.route;
-         
-         // අපි මෙහිදී ප්‍රධාන වශයෙන් ගන්නේ Collector Sample එකයි
+         const routeStr = record.route; 
          const colSample = record.collectorSample?.isEntered ? record.collectorSample : null;
          const facSample = record.factorySample?.isEntered ? record.factorySample : null;
          
@@ -121,7 +118,7 @@ export default function CollectorQualityDiffReport() {
              const p = Number(colSample.poorPct || 0);
              
              let diff = "-";
-             // Factory දත්ත තිබේ නම් Difference එක ගණනය කිරීම (Collector Best - Factory Best)
+             // (Collector Best - Factory Best)
              if (facSample) {
                  const facB = Number(facSample.bestPct || 0);
                  diff = b - facB;
@@ -131,7 +128,7 @@ export default function CollectorQualityDiffReport() {
          }
       });
 
-      return Object.values(routeMap).filter(r => r.name !== 'E'); // Estate ඉවත් කර ඇත
+      return Object.values(routeMap).filter(r => r.name !== 'E'); // Exclude "E - ESTATE TEA" from the final table
   }, [weekData, lang]);
 
   function getSinhalaRouteName(route) {
@@ -320,7 +317,7 @@ return (
                                                <td className="border border-gray-300 dark:border-zinc-700 p-1.5 text-gray-800 dark:text-gray-300">{d.b}</td>
                                                <td className="border border-gray-300 dark:border-zinc-700 p-1.5 text-gray-800 dark:text-gray-300">{d.bb}</td>
                                                <td className="border border-gray-300 dark:border-zinc-700 p-1.5 text-gray-800 dark:text-gray-300">{d.p}</td>
-                                               {/* 💡 DIFF එක 0 ට වඩා වැඩි නම් Red, නැත්නම් Black */}
+                                               {/* DIFF Column  */}
                                                <td className={`border border-gray-300 dark:border-zinc-700 p-1.5 font-bold ${
                                                    Number(d.diff) > 0 
                                                        ? 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20' 
@@ -433,7 +430,6 @@ return (
                                               <td className="border border-[#cbd5e1] p-1.5 text-[#1f2937]">{d.b}</td>
                                               <td className="border border-[#cbd5e1] p-1.5 text-[#1f2937]">{d.bb}</td>
                                               <td className="border border-[#cbd5e1] p-1.5 text-[#1f2937]">{d.p}</td>
-                                              {/* 💡 PDF එකේ DIFF එක 0 ට වඩා වැඩි නම් Red, නැත්නම් Black */}
                                               <td className={`border border-[#cbd5e1] p-1.5 font-bold ${
                                                   Number(d.diff) > 0 
                                                       ? 'text-[#dc2626] bg-[#FFEBEB]' 

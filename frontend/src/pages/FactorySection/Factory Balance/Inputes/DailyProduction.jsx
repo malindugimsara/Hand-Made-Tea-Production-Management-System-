@@ -276,7 +276,7 @@ export default function DailyProduction() {
             const data = groupedDataByDate[dateStr];
             const existingRecord = allExistingRecords.find(r => r.date.split('T')[0] === dateStr);
             
-            // 💡 පරණ Database එකේ ඇති අගයන් ලබාගැනීම
+            // get previous values from database if available, otherwise use 0
             const dbEstate = existingRecord?.greenLeaf?.estateLeaf?.today || 0;
             const dbBrought = existingRecord?.greenLeaf?.broughtLeaf?.today || 0;
 
@@ -285,7 +285,7 @@ export default function DailyProduction() {
             let pdfBrought = pdfTotal > 0 ? pdfTotal - pdfEstate : 0;
             if (pdfBrought < 0) pdfBrought = 0;
 
-            // 💡 PDF එකෙන් අගයන් කියවීමට නොහැකි වුවහොත් පරණ අගයන්ම නැවත ලබාදීම (No data loss)
+            // If PDF values are zero, fallback to database values
             const finalEstate = pdfEstate > 0 ? pdfEstate : dbEstate;
             const finalBrought = pdfBrought > 0 ? pdfBrought : dbBrought;
             const finalTotal = finalEstate + finalBrought;
@@ -300,7 +300,6 @@ export default function DailyProduction() {
               broughtLeafToday: finalBrought,
               greenLeafToday: finalTotal.toFixed(2),
               calculatedMadeTea: calcMadeTea,
-              // පරණ Dispatch දත්ත සුරක්ෂිත කිරීම
               dispatch: existingRecord?.dispatch || 0,
               localSaleAndGratis: existingRecord?.localSaleAndGratis || 0,
               returnAmount: existingRecord?.returnAmount || 0,
@@ -350,7 +349,6 @@ export default function DailyProduction() {
 
     let existingRecord = records.find(r => r.date.split('T')[0] === formData.date);
 
-    // වෙනත් මාසයක දත්ත නම් Database එකෙන් ලබා ගනී
     const reqMonth = formData.date.substring(0, 7);
     if (reqMonth !== selectedMonth) {
         try {
@@ -367,7 +365,6 @@ export default function DailyProduction() {
         }
     }
 
-    // 💡 හිස්ව (Blank) යැව්වොත් Database එකේ දැනටමත් ඇති අගයන් යොදාගනී
     const dbEstate = existingRecord?.greenLeaf?.estateLeaf?.today || 0;
     const dbBrought = existingRecord?.greenLeaf?.broughtLeaf?.today || 0;
 
@@ -382,7 +379,6 @@ export default function DailyProduction() {
       broughtLeafToday: finalBrought,
       greenLeafToday: finalTotalGL.toFixed(2),
       calculatedMadeTea: calcMadeTea,
-      // පරණ Dispatch දත්ත සුරක්ෂිත කිරීම
       dispatch: existingRecord?.dispatch || 0,
       localSaleAndGratis: existingRecord?.localSaleAndGratis || 0,
       returnAmount: existingRecord?.returnAmount || 0,
@@ -414,7 +410,6 @@ export default function DailyProduction() {
       for (const record of pendingRecords) {
         const payload = {
           date: record.date,
-          // 💡 සම්පූර්ණයෙන්ම සකස් කළ අගයන් යැවීම
           estateLeafToday: Number(record.estateLeafToday) || 0,
           broughtLeafToday: Number(record.broughtLeafToday) || 0,
           greenLeafToday: Number(record.greenLeafToday) || 0,

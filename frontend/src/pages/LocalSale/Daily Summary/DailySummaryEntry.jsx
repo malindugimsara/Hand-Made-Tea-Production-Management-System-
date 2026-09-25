@@ -53,12 +53,10 @@ export default function DailySummaryEntry() {
         
         if (response.ok && data.data) {
           const teaDataMap = {};
-          // දත්ත වලින් Category Titles (නම්) සහ Size එක වෙන්කර ගැනීම
           data.data.forEach(record => {
             (record.items || []).forEach(item => {
               if (item.categoryTitle && item.size) {
                 const title = item.categoryTitle.trim();
-                // නම කලින් Map එකේ නැත්නම් පමණක් එකතු කරයි (එකම නම ආයෙත් ආවොත් replace නොකරයි)
                 if (!teaDataMap[title]) {
                   teaDataMap[title] = item.size.trim();
                 }
@@ -90,19 +88,18 @@ export default function DailySummaryEntry() {
     }));
   };
 
-  // 💡 Tea Name එක Type කරද්දී / Dropdown එකෙන් තෝරද්දී Size එක Auto Fill කිරීම
+  // Handle changes to the custom tea name input
   const handleCustomNameChange = (e) => {
     const val = e.target.value;
     setCustomTeaName(val);
     
-    // Select කරපු නම map එකේ තියෙනවද කියල බලල Size එක auto fill කරනවා
+    // Check if the selected name exists in the map and auto-fill the size
     if (suggestedTeaData[val.trim()]) {
       setCustomTeaSize(suggestedTeaData[val.trim()]);
     }
   };
 
-  // අලුත් (Custom) අයිතමයක් දැනට පුරවන ලිස්ට් එකට එකතු කිරීම
-  // අලුත් (Custom) අයිතමයක් දැනට පුරවන ලිස්ට් එකට එකතු කිරීම
+  // Handle changes to the custom tea size input
   const handleAddCustomItem = () => {
     if (!customTeaName.trim() || !customTeaSize.trim()) {
       toast.error("Please enter both Tea Name and Size.");
@@ -116,7 +113,7 @@ export default function DailySummaryEntry() {
     const newName = customTeaName.trim();
     const newSize = customTeaSize.trim();
 
-    // 💡 අලුත් නම දැනටමත් list එකේ නැත්නම් තාවකාලිකව දාගැනීම
+    // If the tea name doesn't exist in the map, add it for future suggestions
     if (!suggestedTeaData[newName]) {
       setSuggestedTeaData(prev => ({ ...prev, [newName]: newSize }));
     }
@@ -166,7 +163,7 @@ export default function DailySummaryEntry() {
     e.preventDefault();
     const filledItems = extractFilledData();
     
-    // කලින් තියෙන (Predefined) ඒවායි, අලුතින් එකතු කරපු (Custom) ඒවායි දෙකම එකතු කරනවා
+    // Combine filled items from the form and custom items
     const allItemsForDate = [...filledItems, ...customItems];
 
     if (allItemsForDate.length === 0) {
@@ -357,7 +354,6 @@ export default function DailySummaryEntry() {
                       className="w-full p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-blue-400/50" 
                       placeholder="e.g. Special Green" 
                     />
-                    {/* 💡 Database එකෙන් ආපු නම් ටික පෙන්නන Datalist එක */}
                     <datalist id="tea-name-suggestions">
                       {Object.keys(suggestedTeaData).map((name, index) => (
                         <option key={index} value={name} />

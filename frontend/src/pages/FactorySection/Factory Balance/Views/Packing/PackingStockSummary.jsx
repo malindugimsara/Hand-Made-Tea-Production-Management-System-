@@ -68,10 +68,10 @@ export default function PackingStockView() {
   const fetchLedgerData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
+      const token = localStorage.getItem("token");
       const response = await fetch(`${BACKEND_URL}/api/factory-packs`, {
         headers: {
-          'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
+          'Authorization': `Bearer ${token}` 
         }
       });
       if (!response.ok) throw new Error("Failed to fetch data from database");
@@ -88,11 +88,11 @@ export default function PackingStockView() {
   const handleDeleteConfirm = async () => {
     if (!recordToDelete) return;
     try {
-      const token = localStorage.getItem("token"); // 👈 Token එක ලබා ගැනීම
+      const token = localStorage.getItem("token"); 
       const response = await fetch(`${BACKEND_URL}/api/factory-packs/${recordToDelete}`, { 
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}` // 👈 Token එක යැවීම
+          'Authorization': `Bearer ${token}` 
         }
       });
       if (!response.ok) {
@@ -414,13 +414,13 @@ export default function PackingStockView() {
                 <tr className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-bold uppercase text-[10px] tracking-wider border-b border-gray-300 dark:border-gray-700">
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Rec</th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Used</th>
-                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 bg-gray-200/50 dark:bg-gray-900/40 font-black">Bala</th>
+                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 bg-gray-200/50 dark:bg-gray-900/40 font-black">Balance</th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Rec</th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Used</th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 bg-gray-200/50 dark:bg-gray-900/40 font-black">Bala</th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Rec</th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Used</th>
-                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 bg-gray-200/50 dark:bg-gray-900/40 font-black">Bala</th>
+                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 bg-gray-200/50 dark:bg-gray-900/40 font-black">Balance</th>
                 </tr>
               </thead>
 
@@ -469,7 +469,7 @@ export default function PackingStockView() {
                                       <MdOutlineDeleteOutline size={20} />
                                     </button>
                                   </AlertDialogTrigger>
-                                  <AlertDialogContent>
+                                  <AlertDialogContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                                     <AlertDialogHeader>
                                       <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                       <AlertDialogDescription>

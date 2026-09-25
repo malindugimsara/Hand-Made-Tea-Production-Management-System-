@@ -75,9 +75,18 @@ const FactoryPackingEdit = () => {
         const toastId = toast.loading("Updating ledger record...");
 
         try {
-            const response = await fetch('http://localhost:3000/api/factory-packs', {
+            // 💡 1. Retrieve the authentication token from localStorage
+            const token = localStorage.getItem("token");
+            
+            // 💡 2. Use the environment variable for the backend URL (Best Practice)
+            const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+            const response = await fetch(`${BACKEND_URL}/api/factory-packs`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // 💡 3. Attach the token to the request headers
+                },
                 body: JSON.stringify({
                     date: date,
                     agSuper,

@@ -145,7 +145,6 @@ export default function WeeklyLoftLeafSummary() {
   }, [selectedDate]); 
 
   // 💡 --- REUSABLE DATA PROCESSING FUNCTION ---
-  // 💡 --- REUSABLE DATA PROCESSING FUNCTION ---
   const processWeeklyStats = (dataArray) => {
       const routeMap = {};
 
@@ -182,7 +181,7 @@ export default function WeeklyLoftLeafSummary() {
               const rawB = route.totals.b / route.totals.count;
               const rawBB = route.totals.bb / route.totals.count;
 
-              // 💡 Floating point ගැටලුව නිරාකරණය කර නිවැරදිව රවුම් කිරීම (e.g. 36.5 -> 37)
+              // rounded values for display
               const b = Math.round(Number(rawB.toFixed(2)));
               const bb = Math.round(Number(rawBB.toFixed(2)));
               
@@ -217,17 +216,15 @@ export default function WeeklyLoftLeafSummary() {
   const processedTable = useMemo(() => processWeeklyStats(weekData), [weekData, lang]);
   const prevProcessedTable = useMemo(() => processWeeklyStats(prevWeekData), [prevWeekData, lang]);
 
- // 💡 --- (GRAND AVERAGES) පොදු Function එක ---
-  // excludeEstate: true නම් Estate Tea (E) අත්හරිනවා
-  // 💡 වෙනස: දැන් මෙයට ලබා දෙන්නේ Raw Data නොව, Process කළ Route Averages අඩංගු Array එකයි (processedData)
+  // 💡 --- GRAND AVERAGE CALCULATION FUNCTION ---
   const calculateGrandAvg = (processedData, excludeEstate = false) => {
     let totalB = 0, totalBB = 0, count = 0;
     
     processedData.forEach(route => {
-         // Estate ඉවත් කිරීම
+         // Remove Estate route if excludeEstate is true 
          if (excludeEstate && route.name === 'E') return; 
 
-         // අදාළ මාර්ගයට දත්ත තිබේ නම් පමණක් එම මාර්ගයේ සාමාන්‍ය අගය එකතු කිරීම
+         // Only include routes that have data (totals.count > 0)
          if (route.totals.count > 0) {
              totalB += route.avg.b;
              totalBB += route.avg.bb;
@@ -237,30 +234,30 @@ export default function WeeklyLoftLeafSummary() {
 
     if (count === 0) return { b: "-", bb: "-", p: "-" };
     
-    // Math.round() මඟින් 36.5 ➔ 37, 36.12 ➔ 36 ලෙස ආසන්නතම පූර්ණ සංඛ්‍යාවට සකසයි
+   
     const b = Math.round(totalB / count);
     const bb = Math.round(totalBB / count);
     
-    // Total එක අනිවාර්යයෙන්ම 100ක් වීමට P අගය Balance කිරීම
+    // Ensure that P is not negative due to rounding errors
     const p = Math.max(0, 100 - b - bb);
     
     return { b, bb, p };
   };
 
-  // 💡 Main Table එක සහ අනෙකුත් පැරණි තැන් සඳහා
+  // 💡 --- GRAND AVERAGE FOR CURRENT AND PREVIOUS WEEKS ---
   const grandAverages = useMemo(() => calculateGrandAvg(processedTable, false), [processedTable]);
   const prevGrandAverages = useMemo(() => calculateGrandAvg(prevProcessedTable, false), [prevProcessedTable]); 
 
-  // 💡 Ranking වගු යටතට (With Estate & Without Estate)
+  // 💡 --- GRAND AVERAGE FOR CURRENT AND PREVIOUS WEEKS (Excluding Estate) ---
   const avgCurrentWithE = useMemo(() => calculateGrandAvg(processedTable, false), [processedTable]);
   const avgCurrentNoE = useMemo(() => calculateGrandAvg(processedTable, true), [processedTable]);
 
   const avgPrevWithE = useMemo(() => calculateGrandAvg(prevProcessedTable, false), [prevProcessedTable]);
   const avgPrevNoE = useMemo(() => calculateGrandAvg(prevProcessedTable, true), [prevProcessedTable]);
 
-  // 💡 --- RANKING TABLE DATA (C1 සිට C8 දක්වා සහ FA අවසානයට සකස් කිරීම) ---
+  // 💡 --- SORTING FUNCTION FOR RANKING TABLES ---
   const getRankingSortIndex = (name) => {
-      if (name === "FA") return 999; // FA සෑම විටම අවසානයට යැවීම
+      if (name === "FA") return 999;
       return ROUTE_ORDER.findIndex(r => r.split(' - ')[0] === name);
   };
 
@@ -303,13 +300,13 @@ export default function WeeklyLoftLeafSummary() {
         const printElement = printAreaRef.current;
         printElement.style.display = "block";
         printElement.style.position = "absolute";
-        printElement.style.top = "-99999px"; // තිරයෙන් පිටතට ගෙන යාම
+        printElement.style.top = "-99999px"; 
 
-        // 1 වන පිටුව Capture කිරීම
+        // 💡 Capture both pages separately using html2canvas
         const page1 = document.getElementById('pdf-page-1');
         const canvas1 = await html2canvas(page1, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
 
-        // 2 වන පිටුව Capture කිරීම
+        // 💡 Capture the second page
         const page2 = document.getElementById('pdf-page-2');
         const canvas2 = await html2canvas(page2, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
 
@@ -322,7 +319,7 @@ export default function WeeklyLoftLeafSummary() {
         const maxW = pdfW - (margin * 2);
         const maxH = pdfH - (margin * 2);
 
-        // PDF එකට Canvas එක් කිරීමේ පොදු Function එක
+       
         const addCanvasToPdf = (canvas) => {
             const imgData = canvas.toDataURL('image/jpeg', 1.0); 
             let finalW = maxW;
@@ -334,12 +331,12 @@ export default function WeeklyLoftLeafSummary() {
             pdf.addImage(imgData, 'JPEG', (pdfW - finalW)/2, margin, finalW, finalH);
         };
 
-        // පිටු 2 PDF එකට ඇතුළත් කිරීම
+        // 💡 Add both canvases to the PDF
         addCanvasToPdf(canvas1);
         pdf.addPage();
         addCanvasToPdf(canvas2);
 
-        // පිටු අංක යෙදීම
+        // 💡 Add page numbers and footer text
         const pageCount = pdf.internal.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
             pdf.setPage(i);
@@ -470,7 +467,6 @@ export default function WeeklyLoftLeafSummary() {
                                        const dayOfWeek = new Date(date).getDay();
                                        const isWeekendEmpty = (dayOfWeek === 6 || dayOfWeek === 0) && !processedTable.some(r => r.days[date]);
 
-                                       // 💡 මුළු දවසටම දත්ත නැති සෙනසුරාදා / ඉරිදා සඳහා එකවර rowSpan එකක් මඟින් තනි වරක් පෙන්වීම
                                        if (isWeekendEmpty) {
                                            if (idx === 0) {
                                                return (
@@ -484,10 +480,10 @@ export default function WeeklyLoftLeafSummary() {
                                                    </td>
                                                );
                                            }
-                                           return null; // පළමු පේළිය හැර අනෙක් පේළි වලදී මෙම cell එක skip කරයි
+                                           return null; 
                                        }
 
-                                       // සාමාන්‍ය දිනවල දත්ත නොමැති විට "-" පෙන්වීම
+                                       // If no data for this route on this date, show dashes
                                        if (!d) {
                                            return (
                                                <React.Fragment key={date}>

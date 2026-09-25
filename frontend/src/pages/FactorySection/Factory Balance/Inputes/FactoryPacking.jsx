@@ -41,7 +41,7 @@ const BagSection = ({ title, stateData, categoryStr, themeClass, onChange }) => 
 );
 
 const FactoryPacking = () => {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
     // --- Form State ---
     const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0]);

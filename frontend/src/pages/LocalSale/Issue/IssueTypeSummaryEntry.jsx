@@ -29,7 +29,7 @@ export default function IssueTypeSummaryEntry() {
     teaCategories.forEach(category => {
       initialState[category.id] = {};
       category.sizes.forEach(size => {
-        initialState[category.id][size] = { out: '' }; // IN ඉවත් කර OUT පමණක් තබා ඇත
+        initialState[category.id][size] = { out: '' }; 
       });
     });
     return initialState;
@@ -62,7 +62,7 @@ export default function IssueTypeSummaryEntry() {
     }));
   };
 
-  // අලුත් (Custom) අයිතමයක් දැනට පුරවන ලිස්ට් එකට එකතු කිරීම
+  // Handle changes to the custom tea name input
   const handleAddCustomItem = () => {
     if (!customTeaName.trim() || !customTeaSize.trim()) {
       toast.error("Please enter both Tea Name and Size.");
@@ -121,7 +121,6 @@ export default function IssueTypeSummaryEntry() {
     }
 
     const filledItems = extractFilledData();
-    // Predefined ඒවායි, අලුතින් එකතු කරපු Custom ඒවායි දෙකම එකතු කරනවා
     const allItemsForEntry = [...filledItems, ...customItems];
 
     if (allItemsForEntry.length === 0) {

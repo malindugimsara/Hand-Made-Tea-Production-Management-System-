@@ -3,7 +3,6 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { UserPlus, Shield, User, Key, ArrowLeft, CheckSquare } from "lucide-react";
 
-// System එකේ තියෙන ප්‍රධාන අංශ (Sections) ලැයිස්තුව
 const SYSTEM_SECTIONS = [
     { id: 'localsale', label: 'Local Sale Section' },
     { id: 'handmade', label: 'Handmade Section' },
@@ -18,7 +17,6 @@ export default function CreateUserForm() {
     
     const [loading, setLoading] = useState(false);
     
-    // formData එකට අලුතින් allowedPaths Array එකක් එක් කර ඇත
     const [formData, setFormData] = useState({
         username: '',
         password: '',
@@ -40,7 +38,6 @@ export default function CreateUserForm() {
         setFormData({ ...formData, [name]: value });
     };
 
-    // Checkbox Click කරන විට allowedPaths Array එක Update කරන Function එක
     const handleCheckboxChange = (sectionId) => {
         setFormData((prev) => {
             const isSelected = prev.allowedPaths.includes(sectionId);
@@ -61,7 +58,6 @@ export default function CreateUserForm() {
             return;
         }
 
-        // User කෙනෙක් නම්, අඩුම තරමේ එක අංශයකටවත් access දීලා තියෙන්න ඕනේ
         if (formData.role === 'User' && formData.allowedPaths.length === 0) {
             toast.error("Please select at least one accessible section for the user.");
             return;
@@ -181,7 +177,6 @@ export default function CreateUserForm() {
                             value={formData.role} 
                             onChange={(e) => {
                                 handleInputChange(e);
-                                // Admin තේරුවොත් allowed paths හිස් කරනවා
                                 if (e.target.value === 'Admin') {
                                     setFormData(prev => ({ ...prev, allowedPaths: [] }));
                                 }

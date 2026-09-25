@@ -138,19 +138,19 @@ export default function BalanceReport() {
             }
 
             // Process Issue OUT
-            const issues = issueJson?.data || issueJson || [];
-            if (Array.isArray(issues)) {
-                issues.forEach(issueRecord => {
-                    const recordDate = issueRecord.date || '';
-                    if (recordDate.startsWith(month) && Array.isArray(issueRecord.items)) {
-                        issueRecord.items.forEach(item => {
-                            const { id, title, size, key } = generateKey(item.categoryId, item.categoryTitle, item.size);
-                            scanItem(id, title, size);
-                            issueOutMap[key] = (issueOutMap[key] || 0) + (Number(item.out) || 0);
-                        });
-                    }
-                });
-            }
+            // const issues = issueJson?.data || issueJson || [];
+            // if (Array.isArray(issues)) {
+            //     issues.forEach(issueRecord => {
+            //         const recordDate = issueRecord.date || '';
+            //         if (recordDate.startsWith(month) && Array.isArray(issueRecord.items)) {
+            //             issueRecord.items.forEach(item => {
+            //                 const { id, title, size, key } = generateKey(item.categoryId, item.categoryTitle, item.size);
+            //                 scanItem(id, title, size);
+            //                 issueOutMap[key] = (issueOutMap[key] || 0) + (Number(item.out) || 0);
+            //             });
+            //         }
+            //     });
+            // }
 
             // 💡 4. Merge Categories
             const updatedBaseCats = baseTeaCategories.map(cat => {
@@ -440,9 +440,9 @@ export default function BalanceReport() {
                                 <tr>
                                     <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wider border-r border-gray-200 dark:border-zinc-700">Category</th>
                                     <th className="px-4 py-3 text-xs font-black uppercase tracking-wider text-gray-500 border-r border-gray-200 dark:border-zinc-700">B/M Stock</th>
-                                    <th className="px-4 py-3 text-xs font-black uppercase tracking-wider text-green-600 border-r border-gray-200 dark:border-zinc-700">IN</th>
-                                    <th className="px-4 py-3 text-xs font-black uppercase tracking-wider border-r border-gray-200 dark:border-zinc-700">Total</th>
-                                    <th className="px-4 py-3 text-xs font-black uppercase tracking-wider text-red-500 border-r border-gray-200 dark:border-zinc-700">Out</th>
+                                    <th className="px-4 py-3 text-xs font-black uppercase tracking-wider text-green-600 border-r border-gray-200 dark:border-zinc-700">Total IN</th>
+                                    <th className="px-4 py-3 text-xs font-black uppercase tracking-wider border-r border-gray-200 dark:border-zinc-700">Total Stock</th>
+                                    <th className="px-4 py-3 text-xs font-black uppercase tracking-wider text-red-500 border-r border-gray-200 dark:border-zinc-700">Total Out</th>
                                     <th className="px-4 py-3 text-xs font-black uppercase tracking-wider text-blue-600">BALANCE</th>
                                 </tr>
                             </thead>

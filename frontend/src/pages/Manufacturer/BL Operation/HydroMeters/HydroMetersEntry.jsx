@@ -62,7 +62,7 @@ export default function HydroMetersEntry() {
 
     const navigate = useNavigate();
 
-    // Active Time වෙනස් වන විට ස්වයංක්‍රීයව Scroll වීම
+    // 💡 Auto-scroll to active time button when activeTimeIndex changes
     useEffect(() => {
         if (timeScrollRef.current && activeTimeIndex !== null) {
             const activeBtn = timeScrollRef.current.children[activeTimeIndex];
@@ -371,7 +371,7 @@ export default function HydroMetersEntry() {
                     <RefreshCw className="w-10 h-10 text-green-600 animate-spin" />
                 </div>
             ) : activeTimeIndex === null ? (
-                // 💡 වේලාවක් තෝරාගෙන නැතිවිට පෙන්වන පණිවිඩය
+                
                 <div className="flex-1 flex flex-col items-center justify-center p-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-green-100 dark:border-zinc-800 text-center">
                     <Calendar className="w-16 h-16 text-green-100 dark:text-green-900/40 mb-4" />
                     <h3 className="text-2xl font-bold text-gray-500 dark:text-gray-400">No Time Slot Selected</h3>
@@ -403,7 +403,7 @@ export default function HydroMetersEntry() {
 
                     {/* Cards Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {/* ඉතිරි TROUGHS.map කොටස කලින් ආකාරයටම තබන්න */}
+                    
                         {TROUGHS.map((trough, idx) => {
                             const wetVal = formData[activeTime]?.[trough]?.wet || '';
                             const dryVal = formData[activeTime]?.[trough]?.dry || '';

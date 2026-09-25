@@ -7,11 +7,10 @@ import html2canvas from "html2canvas";
 export default function GreenLeafMonthlyReport() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const printAreaRef = useRef(null);
-  const page1Ref = useRef(null); // 💡 අලුතින් එකතු කළ Ref එක
+  const page1Ref = useRef(null); 
   const page2Ref = useRef(null);
 
   const currentUsername = localStorage.getItem("username") || "System User";
-  const userRole = localStorage.getItem("userRole") || "Authorized User";
 
   const getCurrentMonth = () => {
     const d = new Date();
@@ -284,7 +283,6 @@ export default function GreenLeafMonthlyReport() {
       const page1 = page1Ref.current;
       const page2 = page2Ref.current;
 
-      // Element එක Render වී නොමැති නම් Error එකක් පෙන්වීම
       if (!printContainer || !page1 || !page2) {
           throw new Error("PDF Elements are not ready!");
       }
@@ -294,7 +292,7 @@ export default function GreenLeafMonthlyReport() {
       printContainer.style.left = "-9999px";
       printContainer.style.top = "-9999px";
 
-      // පිටු 2ක වෙන වෙනම ලබාගැනීම
+      // 💡 Use html2canvas to capture the pages with higher resolution
       const canvas1 = await html2canvas(page1, { scale: 2, useCORS: true, backgroundColor: "#ffffff", windowWidth: 1123 });
       const canvas2 = await html2canvas(page2, { scale: 2, useCORS: true, backgroundColor: "#ffffff", windowWidth: 1123 });
       
@@ -332,7 +330,7 @@ export default function GreenLeafMonthlyReport() {
       }
       pdf.addImage(imgData2, "JPEG", xOffset2, margin, finalW2, finalH2);
 
-      // පිටු අංක යෙදීම
+      // 💡 Add page numbers and footer text
         const pageCount = pdf.internal.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
             pdf.setPage(i);

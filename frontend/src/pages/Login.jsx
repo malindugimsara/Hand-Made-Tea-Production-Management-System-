@@ -85,12 +85,12 @@ const THEMES = {
     particleType: 'store',
   },
   manufacturer: {
-    pageBg: '#f2fcf5', // ලා කොළ පැහැයක්
+    pageBg: '#f2fcf5',
     orb1: 'rgba(132, 204, 22, 0.22)', // Lime green
     orb2: 'rgba(34, 197, 94, 0.18)',  // Emerald green
     orb3: 'rgba(163, 230, 53, 0.15)', // Lighter lime
     gridStroke: '#84cc16',
-    textPrimary: '#3f6212', // තද ඔලිව් කොළ
+    textPrimary: '#3f6212', 
     textSecondary: '#65a30d',
     accent: '#84cc16',
     btnGradient: 'linear-gradient(135deg, #4d7c0f 0%, #84cc16 100%)',
@@ -101,7 +101,7 @@ const THEMES = {
     badgeBg: '#f7fee7',
     badgeText: '#4d7c0f',
     particleColor: '#84cc16',
-    particleType: 'leafCount', // අලුත් particle type එකක්
+    particleType: 'leafCount', 
   }
 };
 
@@ -458,7 +458,6 @@ export default function Login() {
                     type="text" 
                     value={username} 
                     placeholder="Username"
-                    // 💡 3. Username එකේ සිට Enter එබූ විට Password field එකට Focus වීමට
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -471,12 +470,11 @@ export default function Login() {
                 <div className="relative">
                   <LockKeyhole className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
-                    ref={passwordRef} // 💡 4. Ref එක এখানে සම්බන්ධ කිරීම
+                    ref={passwordRef} 
                     onChange={e => setPassword(e.target.value)} 
                     type={showPass ? 'text' : 'password'} 
                     value={password} 
                     placeholder="Password"
-                    // 💡 5. Password එකේ සිට Enter එබූ විට කෙලින්ම Sign In (handleLogin) ක්‍රියාත්මක වීමට
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
