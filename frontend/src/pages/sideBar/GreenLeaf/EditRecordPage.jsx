@@ -173,6 +173,7 @@ export default function EditRecordPage() {
     };
 
     // 6. Main Submit Logic (Update)
+    // 6. Main Submit Logic (Update)
     const handleUpdate = async (e) => {
         e.preventDefault(); 
 
@@ -207,7 +208,12 @@ export default function EditRecordPage() {
             // 1. Update Green Leaf
             if (formData.greenLeafId) {
                 promises.push(fetchWithErr(`${BACKEND_URL}/api/green-leaf/${formData.greenLeafId}`, {
-                    method: 'PUT', headers: authHeaders, body: JSON.stringify({ totalWeight: total, selectedWeight: selected, updatedBy: currentUser })
+                    method: 'PUT', headers: authHeaders, body: JSON.stringify({ 
+                        date: formData.date, // 💡 ADDED
+                        totalWeight: total, 
+                        selectedWeight: selected, 
+                        updatedBy: currentUser 
+                    })
                 }, "Failed to update Green Leaf record."));
             } else if (total > 0 || selected > 0) {
                 promises.push(fetchWithErr(`${BACKEND_URL}/api/green-leaf`, {
@@ -225,6 +231,7 @@ export default function EditRecordPage() {
                 promises.push(fetchWithErr(`${BACKEND_URL}/api/labour/${formData.labourId}`, {
                     method: 'PUT', headers: authHeaders, 
                     body: JSON.stringify({ 
+                        date: formData.date, // 💡 ADDED
                         workerCount: Number(formData.workerCount),
                         rollingType: formData.rollingType,
                         rollingWorkerCount: formData.rollingType === 'Hand Rolling' ? Number(formData.rollingWorkerCount) : 0,
@@ -257,6 +264,7 @@ export default function EditRecordPage() {
                 promises.push(fetchWithErr(`${BACKEND_URL}/api/production/${formData.productionId}`, {
                     method: 'PUT', headers: authHeaders, 
                     body: JSON.stringify({
+                        date: formData.date, // 💡 ADDED
                         teaType: primaryOut.teaType,
                         selectedTeaWeight: Number(primaryOut.selectedTeaWeight),
                         madeTeaWeight: Number(primaryOut.madeTeaWeight),
@@ -322,10 +330,23 @@ export default function EditRecordPage() {
             
             <form onSubmit={handleUpdate} className="bg-white dark:bg-zinc-900 p-8 rounded-2xl shadow-lg border border-gray-200 dark:border-zinc-800 transition-colors">
                 
+                
                 {/* 1. GREEN LEAF */}
                 <div className="mb-8 bg-[#F8FAF8] dark:bg-green-950/20 border border-[#A3D9A5] dark:border-green-800/50 rounded-xl p-6">
                     <h3 className="text-lg font-bold text-[#1B6A31] dark:text-green-500 mb-4 flex items-center gap-2"><Leaf size={18}/> 1. Green Leaf (kg)</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* 💡 NEW: Main Date Input  */}
+                        <div>
+                            <label className={labelStyles}>Main Record Date</label>
+                            <input 
+                                type="date" 
+                                name="date" 
+                                value={formData.date ? formData.date.split('T')[0] : ''} 
+                                onChange={handleInputChange} 
+                                required 
+                                className={inputStyles} 
+                            />
+                        </div>
                         <div>
                             <label className={labelStyles}>Total Received</label>
                             <input type="number" step="0.01" min="0" name="totalWeight" value={formData.totalWeight} onChange={handleInputChange} onWheel={handleWheel} onKeyDown={blockMinus} required className={inputStyles} />
@@ -348,9 +369,21 @@ export default function EditRecordPage() {
                         </button>
                     </div>
 
-                    <div className="mb-6">
-                        <label className={labelStyles}>Expected Dryer Date</label>
-                        <input type="date" name="expectedDryerDate" value={formData.expectedDryerDate} onChange={handleInputChange} required className={inputStyles} />
+                    <div className="mb-6 grid grid-cols-1 md:grid-cols-1 gap-6">
+                        
+
+                        {/* Expected Dryer Date Input */}
+                        <div>
+                            <label className={labelStyles}>Expected Dryer Date</label>
+                            <input 
+                                type="date" 
+                                name="expectedDryerDate" 
+                                value={formData.expectedDryerDate ? formData.expectedDryerDate.split('T')[0] : ''} 
+                                onChange={handleInputChange} 
+                                required 
+                                className={inputStyles} 
+                            />
+                        </div>
                     </div>
 
                     <div className="space-y-6">
