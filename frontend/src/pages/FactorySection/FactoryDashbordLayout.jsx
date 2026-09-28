@@ -92,6 +92,7 @@ const DATA = {
       items: [
         { title: 'Enter Dispatch & Return', url: '/factory/dispatchandreturn', nonViewer: true },
         { title: 'View Dispatch Records', url: '/factory/dispatchrecords' },
+        { title: 'Dispatch Dashboard', url: '/factory/dispatchdashboard' }
 
       ],
     },
