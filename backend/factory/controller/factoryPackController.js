@@ -4,16 +4,33 @@ import FactoryPack from '../models/FactoryPack.js';
 // @route   POST /api/factory-packs
 export const saveDailyLedger = async (req, res) => {
   try {
-    const { date, agSuper, aGroup, sampleBags } = req.body;
+    // Destructure the request body to get the necessary fields
+    const { date, agSuper, aGroup, sampleBags, isDispatchUpdate } = req.body;
 
     if (!date) {
       return res.status(400).json({ success: false, message: 'Date is required' });
     }
 
-    // Upsert mechanism: Find by date. If exists, update. If not, create.
+    let updateQuery = {};
+
+    if (isDispatchUpdate) {
+        updateQuery = {
+            $inc: {
+                "agSuper.used": agSuper?.received || 0,
+                "aGroup.used": aGroup?.received || 0,
+                "sampleBags.used": sampleBags?.received || 0
+            }
+        };
+    } else {
+        // 💡 Factory Packing Page එකෙන් එනවා නම්, සාමාන්‍ය විදිහට Replace කරනවා (Manual Edit)
+        updateQuery = {
+            $set: { agSuper, aGroup, sampleBags }
+        };
+    }
+
     const updatedRow = await FactoryPack.findOneAndUpdate(
       { date },
-      { agSuper, aGroup, sampleBags },
+      updateQuery,
       { new: true, upsert: true, runValidators: true }
     );
 

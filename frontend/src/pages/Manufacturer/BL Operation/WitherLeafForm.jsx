@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { createPortal } from 'react-dom';
 import { Languages } from 'lucide-react';
 
@@ -320,9 +320,18 @@ const WitherLeafForm = () => {
   const btnSaveClass = "bg-[#34a853] hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl transition-colors shadow-sm text-sm w-full sm:w-auto cursor-pointer";
   const btnClearClass = "bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2.5 px-6 rounded-xl transition-colors shadow-sm text-sm w-full sm:w-auto cursor-pointer";
 
+  // --- Number Input Helpers ---
+  const handleWheel = (e) => e.target.blur();
+  
+  const blockMinus = (e) => {
+    if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+      e.preventDefault();
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8 font-sans relative transition-colors duration-200">
-      <Toaster position="bottom-right" reverseOrder={false} />
 
       {/* --- HEADER --- */}
       <div className="mb-6 border-b border-slate-200 dark:border-slate-800 pb-4 max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -378,11 +387,11 @@ const WitherLeafForm = () => {
                 </div>
                 <div>
                   <label className={labelClass}>{t.recTotalCrop}</label>
-                  <input type="number" name="receivedTotalCropKg" value={topForm.receivedTotalCropKg} onChange={handleTopChange} className={inputClass} />
+                  <input type="number" min="0" onWheel={handleWheel} onKeyDown={blockMinus} name="receivedTotalCropKg" value={topForm.receivedTotalCropKg} onChange={handleTopChange} className={inputClass} />
                 </div>
                 <div>
                   <label className={labelClass}>{t.totalEmp}</label>
-                  <input type="number" name="totalEmployee" value={topForm.totalEmployee} onChange={handleTopChange} className={inputClass} />
+                  <input type="number" min="0" onWheel={handleWheel} onKeyDown={blockMinus} name="totalEmployee" value={topForm.totalEmployee} onChange={handleTopChange} className={inputClass} />
                 </div>
               </div>
 
@@ -390,7 +399,7 @@ const WitherLeafForm = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={labelClass}>{t.witheredLeaf}</label>
-                    <input type="number" name="witheredLeafKg" value={topForm.witheredLeafKg} onChange={handleTopChange} className={inputClass} />
+                    <input type="number" min="0" onWheel={handleWheel} onKeyDown={blockMinus} name="witheredLeafKg" value={topForm.witheredLeafKg} onChange={handleTopChange} className={inputClass} />
                   </div>
                   <div>
                     <label className={labelClass}>{t.percentage}</label>
@@ -501,6 +510,9 @@ const WitherLeafForm = () => {
                 onChange={handleBottomChange}
                 placeholder={t.enterKg}
                 className={inputClass}
+                min="0" 
+                onWheel={handleWheel} 
+             
               />
             </div>
             <div className="w-full md:w-auto">
