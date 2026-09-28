@@ -13,6 +13,7 @@ import DispatchRecordsView from "./FactorySection/Factory Balance/Views/DIspatch
 import EditDispatchLog from "./FactorySection/Factory Balance/Views/DIspatch View/EditDispatchLog";
 import PackingStockSummary from "./FactorySection/Factory Balance/Views/Packing/PackingStockSummary";
 import PackingStockEdit from "./FactorySection/Factory Balance/Views/Packing/PackingStockEdit";
+import DispatchDashboard from "./FactorySection/Factory Balance/Views/DIspatch View/DispatchDashboard";
 
 export default function   FactoryRouter() {
   return (
@@ -30,6 +31,7 @@ export default function   FactoryRouter() {
       <Route path="dispatch/edit" element={<EditDispatchLog />} />
       <Route path="packingsummary" element={<PackingStockSummary />} />
       <Route path="packing/edit/:date" element={<PackingStockEdit />} />
+      <Route path="dispatchdashboard" element={<DispatchDashboard />} />
     </Route>
   );
 }

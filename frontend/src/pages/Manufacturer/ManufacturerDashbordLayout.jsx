@@ -104,10 +104,10 @@ const DATA = {
           ]
         },
         {
-          title: 'Firing Section',
+          title: 'Drier Section',
           items: [
-            { title: "Enter Firing Section", url: "/manufacturer/bl-production/firingSection", nonViewer: true },
-            { title: "View Firing Section", url: "/manufacturer/bl-production/firingSectionSummary" },
+            { title: "Enter Drier Section", url: "/manufacturer/bl-production/firingSection", nonViewer: true },
+            { title: "View Drier Section", url: "/manufacturer/bl-production/firingSectionSummary" },
           ]
         },
       ],

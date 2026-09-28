@@ -15,7 +15,7 @@ import {
   UserCheck,
   FileSpreadsheet
 } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 // Helper to get today's date in YYYY-MM-DD
 const getTodayDate = () => {
@@ -379,7 +379,6 @@ const FiringSectionForm = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-4 md:p-8 font-sans transition-colors duration-200">
-      <Toaster position="bottom-right" />
 
       <div className="max-w-7xl mx-auto flex flex-col gap-6">
 

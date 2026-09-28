@@ -92,6 +92,7 @@ const DATA = {
       items: [
         { title: 'Enter Dispatch & Return', url: '/factory/dispatchandreturn', nonViewer: true },
         { title: 'View Dispatch Records', url: '/factory/dispatchrecords' },
+        { title: 'Dispatch Dashboard', url: '/factory/dispatchdashboard' }
 
       ],
     },
@@ -104,11 +105,11 @@ const DATA = {
       ],
     },
     {
-      title: 'Factory Packing',
+      title: 'Packing Materials',
       icon: PackageCheck,
       items: [
-        { title: 'Enter Factory Packing', url: '/factory/factorypacking', nonViewer: true },
-        { title: 'Packing Summary', url: '/factory/packingsummary' }
+        { title: 'Enter Packing Materials', url: '/factory/factorypacking', nonViewer: true },
+        { title: 'View Packing Summary', url: '/factory/packingsummary' }
       ],
     },
 

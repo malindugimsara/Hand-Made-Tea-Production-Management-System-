@@ -258,6 +258,8 @@ export default function DispatchAndReturn() {
     try {
       const pdfjs = await loadPdfJs();
       const groupedDataByDate = {}; 
+      const packingDataByDate = {}; 
+      
       let totalExtractedInvoices = 0;
       let duplicateCount = 0; 
 
@@ -272,13 +274,25 @@ export default function DispatchAndReturn() {
         let fileDate = null;
         let lowestY = Infinity;
         const currentFileDispatches = [];
+        
+        let sellingRemark = "";
+        let totalPacks = 0;
 
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
           const page = await pdf.getPage(pageNum);
           const textContent = await page.getTextContent();
+          const textItems = textContent.items;
           
+         
+          const fullPageTextUpper = textItems.map(t => t.str).join(" ").toUpperCase();
+          if (fullPageTextUpper.includes("ATHUKORALA GROUP SUPER")) {
+              sellingRemark = "SUPER";
+          } else if (fullPageTextUpper.includes("ATHUKORALA GROUP")) {
+              sellingRemark = "ATHUKORALA GROUP";
+          }
+
           const rows = [];
-          textContent.items.forEach(item => {
+          textItems.forEach(item => {
             const text = item.str.trim();
             if (!text) return;
             const x = item.transform[4];
@@ -306,8 +320,14 @@ export default function DispatchAndReturn() {
 
           for (const r of rows) {
             const texts = r.items.map(i => i.text);
-            if (texts.length < 5) continue;
+            
+            // 💡 Extract Total Packs
+            if (texts[0]?.toUpperCase() === 'TOTAL' && texts.length >= 2) {
+                const val = parseInt(texts[1].replace(/,/g, ''), 10);
+                if (!isNaN(val)) totalPacks = val;
+            }
 
+            if (texts.length < 5) continue;
             const firstCol = texts[0];
             if (!/^\d{4,8}$/.test(firstCol) || firstCol.toLowerCase().includes("total")) continue;
 
@@ -317,7 +337,6 @@ export default function DispatchAndReturn() {
 
             if (texts.length >= 8) {
               weight = texts[6];
-
               let candidateGrade = texts[7];
               if (texts[8] && (texts[8].toUpperCase() === 'SP' || texts[8].toUpperCase() === '1' || texts[8].toUpperCase() === 'EX SP')) {
                 candidateGrade += ' ' + texts[8];
@@ -344,6 +363,21 @@ export default function DispatchAndReturn() {
 
         const finalDate = fileDate || formData.date;
 
+        console.log("--- PDF Parsing Debug ---");
+        console.log("Date:", finalDate);
+        console.log("Selling Remark Identified:", sellingRemark);
+        console.log("Total Packs Found:", totalPacks);
+
+        // Map packing data to the correct date
+        if (!packingDataByDate[finalDate]) {
+            packingDataByDate[finalDate] = { agSuper: 0, aGroup: 0 };
+        }
+        if (sellingRemark === "SUPER") {
+            packingDataByDate[finalDate].agSuper += totalPacks;
+        } else if (sellingRemark === "ATHUKORALA GROUP") {
+            packingDataByDate[finalDate].aGroup += totalPacks;
+        }
+
         if (currentFileDispatches.length > 0) {
             if (!groupedDataByDate[finalDate]) {
                 groupedDataByDate[finalDate] = [];
@@ -366,8 +400,11 @@ export default function DispatchAndReturn() {
           date: singleDate,
           dispatches: [...prev.dispatches.filter(d => d.invoiceNo || d.teaType || d.weight), ...groupedDataByDate[singleDate]]
         }));
+        
+        handleDirectQueuePush(singleDate, groupedDataByDate[singleDate], packingDataByDate[singleDate]);
+        
         const dupMsg = duplicateCount > 0 ? ` (Ignored ${duplicateCount} duplicates)` : '';
-        toast.success(`Successfully imported ${totalExtractedInvoices} items for ${singleDate}!${dupMsg}`, { id: toastId });
+        toast.success(`Imported ${totalExtractedInvoices} items & Packing Data for ${singleDate}!${dupMsg}`, { id: toastId });
       } else {
         const newQueueItems = [];
         
@@ -391,7 +428,9 @@ export default function DispatchAndReturn() {
               totalDispatch: tDisp,
               totalLocalSale: tLocSale,
               totalReturn: tRet,
-              greenLeafToday: existingRecord ? (existingRecord.greenLeaf?.today || existingRecord.greenLeafToday || 0) : 0,    
+              greenLeafToday: existingRecord ? (existingRecord.greenLeaf?.today || existingRecord.greenLeafToday || 0) : 0, 
+              agSuperReceived: packingDataByDate[dateStr]?.agSuper || 0,
+              aGroupReceived: packingDataByDate[dateStr]?.aGroup || 0,
             });
         });
 
@@ -406,7 +445,7 @@ export default function DispatchAndReturn() {
         });
 
         const dupMsg = duplicateCount > 0 ? ` (Ignored ${duplicateCount} duplicates)` : '';
-        toast.success(`Grouped ${totalExtractedInvoices} items by ${datesFound.length} dates and added to Queue!${dupMsg}`, { id: toastId, duration: 5000 });
+        toast.success(`Grouped ${totalExtractedInvoices} items and Packing data into Queue!${dupMsg}`, { id: toastId, duration: 5000 });
       }
 
     } catch (error) {
@@ -416,6 +455,35 @@ export default function DispatchAndReturn() {
       setIsUploadingPdf(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  // 💡 NEW HELPER for single date push
+  const handleDirectQueuePush = (dateStr, dispatches, packingData) => {
+    const existingRecord = records.find(r => r.date.split('T')[0] === dateStr);
+    const mergedDispatches = [...(existingRecord?.dispatches || []), ...dispatches];
+    const tDisp = mergedDispatches.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+
+    const newRecord = {
+        date: dateStr,
+        dispatches: mergedDispatches,
+        localSales: [{ teaType: '', weight: '' }],
+        returns: [{ teaType: '', amount: '' }],
+        totalDispatch: tDisp,
+        totalLocalSale: 0,
+        totalReturn: 0,
+        calculatedTotalOut: tDisp,
+        greenLeafToday: existingRecord ? (existingRecord.greenLeaf?.today || existingRecord.greenLeafToday || 0) : 0,
+        agSuperReceived: packingData?.agSuper || 0,
+        aGroupReceived: packingData?.aGroup || 0,
+    };
+    
+    setPendingRecords(prev => {
+        if (!prev.some(r => r.date === dateStr)) {
+            return [...prev, newRecord];
+        }
+        return prev;
+    });
+    setFormData(prev => ({ ...prev, dispatches: [{ invoiceNo: '', teaType: '', weight: '' }] }));
   };
 
   // =========================================================================
@@ -462,17 +530,14 @@ export default function DispatchAndReturn() {
 
     const existingRecord = records.find(r => r.date.split('T')[0] === formData.date);
 
-    // 💡 Filter out empty or invalid entries before merging
     const validNewDispatches = formData.dispatches.filter(d => Number(d.weight) > 0 || d.invoiceNo || d.teaType);
     const validNewLocalSales = formData.localSales.filter(l => Number(l.weight) > 0 || l.teaType);
     const validNewReturns = formData.returns.filter(r => Number(r.amount) > 0 || r.teaType);
 
-    // 💡 Merge with existing database records if available, otherwise use new entries
     const mergedDispatches = [...(existingRecord?.dispatches || []), ...validNewDispatches];
     const mergedLocalSales = [...(existingRecord?.localSales || []), ...validNewLocalSales];
     const mergedReturns = [...(existingRecord?.returns || []), ...validNewReturns];
 
-    // 💡 Calculate totals after merging
     const newTotalDispatch = mergedDispatches.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
     const newTotalLocalSale = mergedLocalSales.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
     const newTotalReturn = mergedReturns.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -490,6 +555,8 @@ export default function DispatchAndReturn() {
       totalReturn: newTotalReturn,
       calculatedTotalOut: newCalculatedTotalOut,
       greenLeafToday: existingRecord ? (existingRecord.greenLeaf?.today || existingRecord.greenLeafToday || 0) : 0,    
+      agSuperReceived: 0, // 💡 NEW: Initialize as 0 for manual entries
+      aGroupReceived: 0,  // 💡 NEW: Initialize as 0 for manual entries
     };
 
     setPendingRecords([...pendingRecords, newRecord]);
@@ -508,13 +575,14 @@ export default function DispatchAndReturn() {
   const handleSaveAll = async () => {
     if (pendingRecords.length === 0) return;
     setIsSavingAll(true);
-    const toastId = toast.loading(`Saving ${pendingRecords.length} dispatch records...`);
+    const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
 
     try {
       const token = localStorage.getItem('token');
       const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
       for (const record of pendingRecords) {
+        // --- 1. SAVE DISPATCH DATA ---
         const payload = {
           date: record.date,
           estateLeafToday: Number(record.estateLeafToday) || 0,
@@ -523,7 +591,6 @@ export default function DispatchAndReturn() {
           dispatch: Number(record.totalDispatch) || 0,
           localSaleAndGratis: Number(record.totalLocalSale) || 0,
           returnAmount: Number(record.totalReturn) || 0,
-
           dispatches: record.dispatches
             .filter(d => Number(d.weight) > 0 || d.invoiceNo || d.teaType)
             .map(d => ({
@@ -531,21 +598,18 @@ export default function DispatchAndReturn() {
               teaType: d.teaType || "N/A",
               weight: Number(d.weight) || 0
             })),
-            
           localSales: record.localSales
             .filter(l => Number(l.weight) > 0 || l.teaType)
             .map(l => ({
               teaType: l.teaType || "N/A",
               weight: Number(l.weight) || 0
             })),
-            
           returns: record.returns
             .filter(r => Number(r.amount) > 0 || r.teaType)
             .map(r => ({
               teaType: r.teaType || "N/A",
               amount: Number(r.amount) || 0
             })),
-            
           username: username
         };
 
@@ -557,12 +621,38 @@ export default function DispatchAndReturn() {
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          console.error("Backend Error Response:", errData);
-          throw new Error(errData.message || `Validation Error: Failed to save record for ${record.date}`);
+          throw new Error(errData.message || `Failed to save dispatch record for ${record.date}`);
+        }
+
+        // --- 2. SAVE FACTORY PACKING DATA ---
+        if (record.agSuperReceived > 0 || record.aGroupReceived > 0) {
+            const packingPayload = {
+                date: record.date,
+                agSuper: { received: record.agSuperReceived },
+                aGroup: { received: record.aGroupReceived },
+                sampleBags: { received: 0 },
+                isDispatchUpdate: true
+            };
+
+            console.log("Sending Packing Payload:", packingPayload); // 💡 DEBUG LOG
+
+            const packingRes = await fetch(`${BACKEND_URL}/api/factory-packs`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify(packingPayload)
+            });
+
+            if (!packingRes.ok) {
+                const packErr = await packingRes.json().catch(() => ({}));
+                console.error("Packing Save Error:", packErr);
+                toast.error(`Packing save failed: ${packErr.message || 'Unknown error'}`);
+            } else {
+                console.log("Packing Data Saved Successfully!");
+            }
         }
       }
 
-      toast.success("Dispatch records saved successfully!", { id: toastId });
+      toast.success("Dispatch & Packing records saved successfully!", { id: toastId });
       setPendingRecords([]);
       navigate("/factory/view");
     } catch (error) {

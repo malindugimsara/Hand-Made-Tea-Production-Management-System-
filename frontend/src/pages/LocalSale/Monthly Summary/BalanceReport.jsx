@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FileSpreadsheet, RefreshCw, AlertCircle, FileText, CalendarDays, Database } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FileSpreadsheet, RefreshCw, AlertCircle, FileText, CalendarDays, Database, Weight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PDFDownloader from '@/components/PDFDownloader';
 import ExcelJS from 'exceljs';
@@ -183,7 +183,7 @@ export default function BalanceReport() {
                     // Hide rows with absolutely no data
                     if (bmStock !== 0 || inQty !== 0 || outQty !== 0) {
                         
-                        // 💡 Other Grades වල "Other Grades" කෑල්ල අයින් කර Size එක (DUST, DUST 1, BOPF) පමණක් පෙන්වීම
+                        // Other Grades වල "Other Grades" කෑල්ල අයින් කර Size එක (DUST, DUST 1, BOPF) පමණක් පෙන්වීම
                         const displayName = cat.id === 'others' ? size : `${cat.title} ${size}`;
 
                         formattedData.push({
@@ -215,6 +215,51 @@ export default function BalanceReport() {
         fetchBalanceData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [month]);
+
+    // 💡 NEW: Calculate Total Black Tea KG Sold (Excluding Green Tea & Correcting Weights)
+    const totalBlackTeaSoldKg = useMemo(() => {
+        let totalKg = 0;
+
+        reportData.forEach(row => {
+            const outVal = Number(row.outQty) || 0;
+            if (outVal <= 0) return;
+
+            const nameLower = row.name.toLowerCase();
+            const idLower = row.id.toLowerCase();
+
+            // Ignore Green Tea
+            if (idLower.startsWith('gt_') || nameLower.includes('green tea') || nameLower.includes('g/t')) {
+                return; 
+            }
+
+            let multiplier = 0;
+
+            // Bulk Categories -> Straight kg amount
+            if (idLower.startsWith('others_') || nameLower === 'dust' || nameLower === 'dust 1' || nameLower === 'bopf') {
+                multiplier = 1;
+            } 
+            // 400g Packages
+            else if (nameLower.includes('400g') || nameLower.includes('100 bag') || nameLower.includes('t/b 100') || nameLower.endsWith(' 100')) {
+                multiplier = 0.4;
+            } 
+            // 200g Packages
+            else if (nameLower.includes('200g')) {
+                multiplier = 0.2;
+            } 
+            // 100g Packages (Including T/B 25 & Welfare Pack 25)
+            else if (nameLower.includes('100g') || nameLower.includes('25 bag') || nameLower.includes('t/b 25') || nameLower.endsWith(' 25') || nameLower.includes('welfare')) {
+                multiplier = 0.1;
+            } 
+            // 50g Packages
+            else if (nameLower.includes('50g')) {
+                multiplier = 0.05;
+            }
+
+            totalKg += (outVal * multiplier);
+        });
+
+        return totalKg;
+    }, [reportData]);
 
     const handleUpdateBM = async () => {
         const confirmUpdate = window.confirm(`Force update the B/M Stock using data from ${month}? (Note: The system already does this automatically at the end of every month).`);
@@ -413,8 +458,8 @@ export default function BalanceReport() {
             </div>
 
             {/* FILTERS SECTION */}
-            <div className="mb-6 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center gap-4">
-                <div className="flex flex-col gap-1.5 w-64">
+            <div className="mb-6 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm flex flex-col md:flex-row md:items-center gap-4">
+                <div className="flex flex-col gap-1.5 w-full md:w-64">
                     <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Select Month</label>
                     <div className="relative">
                         <CalendarDays size={16} className="absolute left-3 top-3 text-gray-400" />
@@ -424,6 +469,19 @@ export default function BalanceReport() {
                         />
                     </div>
                 </div>
+
+                {/* 💡 NEW: Total Black Tea Sold Card */}
+                {reportData.length > 0 && (
+                    <div className="md:ml-auto flex items-center gap-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 p-3.5 px-6 rounded-xl shadow-sm">
+                        <div className="p-2.5 bg-green-100 dark:bg-green-800/50 rounded-lg text-green-700 dark:text-green-400">
+                            <Weight size={22} />
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-extrabold text-green-600 dark:text-green-500 uppercase tracking-widest">Total Black Tea Out</span>
+                            <span className="text-2xl font-black text-green-800 dark:text-green-400 tracking-tight">{totalBlackTeaSoldKg.toFixed(2)} KG</span>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* TABLE SECTION */}

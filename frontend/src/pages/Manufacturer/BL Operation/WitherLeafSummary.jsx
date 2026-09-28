@@ -13,7 +13,7 @@ import {
   FileDown, 
   Languages,
 } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -203,7 +203,6 @@ const WitherLeafSummary = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-3 sm:p-5 md:p-8 font-sans transition-colors duration-200">
-      <Toaster position="bottom-right" />
       
       {/* Top Mobile-Responsive Header */}
       <div className="max-w-6xl mx-auto mb-4 sm:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3.5">

@@ -172,7 +172,7 @@ const FactoryPacking = () => {
                     <Package className="text-[#0d5e4d] dark:text-teal-400" size={28} />
                 </div>
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-black text-[#0d5e4d] dark:text-teal-400 tracking-tight transition-colors">Factory Packing Entry</h1>
+                    <h1 className="text-2xl sm:text-3xl font-black text-[#0d5e4d] dark:text-teal-400 tracking-tight transition-colors">Factory Packing Materials Entry</h1>
                     <p className="text-[11px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 tracking-widest uppercase mt-0.5 transition-colors">
                         Daily Stock Ledger Inputs
                     </p>
