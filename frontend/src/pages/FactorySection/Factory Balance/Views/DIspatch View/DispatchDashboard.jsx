@@ -133,7 +133,7 @@ export default function DispatchDashboard() {
       
      {/* HEADER */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm border bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 transition-colors">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm border bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 transition-colors">
             <BarChart3 size={28} />
           </div>
           <div>
@@ -148,13 +148,13 @@ export default function DispatchDashboard() {
         
         <div className="flex-1 min-w-[200px]">
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">From Date</label>
-          <input type="date" name="fromDate" value={filters.fromDate} onChange={handleFilterChange} className="w-full p-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-semibold outline-none focus:border-blue-500 dark:text-gray-200" />
+          <input type="date" name="fromDate" value={filters.fromDate} onChange={handleFilterChange} className="w-full p-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-semibold outline-none focus:border-green-500 dark:text-gray-200" />
         </div>
         <div className="flex-1 min-w-[200px]">
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">To Date</label>
-          <input type="date" name="toDate" value={filters.toDate} onChange={handleFilterChange} className="w-full p-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-semibold outline-none focus:border-blue-500 dark:text-gray-200" />
+          <input type="date" name="toDate" value={filters.toDate} onChange={handleFilterChange} className="w-full p-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-semibold outline-none focus:border-green-500 dark:text-gray-200" />
         </div>
-        <button onClick={fetchDashboardData} className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all h-[42px]">
+        <button onClick={fetchDashboardData} className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all h-[42px]">
           <Filter size={16} /> Filter
         </button>
       </div>
@@ -168,19 +168,19 @@ export default function DispatchDashboard() {
           <div className="flex items-center gap-2 p-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
             <button 
               onClick={() => setActiveView('table')} 
-              className={`px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeView === 'table' ? 'bg-blue-600 text-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+              className={`px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeView === 'table' ? 'bg-green-600 text-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
             >
               <TableIcon size={16}/> Table
             </button>
             <button 
               onClick={() => setActiveView('bar')} 
-              className={`px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeView === 'bar' ? 'bg-blue-600 text-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+              className={`px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeView === 'bar' ? 'bg-green-600 text-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
             >
               <BarChart3 size={16}/> Bar Graph
             </button>
             <button 
               onClick={() => setActiveView('pie')} 
-              className={`px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeView === 'pie' ? 'bg-blue-600 text-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
+              className={`px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${activeView === 'pie' ? 'bg-green-600 text-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100'}`}
             >
               <PieChartIcon size={16}/> Pie Chart
             </button>
@@ -190,7 +190,7 @@ export default function DispatchDashboard() {
           <div className="flex-1 p-6 min-h-[450px] flex flex-col relative">
             {isLoading ? (
               <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm z-10">
-                <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                <div className="w-8 h-8 border-4 border-green-200 border-t-green-600 rounded-full animate-spin"></div>
               </div>
             ) : chartData.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
@@ -215,7 +215,7 @@ export default function DispatchDashboard() {
                           <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                             <td className="px-6 py-3 font-bold text-gray-800 dark:text-gray-200">{row.name}</td>
                             <td className="px-6 py-3 font-semibold text-gray-600 dark:text-gray-400 text-right">{row.weight.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}</td>
-                            <td className="px-6 py-3 font-semibold text-blue-600 dark:text-blue-400 text-right">{row.percentage}%</td>
+                            <td className="px-6 py-3 font-semibold text-green-600 dark:text-green-400 text-right">{row.percentage}%</td>
                           </tr>
                         ))}
                       </tbody>
@@ -283,11 +283,11 @@ export default function DispatchDashboard() {
             <h3 className="text-sm font-black uppercase tracking-wider text-gray-500 mb-5 border-b border-gray-100 dark:border-gray-800 pb-2">Grade Summary</h3>
             
             <div className="space-y-4">
-              <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 p-4 rounded-xl flex justify-between items-center">
-                <span className="font-bold text-blue-800 dark:text-blue-400">MAIN GRADE</span>
+              <div className="bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-800/30 p-4 rounded-xl flex justify-between items-center">
+                <span className="font-bold text-green-800 dark:text-green-400">MAIN GRADE</span>
                 <div className="text-right">
-                  <p className="text-lg font-black text-blue-900 dark:text-blue-300">{summary.main.toLocaleString(undefined, {minimumFractionDigits: 1})} <span className="text-xs font-semibold">Kg</span></p>
-                  <p className="text-xs font-bold text-blue-600 bg-blue-100 dark:bg-blue-900/50 inline-block px-2 py-0.5 rounded mt-1">{summary.mainPct}%</p>
+                  <p className="text-lg font-black text-green-900 dark:text-green-300">{summary.main.toLocaleString(undefined, {minimumFractionDigits: 1})} <span className="text-xs font-semibold">Kg</span></p>
+                  <p className="text-xs font-bold text-green-600 bg-green-100 dark:bg-green-900/50 inline-block px-2 py-0.5 rounded mt-1">{summary.mainPct}%</p>
                 </div>
               </div>
 
