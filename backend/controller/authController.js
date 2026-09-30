@@ -31,7 +31,8 @@ export const loginUser = async (req, res) => {
       token, 
       role: user.role, 
       username: user.username,
-      allowedPaths: user.allowedPaths 
+      allowedPaths: user.allowedPaths,
+      allowedPages: user.allowedPages 
     });
   } catch (error) {
     console.error("Login Error:", error);

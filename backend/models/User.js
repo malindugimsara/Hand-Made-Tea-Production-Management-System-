@@ -11,9 +11,16 @@ const UserSchema = new mongoose.Schema({
     default: 'User' 
   },
 
+  
   allowedPaths: { 
     type: [String], 
     default: [] 
+  },
+
+  
+  allowedPages: {
+    type: [String],
+    default: []
   }
 }, { timestamps: true }); 
 

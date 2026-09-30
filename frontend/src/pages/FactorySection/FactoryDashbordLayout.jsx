@@ -24,7 +24,8 @@ import {
   LayoutGrid,  
   Package, 
   Factory,
-  ClipboardList, 
+  ClipboardList,
+  Settings, 
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -181,6 +182,7 @@ export default function FactoryDashboardLayout() {
     { id: 'factory', name: 'Factory Section', icon: Factory, path: '/factory' },
     { id: 'localSale', name: 'Local Sale Section', icon: Store, path: '/localsale' },
     { id: 'manufacturer', name: 'Manufacturing Section', icon: ClipboardList, path: '/manufacturer' },
+    { id: 'admin', name: 'Admin Settings', icon: Settings, path: '/admin/settings' },
   ];
 
   // 💡 Filter the modules based on allowedPaths from localStorage
@@ -193,6 +195,19 @@ export default function FactoryDashboardLayout() {
     localStorage.clear(); // Clear all auth data
     navigate('/', { replace: true });
   };
+
+  // 💡 NEW: URL-BASED ACCESS CONTROL (get allowedPages)
+  const allowedPages = React.useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('allowedPages')) || []; } 
+    catch { return []; }
+  }, []);
+
+  // 💡 NEW: check access to a specific URL based on allowedPages
+  const hasAccess = React.useCallback((url) => {
+    if (currentUserRole === 'Admin') return true; // Admin has access to everything
+    if (!url) return false;
+    return allowedPages.includes(url);
+  }, [currentUserRole, allowedPages]);
 
   // --- CUSTOM BREADCRUMB FALLBACK LOGIC ---
   const getCustomBreadcrumbTitle = (path) => {
@@ -252,49 +267,51 @@ export default function FactoryDashboardLayout() {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
 
-  // --- SEARCH FILTERING LOGIC ---
+  // --- 💡 SEARCH FILTERING & GRANULAR ACCESS LOGIC ---
   const accessibleLinks = React.useMemo(() => {
-    return [
-      ...DATA.quickLinks.map(link => ({ title: link.name, url: link.url, icon: link.icon })),
-      ...DATA.navMain.flatMap(group =>
-        group.items
-          .filter(item => !(item.adminOnly && currentUserRole !== 'Admin')) // Filter admin paths
-          .filter(item => !(item.nonViewer && currentUserRole === 'Viewer')) // Hide from viewers
-          .map(item => ({ title: item.title, url: item.url, icon: group.icon }))
-      )
-    ];
-  }, [currentUserRole]);
+    const links = [...DATA.quickLinks.map(link => ({ title: link.name, url: link.url, icon: link.icon }))];
+    
+    DATA.navMain.forEach(group => {
+      group.items.forEach(item => {
+        if (item.items) {
+          item.items.forEach(lvl2 => {
+            if (!hasAccess(lvl2.url)) return; // 👈 Access Check (Level 2)
+            links.push({ title: `${item.title} - ${lvl2.title}`, url: lvl2.url, icon: group.icon });
+          });
+        } else {
+          if (!hasAccess(item.url)) return; // 👈 Access Check (Level 1)
+          links.push({ title: item.title, url: item.url, icon: group.icon });
+        }
+      });
+    });
+    return links;
+  }, [hasAccess]);
 
-  const filteredQuickLinks = DATA.quickLinks.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const searchResults = searchQuery
-    ? accessibleLinks.filter(link => link.title.toLowerCase().includes(searchQuery.toLowerCase()))
-    : [];
+  const filteredQuickLinks = DATA.quickLinks.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  
+  const searchResults = searchQuery ? accessibleLinks.filter(link => link.title.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
   const filteredNavMain = DATA.navMain.map(group => {
-    const visibleItems = group.items.filter(subItem => {
-        // Admin Only ඒවා Admin ට විතරයි
-        if (subItem.adminOnly && currentUserRole !== 'Admin') return false;
-        
-        // nonViewer දාලා තියෙන ඒවා Viewer ට පෙන්වන්නේ නෑ
-        if (subItem.nonViewer && currentUserRole === 'Viewer') return false; 
-        
-        return true;
-    });
-
     const matchesGroupTitle = group.title.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const filteredLevel1 = group.items.map(subItem => {
+      if (subItem.items) {
+        // Level 2
+        const filteredLevel2 = subItem.items.filter(lvl2 => {
+          if (!hasAccess(lvl2.url)) return false; // 👈 Access Check
+          return matchesGroupTitle || subItem.title.toLowerCase().includes(searchQuery.toLowerCase()) || lvl2.title.toLowerCase().includes(searchQuery.toLowerCase());
+        });
+        if (filteredLevel2.length > 0) return { ...subItem, items: filteredLevel2 };
+        return null;
+      } else {
+        // Level 1
+        if (!hasAccess(subItem.url)) return null; // 👈 Access Check
+        const matchesItem = matchesGroupTitle || subItem.title.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesItem ? subItem : null;
+      }
+    }).filter(Boolean);
 
-    const searchFilteredItems = visibleItems.filter(subItem =>
-      matchesGroupTitle || subItem.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    return {
-      ...group,
-      items: searchFilteredItems,
-      isSearchMatch: matchesGroupTitle || searchFilteredItems.length > 0
-    };
+    return { ...group, items: filteredLevel1, isSearchMatch: matchesGroupTitle || filteredLevel1.length > 0 };
   }).filter(group => group.isSearchMatch && group.items.length > 0);
 
   return (

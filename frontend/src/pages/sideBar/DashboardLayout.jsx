@@ -21,7 +21,8 @@ import {
   LayoutGrid,  
   Package, 
   Store, 
-  ClipboardList
+  ClipboardList,
+  Settings
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -150,8 +151,7 @@ export default function DashboardLayout() {
   const isMobile = useIsMobile();
 
   // --- PAGE NAVIGATION SEARCH LOGIC ---
-  const [pageSearchQuery, setPageSearchQuery] = React.useState('');
-
+const [searchQuery, setSearchQuery] = React.useState('');
   // --- SIDEBAR HOVER & DELAY LOGIC ---
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
 
@@ -205,6 +205,7 @@ export default function DashboardLayout() {
     { id: 'factory', name: 'Factory Section', icon: Factory, path: '/factory' },
     { id: 'localSale', name: 'Local Sale Section', icon: Store, path: '/localsale' },
     { id: 'manufacturer', name: 'Manufacturing Section', icon: ClipboardList, path: '/manufacturer' },
+    { id: 'admin', name: 'Admin Settings', icon: Settings, path: '/admin/settings' },
   ];
 
   // 💡 Filter the modules based on allowedPaths from localStorage
@@ -217,6 +218,19 @@ export default function DashboardLayout() {
     localStorage.clear(); // Clear all auth data
     navigate('/', { replace: true });
   };
+
+  // 💡 NEW: URL-BASED ACCESS CONTROL (get allowedPages)
+    const allowedPages = React.useMemo(() => {
+      try { return JSON.parse(localStorage.getItem('allowedPages')) || []; } 
+      catch { return []; }
+    }, []);
+  
+    // 💡 NEW: check access to a specific URL based on allowedPages
+    const hasAccess = React.useCallback((url) => {
+      if (currentUserRole === 'Admin') return true; // Admin has access to everything
+      if (!url) return false;
+      return allowedPages.includes(url);
+    }, [currentUserRole, allowedPages]);
 
   const getBreadcrumbTitle = () => {
     switch (location.pathname) {
@@ -242,46 +256,51 @@ export default function DashboardLayout() {
   });
 
   // Compile all accessible links for the search bar
+  // --- 💡 SEARCH FILTERING & GRANULAR ACCESS LOGIC ---
   const accessibleLinks = React.useMemo(() => {
-    return [
-      ...DATA.quickLinks.map(link => ({ title: link.name, url: link.url, icon: link.icon })),
-      ...DATA.navMain.flatMap(group =>
-        group.items
-          .filter(item => !(item.adminOnly && currentUserRole !== 'Admin')) // Filter admin paths
-          .filter(item => !(item.nonViewer && currentUserRole === 'Viewer')) // 👈 Search Bar එකෙනුත් Viewer ගෙන් හැංගෙනවා
-          .map(item => ({ title: item.title, url: item.url, icon: group.icon }))
-      )
-    ];
-  }, [currentUserRole]);
-
-  // Filter links based on user input
-  const searchResults = pageSearchQuery
-    ? accessibleLinks.filter(link => link.title.toLowerCase().includes(pageSearchQuery.toLowerCase()))
-    : [];
-
-  // Filter Sidebar Menus based on Role and Search
-  const filteredNavMain = DATA.navMain.map(group => {
-    const visibleItems = group.items.filter(subItem => {
-        // Admin Only ඒවා Admin ට විතරයි
-        if (subItem.adminOnly && currentUserRole !== 'Admin') return false;
-        
-        // nonViewer දාලා තියෙන ඒවා Viewer ට පෙන්වන්නේ නෑ
-        if (subItem.nonViewer && currentUserRole === 'Viewer') return false; 
-        
-        return true;
-    });
+    const links = [...DATA.quickLinks.map(link => ({ title: link.name, url: link.url, icon: link.icon }))];
     
-    const matchesGroupTitle = group.title.toLowerCase().includes(pageSearchQuery.toLowerCase());
+    DATA.navMain.forEach(group => {
+      group.items.forEach(item => {
+        if (item.items) {
+          item.items.forEach(lvl2 => {
+            if (!hasAccess(lvl2.url)) return; // 👈 Access Check (Level 2)
+            links.push({ title: `${item.title} - ${lvl2.title}`, url: lvl2.url, icon: group.icon });
+          });
+        } else {
+          if (!hasAccess(item.url)) return; // 👈 Access Check (Level 1)
+          links.push({ title: item.title, url: item.url, icon: group.icon });
+        }
+      });
+    });
+    return links;
+  }, [hasAccess]);
 
-    const searchFilteredItems = visibleItems.filter(subItem => 
-        matchesGroupTitle || subItem.title.toLowerCase().includes(pageSearchQuery.toLowerCase())
-    );
+  const filteredQuickLinks = DATA.quickLinks.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  
+  const searchResults = searchQuery ? accessibleLinks.filter(link => link.title.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
-    return {
-        ...group,
-        items: searchFilteredItems,
-        isSearchMatch: matchesGroupTitle || searchFilteredItems.length > 0
-    };
+  const filteredNavMain = DATA.navMain.map(group => {
+    const matchesGroupTitle = group.title.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const filteredLevel1 = group.items.map(subItem => {
+      if (subItem.items) {
+        // Level 2
+        const filteredLevel2 = subItem.items.filter(lvl2 => {
+          if (!hasAccess(lvl2.url)) return false; // 👈 Access Check
+          return matchesGroupTitle || subItem.title.toLowerCase().includes(searchQuery.toLowerCase()) || lvl2.title.toLowerCase().includes(searchQuery.toLowerCase());
+        });
+        if (filteredLevel2.length > 0) return { ...subItem, items: filteredLevel2 };
+        return null;
+      } else {
+        // Level 1
+        if (!hasAccess(subItem.url)) return null; // 👈 Access Check
+        const matchesItem = matchesGroupTitle || subItem.title.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesItem ? subItem : null;
+      }
+    }).filter(Boolean);
+
+    return { ...group, items: filteredLevel1, isSearchMatch: matchesGroupTitle || filteredLevel1.length > 0 };
   }).filter(group => group.isSearchMatch && group.items.length > 0);
 
   return (
@@ -319,14 +338,14 @@ export default function DashboardLayout() {
               <input
                 type="text"
                 placeholder="Search pages..."
-                value={pageSearchQuery}
+                value={searchQuery}
                 onChange={(e) => setPageSearchQuery(e.target.value)}
                 className="w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-[#1B6A31] dark:focus:border-green-600 rounded-xl py-2 pl-9 pr-4 text-sm outline-none transition-all dark:text-white shadow-sm"
               />
             </div>
 
             {/* SEARCH RESULTS DROPDOWN */}
-            {pageSearchQuery && isSidebarOpen && (
+            {searchQuery && isSidebarOpen && (
               <div className="absolute top-full mt-1 left-2 right-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-lg max-h-60 overflow-y-auto py-1 z-50 custom-scrollbar">
                 {searchResults.length > 0 ? (
                   searchResults.map((result) => (
@@ -334,7 +353,7 @@ export default function DashboardLayout() {
                       key={result.url}
                       onClick={() => {
                         navigate(result.url);
-                        setPageSearchQuery(''); 
+                        setSearchQuery(''); 
                       }}
                       className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#F4F7F5] dark:hover:bg-zinc-700 cursor-pointer transition-colors"
                     >
@@ -384,7 +403,7 @@ export default function DashboardLayout() {
               {filteredNavMain.map((item) => {
                 
                 const isGroupActive = item.items.some((sub) => sub.url === location.pathname);
-                const isOpen = pageSearchQuery.length > 0 ? true : isGroupActive;
+                const isOpen = searchQuery.length > 0 ? true : isGroupActive;
 
                 return (
                   <Collapsible key={item.title} asChild defaultOpen={isOpen} className="group/collapsible mb-1">

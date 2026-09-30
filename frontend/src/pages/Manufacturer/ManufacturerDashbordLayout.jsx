@@ -21,6 +21,7 @@ import {
   FileText,
   Package,
   ClipboardList,
+  Settings,
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -212,6 +213,7 @@ export default function ManufacturerDashboardLayout() {
     { id: 'factory', name: 'Factory Section', icon: Factory, path: '/factory' },
     { id: 'localSale', name: 'Local Sale Section', icon: Store, path: '/localsale' },
     { id: 'manufacturer', name: 'Manufacturing Section', icon: ClipboardList, path: '/manufacturer' },
+    { id: 'admin', name: 'Admin Settings', icon: Settings, path: '/admin/settings' },
   ];
 
   // 💡 Filter the modules based on allowedPaths from localStorage
@@ -224,6 +226,19 @@ export default function ManufacturerDashboardLayout() {
     localStorage.clear();
     navigate('/', { replace: true });
   };
+
+  // 💡 NEW: URL-BASED ACCESS CONTROL (allowedPages ලබාගැනීම)
+  const allowedPages = React.useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('allowedPages')) || []; } 
+    catch { return []; }
+  }, []);
+
+  // 💡 NEW: Check if the user has access to a specific URL
+  const hasAccess = React.useCallback((url) => {
+    if (currentUserRole === 'Admin') return true; // Admin ට සියල්ල පෙන්වයි
+    if (!url) return false;
+    return allowedPages.includes(url);
+  }, [currentUserRole, allowedPages]);
 
   // --- CUSTOM BREADCRUMB FALLBACK LOGIC ---
   const getCustomBreadcrumbTitle = (path) => {
@@ -290,70 +305,51 @@ export default function ManufacturerDashboardLayout() {
   });
 
   // --- SEARCH FILTERING LOGIC (Updated for Level 2) ---
+  // --- 💡 SEARCH FILTERING & GRANULAR ACCESS LOGIC ---
   const accessibleLinks = React.useMemo(() => {
     const links = [...DATA.quickLinks.map(link => ({ title: link.name, url: link.url, icon: link.icon }))];
     
     DATA.navMain.forEach(group => {
       group.items.forEach(item => {
         if (item.items) {
-          // Push Level 2 links
           item.items.forEach(lvl2 => {
-            if (lvl2.adminOnly && currentUserRole !== 'Admin') return;
-            if (lvl2.nonViewer && currentUserRole === 'Viewer') return;
+            if (!hasAccess(lvl2.url)) return; // 👈 Access Check (Level 2)
             links.push({ title: `${item.title} - ${lvl2.title}`, url: lvl2.url, icon: group.icon });
           });
         } else {
-          // Push Level 1 links
-          if (item.adminOnly && currentUserRole !== 'Admin') return;
-          if (item.nonViewer && currentUserRole === 'Viewer') return;
+          if (!hasAccess(item.url)) return; // 👈 Access Check (Level 1)
           links.push({ title: item.title, url: item.url, icon: group.icon });
         }
       });
     });
     return links;
-  }, [currentUserRole]);
+  }, [hasAccess]);
 
-  const filteredQuickLinks = DATA.quickLinks.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const searchResults = searchQuery
-    ? accessibleLinks.filter(link => link.title.toLowerCase().includes(searchQuery.toLowerCase()))
-    : [];
+  const filteredQuickLinks = DATA.quickLinks.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  
+  const searchResults = searchQuery ? accessibleLinks.filter(link => link.title.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
   const filteredNavMain = DATA.navMain.map(group => {
     const matchesGroupTitle = group.title.toLowerCase().includes(searchQuery.toLowerCase());
-
+    
     const filteredLevel1 = group.items.map(subItem => {
       if (subItem.items) {
-        // Level 2 Group Logic
+        // Level 2
         const filteredLevel2 = subItem.items.filter(lvl2 => {
-          if (lvl2.adminOnly && currentUserRole !== 'Admin') return false;
-          if (lvl2.nonViewer && currentUserRole === 'Viewer') return false;
-          return matchesGroupTitle || 
-                 subItem.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                 lvl2.title.toLowerCase().includes(searchQuery.toLowerCase());
+          if (!hasAccess(lvl2.url)) return false; // 👈 Access Check
+          return matchesGroupTitle || subItem.title.toLowerCase().includes(searchQuery.toLowerCase()) || lvl2.title.toLowerCase().includes(searchQuery.toLowerCase());
         });
-        
-        if (filteredLevel2.length > 0) {
-          return { ...subItem, items: filteredLevel2 };
-        }
+        if (filteredLevel2.length > 0) return { ...subItem, items: filteredLevel2 };
         return null;
       } else {
-        // Level 1 Logic
-        if (subItem.adminOnly && currentUserRole !== 'Admin') return null;
-        if (subItem.nonViewer && currentUserRole === 'Viewer') return null;
-
+        // Level 1
+        if (!hasAccess(subItem.url)) return null; // 👈 Access Check
         const matchesItem = matchesGroupTitle || subItem.title.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesItem ? subItem : null;
       }
     }).filter(Boolean);
 
-    return {
-      ...group,
-      items: filteredLevel1,
-      isSearchMatch: matchesGroupTitle || filteredLevel1.length > 0
-    };
+    return { ...group, items: filteredLevel1, isSearchMatch: matchesGroupTitle || filteredLevel1.length > 0 };
   }).filter(group => group.isSearchMatch && group.items.length > 0);
 
   return (
