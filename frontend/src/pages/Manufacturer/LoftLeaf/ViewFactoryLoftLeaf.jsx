@@ -449,36 +449,49 @@ export default function ViewLoftLeafCount() {
       const toastId = toast.loading(`Preparing ${format.toUpperCase()} for WhatsApp...`);
 
       try {
-          const printElement = document.getElementById('pdf-print-area');
+          const originalElement = document.getElementById('pdf-print-area');
           
-          const imgFooter = document.getElementById('sys-image-footer');
-          if (format === 'image' && imgFooter) imgFooter.style.display = 'block';
+          // =========================================================
+          // 💡 THE ULTIMATE FIX: CLONE NODE TECHNIQUE
+          // =========================================================
+          // 1. Original එකේ Copy එකක් හදාගන්නවා
+          const cloneWrapper = document.createElement('div');
+          
+          // 2. Clone එක කිසිම දේකට හිරවෙන්නේ නැති වෙන්න නිදහස් කරනවා
+          cloneWrapper.style.position = 'absolute';
+          cloneWrapper.style.top = '-9999px';
+          cloneWrapper.style.left = '-9999px';
+          cloneWrapper.style.width = '1200px'; // Table එකට අවශ්‍ය නිවැරදි ඉඩ
+          cloneWrapper.style.backgroundColor = '#ffffff';
+          cloneWrapper.style.zIndex = '-9999';
+          
+          const clone = originalElement.cloneNode(true);
+          clone.style.display = 'block'; // Clone එක visible කරනවා
+          
+          // Image එකක් නම් footer එක පෙන්නනවා
+          if (format === 'image') {
+              const imgFooter = clone.querySelector('#sys-image-footer');
+              if (imgFooter) imgFooter.style.display = 'block';
+          }
 
-          // 1. Position Fix: top වෙනුවට left පාවිච්චි කරන්න, absolute වෙනුවට fixed දෙන්න (scrolling bugs මග හරින්න)
-          printElement.style.display = "block";
-          printElement.style.position = "fixed"; 
-          printElement.style.top = "0";
-          printElement.style.left = "-9999px"; 
-          printElement.style.width = '1200px'; // 1400 වෙනුවට 1200ක් දාමු, එය ජංගම දුරකථන වලට වඩාත් ගැලපේ
+          cloneWrapper.appendChild(clone);
+          document.body.appendChild(cloneWrapper);
 
-          // 2. Render Delay: Browser එකට layout එක හදාගන්න පොඩි වෙලාවක් (150ms) දෙන්න
-          await new Promise(resolve => setTimeout(resolve, 150));
+          // 3. බ්‍රව්සරයට Table එක සම්පූර්ණයෙන් අඳින්න වෙලාව දෙනවා
+          await new Promise(resolve => setTimeout(resolve, 300));
 
-          const canvas = await html2canvas(printElement, { 
-              scale: format === 'pdf' ? 2 : 1.5, // 3. Scale Fix: Image එකක් යවනවනම් scale එක 1.5 කට අඩු කරන්න 
+          // 4. Clone එකෙන් Image එක ගන්නවා
+          const canvas = await html2canvas(cloneWrapper, { 
+              scale: format === 'pdf' ? 2 : 1.5,
               useCORS: true,
               backgroundColor: "#ffffff",
               logging: false,
-              windowWidth: 1200 // මෙතනත් width එක match කරන්න
+              width: 1200 // Explicitly set canvas width
           });
 
-          // ආපසු පෙර තිබූ තත්වයට පත් කිරීම
-          printElement.style.display = "none"; 
-          printElement.style.width = '';
-          printElement.style.position = '';
-          printElement.style.top = '';
-          printElement.style.left = '';
-          if (imgFooter) imgFooter.style.display = 'none';
+          // 5. වැඩේ ඉවර වුණාම හදපු Copy එක මකලා දානවා (Clean up)
+          document.body.removeChild(cloneWrapper);
+          // =========================================================
 
           let file;
           let fileName = `Loft_Leaf_Report_${selectedDate}`;
@@ -517,11 +530,11 @@ export default function ViewLoftLeafCount() {
               const pdfBlob = pdf.output('blob');
               file = new File([pdfBlob], `${fileName}.pdf`, { type: 'application/pdf' });
           } else {
-              // Quality එක 0.95 න් 0.90 ට අඩු කිරීමෙන් size එක අඩු කරගන්න පුළුවන් (WhatsApp යවන්න ලේසියි)
               const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.90));
               file = new File([blob], `${fileName}.jpg`, { type: 'image/jpeg' });
           }
 
+          // Share or Download Logic
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
               try {
                   await navigator.share({
@@ -532,33 +545,31 @@ export default function ViewLoftLeafCount() {
                   toast.success("Shared successfully!", { id: toastId });
               } catch (shareError) {
                   console.warn("Web Share API error:", shareError);
-                  const fileUrl = URL.createObjectURL(file);
-                  const a = document.createElement('a');
-                  a.href = fileUrl;
-                  a.download = file.name;
-                  a.click();
-                  URL.revokeObjectURL(fileUrl);
-                  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`Here is the Loft Leaf Quality Report for ${selectedDate}. Please attach the downloaded file.`)}`;
-                  window.open(whatsappUrl, '_blank');
-                  toast.success("File downloaded. Please attach it in WhatsApp.", { id: toastId });
+                  fallbackDownload(file, toastId);
               }
           } else {
-              const fileUrl = URL.createObjectURL(file);
-              const a = document.createElement('a');
-              a.href = fileUrl;
-              a.download = file.name;
-              a.click();
-              URL.revokeObjectURL(fileUrl);
-              const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`Here is the Loft Leaf Quality Report for ${selectedDate}. Please attach the downloaded file.`)}`;
-              window.open(whatsappUrl, '_blank');
-              toast.success("File downloaded. Please attach it in WhatsApp.", { id: toastId });
+              fallbackDownload(file, toastId);
           }
       } catch (error) {
           console.error("WhatsApp Share Error: ", error);
           toast.error("Failed to share file.", { id: toastId });
       }
-  };
+  }; 
 
+  // පොඩි Helper function එකක් කේතය පිරිසිදුව තියාගන්න (Share Menu එක නැති අයට)
+  const fallbackDownload = (file, toastId) => {
+      const fileUrl = URL.createObjectURL(file);
+      const a = document.createElement('a');
+      a.href = fileUrl;
+      a.download = file.name;
+      a.click();
+      URL.revokeObjectURL(fileUrl);
+      
+      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`Here is the Loft Leaf Quality Report for ${selectedDate}. Please attach the downloaded file.`)}`;
+      window.open(whatsappUrl, '_blank');
+      toast.success("File downloaded. Please attach it in WhatsApp.", { id: toastId });
+  };
+  
   return (
     <div className="p-3 sm:p-5 md:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
 
