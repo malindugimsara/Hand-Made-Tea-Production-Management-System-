@@ -17,6 +17,11 @@ import {
   PackagePlus,
   Proportions, 
   Search, 
+  LayoutGrid, 
+  Leaf, 
+  Package, 
+  Factory, 
+  ClipboardList, 
 } from 'lucide-react';
 
 // --- SHADCN COMPONENTS ---
@@ -175,6 +180,29 @@ export default function DashboardLayoutP() {
   // --- AUTHENTICATION LOGIC ---
   const currentUsername = localStorage.getItem('username') || 'Unknown User';
   const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'User'; 
+
+  // 💡 NEW: LocalStorage එකෙන් Allowed Paths ලබාගැනීම
+  let allowedPaths = [];
+  try {
+    allowedPaths = JSON.parse(localStorage.getItem('allowedPaths')) || [];
+  } catch (e) {
+    allowedPaths = [];
+  }
+
+  // 💡 NEW: SYSTEM MODULES DEFINITION
+  const systemModules = [
+    { id: 'handmade', name: 'H/T Factory Section', icon: Leaf, path: '/dashboard' },
+    { id: 'packing', name: 'Packing Section', icon: Package, path: '/packing' },
+    { id: 'factory', name: 'Factory Section', icon: Factory, path: '/factory' },
+    { id: 'localSale', name: 'Local Sale Section', icon: Store, path: '/localsale' },
+    { id: 'manufacturer', name: 'Manufacturing Section', icon: ClipboardList, path: '/manufacturer' },
+  ];
+
+  // 💡 Filter the modules based on allowedPaths from localStorage
+  const accessibleModules = systemModules.filter(mod => allowedPaths.includes(mod.id));
+  
+  // 💡 Determine the current module based on the current path
+  const currentModule = accessibleModules.find(mod => location.pathname.startsWith(mod.path)) || accessibleModules[0];
 
   const handleLogout = () => {
     localStorage.clear(); // Clear all auth data
@@ -445,6 +473,48 @@ export default function DashboardLayoutP() {
 
           <div className="flex items-center gap-2 sm:gap-4 md:mr-2">
             <p className="hidden md:block text-sm font-medium p-4 dark:text-white">{today}</p>
+
+            {/* 💡 NEW: MODULE SWITCHER UI  */}
+            {accessibleModules.length > 1 && (
+              <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-zinc-800/50 hover:bg-gray-100 dark:hover:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl transition-all focus:outline-none group">
+                    <LayoutGrid size={18} className="text-gray-600 dark:text-gray-300 group-hover:text-[#3f6212] dark:group-hover:text-lime-500 transition-colors" />
+                    <span className="hidden lg:block text-sm font-bold text-gray-700 dark:text-gray-200">
+                      {currentModule?.name || 'Switch Section'}
+                    </span>
+                    <ChevronDown size={14} className="text-gray-400" />
+                  </DropdownMenuTrigger>
+                  
+                  <DropdownMenuContent 
+                    className="w-56 rounded-2xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-gray-100 dark:border-zinc-800 shadow-xl p-2 mt-2 z-[70]" 
+                    align="end"
+                  >
+                    <DropdownMenuLabel className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 px-2">
+                      System Sections
+                    </DropdownMenuLabel>
+                    
+                    {accessibleModules.map((mod) => (
+                      <DropdownMenuItem
+                        key={mod.id}
+                        onClick={() => {
+                          if (currentModule?.id !== mod.id) navigate(mod.path);
+                        }}
+                        className={`cursor-pointer rounded-xl py-3 mb-1 font-medium flex items-center transition-colors ${
+                          currentModule?.id === mod.id 
+                            ? 'bg-[#84cc16]/10 text-[#3f6212] dark:bg-lime-500/10 dark:text-lime-400 pointer-events-none'
+                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800'
+                        }`}
+                      >
+                        <mod.icon className="mr-3 h-4 w-4" /> {mod.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Separator orientation="vertical" className="h-6 bg-gray-200 dark:bg-zinc-700 hidden sm:block" />
+              </>
+            )}
             
             <button 
               onClick={toggleTheme}
