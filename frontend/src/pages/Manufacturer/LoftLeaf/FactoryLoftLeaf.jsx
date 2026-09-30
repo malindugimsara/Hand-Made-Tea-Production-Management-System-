@@ -471,10 +471,10 @@ export default function LoftLeafCount() {
       toast.error("Please fill Route and quantities!");
       return;
     }
-    if (isFactory && !currentForm.totalLeafQty) {
-      toast.error("Please fill Total Leaf Quantity for Factory sample!");
-      return;
-    }
+    // if (isFactory && !currentForm.totalLeafQty) {
+    //   toast.error("Please fill Total Leaf Quantity for Factory sample!");
+    //   return;
+    // }
 
     const finalArrivalTime = isFactory && currentForm.arrivalTime 
         ? `${currentForm.arrivalTime} ${currentForm.arrivalAmPm}` 
@@ -843,7 +843,7 @@ export default function LoftLeafCount() {
 
                 <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1 uppercase flex items-center gap-1"><Weight size={12} /> {t.totalKg}</label>
-                    <input type="number" id="fac-totalQty" name="totalLeafQty" placeholder="e.g. 250" value={factoryForm.totalLeafQty} onChange={(e) => handleInputChange(e, 'factory')} onKeyDown={(e) => handleEnterKey(e, 'fac-bestQty')} required min="0" step="any" className="w-full p-2.5 placeholder-gray-400/70 dark:placeholder-zinc-600 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
+                    <input type="number" id="fac-totalQty" name="totalLeafQty" placeholder="e.g. 250" value={factoryForm.totalLeafQty} onChange={(e) => handleInputChange(e, 'factory')} onKeyDown={(e) => handleEnterKey(e, 'fac-bestQty')} min="0" step="any" className="w-full p-2.5 placeholder-gray-400/70 dark:placeholder-zinc-600 pl-4 border border-gray-200 dark:border-zinc-700 rounded-lg font-medium focus:ring-2 focus:ring-lime-500 outline-none bg-gray-50 dark:bg-zinc-950" />
                 </div>
             </div>
 
