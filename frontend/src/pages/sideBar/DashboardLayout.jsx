@@ -135,13 +135,13 @@ const DATA = {
         { title: 'Transfer Out Records', url: '/transfer-out-view' },
       ],
     },
-    {
-      title: 'System Administration',
-      icon: Shield,
-      items: [
-        { title: 'Manage Users', url: '/manage-users', adminOnly: true },
-      ],
-    },
+    // {
+    //   title: 'System Administration',
+    //   icon: Shield,
+    //   items: [
+    //     { title: 'Manage Users', url: '/manage-users', adminOnly: true },
+    //   ],
+    // },
   ],
 };
 
