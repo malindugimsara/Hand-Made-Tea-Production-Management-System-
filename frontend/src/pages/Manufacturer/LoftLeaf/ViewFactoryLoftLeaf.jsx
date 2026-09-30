@@ -463,7 +463,7 @@ export default function ViewLoftLeafCount() {
           const originalElement = document.getElementById('pdf-print-area');
           
           const cloneWrapper = document.createElement('div');
-          const targetWidth = 1600; // 💡 මෙතැන පළල 1600px දක්වා වැඩි කර ඇත
+          const targetWidth = 2000; // 💡 මෙතැන පළල 1600px දක්වා වැඩි කර ඇත
           
           cloneWrapper.style.position = 'absolute';
           cloneWrapper.style.top = '-9999px';
