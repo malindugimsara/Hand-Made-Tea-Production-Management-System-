@@ -454,21 +454,30 @@ export default function ViewLoftLeafCount() {
           const imgFooter = document.getElementById('sys-image-footer');
           if (format === 'image' && imgFooter) imgFooter.style.display = 'block';
 
+          // 1. Position Fix: top වෙනුවට left පාවිච්චි කරන්න, absolute වෙනුවට fixed දෙන්න (scrolling bugs මග හරින්න)
           printElement.style.display = "block";
-          printElement.style.position = "absolute";
-          printElement.style.top = "-9999px";
-          printElement.style.width = '1400px';
+          printElement.style.position = "fixed"; 
+          printElement.style.top = "0";
+          printElement.style.left = "-9999px"; 
+          printElement.style.width = '1200px'; // 1400 වෙනුවට 1200ක් දාමු, එය ජංගම දුරකථන වලට වඩාත් ගැලපේ
+
+          // 2. Render Delay: Browser එකට layout එක හදාගන්න පොඩි වෙලාවක් (150ms) දෙන්න
+          await new Promise(resolve => setTimeout(resolve, 150));
 
           const canvas = await html2canvas(printElement, { 
-              scale: 2.5, 
+              scale: format === 'pdf' ? 2 : 1.5, // 3. Scale Fix: Image එකක් යවනවනම් scale එක 1.5 කට අඩු කරන්න 
               useCORS: true,
               backgroundColor: "#ffffff",
               logging: false,
-              windowWidth: 1400
+              windowWidth: 1200 // මෙතනත් width එක match කරන්න
           });
 
+          // ආපසු පෙර තිබූ තත්වයට පත් කිරීම
           printElement.style.display = "none"; 
           printElement.style.width = '';
+          printElement.style.position = '';
+          printElement.style.top = '';
+          printElement.style.left = '';
           if (imgFooter) imgFooter.style.display = 'none';
 
           let file;
@@ -508,7 +517,8 @@ export default function ViewLoftLeafCount() {
               const pdfBlob = pdf.output('blob');
               file = new File([pdfBlob], `${fileName}.pdf`, { type: 'application/pdf' });
           } else {
-              const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+              // Quality එක 0.95 න් 0.90 ට අඩු කිරීමෙන් size එක අඩු කරගන්න පුළුවන් (WhatsApp යවන්න ලේසියි)
+              const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.90));
               file = new File([blob], `${fileName}.jpg`, { type: 'image/jpeg' });
           }
 
@@ -547,7 +557,7 @@ export default function ViewLoftLeafCount() {
           console.error("WhatsApp Share Error: ", error);
           toast.error("Failed to share file.", { id: toastId });
       }
-  }; 
+  };
 
   return (
     <div className="p-3 sm:p-5 md:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
