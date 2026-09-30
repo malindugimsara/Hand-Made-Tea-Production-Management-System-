@@ -102,6 +102,26 @@ const THEMES = {
     badgeText: '#4d7c0f',
     particleColor: '#84cc16',
     particleType: 'leafCount', 
+  },
+
+ admin: {
+    pageBg: '#fefce8', // ඉතා ලා කහ පැහැති පසුබිමක්
+    orb1: 'rgba(22, 163, 74, 0.22)', // Green
+    orb2: 'rgba(234, 179, 8, 0.18)', // Yellow
+    orb3: 'rgba(132, 204, 22, 0.15)', // Lime Green
+    gridStroke: '#eab308', 
+    textPrimary: '#14532d', // තද කොළ පැහැය (පැහැදිලිව කියවීම සඳහා)
+    textSecondary: '#ca8a04', // තද කහ පැහැය
+    accent: '#16a34a', 
+    btnGradient: 'linear-gradient(135deg, #14532d 0%, #eab308 100%)', // තද කොළ සිට කහ පැහැයට යන Gradient එක
+    wipeGradient: 'linear-gradient(135deg, #064e3b 0%, #15803d 40%, #fde047 100%)',
+    shimmer: 'rgba(234, 179, 8, 0.12)',
+    ringFocus: 'focus:ring-green-500/25',
+    badgeBorder: '#fef08a',
+    badgeBg: '#f0fdf4',
+    badgeText: '#15803d',
+    particleColor: '#eab308', // කහ පැහැති floating අංශු
+    particleType: 'gear', // Admin සඳහා Gear අයිකනය එලෙසම තබා ඇත
   }
 };
 
@@ -244,7 +264,8 @@ export default function Login() {
     packing:   '/packing',
     factory:   '/factory',
     localSale: '/localsale',
-    manufacturer:  '/manufacturer' 
+    manufacturer:  '/manufacturer', 
+    admin: '/admin/settings'
   };
 
   const triggerThemeChange = (tab) => {
@@ -278,7 +299,7 @@ export default function Login() {
         // 1. Identify Allowed Paths dynamically based on Role
         if (userRole === 'Admin') {
             // Admins get access to all sections
-            allowed = ['handmade', 'packing', 'factory', 'localSale', 'manufacturer'];
+            allowed = ['handmade', 'packing', 'factory', 'localSale', 'manufacturer','admin'];
         } else {
             // For standard users, map the IDs saved in DB to UI theme keys
             const paths = data.allowedPaths || [];
@@ -301,6 +322,7 @@ export default function Login() {
         localStorage.setItem('userRole', data.role);
         localStorage.setItem('username', data.username);
         localStorage.setItem('allowedPaths', JSON.stringify(allowed)); // Important for Protected Routes
+        localStorage.setItem('allowedPages', JSON.stringify(data.allowedPages || []));
 
         // 3. Navigate appropriately
         if (allowed.length === 1) {
@@ -545,6 +567,16 @@ export default function Login() {
                   <button onClick={() => handleSystemSelection('manufacturer')} className="p-4 bg-white hover:bg-[#f2fcf5] border-2 border-gray-100 hover:border-[#84cc16] rounded-2xl flex items-center gap-4 transition-all duration-300 shadow-sm group">
                     <div className="p-3 bg-lime-50 rounded-xl group-hover:bg-[#84cc16] transition-colors"><ClipboardList className="text-[#65a30d] group-hover:text-white" size={24} /></div>
                     <span className="font-bold text-gray-800 text-lg">Manufacturing Section</span>
+                  </button>
+                )}
+
+                {/* ── Admin Option Button (Only Admin) ── */}
+                {allowedSystems.includes('admin') && (
+                  <button onClick={() => handleSystemSelection('admin')} className="p-4 bg-white hover:bg-gray-50 border-2 border-gray-100 hover:border-gray-500 rounded-2xl flex items-center gap-4 transition-all duration-300 shadow-sm group">
+                    <div className="p-3 bg-gray-100 rounded-xl group-hover:bg-gray-600 transition-colors">
+                      <Settings className="text-gray-600 group-hover:text-white" size={24} />
+                    </div>
+                    <span className="font-bold text-gray-800 text-lg">Admin Settings</span>
                   </button>
                 )}
               </div>
