@@ -175,7 +175,8 @@ export default function WeightAverage() {
             if (totalLabels.length > 0 && dateHeaders.length > 0) {
                 const targetTotalRowY = totalLabels[totalLabels.length - 1].y;
                 const totalRowNumbers = allTextItems.filter(i => {
-                    return Math.abs(i.y - targetTotalRowY) <= 6 && /^\d{1,3}(,\d{3})*(\.\d{1,2})?$/.test(i.str);
+                    // Updated Regex: Comma තිබුණත් නැතත් ඕනෑම දිගකින් යුත් අංක හඳුනාගැනීමට
+                    return Math.abs(i.y - targetTotalRowY) <= 6 && /^[\d,]+(\.\d{1,2})?$/.test(i.str);
                 });
 
                 dateHeaders.forEach(dh => {
