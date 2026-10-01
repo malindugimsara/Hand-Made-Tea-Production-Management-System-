@@ -1040,7 +1040,7 @@ export default function ViewLoftLeafCount() {
             <table className="w-full border-collapse border border-[#8F8F8F] text-center" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
                 <thead>
                     <tr className="text-[#000000]">
-                        <th rowSpan={3} className="border border-[#8F8F8F] text-[22px] p-3">{t.route}</th>
+                        <th rowSpan={3} className="border border-[#8F8F8F] text-[24px] p-3">{t.route}</th>
                         <th rowSpan={3} className="border border-[#8F8F8F] text-[22px] p-3">{t.colName}</th>
                         <th rowSpan={3} className="border border-[#8F8F8F] text-[22px] p-3">{t.arrTime}</th>
                         <th rowSpan={3} className="border border-[#8F8F8F] text-[22px] p-3">{t.totalKg}</th>
@@ -1085,7 +1085,7 @@ export default function ViewLoftLeafCount() {
 
                         return (
                         <tr key={idx} style={showHighlight ? { backgroundColor: '#dcfce7' } : {}}>
-                            <td className="border border-[#8F8F8F] p-4 text-[20px] font-bold font-sans">
+                            <td className="border border-[#8F8F8F] p-4 text-[24px] font-bold font-sans">
                                 {((r.route || "-").split(" - ")[0]).toUpperCase()}
                             </td>                           
                             <td className="border border-[#8F8F8F] p-4 text-[18px] font-sans font-medium text-[#374151]">{r.leafCollectorName || "-"}</td>
@@ -1097,18 +1097,18 @@ export default function ViewLoftLeafCount() {
                                 {isLate && <div className="text-[12px] uppercase mt-1" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>{t.late}</div>}
                             </td>
 
-                            <td className="border border-[#8F8F8F] p-3 text-[22px] font-sans font-semibold">{Number(r.totalLeafQtyKg || 0)}</td>
-                            <td className="border border-[#8F8F8F] p-3 text-[22px] font-sans text-[#087034] ">{r.factorySample?.isEntered ? r.factorySample.bestPct : "-"}</td>
-                            <td className="border border-[#8F8F8F] p-3 text-[22px] font-sans text-[#CE950E] ">{r.factorySample?.isEntered ? r.factorySample.belowBestPct : "-"}</td>
-                            <td className="border border-[#8F8F8F] p-3 text-[22px] font-sans text-[#DE2E17] ">{r.factorySample?.isEntered ? r.factorySample.poorPct : "-"}</td>
-                            <td className="border border-[#8F8F8F] p-3 text-[22px] font-sans text-[#087034] ">{r.collectorSample?.isEntered ? r.collectorSample.bestPct : "-"}</td>
-                            <td className="border border-[#8F8F8F] p-3 text-[22px] font-sans text-[#CE950E] ">{r.collectorSample?.isEntered ? r.collectorSample.belowBestPct : "-"}</td>
-                            <td className="border border-[#8F8F8F] p-3 text-[22px] font-sans text-[#DE2E17] ">{r.collectorSample?.isEntered ? r.collectorSample.poorPct : "-"}</td>
-                            <td className="border border-[#8F8F8F] p-3 text-[22px] font-sans font-semibold">{Number(r.calculatedKg?.bestKg || 0).toFixed(2)}</td>
-                            <td className="border border-[#8F8F8F] p-3 text-[22px] font-sans font-semibold">{Number(r.calculatedKg?.belowBestKg || 0).toFixed(2)}</td>
-                            <td className="border border-[#8F8F8F] p-3 text-[22px] font-sans font-semibold">{Number(r.calculatedKg?.poorKg || 0).toFixed(2)}</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-sans font-semibold">{Number(r.totalLeafQtyKg || 0)}</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-sans text-[#087034] ">{r.factorySample?.isEntered ? r.factorySample.bestPct : "-"}</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-sans text-[#CE950E] ">{r.factorySample?.isEntered ? r.factorySample.belowBestPct : "-"}</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-sans text-[#DE2E17] ">{r.factorySample?.isEntered ? r.factorySample.poorPct : "-"}</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-sans text-[#087034] ">{r.collectorSample?.isEntered ? r.collectorSample.bestPct : "-"}</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-sans text-[#CE950E] ">{r.collectorSample?.isEntered ? r.collectorSample.belowBestPct : "-"}</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-sans text-[#DE2E17] ">{r.collectorSample?.isEntered ? r.collectorSample.poorPct : "-"}</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-sans font-semibold">{Number(r.calculatedKg?.bestKg || 0).toFixed(2)}</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-sans font-semibold">{Number(r.calculatedKg?.belowBestKg || 0).toFixed(2)}</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-sans font-semibold">{Number(r.calculatedKg?.poorKg || 0).toFixed(2)}</td>
 
-                            <td className="border border-[#8F8F8F] p-3 text-[22px] font-bold font-sans text-[#1B6A31]">
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-bold font-sans text-[#1B6A31]">
                                 {r._calculatedRank}
                             </td>
                         </tr>
@@ -1120,22 +1120,22 @@ export default function ViewLoftLeafCount() {
                 {records.length > 0 && (
                     <tfoot>
                         <tr className="bg-[#E6F0E6] text-[#1B6A31]">
-                            <td colSpan={3} className="border border-[#8F8F8F] p-3 text-right font-bold font-sans text-[24px]">{t.totalAvg}</td>
-                            <td className="border border-[#8F8F8F] p-3 text-[24px] font-bold font-sans">{totals.tQty}</td>
-                            <td className="border border-[#8F8F8F] p-3 text-[24px] font-bold font-sans">{totals.avgFacBest} %</td>
-                            <td className="border border-[#8F8F8F] p-3 text-[24px] font-bold font-sans">{totals.avgFacBelow} %</td>
-                            <td className="border border-[#8F8F8F] p-3 text-[24px] font-bold font-sans">{totals.avgFacPoor} %</td>
-                            <td colSpan={3} className="border border-[#8F8F8F] p-3"></td>
-                            <td className="border border-[#8F8F8F] p-4 text-[24px] font-bold font-sans">{totals.bestKg}</td>
-                            <td className="border border-[#8F8F8F] p-4 text-[24px] font-bold font-sans">{totals.belowBestKg}</td>
-                            <td className="border border-[#8F8F8F] p-4 text-[24px] font-bold font-sans">{totals.poorKg}</td>
-                            <td className="border border-[#8F8F8F] p-4 text-[24px]"></td>
+                            <td colSpan={3} className="border border-[#8F8F8F] p-4 text-right font-bold font-sans text-[24px]">{t.totalAvg}</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-bold font-sans">{totals.tQty}</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-bold font-sans">{totals.avgFacBest} %</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-bold font-sans">{totals.avgFacBelow} %</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-bold font-sans">{totals.avgFacPoor} %</td>
+                            <td colSpan={3} className="border border-[#8F8F8F] p-1"></td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-bold font-sans">{totals.bestKg}</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-bold font-sans">{totals.belowBestKg}</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px] font-bold font-sans">{totals.poorKg}</td>
+                            <td className="border border-[#8F8F8F] p-1 text-[24px]"></td>
                         </tr>
                     </tfoot>
                 )}
             </table>
 
-            <div className="mt-12 pt-6 flex justify-between items-end text-[22px] font-bold font-sans text-[#374151]">
+            <div className="mt-10 pt-4 flex justify-between items-end text-[22px] font-bold font-sans text-[#374151]">
                 <div>
                     <p className="text-[#4b5563] mb-2">{t.genBy}:</p>
                     <p className="text-[#2C3A3A]">{currentUsername}</p>
@@ -1145,6 +1145,11 @@ export default function ViewLoftLeafCount() {
                     <p className="text-[#4b5563]">{t.authSig}</p>
                 </div>
             </div>
+
+            <div id="sys-image-footer" className="mt-8 text-center text-[16px] text-[#6b7280] font-sans border-t border-[#e5e7eb] pt-4">
+                Generated by Unified Management System
+            </div>
+
       </div>
 
     </div>
