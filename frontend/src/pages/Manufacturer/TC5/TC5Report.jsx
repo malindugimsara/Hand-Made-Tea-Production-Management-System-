@@ -4,6 +4,37 @@ import { Calendar, RefreshCw, FileText, Download, Save } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
+
+const generateKey = (catId, catTitle, size) => {
+    let cleanId = (catId || '').toLowerCase().trim();
+    let cleanTitle = (catTitle || '').toLowerCase().trim();
+    let cleanSize = (size || '').trim();
+
+    if (!cleanId && cleanTitle) {
+        cleanId = cleanTitle.replace(/\s+/g, '-'); 
+    }
+
+    let finalId = cleanId || 'unknown';
+    let finalSize = cleanSize || catTitle || '-';
+
+    if (cleanId === 'g/t' || cleanTitle === 'g/t' || cleanId === 'gt') finalId = 'gt';
+    else if (cleanId === 'other grades' || cleanTitle === 'other grades' || cleanId === 'others') finalId = 'others';
+    else if (cleanId === 'bopf sp' || cleanId === 'bopf sp.' || cleanId === 'bopfsp') finalId = 'bopfSp';
+    else if (cleanId === 'bopf premium' || cleanId === 'bopfpremium') finalId = 'bopfPremium';
+    else if (cleanId === 't/b' || cleanId === 'tb') finalId = 'tb';
+    else if (cleanId === 'pitigala tea' || cleanId === 'pitigala') finalId = 'pitigala';
+    else if (cleanId === 'athukorala') finalId = 'athukorala';
+    else {
+         finalId = cleanTitle.replace(/[^a-z0-9]/g, ''); 
+    }
+
+    if (finalSize.toLowerCase() === 'bopf (kg)' || finalSize.toLowerCase() === 'kg' || finalSize.toLowerCase() === 'bopf') finalSize = 'BOPF';
+    if (finalSize.toLowerCase() === 'dust (kg)' || finalSize.toLowerCase() === 'dust') finalSize = 'DUST';
+    if (finalSize.toLowerCase() === 'dust 1 (kg)' || finalSize.toLowerCase() === 'dust 1') finalSize = 'DUST 1';
+
+    return { id: finalId, title: catTitle || cleanId.toUpperCase(), size: finalSize };
+};
+
 const routeOptions = [
     { key: "c1", display: "C1" }, { key: "c2", display: "C2" }, { key: "c3", display: "C3" },
     { key: "c4", display: "C4" }, { key: "c5", display: "C5" }, { key: "c7", display: "C7" },
@@ -57,17 +88,20 @@ export default function TC5Report() {
             const token = localStorage.getItem("token");
             const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
-            const [logsRes, loftRes, pdfRes, tc5SavedRes] = await Promise.all([
+            // 💡 1. Summary API එකත් (Balance Report data) මෙතනදි Fetch කරනවා
+            const [logsRes, loftRes, pdfRes, tc5SavedRes, summaryRes] = await Promise.all([
                 fetch(`${BACKEND_URL}/api/factory-logs?month=${selectedMonth}`, { headers }),
                 fetch(`${BACKEND_URL}/api/factory-loft-leaf/report?month=${selectedMonth}`, { headers }),
                 fetch(`${BACKEND_URL}/api/pdf-totals/get?month=${selectedMonth}`, { headers }),
-                fetch(`${BACKEND_URL}/api/tc5report?month=${selectedMonth}`, { headers })
+                fetch(`${BACKEND_URL}/api/tc5report?month=${selectedMonth}`, { headers }),
+                fetch(`${BACKEND_URL}/api/summary?month=${selectedMonth}`, { headers }) // <--- අලුතින් එකතු කළා
             ]);
 
             const logsData = logsRes.ok ? await logsRes.json() : { records: [] };
             const loftData = loftRes.ok ? await loftRes.json() : { data: [] };
             const pdfData = pdfRes.ok ? await pdfRes.json() : { data: [] };
             const savedReport = tc5SavedRes.ok ? await tc5SavedRes.json() : null;
+            const summaryData = summaryRes.ok ? await summaryRes.json() : null;
 
             if (savedReport && savedReport.section5_refuseTea) {
                 setRefuseTea({
@@ -116,12 +150,81 @@ export default function TC5Report() {
                 });
             });
 
-            // Filter out grades that have NO tea at all
+            // ==============================================================================
+            // 💡 2. Balance Report එකේ "Total Black Tea Out" ගණනය කිරීම
+            // ==============================================================================
+            let calculatedBlackTeaSoldKg = 0;
+            const summaries = summaryData?.data || summaryData || [];
+            
+            if (Array.isArray(summaries)) {
+                summaries.forEach(day => {
+                    const recordDate = day.date || '';
+                    if (recordDate.startsWith(selectedMonth) && Array.isArray(day.items)) {
+                        day.items.forEach(item => {
+                            const outVal = Number(item.out) || 0;
+                            if (outVal <= 0) return;
+
+                            const { id, title, size } = generateKey(item.categoryId, item.categoryTitle, item.size);
+                            const nameLower = (id === 'others' ? size : `${title} ${size}`).toLowerCase();
+                            const idLower = id.toLowerCase();
+
+                            // හරිත තේ (Green Tea) ඉවත් කිරීම
+                            if (idLower.startsWith('gt') || nameLower.includes('green tea') || nameLower.includes('g/t')) return; 
+
+                            let multiplier = 0;
+                            if (idLower.startsWith('others') || nameLower === 'dust' || nameLower === 'dust 1' || nameLower === 'bopf') {
+                                multiplier = 1;
+                            } else if (nameLower.includes('400g') || nameLower.includes('100 bag') || nameLower.includes('t/b 100') || nameLower.endsWith(' 100')) {
+                                multiplier = 0.4;
+                            } else if (nameLower.includes('200g')) {
+                                multiplier = 0.2;
+                            } else if (nameLower.includes('100g') || nameLower.includes('25 bag') || nameLower.includes('t/b 25') || nameLower.endsWith(' 25') || nameLower.includes('welfare')) {
+                                multiplier = 0.1;
+                            } else if (nameLower.includes('50g')) {
+                                multiplier = 0.05;
+                            }
+
+                            calculatedBlackTeaSoldKg += (outVal * multiplier);
+                        });
+                    }
+                });
+            }
+
+            calculatedBlackTeaSoldKg = Number(calculatedBlackTeaSoldKg.toFixed(1));
+
+            // 💡 3. ගණනය කළ අගය BOPF වල Gifts තීරුවට map කිරීම
+            dispMap['BOPF'].gifts += calculatedBlackTeaSoldKg;
+            // ==============================================================================
+
+            // Filter out grades that have NO tea at all (BOPF අනිවාර්යයෙන් පෙන්වයි)
             let activeSec8 = Object.keys(dispMap).map(grade => {
                 const row = dispMap[grade];
                 row.total = row.auction + row.private + row.forward + row.exFactory + row.direct + row.gifts + row.other;
                 return { grade, ...row };
-            }).filter(row => row.total > 0);
+            }).filter(row => row.total > 0 || row.grade === 'BOPF');
+
+            // Database එකේ කලින් Save කරපු Data තියෙනවා නම් ඒක මුල්තැන ගන්නවා
+            if (savedReport && savedReport.section8_disposals && savedReport.section8_disposals.length > 0) {
+                // හිස් පේළි අයින් කරලා කලින් Save කරපු ටික ගන්නවා
+                activeSec8 = savedReport.section8_disposals.filter(r => r.grade && r.grade.trim() !== '');
+                
+                // BOPF පේළිය Save කරපු දත්ත වල තියෙනවද කියලා හොයනවා
+                let bopfRow = activeSec8.find(r => r.grade === 'BOPF');
+                
+                // කලින් Save කරපු Data වල BOPF පේළිය නැත්නම් අලුතින් එකතු කරනවා
+                if (!bopfRow) {
+                    bopfRow = { grade: 'BOPF', auction: 0, private: 0, forward: 0, exFactory: 0, direct: 0, gifts: 0, other: 0, total: 0 };
+                    activeSec8.push(bopfRow);
+                }
+
+                // 💡 කලින් Direct Sales වලට සේව් වෙච්ච එක අයින් කරලා, අලුත් අගය Gifts වලට දානවා
+                if (bopfRow.direct === calculatedBlackTeaSoldKg) {
+                    bopfRow.direct = 0; 
+                }
+                bopfRow.gifts = calculatedBlackTeaSoldKg;
+
+                bopfRow.total = (Number(bopfRow.auction)||0) + (Number(bopfRow.private)||0) + (Number(bopfRow.forward)||0) + (Number(bopfRow.exFactory)||0) + (Number(bopfRow.direct)||0) + (Number(bopfRow.gifts)||0) + (Number(bopfRow.other)||0);
+            }
 
             // Pad remaining empty rows up to 17 total data rows
             while (activeSec8.length < 17) {
@@ -130,6 +233,7 @@ export default function TC5Report() {
             activeSec8 = activeSec8.slice(0, 17); // Ensure strictly 17 rows
 
             const sec2 = { bf, ownLeaf, boughtLeaf, otherEstate: 0, otherFactory: 0, disposals: totalDispatch + totalLocalSale };
+            
             sec2.total = sec2.bf + sec2.ownLeaf + sec2.boughtLeaf + sec2.otherEstate + sec2.otherFactory;
             sec2.closing = sec2.total - sec2.disposals;
 
@@ -879,7 +983,7 @@ export default function TC5Report() {
                                         <td className="tc5-td border-left-fix" style={{ height: '20px' }}>&nbsp;</td>
                                         <td className="tc5-td">&nbsp;</td>
                                         <td className="tc5-td">&nbsp;</td>
-                                        <td className="tc5-td-c" style={{ color: '#cbd5e1', fontWeight: 'bold', fontSize: '16px', letterSpacing: '0.3em' }}>
+                                        <td className="tc5-td-c" style={{ color: '#6a737f', fontWeight: 'bold', fontSize: '16px', letterSpacing: '0.3em' }}>
                                             NIL
                                         </td>
                                         <td className="tc5-td">&nbsp;</td>
@@ -1249,7 +1353,7 @@ export default function TC5Report() {
                                         <td className="tc5-td" style={{ height: '22px' }}>&nbsp;</td>
                                         <td className="tc5-td">&nbsp;</td>
                                         <td className="tc5-td">&nbsp;</td>
-                                        <td className="tc5-td-c" style={{ color: '#cbd5e1', fontWeight: 'bold', fontSize: '18px', letterSpacing: '0.3em' }}>
+                                        <td className="tc5-td-c" style={{ color: '#727d8a', fontWeight: 'bold', fontSize: '18px', letterSpacing: '0.3em' }}>
                                             NIL
                                         </td>
                                         <td className="tc5-td">&nbsp;</td>
