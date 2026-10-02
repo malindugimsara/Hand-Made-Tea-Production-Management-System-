@@ -559,7 +559,7 @@ export default function TC5ManualReport() {
                                                 <div>
                                                     <span style={{ fontSize: '13px' }}>Name of Factory :</span><br />
                                                     <span style={{ fontSize: '12px' }}>කම්හලේ නම</span>
-                                                    <strong style={{ display: 'block', marginTop: '4px', fontSize: '13px' }}>ATHUKORALA HANDMADE TEA FACTORY</strong>
+                                                    <strong style={{ display: 'block', marginTop: '4px', fontSize: '13px' }}>ATHUKORALA &nbsp;HANDMADE &nbsp;TEA &nbsp;FACTORY</strong>
                                                 </div>
                                             </div>
                                         </td>
