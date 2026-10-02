@@ -200,13 +200,27 @@ export default function TC5Report() {
             let activeSec8 = Object.keys(dispMap).map(grade => {
                 const row = dispMap[grade];
                 row.total = row.auction + row.private + row.forward + row.exFactory + row.direct + row.gifts + row.other;
-                return { grade, ...row };
+                
+                // 💡 Format specific grades with spaces
+                let displayGrade = grade;
+                if (grade === 'FFEXSP1') displayGrade = 'FF EX SP 1';
+                if (grade === 'BOPSP') displayGrade = 'BOP SP';
+
+                return { grade: displayGrade, ...row };
             }).filter(row => row.total > 0 || row.grade === 'BOPF');
 
+            // Database එකේ කලින් Save කරපු Data තියෙනවා නම් ඒක මුල්තැන ගන්නවා
             // Database එකේ කලින් Save කරපු Data තියෙනවා නම් ඒක මුල්තැන ගන්නවා
             if (savedReport && savedReport.section8_disposals && savedReport.section8_disposals.length > 0) {
                 // හිස් පේළි අයින් කරලා කලින් Save කරපු ටික ගන්නවා
                 activeSec8 = savedReport.section8_disposals.filter(r => r.grade && r.grade.trim() !== '');
+                
+                // 💡 කලින් සේව් කරපු දත්ත වල නම්වලටත් ස්වයංක්‍රීයව හිස්තැන් එකතු කිරීම
+                activeSec8.forEach(r => {
+                    let cleanG = r.grade.toUpperCase().replace(/\s+/g, "");
+                    if (cleanG === 'FFEXSP1') r.grade = 'FF EX SP 1';
+                    if (cleanG === 'BOPSP') r.grade = 'BOP SP';
+                });
                 
                 // BOPF පේළිය Save කරපු දත්ත වල තියෙනවද කියලා හොයනවා
                 let bopfRow = activeSec8.find(r => r.grade === 'BOPF');
@@ -342,7 +356,15 @@ export default function TC5Report() {
     const handleSec8Change = (index, field, val) => {
         const updatedSec8 = [...reportData.sec8];
         if (field === 'grade') {
-            updatedSec8[index][field] = val;
+            // 💡 ටයිප් කරන අතරතුරේදී ස්වයංක්‍රීයව හිස්තැන් හැදීම
+            let cleanVal = val.toUpperCase().replace(/\s+/g, "");
+            if (cleanVal === 'FFEXSP1') {
+                updatedSec8[index][field] = 'FF EX SP 1';
+            } else if (cleanVal === 'BOPSP') {
+                updatedSec8[index][field] = 'BOP SP';
+            } else {
+                updatedSec8[index][field] = val;
+            }
         } else {
             const num = Number(val) || 0;
             updatedSec8[index][field] = num;
