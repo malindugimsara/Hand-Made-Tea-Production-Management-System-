@@ -55,6 +55,7 @@ import { Production } from './models/Production.js';
 import pdfTotalRouter from './manufacturer/routes/pdfTotalRoutes.js';
 import tc5router from './manufacturer/routes/tc5ReportRoutes.js';
 import teaCenterIssueRouter from './Packing/Routes/TeaCenterIssueRouter.js';
+import tc5ManualReportRouter from './manufacturer/routes/tc5ManualReportRoutes.js';
 
 dotenv.config();
 const app = express();
@@ -209,7 +210,7 @@ app.use('/api/rolling-room-sheet', rollingRouter);
 app.use('/api/firing-section', FiringRouter); 
 app.use('/api/hydro-meters', hydroMeterRouter);
 app.use('/api/pdf-totals', pdfTotalRouter);
-app.use('/api/tc5report', tc5router); 
+app.use('/api/tc5manualreport', tc5ManualReportRouter); 
 
 app.listen(3000, () => {
   console.log('Server is running on port 3000');

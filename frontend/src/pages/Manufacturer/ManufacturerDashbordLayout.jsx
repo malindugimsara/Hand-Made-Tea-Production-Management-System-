@@ -145,6 +145,7 @@ const DATA = {
             { title: 'G/L Ranking Report', url: '/manufacturer/green-leaf-monthly-ranking', adminOnly: true, nonViewer: true },
             { title: 'G/L Quality Report', url: '/manufacturer/green-leaf-monthly-report', adminOnly: true, nonViewer: true },
             { title: 'TC5 Report', url: '/manufacturer/tc5report'},
+            { title: 'TC5 Manual Report', url: '/manufacturer/tc5manualreport'},
           ],
         },
       ],
