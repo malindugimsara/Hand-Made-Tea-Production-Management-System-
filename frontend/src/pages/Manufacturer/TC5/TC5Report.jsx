@@ -43,7 +43,7 @@ const routeOptions = [
 
 const PREDEFINED_GRADES = [
     'FBOP', 'FBOP1', 'FBOPF', 'FBOPF1', 'OP', 'OPA', 'OP1', 'PEKOE',
-    'PEKOE1', 'BOP1', 'BOPSP', 'BOPA', 'BM', 'FNGS', 'BOPF', 'BOPIA'
+    'PEKOE1', 'BOP1', 'BOPSP', 'BOPA', 'BM', 'FNGS', 'BOPF', 'BOPIA', 'DUST1'
 ];
 
 const normalizeTeaType = (type) => {
@@ -52,7 +52,7 @@ const normalizeTeaType = (type) => {
 };
 
 // Initial empty 17 rows to prevent undefined errors before fetch
-const initialSec8 = Array.from({ length: 17 }, () => ({
+const initialSec8 = Array.from({ length: 19 }, () => ({
     grade: '', auction: 0, private: 0, forward: 0, exFactory: 0, direct: 0, gifts: 0, other: 0, total: 0
 }));
 
@@ -227,12 +227,15 @@ export default function TC5Report() {
             }
 
             // Pad remaining empty rows up to 17 total data rows
-            while (activeSec8.length < 17) {
+            while (activeSec8.length < 19) {
                 activeSec8.push({ grade: '', auction: 0, private: 0, forward: 0, exFactory: 0, direct: 0, gifts: 0, other: 0, total: 0 });
             }
-            activeSec8 = activeSec8.slice(0, 17); // Ensure strictly 17 rows
+            activeSec8 = activeSec8.slice(0, 19); // Ensure strictly 19 rows
 
-            const sec2 = { bf, ownLeaf, boughtLeaf, otherEstate: 0, otherFactory: 0, disposals: totalDispatch + totalLocalSale };
+            // Calculate the total from Section 8 dynamically
+            const currentSec8Total = activeSec8.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
+
+            const sec2 = { bf, ownLeaf, boughtLeaf, otherEstate: 0, otherFactory: 0, disposals: currentSec8Total };
             
             sec2.total = sec2.bf + sec2.ownLeaf + sec2.boughtLeaf + sec2.otherEstate + sec2.otherFactory;
             sec2.closing = sec2.total - sec2.disposals;
@@ -243,7 +246,7 @@ export default function TC5Report() {
                 sec2.boughtLeaf = savedReport.section2_manufacture.boughtLeaf ?? sec2.boughtLeaf;
                 sec2.otherEstate = savedReport.section2_manufacture.otherEstate ?? sec2.otherEstate;
                 sec2.otherFactory = savedReport.section2_manufacture.otherFactory ?? sec2.otherFactory;
-                sec2.disposals = savedReport.section2_manufacture.disposals ?? sec2.disposals;
+                sec2.disposals = currentSec8Total; // Force disposals to ALWAYS match Section 8 Total
                 sec2.total = sec2.bf + sec2.ownLeaf + sec2.boughtLeaf + sec2.otherEstate + sec2.otherFactory;
                 sec2.closing = sec2.total - sec2.disposals;
             }
@@ -345,7 +348,15 @@ export default function TC5Report() {
             updatedSec8[index][field] = num;
             updatedSec8[index].total = (updatedSec8[index].auction || 0) + (updatedSec8[index].private || 0) + (updatedSec8[index].forward || 0) + (updatedSec8[index].exFactory || 0) + (updatedSec8[index].direct || 0) + (updatedSec8[index].gifts || 0) + (updatedSec8[index].other || 0);
         }
-        setReportData({ ...reportData, sec8: updatedSec8 });
+
+        // Section 8 Total ගණනය කර Section 2 හි 'Disposals' වෙත සජීවීව යෙදීම
+        const newSec8Total = updatedSec8.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
+        
+        const updatedSec2 = { ...reportData.sec2 };
+        updatedSec2.disposals = newSec8Total;
+        updatedSec2.closing = updatedSec2.total - updatedSec2.disposals;
+
+        setReportData({ ...reportData, sec8: updatedSec8, sec2: updatedSec2 });
     };
 
     const refBalance = (Number(refuseTea.bf) || 0) + (Number(refuseTea.manufactured) || 0) - ((Number(refuseTea.sold) || 0) + (Number(refuseTea.manure) || 0) + (Number(refuseTea.other) || 0));
@@ -1136,77 +1147,77 @@ export default function TC5Report() {
                                 <thead className="bg-shade">
                                     <tr>
                                         <th className="tc5-th" style={{ width: '8%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Invoice<br />No</div>
                                                 <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>ඉන්වොයිස්<br />අංකය</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>1</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '10%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Grade</div>
                                                 <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>තේ<br />වර්ගය</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>2</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '12%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>For sale at colombo<br />auction</div>
                                                 <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>කොළඹ<br />වෙන්දේසියේ<br />විකිණීම සඳහා</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>3</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Private<br />sales<br />scheme</div>
                                                 <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>පුද්ගලික<br />විකිණීම<br />මත<br />විකිණීම<br />සඳහා</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>4</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Forward<br />contracts</div>
                                                 <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>මතු අදාල<br />ගිවිසුම් මත<br />විකිණීම සඳහා</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>5</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Ex<br />factory<br />sales</div>
                                                 <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>කර්මාන්ත<br />ශාලාවේදී<br />විකිණීම</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>6</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '10%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Exported<br />direct<br />in value<br />added form</div>
                                                 <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>එකතු කල<br />අගය සහිත<br />සෘජු<br />අපනයනය</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>7</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '10%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Gifts to<br />employee &<br />others</div>
                                                 <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>සේවකයන්ට<br />සහ වෙනත්<br />ප්‍රදානය<br />කිරීම්</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>8</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '12%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Tea<br />manufactured<br />for other estates<br />and returned</div>
                                                 <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>වෙනත් වතු වල<br />තේ දළු වලින්<br />නිපදවා ආපසු<br />භාරදුන් ප්‍රමාණය</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>9</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Direct<br />sales</div>
                                                 <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>සෘජු<br />විකිණීම්</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>10</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '10%', padding: '2px', backgroundColor: '#f3f4f6' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Total</div>
                                                 <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>මුළු<br />එකතුව</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>11</strong></div>
