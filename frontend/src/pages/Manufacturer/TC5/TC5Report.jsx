@@ -704,7 +704,7 @@ export default function TC5Report() {
                                                 UNDER THE TEA CONTROL ACT NO 51 OF 1957
                                             </div>
 
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '12px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '14px' }}>
                                                 <div style={{ flex: 1, display: 'flex', alignItems: 'baseline' }}>
                                                     <span style={{ fontWeight: 'bold' }}>20</span>
                                                     <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '30px', textAlign: 'center', fontWeight: 'bold', padding: '0 2px' }}>
@@ -748,7 +748,7 @@ export default function TC5Report() {
                                                 <span style={{ fontWeight: 'bold', fontSize: '13px' }}>1.2</span>
                                                 <div>
                                                     <span style={{ fontSize: '13px' }}>Registered No</span><br />
-                                                    <span style={{ fontSize: '12px' }}>ලියාපදිංචි අංකය</span>
+                                                    <span style={{ fontSize: '13px' }}>ලියාපදිංචි අංකය</span>
                                                     <strong style={{ display: 'block', marginTop: '4px', letterSpacing: '1px', fontSize: '13px' }}>MF1398 </strong>
                                                 </div>
                                             </div>
@@ -758,7 +758,7 @@ export default function TC5Report() {
                                                 <span style={{ fontWeight: 'bold', fontSize: '13px' }}>1.3</span>
                                                 <div>
                                                     <span style={{ fontSize: '13px' }}>Elevation</span><br />
-                                                    <span style={{ fontSize: '12px' }}>පිහිටීම</span>
+                                                    <span style={{ fontSize: '13px' }}>පිහිටීම</span>
                                                     <strong style={{ display: 'block', marginTop: '4px', fontSize: '13px' }}>Low Grown</strong>
                                                 </div>
                                             </div>
@@ -772,8 +772,8 @@ export default function TC5Report() {
                                             <span style={{ fontSize: '12px' }}>පාරම්පරික සකස් කළ තේ නිෂ්පාදනය සහ තොග තත්වය</span>
                                         </td>
                                         <td className="tc5-td bg-shade" style={{ verticalAlign: 'middle' }}>
-                                            <span style={{ fontSize: '12px' }}>Management Type</span><br />
-                                            <span style={{ fontSize: '11px' }}>කළමනාකරණ කාණ්ඩය</span>
+                                            <span style={{ fontSize: '13px' }}>Management Type</span><br />
+                                            <span style={{ fontSize: '12px' }}>කළමනාකරණ කාණ්ඩය</span>
                                         </td>
                                         <td className="tc5-td" style={{ padding: 0 }}>
                                             <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '11px' }}>
@@ -821,15 +821,15 @@ export default function TC5Report() {
                                             </div>
                                         </th>
                                         <th className="tc5-th" rowSpan="3" style={{ width: '13%' }}>
-                                            <span style={{ fontSize: '11px' }}>Stock of tea at the beginning of the month</span><br /><br />
-                                            <span style={{ fontSize: '10px' }}>මාසය ආරම්භයේ දී තේ තොගය</span>
+                                            <span style={{ fontSize: '13px' }}>Stock of tea at the beginning of the month</span><br /><br />
+                                            <span style={{ fontSize: '12px' }}>මාසය ආරම්භයේ දී තේ තොගය</span>
                                         </th>
-                                        <th className="tc5-th" colSpan="4" style={{ textAlign: 'left', padding: '2px', fontSize: '12px' }}>
+                                        <th className="tc5-th" colSpan="4" style={{ textAlign: 'left', padding: '2px', fontSize: '13px' }}>
                                             Tel No / දුරකථන අංකය : <strong></strong>
                                         </th>
                                         <th className="tc5-th" colSpan="3" style={{ textAlign: 'left', padding: '2px' }}>
-                                            <span style={{ fontSize: '11px' }}>Miscellaneous receipt of made tea</span><br />
-                                            <span style={{ fontSize: '10px' }}>වෙනත් සකස් කල තේ ලබා ගත් මාර්ග</span>
+                                            <span style={{ fontSize: '13px' }}>Miscellaneous receipt of made tea</span><br />
+                                            <span style={{ fontSize: '12px' }}>වෙනත් සකස් කල තේ ලබා ගත් මාර්ග</span>
                                         </th>
                                     </tr>
                                     <tr>
@@ -837,40 +837,40 @@ export default function TC5Report() {
                                             <strong>Manufacture / නිෂ්පාදනය කිරීම</strong>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '11%' }}>
-                                            <span style={{ fontSize: '11px' }}>Total</span><br /><br />
-                                            <span style={{ fontSize: '10px' }}>එකතුව</span><br /><br />
+                                            <span style={{ fontSize: '13px' }}>Total</span><br /><br />
+                                            <span style={{ fontSize: '12px' }}>එකතුව</span><br /><br />
                                             <center><strong>5</strong></center>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '13%' }}>
-                                            <span style={{ fontSize: '11px' }}>Disposals during the month</span><br />
-                                            <span style={{ fontSize: '10px' }}>මාසය තුල අපහරණය කළ ප්‍රමාණය</span><br />
+                                            <span style={{ fontSize: '12px' }}>Disposals during the month</span><br />
+                                            <span style={{ fontSize: '11px' }}>මාසය තුල අපහරණය කළ ප්‍රමාණය</span><br />
                                             <center style={{ marginTop: '8px' }}><strong>6</strong></center>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '14%' }}>
-                                            <span style={{ fontSize: '11px' }}>Stock of tea at the end of the month</span><br />
-                                            <span style={{ fontSize: '10px' }}>මාසය අවසානයේ ඉතිරි තේ තොගය</span><br />
+                                            <span style={{ fontSize: '12px' }}>Stock of tea at the end of the month</span><br />
+                                            <span style={{ fontSize: '11px' }}>මාසය අවසානයේ ඉතිරි තේ තොගය</span><br />
                                             <center style={{ marginTop: '8px' }}><strong>7</strong></center>
                                         </th>
                                     </tr>
                                     <tr>
                                         <th className="tc5-th border-left-fix" style={{ width: '11%' }}>
-                                            <span style={{ fontSize: '11px' }}>From own leaf</span><br /><br />
-                                            <span style={{ fontSize: '10px' }}>තම වත්තේ දළු වලින්</span><br />
+                                            <span style={{ fontSize: '12px' }}>From own leaf</span><br /><br />
+                                            <span style={{ fontSize: '12px' }}>තම වත්තේ දළු වලින්</span><br />
                                             <center style={{ marginTop: '4px' }}><strong>1</strong></center>
                                         </th>
                                         <th className="tc5-th" style={{ width: '11%' }}>
-                                            <span style={{ fontSize: '11px' }}>From leaf of other estates</span><br />
-                                            <span style={{ fontSize: '10px' }}>වෙනත් වතුවල දළු වලින්</span><br />
+                                            <span style={{ fontSize: '12px' }}>From leaf of other estates</span><br />
+                                            <span style={{ fontSize: '11px' }}>වෙනත් වතුවල දළු වලින්</span><br />
                                             <center style={{ marginTop: '4px' }}><strong>2</strong></center>
                                         </th>
                                         <th className="tc5-th" style={{ width: '11%' }}>
-                                            <span style={{ fontSize: '11px' }}>From bought leaf</span><br /><br />
-                                            <span style={{ fontSize: '10px' }}>මිලට ගත් දළු වලින්</span><br />
+                                            <span style={{ fontSize: '12px' }}>From bought leaf</span><br /><br />
+                                            <span style={{ fontSize: '11px' }}>මිලට ගත් දළු වලින්</span><br />
                                             <center style={{ marginTop: '4px' }}><strong>3</strong></center>
                                         </th>
                                         <th className="tc5-th" style={{ width: '13%' }}>
-                                            <span style={{ fontSize: '11px' }}>Manufactured by other factories</span><br />
-                                            <span style={{ fontSize: '10px' }}>වෙනත් කම්හල් මගින් නිපදවාගත්</span><br />
+                                            <span style={{ fontSize: '12px' }}>Manufactured by other factories</span><br />
+                                            <span style={{ fontSize: '11px' }}>වෙනත් කම්හල් මගින් නිපදවාගත්</span><br />
                                             <center style={{ marginTop: '4px' }}><strong>4</strong></center>
                                         </th>
                                     </tr>
@@ -906,11 +906,11 @@ export default function TC5Report() {
                                     <tr>
                                         <td className="tc5-td-c" style={{ width: '3%', fontWeight: 'bold', fontSize: '13px' }}>3</td>
                                         <td className="tc5-td" style={{ width: '55%', verticalAlign: 'middle' }}>
-                                            <span style={{ fontSize: '13px' }}>Average Green Tea Leaf Standard</span><br />
-                                            <span style={{ fontSize: '12px' }}>සාමාන්‍ය අමු තේ දළු ප්‍රමිතිය</span>
+                                            <span style={{ fontSize: '14px' }}>Average Green Tea Leaf Standard</span><br />
+                                            <span style={{ fontSize: '13px' }}>සාමාන්‍ය අමු තේ දළු ප්‍රමිතිය</span>
                                         </td>
                                         <td className="tc5-td-c" style={{ width: '14%', padding: '2px' }}>
-                                            <span style={{ fontSize: '12px' }}>Best</span><br /><span style={{ fontSize: '11px' }}>හොඳ</span><br />
+                                            <span style={{ fontSize: '13px' }}>Best</span><br /><span style={{ fontSize: '13px' }}>හොඳ</span><br />
                                             {generatingPdf ? (
                                                 <span style={{ display: 'block', fontWeight: 'bold', marginTop: '2px', fontSize: '16px' }}>{reportData.sec3.best > 0 ? `${reportData.sec3.best}%` : '-'}</span>
                                             ) : (
@@ -921,7 +921,7 @@ export default function TC5Report() {
                                             )}
                                         </td>
                                         <td className="tc5-td-c" style={{ width: '14%', padding: '2px' }}>
-                                            <span style={{ fontSize: '12px' }}>Below Best</span><br /><span style={{ fontSize: '11px' }}>සාමාන්‍ය</span><br />
+                                            <span style={{ fontSize: '13px' }}>Below Best</span><br /><span style={{ fontSize: '13px' }}>සාමාන්‍ය</span><br />
                                             {generatingPdf ? (
                                                 <span style={{ display: 'block', fontWeight: 'bold', marginTop: '2px', fontSize: '16px' }}>{reportData.sec3.below > 0 ? `${reportData.sec3.below}%` : '-'}</span>
                                             ) : (
@@ -932,7 +932,7 @@ export default function TC5Report() {
                                             )}
                                         </td>
                                         <td className="tc5-td-c" style={{ width: '14%', padding: '2px' }}>
-                                            <span style={{ fontSize: '12px' }}>Poor</span><br /><span style={{ fontSize: '11px' }}>දුර්වල</span><br />
+                                            <span style={{ fontSize: '13px' }}>Poor</span><br /><span style={{ fontSize: '13px' }}>දුර්වල</span><br />
                                             {generatingPdf ? (
                                                 <span style={{ display: 'block', fontWeight: 'bold', marginTop: '2px', fontSize: '16px' }}>{reportData.sec3.poor > 0 ? `${reportData.sec3.poor}%` : '-'}</span>
                                             ) : (
@@ -952,47 +952,47 @@ export default function TC5Report() {
                                     <tr>
                                         <td className="tc5-td-c" rowSpan="6" style={{ width: '3%', fontWeight: 'bold', fontSize: '13px', borderRight: '1px solid #000000 !important' }}>4</td>
                                         <td className="tc5-td" colSpan="8" style={{ textAlign: 'left', fontWeight: 'bold' }}>
-                                            <span style={{ fontSize: '13px' }}>Details of Private Sales</span><br /><span style={{ fontSize: '12px', fontWeight: 'normal' }}>පෞද්ගලික විකිණීම් පිළිබඳ විස්තර</span>
+                                            <span style={{ fontSize: '14px' }}>Details of Private Sales</span><br /><span style={{ fontSize: '13px', fontWeight: 'normal' }}>පෞද්ගලික විකිණීම් පිළිබඳ විස්තර</span>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td className="tc5-td-c bg-shade" style={{ width: '12%', lineHeight: '1.2', padding: '2px' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: 'bold' }}>Garden marks</div>
-                                            <div style={{ fontSize: '10px' }}>වෙළඳ ලකුණ</div>
+                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Garden marks</div>
+                                            <div style={{ fontSize: '13px' }}>වෙළඳ ලකුණ</div>
                                         </td>
                                         <td className="tc5-td-c bg-shade" style={{ width: '10%', lineHeight: '1.2', padding: '2px' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: 'bold' }}>Invoice No</div>
-                                            <div style={{ fontSize: '10px' }}>ඉන්වොයිස් අංකය</div>
+                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Invoice No</div>
+                                            <div style={{ fontSize: '13px' }}>ඉන්වොයිස් අංකය</div>
                                         </td>
                                         <td className="tc5-td-c bg-shade" style={{ width: '9%', lineHeight: '1.2', padding: '2px' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: 'bold' }}>Grade</div>
-                                            <div style={{ fontSize: '10px' }}>වර්ගය</div>
+                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Grade</div>
+                                            <div style={{ fontSize: '13px' }}>වර්ගය</div>
                                         </td>
                                         <td className="tc5-td bg-shade" style={{ width: '23%', textAlign: 'left', lineHeight: '1.2', padding: '2px' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: 'bold' }}>Name of buyers</div>
-                                            <div style={{ fontSize: '10px' }}>ගැණුම්කරුවන්ගේ නම</div>
+                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Name of buyers</div>
+                                            <div style={{ fontSize: '12px' }}>ගැණුම්කරුවන්ගේ නම</div>
                                         </td>
                                         <td className="tc5-td-c bg-shade" style={{ width: '10%', lineHeight: '1.2', padding: '2px' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: 'bold' }}>Date of sale</div>
-                                            <div style={{ fontSize: '10px' }}>විකුණුම් දිනය</div>
+                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Date of sale</div>
+                                            <div style={{ fontSize: '13px' }}>විකුණුම් දිනය</div>
                                         </td>
                                         <td className="tc5-td-c bg-shade" style={{ width: '11%', lineHeight: '1.1', verticalAlign: 'middle', padding: '2px' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: 'bold' }}>Date of panel approved</div>
-                                            <div style={{ fontSize: '10px', marginTop: '1px' }}>මණ්ඩල අනුමත...</div>
+                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Date of panel approved</div>
+                                            <div style={{ fontSize: '13px', marginTop: '1px' }}>මණ්ඩල අනුමත...</div>
                                         </td>
                                         <td className="tc5-td-c bg-shade" style={{ width: '11%', padding: 0, verticalAlign: 'top' }}>
-                                            <div style={{ padding: '2px', borderBottom: '1px solid #000', fontWeight: 'bold', fontSize: '11px', lineHeight: '1.1' }}>
+                                            <div style={{ padding: '2px', borderBottom: '1px solid #000', fontWeight: 'bold', fontSize: '13px', lineHeight: '1.1' }}>
                                                 <div>Price per Kg</div>
-                                                <div style={{ fontSize: '10px', fontWeight: 'normal' }}>මිල කිලෝ එකකට</div>
+                                                <div style={{ fontSize: '12px', fontWeight: 'normal' }}>මිල කිලෝ එකකට</div>
                                             </div>
-                                            <div style={{ display: 'flex', fontSize: '10px', fontWeight: 'bold' }}>
+                                            <div style={{ display: 'flex', fontSize: '12px', fontWeight: 'bold' }}>
                                                 <div style={{ width: '50%', borderRight: '1px solid #000', padding: '2px 0', textAlign: 'center' }}>Rs. රු.</div>
                                                 <div style={{ width: '50%', padding: '2px 0', textAlign: 'center' }}>Cts ශත</div>
                                             </div>
                                         </td>
                                         <td className="tc5-td-c bg-shade" style={{ width: '10%', lineHeight: '1.2', padding: '2px' }}>
-                                            <div style={{ fontSize: '11px', fontWeight: 'bold' }}>Weight</div>
-                                            <div style={{ fontSize: '10px' }}>Kgs බර</div>
+                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Weight</div>
+                                            <div style={{ fontSize: '12px' }}>Kgs බර</div>
                                         </td>
                                     </tr>
                                     {/* Row 1 */}
@@ -1066,16 +1066,16 @@ export default function TC5Report() {
                                     <tr>
                                         <td className="tc5-td-c" rowSpan="3" style={{ width: '3%', fontWeight: 'bold', fontSize: '13px', borderRight: '1px solid #000000 !important' }}>5</td>
                                         <td className="tc5-td" colSpan="6" style={{ textAlign: 'left' }}>
-                                            <strong style={{ fontSize: '13px' }}>Refuse Tea</strong> <span style={{ fontSize: '12px' }}>කසල තේ</span>
+                                            <strong style={{ fontSize: '15px' }}>Refuse Tea</strong> <span style={{ fontSize: '15px' }}>කසල තේ</span>
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td className="tc5-td bg-shade" style={{ width: '16%', textAlign: 'left', padding: '2px' }}><div style={{ fontSize: '11px' }}>Stock brought<br />forward from previous month<br /><span style={{ fontSize: '10px' }}>ඉකුත් මාසයෙන් ඉදිරියට ගෙන ආ තොගය</span><br /><br /><center><strong>1</strong></center></div></td>
-                                        <td className="tc5-td bg-shade" style={{ width: '16%', textAlign: 'left', padding: '2px' }}><div style={{ fontSize: '11px' }}>Manufactured<br />during the month<br /><span style={{ fontSize: '10px' }}>මාසය තුල නිපැයුම</span><br /><br /><br /><center><strong>2</strong></center></div></td>
-                                        <td className="tc5-td bg-shade" style={{ width: '16%', textAlign: 'left', padding: '2px' }}><div style={{ fontSize: '11px' }}>Quantity<br />sold<br /><span style={{ fontSize: '10px' }}>විකුණු ප්‍රමාණය</span><br /><br /><br /><center><strong>3</strong></center></div></td>
-                                        <td className="tc5-td bg-shade" style={{ width: '16%', textAlign: 'left', padding: '2px' }}><div style={{ fontSize: '11px' }}>Quantity used<br />as manure<br /><span style={{ fontSize: '10px' }}>පොහොර ලෙස යෙදූ ප්‍රමාණය</span><br /><br /><center><strong>4</strong></center></div></td>
-                                        <td className="tc5-td bg-shade" style={{ width: '18%', textAlign: 'left', padding: '2px' }}><div style={{ fontSize: '11px' }}>Other disposals<br /><br /><span style={{ fontSize: '10px' }}>වෙනත් අපහරණයන්</span><br /><br /><br /><center><strong>5</strong></center></div></td>
-                                        <td className="tc5-td bg-shade" style={{ width: '15%', textAlign: 'left', padding: '2px' }}><div style={{ fontSize: '11px' }}>Balance stock<br /><br /><span style={{ fontSize: '10px' }}>ඉතිරි තොගය</span><br /><br /><br /><center><strong>6</strong></center></div></td>
+                                        <td className="tc5-td bg-shade" style={{ width: '16%', textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '13px' }}>Stock brought<br />forward from previous month<br /><span style={{ fontSize: '13px' }}>ඉකුත් මාසයෙන් ඉදිරියට ගෙන ආ තොගය</span><br /><br /><center><strong>1</strong></center></div></td>
+                                        <td className="tc5-td bg-shade" style={{ width: '16%', textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '13px' }}>Manufactured<br />during the month<br /><span style={{ fontSize: '13px' }}>මාසය තුල නිපැයුම</span><br /><br /><br /><center><strong>2</strong></center></div></td>
+                                        <td className="tc5-td bg-shade" style={{ width: '16%', textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '13px' }}>Quantity<br />sold<br /><span style={{ fontSize: '13px' }}>විකුණු ප්‍රමාණය</span><br /><br /><br /><center><strong>3</strong></center></div></td>
+                                        <td className="tc5-td bg-shade" style={{ width: '16%', textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '13px' }}>Quantity used<br />as manure<br /><span style={{ fontSize: '13px' }}>පොහොර ලෙස යෙදූ ප්‍රමාණය</span><br /><br /><center><strong>4</strong></center></div></td>
+                                        <td className="tc5-td bg-shade" style={{ width: '18%', textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '13px' }}>Other disposals<br /><br /><span style={{ fontSize: '13px' }}>වෙනත් අපහරණයන්</span><br /><br /><br /><center><strong>5</strong></center></div></td>
+                                        <td className="tc5-td bg-shade" style={{ width: '15%', textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '13px' }}>Balance stock<br /><br /><span style={{ fontSize: '13px' }}>ඉතිරි තොගය</span><br /><br /><br /><center><strong>6</strong></center></div></td>
                                     </tr>
                                     <tr>
                                         <td className="tc5-td-c border-left-fix" style={{ padding: '0' }}>
@@ -1105,15 +1105,15 @@ export default function TC5Report() {
                                         <td className="tc5-td-c" style={{ width: '3%', fontWeight: 'bold', fontSize: '13px' }}>6</td>
                                         <td className="tc5-td" colSpan="2" style={{ padding: '2px 4px' }}>
                                             <strong style={{ fontSize: '13px' }}>Details of Disposal of Refuse Tea:</strong><br />
-                                            <span style={{ fontSize: '12px' }}>කසල තේ අපහරණය පිළිබඳ වැඩිමනත් විස්තර:</span>
+                                            <span style={{ fontSize: '13px' }}>කසල තේ අපහරණය පිළිබඳ වැඩිමනත් විස්තර:</span>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td className="tc5-td-c" style={{ width: '3%', fontWeight: 'bold', fontSize: '13px' }}>7</td>
                                         <td className="tc5-td" style={{ width: '48%', height: '75px', verticalAlign: 'top', padding: '4px' }}>
-                                            <div style={{ fontWeight: 'bold', fontSize: '12px' }}>Name of brokers</div>
-                                            <div style={{ fontSize: '11px', marginBottom: '2px' }}>තැරැව්කරුවන්ගේ නම</div>
-                                            <div style={{ lineHeight: '1.4', fontSize: '12px' }}>
+                                            <div style={{ fontWeight: 'bold', fontSize: '13px' }}>Name of brokers</div>
+                                            <div style={{ fontSize: '12px', marginBottom: '2px' }}>තැරැව්කරුවන්ගේ නම</div>
+                                            <div style={{ lineHeight: '1.4', fontSize: '13px' }}>
                                                 <div>1. Lanka Commodity Brokers Ltd.</div>
                                                 <div>2. Bartleet Produce Marketing (Pvt) Ltd.</div>
                                                 <div style={{ color: '#4b5563' }}>3.........................................................................</div>
@@ -1121,9 +1121,9 @@ export default function TC5Report() {
                                             </div>
                                         </td>
                                         <td className="tc5-td" style={{ width: '49%', verticalAlign: 'top', padding: '4px' }}>
-                                            <div style={{ fontWeight: 'bold', fontSize: '12px' }}>Selling marks</div>
-                                            <div style={{ fontSize: '11px', marginBottom: '2px' }}>වෙළඳ සලකුණ</div>
-                                            <div style={{ lineHeight: '1.4', fontSize: '12px' }}>
+                                            <div style={{ fontWeight: 'bold', fontSize: '13px' }}>Selling marks</div>
+                                            <div style={{ fontSize: '12px', marginBottom: '2px' }}>වෙළඳ සලකුණ</div>
+                                            <div style={{ lineHeight: '1.4', fontSize: '13px' }}>
                                                 <div>1. Athukorala Group Super</div>
                                                 <div>2. Athukorala Group</div>
                                                 <div>3. Pitigala Tea</div>
@@ -1159,89 +1159,89 @@ export default function TC5Report() {
                     <div className="bg-white shadow-xl overflow-hidden mt-8 mb-24" style={{ width: '794px', height: '1123px' }}>
                         <div id="tc5-page-2" className="tc5-paper h-full flex flex-col relative box-border">
 
-                            <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '2px' }}>
+                            <div style={{ fontWeight: 'bold', fontSize: '15px', marginBottom: '2px' }}>
                                 08. Details of disposals of made tea<br />
-                                <span style={{ fontSize: '13px', fontWeight: 'normal' }}>සකස් කළ තේ අපහරණය කිරීම පිළිබඳ විස්තරය</span>
+                                <span style={{ fontSize: '14px', fontWeight: 'normal' }}>සකස් කළ තේ අපහරණය කිරීම පිළිබඳ විස්තරය</span>
                             </div>
 
                             {/* TABLE 8: DISPOSALS OF MADE TEA (Fully Editable Section 8 Table Inputs) */}
                             <table className="tc5-table tc5-table-first" style={{ textAlign: 'center', fontSize: '13px', marginBottom: '8px' }}>
                                 <thead className="bg-shade">
                                     <tr>
-                                        <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
+                                        <th className="tc5-th" style={{ width: '8%',  padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Invoice<br />No</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>ඉන්වොයිස්<br />අංකය</div>
+                                                <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Invoice<br />No</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>ඉන්වොයිස්<br />අංකය</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>1</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '11%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Grade</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>තේ<br />වර්ගය</div>
+                                                <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Grade</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>තේ<br />වර්ගය</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>2</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '12%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>For sale at colombo<br />auction</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>කොළඹ<br />වෙන්දේසියේ<br />විකිණීම සඳහා</div>
+                                                <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>For sale at colombo<br />auction</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>කොළඹ<br />වෙන්දේසියේ<br />විකිණීම සඳහා</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>3</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Private<br />sales<br />scheme</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>පුද්ගලික<br />විකිණීම<br />මත<br />විකිණීම<br />සඳහා</div>
+                                                <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Private<br />sales<br />scheme</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>පුද්ගලික<br />විකිණීම<br />මත<br />විකිණීම<br />සඳහා</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>4</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Forward<br />contracts</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>මතු අදාල<br />ගිවිසුම් මත<br />විකිණීම සඳහා</div>
+                                                <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Forward<br />contracts</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>මතු අදාල<br />ගිවිසුම් මත<br />විකිණීම සඳහා</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>5</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Ex<br />factory<br />sales</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>කර්මාන්ත<br />ශාලාවේදී<br />විකිණීම</div>
+                                                <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Ex<br />factory<br />sales</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>කර්මාන්ත<br />ශාලාවේදී<br />විකිණීම</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>6</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '10%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Exported<br />direct<br />in value<br />added form</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>එකතු කල<br />අගය සහිත<br />සෘජු<br />අපනයනය</div>
+                                                <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Exported<br />direct<br />in value<br />added form</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>එකතු කල<br />අගය සහිත<br />සෘජු<br />අපනයනය</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>7</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '10%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Gifts to<br />employee &<br />others</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>සේවකයන්ට<br />සහ වෙනත්<br />ප්‍රදානය<br />කිරීම්</div>
+                                                <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Gifts to<br />employee &<br />others</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>සේවකයන්ට<br />සහ වෙනත්<br />ප්‍රදානය<br />කිරීම්</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>8</strong></div>
                                             </div>
                                         </th>
-                                        <th className="tc5-th" style={{ width: '12%', padding: '2px' }}>
+                                        <th className="tc5-th" style={{ width: '15%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Tea<br />manufactured<br />for other estates<br />and returned</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>වෙනත් වතු වල<br />තේ දළු වලින්<br />නිපදවා ආපසු<br />භාරදුන් ප්‍රමාණය</div>
+                                                <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Tea<br />manufactured<br />for other estates<br />and returned</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>වෙනත් වතු වල<br />තේ දළු වලින්<br />නිපදවා ආපසු<br />භාරදුන් ප්‍රමාණය</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>9</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Direct<br />sales</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>සෘජු<br />විකිණීම්</div>
+                                                <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Direct<br />sales</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>සෘජු<br />විකිණීම්</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>10</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '10%', padding: '2px', backgroundColor: '#f3f4f6' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Total</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>මුළු<br />එකතුව</div>
+                                                <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Total</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>මුළු<br />එකතුව</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>11</strong></div>
                                             </div>
                                         </th>
@@ -1334,9 +1334,9 @@ export default function TC5Report() {
                             </table>
 
                             {/* TABLE 9: DIRECT SALES */}
-                            <div style={{ fontWeight: 'bold', fontSize: '13px', marginBottom: '2px', marginTop: '-6px' }}>
+                            <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '2px', marginTop: '-6px' }}>
                                 09. Direct sales - Sales made without the services of a broker<br />
-                                <span style={{ fontSize: '12px', fontWeight: 'normal' }}>සෘජු විකිණීම් - තැරැව්කරුවෙකුගේ සේවාවකින් තොරව විකිණෙන ලද සකස් කළ තේ</span>
+                                <span style={{ fontSize: '14px', fontWeight: 'normal' }}>සෘජු විකිණීම් - තැරැව්කරුවෙකුගේ සේවාවකින් තොරව විකිණෙන ලද සකස් කළ තේ</span>
                             </div>
 
                             <table className="tc5-table" style={{ textAlign: 'left', fontSize: '12px', marginBottom: '0' }}>
@@ -1344,40 +1344,40 @@ export default function TC5Report() {
                                     <tr>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '13%', verticalAlign: 'top', padding: '2px' }}>
                                             <div style={{ fontSize: '13px', lineHeight: '1.1' }}>Garden marks</div>
-                                            <div style={{ fontSize: '12px', marginTop: '2px', lineHeight: '1.1' }}>වෙළඳ ලකුණ</div>
+                                            <div style={{ fontSize: '13px', marginTop: '2px', lineHeight: '1.1' }}>වෙළඳ ලකුණ</div>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '11%', verticalAlign: 'top', padding: '2px' }}>
                                             <div style={{ fontSize: '13px', lineHeight: '1.1' }}>Invoice No</div>
-                                            <div style={{ fontSize: '12px', marginTop: '2px', lineHeight: '1.1' }}>ඉන්වොයිස්<br />අංකය</div>
+                                            <div style={{ fontSize: '13px', marginTop: '2px', lineHeight: '1.1' }}>ඉන්වොයිස්<br />අංකය</div>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '9%', verticalAlign: 'top', padding: '2px' }}>
                                             <div style={{ fontSize: '13px', lineHeight: '1.1' }}>Grade</div>
-                                            <div style={{ fontSize: '12px', marginTop: '2px', lineHeight: '1.1' }}>වර්ගය</div>
+                                            <div style={{ fontSize: '13px', marginTop: '2px', lineHeight: '1.1' }}>වර්ගය</div>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '21%', verticalAlign: 'top', padding: '2px' }}>
                                             <div style={{ fontSize: '13px', lineHeight: '1.1' }}>Name of buyers</div>
-                                            <div style={{ fontSize: '12px', marginTop: '2px', lineHeight: '1.1' }}>ගැණුම්කරුවන්ගේ<br />නම</div>
+                                            <div style={{ fontSize: '13px', marginTop: '2px', lineHeight: '1.1' }}>ගැණුම්කරුවන්ගේ<br />නම</div>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '10%', verticalAlign: 'top', padding: '2px' }}>
                                             <div style={{ fontSize: '13px', lineHeight: '1.1' }}>Date of sale</div>
-                                            <div style={{ fontSize: '12px', marginTop: '2px', lineHeight: '1.1' }}>විකුණුම්<br />දිනය</div>
+                                            <div style={{ fontSize: '13px', marginTop: '2px', lineHeight: '1.1' }}>විකුණුම්<br />දිනය</div>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '12%', verticalAlign: 'top', padding: '2px' }}>
                                             <div style={{ fontSize: '13px', lineHeight: '1.1' }}>Date of panel<br />approve</div>
-                                            <div style={{ fontSize: '12px', marginTop: '2px', lineHeight: '1.1' }}>මණ්ඩල අනුමත<br />කළ දිනය</div>
+                                            <div style={{ fontSize: '13px', marginTop: '2px', lineHeight: '1.1' }}>මණ්ඩල අනුමත<br />කළ දිනය</div>
                                         </th>
                                         <th className="tc5-th" colSpan="2" style={{ width: '12%', textAlign: 'center', padding: '2px' }}>
                                             <div style={{ fontSize: '13px', lineHeight: '1.1' }}>Price per Kg.<br />(Rs. Rs./Cts.)</div>
-                                            <div style={{ fontSize: '12px', marginTop: '2px', lineHeight: '1.1' }}>මිල කිලෝ එකකට<br />(රු./ශත)</div>
+                                            <div style={{ fontSize: '13px', marginTop: '2px', lineHeight: '1.1' }}>මිල කිලෝ එකකට<br />(රු./ශත)</div>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '12%', verticalAlign: 'top', padding: '2px' }}>
                                             <div style={{ fontSize: '13px', lineHeight: '1.1' }}>Weight Kgs</div>
-                                            <div style={{ fontSize: '12px', marginTop: '2px', lineHeight: '1.1' }}>බර කිලෝ</div>
+                                            <div style={{ fontSize: '13px', marginTop: '2px', lineHeight: '1.1' }}>බර කිලෝ</div>
                                         </th>
                                     </tr>
                                     <tr>
-                                        <th className="tc5-th" style={{ width: '6%', textAlign: 'center', padding: '2px', fontSize: '12px' }}>Rs. රු.</th>
-                                        <th className="tc5-th" style={{ width: '6%', textAlign: 'center', padding: '2px', fontSize: '12px' }}>Cts. ශත</th>
+                                        <th className="tc5-th" style={{ width: '6%', textAlign: 'center', padding: '2px', fontSize: '13px' }}>Rs. රු.</th>
+                                        <th className="tc5-th" style={{ width: '6%', textAlign: 'center', padding: '2px', fontSize: '13px' }}>Cts. ශත</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1405,21 +1405,21 @@ export default function TC5Report() {
                                     {/* DECLARATIONS BOX */}
                                     <tr>
                                         <td className="tc5-td" colSpan="9" style={{ padding: '6px 8px' }}>
-                                            <p style={{ margin: '0 0 4px 0', fontSize: '13px' }}>I/We hereby declare that all the particulars furnished in this return are true and accurate.<br /><span style={{ fontSize: '12px' }}>මෙම වාර්තාවේ සපයා ඇති සියලු විස්තර සත්‍ය බවත් නිවැරදි බවත් මම / අපි මෙයින් ප්‍රකාශ කර සිටිමු / සිටිමි.</span></p>
+                                            <p style={{ margin: '0 0 4px 0', fontSize: '13px' }}>I/We hereby declare that all the particulars furnished in this return are true and accurate.<br /><span style={{ fontSize: '13px' }}>මෙම වාර්තාවේ සපයා ඇති සියලු විස්තර සත්‍ය බවත් නිවැරදි බවත් මම / අපි මෙයින් ප්‍රකාශ කර සිටිමු / සිටිමි.</span></p>
 
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '6px', marginBottom: '0px', textAlign: 'center', fontSize: '13px' }}>
                                                 <div style={{ textAlign: 'left', width: '20%' }}>
-                                                    Date :<br /><span style={{ fontSize: '12px' }}>දිනය</span>
+                                                    Date :<br /><span style={{ fontSize: '13px' }}>දිනය</span>
                                                 </div>
                                                 <div style={{ width: '50%' }}>
                                                     <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '100%', marginBottom: '-6px' }}></span><br />
                                                     Name of registered Manufacture / Superintendent<br />
-                                                    <span style={{ fontSize: '12px' }}>ලි.ප නිෂ්පාදකයාගේ / අධිකාරීගේ නම</span>
+                                                    <span style={{ fontSize: '13px' }}>ලි.ප නිෂ්පාදකයාගේ / අධිකාරීගේ නම</span>
                                                 </div>
                                                 <div style={{ width: '25%' }}>
                                                     <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '100%', marginBottom: '-6px' }}></span><br />
                                                     Signature<br />
-                                                    <span style={{ fontSize: '12px' }}>අත්සන</span>
+                                                    <span style={{ fontSize: '13px' }}>අත්සන</span>
                                                 </div>
                                             </div>
                                         </td>
@@ -1428,20 +1428,20 @@ export default function TC5Report() {
                                         <td className="tc5-td" colSpan="9" style={{ padding: '6px 8px' }}>
                                             <div style={{ fontSize: '13px' }}>
                                                 State if any special remarks<br />
-                                                <span style={{ fontSize: '12px' }}>විශේෂ විමර්ශන ඇත්නම් දක්වන්න</span>
+                                                <span style={{ fontSize: '13px' }}>විශේෂ විමර්ශන ඇත්නම් දක්වන්න</span>
                                                 <br />
-                                                <br />
+                                        
                                                 <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '100%', marginTop: '1px' }}></span>
                                                 <br />
                                                 Date :<br />
-                                                <span style={{ fontSize: '12px' }}>දිනය</span>
+                                                <span style={{ fontSize: '13px' }}>දිනය</span>
                                                 <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '150px', marginLeft: '16px' }}></span>
                                             </div>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td className="tc5-td" colSpan="9" style={{ padding: '6px 8px', textAlign: 'center' }}>
-                                            <p style={{ margin: 0, fontSize: '12px' }}>
+                                            <p style={{ margin: 0, fontSize: '13px' }}>
                                                 This return should be addressed to the assistant tea commissioner of your region on or before the fifth of the following month.<br />
                                                 මෙම වාර්තාව ඔබ ප්‍රදේශයේ සහකාර තේ කොමසාරිස් වෙත ඊළඟ මාසයේ 05 දිනට හෝ ඊට පෙර එවිය යුතුය.
                                             </p>
