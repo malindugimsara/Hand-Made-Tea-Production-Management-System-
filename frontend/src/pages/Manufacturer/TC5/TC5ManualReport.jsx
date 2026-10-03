@@ -4,10 +4,8 @@ import { Calendar, RefreshCw, FileText, Download, Save, X } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-const PREDEFINED_GRADES = [
-    'FBOP', 'FBOP1', 'FBOPF', 'FBOPF1', 'OP', 'OPA', 'OP1', 'PEKOE',
-    'PEKOE1', 'BOP1', 'BOPSP', 'BOPA', 'BM', 'FNGS', 'BOPF', 'BOPIA'
-];
+// Predefined grades removed as requested
+const PREDEFINED_GRADES = [];
 
 const createDefaultSec8 = () => {
     const rows = PREDEFINED_GRADES.map(grade => ({
@@ -350,7 +348,8 @@ export default function TC5ManualReport() {
             lastDataRowIndex = idx;
         }
     });
-    if (lastDataRowIndex === -1) lastDataRowIndex = 0;
+    // Ensure TOTAL row renders at the bottom if the table is completely empty
+    if (lastDataRowIndex === -1) lastDataRowIndex = 16; 
 
     return (
         <div className="w-full min-h-screen bg-slate-100 p-3 md:p-6 font-sans overflow-x-auto">
@@ -983,192 +982,201 @@ export default function TC5ManualReport() {
                             </div>
 
                             {/* TABLE 8: DISPOSALS OF MADE TEA */}
-                            <table className="tc5-table tc5-table-first" style={{ textAlign: 'center', fontSize: '13px', marginBottom: '8px' }}>
-                                <thead className="bg-shade">
-                                    <tr>
-                                        <th className="tc5-th" style={{ width: '8%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Invoice<br />No</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>ඉන්වොයිස්<br />අංකය</div>
-                                                <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>1</strong></div>
-                                            </div>
-                                        </th>
-                                        <th className="tc5-th" style={{ width: '10%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Grade</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>තේ<br />වර්ගය</div>
-                                                <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>2</strong></div>
-                                            </div>
-                                        </th>
-                                        <th className="tc5-th" style={{ width: '12%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>For sale at colombo<br />auction</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>කොළඹ<br />වෙන්දේසියේ<br />විකිණීම සඳහා</div>
-                                                <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>3</strong></div>
-                                            </div>
-                                        </th>
-                                        <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Private<br />sales<br />scheme</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>පුද්ගලික<br />විකිණීම<br />මත<br />විකිණීම<br />සඳහා</div>
-                                                <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>4</strong></div>
-                                            </div>
-                                        </th>
-                                        <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Forward<br />contracts</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>මතු අදාල<br />ගිවිසුම් මත<br />විකිණීම සඳහා</div>
-                                                <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>5</strong></div>
-                                            </div>
-                                        </th>
-                                        <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Ex<br />factory<br />sales</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>කර්මාන්ත<br />ශාලාවේදී<br />විකිණීම</div>
-                                                <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>6</strong></div>
-                                            </div>
-                                        </th>
-                                        <th className="tc5-th" style={{ width: '10%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Exported<br />direct<br />in value<br />added form</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>එකතු කල<br />අගය සහිත<br />සෘජු<br />අපනයනය</div>
-                                                <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>7</strong></div>
-                                            </div>
-                                        </th>
-                                        <th className="tc5-th" style={{ width: '10%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Gifts to<br />employee &<br />others</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>සේවකයන්ට<br />සහ වෙනත්<br />ප්‍රදානය<br />කිරීම්</div>
-                                                <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>8</strong></div>
-                                            </div>
-                                        </th>
-                                        <th className="tc5-th" style={{ width: '12%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Tea<br />manufactured<br />for other estates<br />and returned</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>වෙනත් වතු වල<br />තේ දළු වලින්<br />නිපදවා ආපසු<br />භාරදුන් ප්‍රමාණය</div>
-                                                <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>9</strong></div>
-                                            </div>
-                                        </th>
-                                        <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Direct<br />sales</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>සෘජු<br />විකිණීම්</div>
-                                                <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>10</strong></div>
-                                            </div>
-                                        </th>
-                                        <th className="tc5-th" style={{ width: '10%', padding: '2px', backgroundColor: '#f3f4f6' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
-                                                <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Total</div>
-                                                <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>මුළු<br />එකතුව</div>
-                                                <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>11</strong></div>
-                                            </div>
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {reportData.sec8.map((row, idx) => (
-                                        <React.Fragment key={idx}>
-                                            <tr style={{ height: '20px' }} className="group">
-                                                <td className="tc5-td">&nbsp;</td>
-                                                <td className="tc5-td-c relative" style={{ padding: 0 }}>
-                                                    {generatingPdf ? (
-                                                        <span style={{ fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>{row.grade}</span>
-                                                    ) : (
-                                                        <div className="relative flex items-center justify-center">
-                                                            <input
-                                                                type="text"
-                                                                value={row.grade || ""}
-                                                                onChange={(e) => handleSec8Change(idx, 'grade', e.target.value)}
-                                                                className="tc5-input"
-                                                                style={{ textTransform: 'uppercase' }}
-                                                                placeholder=""
-                                                            />
-                                                            {row.grade && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => removeGradeRow(idx)}
-                                                                    className="absolute right-0.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity p-0.5"
-                                                                    title="Remove grade"
-                                                                >
-                                                                    <X size={12} />
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td className="tc5-td-c" style={{ padding: 0 }}>
-                                                    {generatingPdf ? (
-                                                        <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.auction !== '' ? Number(row.auction).toFixed(1) : '-'}</span>
-                                                    ) : (
-                                                        <input type="number" value={row.auction ?? ""} onChange={(e) => handleSec8Change(idx, 'auction', e.target.value)} className="tc5-input" placeholder="-" />
-                                                    )}
-                                                </td>
-                                                <td className="tc5-td-c" style={{ padding: 0 }}>
-                                                    {generatingPdf ? (
-                                                        <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.private !== '' ? Number(row.private).toFixed(1) : '-'}</span>
-                                                    ) : (
-                                                        <input type="number" value={row.private ?? ""} onChange={(e) => handleSec8Change(idx, 'private', e.target.value)} className="tc5-input" placeholder="-" />
-                                                    )}
-                                                </td>
-                                                <td className="tc5-td-c" style={{ padding: 0 }}>
-                                                    {generatingPdf ? (
-                                                        <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.forward !== '' ? Number(row.forward).toFixed(1) : '-'}</span>
-                                                    ) : (
-                                                        <input type="number" value={row.forward ?? ""} onChange={(e) => handleSec8Change(idx, 'forward', e.target.value)} className="tc5-input" placeholder="-" />
-                                                    )}
-                                                </td>
-                                                <td className="tc5-td-c" style={{ padding: 0 }}>
-                                                    {generatingPdf ? (
-                                                        <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.exFactory !== '' ? Number(row.exFactory).toFixed(1) : '-'}</span>
-                                                    ) : (
-                                                        <input type="number" value={row.exFactory ?? ""} onChange={(e) => handleSec8Change(idx, 'exFactory', e.target.value)} className="tc5-input" placeholder="-" />
-                                                    )}
-                                                </td>
-                                                <td className="tc5-td-c" style={{ padding: 0 }}>
-                                                    {generatingPdf ? (
-                                                        <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.direct !== '' ? Number(row.direct).toFixed(1) : '-'}</span>
-                                                    ) : (
-                                                        <input type="number" value={row.direct ?? ""} onChange={(e) => handleSec8Change(idx, 'direct', e.target.value)} className="tc5-input" placeholder="-" />
-                                                    )}
-                                                </td>
-                                                <td className="tc5-td-c" style={{ padding: 0 }}>
-                                                    {generatingPdf ? (
-                                                        <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.gifts !== '' ? Number(row.gifts).toFixed(1) : '-'}</span>
-                                                    ) : (
-                                                        <input type="number" value={row.gifts ?? ""} onChange={(e) => handleSec8Change(idx, 'gifts', e.target.value)} className="tc5-input" placeholder="-" />
-                                                    )}
-                                                </td>
-                                                <td className="tc5-td-c" style={{ padding: 0 }}>
-                                                    {generatingPdf ? (
-                                                        <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.other !== '' ? Number(row.other).toFixed(1) : '-'}</span>
-                                                    ) : (
-                                                        <input type="number" value={row.other ?? ""} onChange={(e) => handleSec8Change(idx, 'other', e.target.value)} className="tc5-input" placeholder="-" />
-                                                    )}
-                                                </td>
-                                                <td className="tc5-td-c">&nbsp;</td>
-                                                <td className="tc5-td-c bg-shade" style={{ fontWeight: 'bold', fontSize: '14px' }}>{row.total > 0 ? Number(row.total).toFixed(1) : '-'}</td>
-                                            </tr>
-
-                                            {/* DYNAMIC TOTAL ROW */}
-                                            {idx === lastDataRowIndex && (
-                                                <tr style={{ height: '20px' }} className="bg-shade">
+                            <div className="relative" style={{ marginBottom: '8px' }}>
+                                <table className="tc5-table tc5-table-first" style={{ textAlign: 'center', fontSize: '13px', margin: 0 }}>
+                                    <thead className="bg-shade">
+                                        <tr>
+                                            <th className="tc5-th" style={{ width: '8%', padding: '2px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                                    <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Invoice<br />No</div>
+                                                    <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>ඉන්වොයිස්<br />අංකය</div>
+                                                    <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>1</strong></div>
+                                                </div>
+                                            </th>
+                                            <th className="tc5-th" style={{ width: '10%', padding: '2px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                                    <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Grade</div>
+                                                    <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>තේ<br />වර්ගය</div>
+                                                    <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>2</strong></div>
+                                                </div>
+                                            </th>
+                                            <th className="tc5-th" style={{ width: '12%', padding: '2px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                                    <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>For sale at colombo<br />auction</div>
+                                                    <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>කොළඹ<br />වෙන්දේසියේ<br />විකිණීම සඳහා</div>
+                                                    <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>3</strong></div>
+                                                </div>
+                                            </th>
+                                            <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                                    <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Private<br />sales<br />scheme</div>
+                                                    <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>පුද්ගලික<br />විකිණීම<br />මත<br />විකිණීම<br />සඳහා</div>
+                                                    <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>4</strong></div>
+                                                </div>
+                                            </th>
+                                            <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                                    <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Forward<br />contracts</div>
+                                                    <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>මතු අදාල<br />ගිවිසුම් මත<br />විකිණීම සඳහා</div>
+                                                    <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>5</strong></div>
+                                                </div>
+                                            </th>
+                                            <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                                    <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Ex<br />factory<br />sales</div>
+                                                    <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>කර්මාන්ත<br />ශාලාවේදී<br />විකිණීම</div>
+                                                    <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>6</strong></div>
+                                                </div>
+                                            </th>
+                                            <th className="tc5-th" style={{ width: '10%', padding: '2px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                                    <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Exported<br />direct<br />in value<br />added form</div>
+                                                    <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>එකතු කල<br />අගය සහිත<br />සෘජු<br />අපනයනය</div>
+                                                    <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>7</strong></div>
+                                                </div>
+                                            </th>
+                                            <th className="tc5-th" style={{ width: '10%', padding: '2px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                                    <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Gifts to<br />employee &<br />others</div>
+                                                    <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>සේවකයන්ට<br />සහ වෙනත්<br />ප්‍රදානය<br />කිරීම්</div>
+                                                    <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>8</strong></div>
+                                                </div>
+                                            </th>
+                                            <th className="tc5-th" style={{ width: '12%', padding: '2px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                                    <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Tea<br />manufactured<br />for other estates<br />and returned</div>
+                                                    <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>වෙනත් වතු වල<br />තේ දළු වලින්<br />නිපදවා ආපසු<br />භාරදුන් ප්‍රමාණය</div>
+                                                    <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>9</strong></div>
+                                                </div>
+                                            </th>
+                                            <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                                    <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Direct<br />sales</div>
+                                                    <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>සෘජු<br />විකිණීම්</div>
+                                                    <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>10</strong></div>
+                                                </div>
+                                            </th>
+                                            <th className="tc5-th" style={{ width: '10%', padding: '2px', backgroundColor: '#f3f4f6' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', height: '140px' }}>
+                                                    <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Total</div>
+                                                    <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>මුළු<br />එකතුව</div>
+                                                    <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>11</strong></div>
+                                                </div>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {reportData.sec8.map((row, idx) => (
+                                            <React.Fragment key={idx}>
+                                                <tr style={{ height: '20px' }} className="group">
                                                     <td className="tc5-td">&nbsp;</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>TOTAL</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.auction > 0 ? sec8Totals.auction.toFixed(1) : '-'}</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.private > 0 ? sec8Totals.private.toFixed(1) : '-'}</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.forward > 0 ? sec8Totals.forward.toFixed(1) : '-'}</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.exFactory > 0 ? sec8Totals.exFactory.toFixed(1) : '-'}</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.direct > 0 ? sec8Totals.direct.toFixed(1) : '-'}</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.gifts > 0 ? sec8Totals.gifts.toFixed(1) : '-'}</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.other > 0 ? sec8Totals.other.toFixed(1) : '-'}</td>
+                                                    <td className="tc5-td-c relative"  style={{ padding: 0 }}>
+                                                        {generatingPdf ? (
+                                                            <span style={{ fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>{row.grade}</span>
+                                                        ) : (
+                                                            <div className="relative flex items-center justify-center">
+                                                                <input
+                                                                    type="text"
+                                                                    value={row.grade || ""}
+                                                                    onChange={(e) => handleSec8Change(idx, 'grade', e.target.value)}
+                                                                    className="tc5-input relative z-10 bg-transparent"
+                                                                    style={{ textTransform: 'uppercase' }}
+                                                                    placeholder="-"
+                                                                />
+                                                                {row.grade && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => removeGradeRow(idx)}
+                                                                        className="absolute right-0.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 z-20"
+                                                                        title="Remove grade"
+                                                                    >
+                                                                        <X size={12} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="tc5-td-c" style={{ padding: 0 }}>
+                                                        {generatingPdf ? (
+                                                            <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.auction !== '' ? Number(row.auction).toFixed(1) : '-'}</span>
+                                                        ) : (
+                                                            <input type="number" value={row.auction ?? ""} onChange={(e) => handleSec8Change(idx, 'auction', e.target.value)} className="tc5-input relative z-10 bg-transparent" placeholder="-" />
+                                                        )}
+                                                    </td>
+                                                    <td className="tc5-td-c" style={{ padding: 0 }}>
+                                                        {generatingPdf ? (
+                                                            <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.private !== '' ? Number(row.private).toFixed(1) : '-'}</span>
+                                                        ) : (
+                                                            <input type="number" value={row.private ?? ""} onChange={(e) => handleSec8Change(idx, 'private', e.target.value)} className="tc5-input relative z-10 bg-transparent" placeholder="-" />
+                                                        )}
+                                                    </td>
+                                                    <td className="tc5-td-c" style={{ padding: 0 }}>
+                                                        {generatingPdf ? (
+                                                            <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.forward !== '' ? Number(row.forward).toFixed(1) : '-'}</span>
+                                                        ) : (
+                                                            <input type="number" value={row.forward ?? ""} onChange={(e) => handleSec8Change(idx, 'forward', e.target.value)} className="tc5-input relative z-10 bg-transparent" placeholder="-" />
+                                                        )}
+                                                    </td>
+                                                    <td className="tc5-td-c" style={{ padding: 0 }}>
+                                                        {generatingPdf ? (
+                                                            <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.exFactory !== '' ? Number(row.exFactory).toFixed(1) : '-'}</span>
+                                                        ) : (
+                                                            <input type="number" value={row.exFactory ?? ""} onChange={(e) => handleSec8Change(idx, 'exFactory', e.target.value)} className="tc5-input relative z-10 bg-transparent" placeholder="-" />
+                                                        )}
+                                                    </td>
+                                                    <td className="tc5-td-c" style={{ padding: 0 }}>
+                                                        {generatingPdf ? (
+                                                            <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.direct !== '' ? Number(row.direct).toFixed(1) : '-'}</span>
+                                                        ) : (
+                                                            <input type="number" value={row.direct ?? ""} onChange={(e) => handleSec8Change(idx, 'direct', e.target.value)} className="tc5-input relative z-10 bg-transparent" placeholder="-" />
+                                                        )}
+                                                    </td>
+                                                    <td className="tc5-td-c" style={{ padding: 0 }}>
+                                                        {generatingPdf ? (
+                                                            <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.gifts !== '' ? Number(row.gifts).toFixed(1) : '-'}</span>
+                                                        ) : (
+                                                            <input type="number" value={row.gifts ?? ""} onChange={(e) => handleSec8Change(idx, 'gifts', e.target.value)} className="tc5-input relative z-10 bg-transparent" placeholder="-" />
+                                                        )}
+                                                    </td>
+                                                    <td className="tc5-td-c" style={{ padding: 0 }}>
+                                                        {generatingPdf ? (
+                                                            <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.other !== '' ? Number(row.other).toFixed(1) : '-'}</span>
+                                                        ) : (
+                                                            <input type="number" value={row.other ?? ""} onChange={(e) => handleSec8Change(idx, 'other', e.target.value)} className="tc5-input relative z-10 bg-transparent" placeholder="-" />
+                                                        )}
+                                                    </td>
                                                     <td className="tc5-td-c">&nbsp;</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.total > 0 ? sec8Totals.total.toFixed(1) : '-'}</td>
+                                                    <td className="tc5-td-c bg-shade" style={{ fontWeight: 'bold', fontSize: '14px' }}>{row.total > 0 ? Number(row.total).toFixed(1) : '-'}</td>
                                                 </tr>
-                                            )}
-                                        </React.Fragment>
-                                    ))}
-                                </tbody>
-                            </table>
+
+                                                {/* DYNAMIC TOTAL ROW */}
+                                                {idx === lastDataRowIndex && (
+                                                    <tr style={{ height: '20px' }} className="bg-shade">
+                                                        <td className="tc5-td">&nbsp;</td>
+                                                        <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>TOTAL</td>
+                                                        <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.auction > 0 ? sec8Totals.auction.toFixed(1) : '-'}</td>
+                                                        <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.private > 0 ? sec8Totals.private.toFixed(1) : '-'}</td>
+                                                        <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.forward > 0 ? sec8Totals.forward.toFixed(1) : '-'}</td>
+                                                        <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.exFactory > 0 ? sec8Totals.exFactory.toFixed(1) : '-'}</td>
+                                                        <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.direct > 0 ? sec8Totals.direct.toFixed(1) : '-'}</td>
+                                                        <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.gifts > 0 ? sec8Totals.gifts.toFixed(1) : '-'}</td>
+                                                        <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.other > 0 ? sec8Totals.other.toFixed(1) : '-'}</td>
+                                                        <td className="tc5-td-c">&nbsp;</td>
+                                                        <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.total > 0 ? sec8Totals.total.toFixed(1) : '-'}</td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                
+                                {/* NIL Overlay for Table 8 */}
+                                {reportData.sec8.every(r => !r.grade || r.grade.trim() === '') && (
+                                    <div className="absolute flex items-center justify-center pointer-events-none" style={{ top: '144px', bottom: '20px', left: 0, right: 0, zIndex: 5 }}>
+                                        <span style={{ color: '#727d8a', fontWeight: 'bold', fontSize: '24px', letterSpacing: '0.4em', opacity: 0.7 }}>NIL</span>
+                                    </div>
+                                )}
+                            </div>
 
                             {/* TABLE 9: DIRECT SALES */}
                             <div style={{ fontWeight: 'bold', fontSize: '13px', marginBottom: '2px', marginTop: '-6px' }}>
