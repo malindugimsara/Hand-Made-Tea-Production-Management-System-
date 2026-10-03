@@ -404,16 +404,7 @@ export default function TC5ManualReport() {
                             title="Reload / Sync Saved Data"
                         >
                             <RefreshCw size={18} className={loading ? "animate-spin text-blue-600" : ""} />
-                        </button>
-
-                        <button
-                            onClick={clearForm}
-                            disabled={loading || savingDb || generatingPdf}
-                            className="p-2.5 flex-1 sm:flex-none flex justify-center bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg transition-colors shadow-sm"
-                            title="Reset Form to Defaults"
-                        >
-                            <RefreshCw size={18} /> <span className="font-bold text-xs sm:text-sm sm:hidden ml-2">Reset</span>
-                        </button>
+                        </button> 
                     </div>
                 </div>
             </div>
