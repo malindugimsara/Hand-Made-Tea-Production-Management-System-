@@ -624,13 +624,14 @@ export default function DispatchAndReturn() {
           throw new Error(errData.message || `Failed to save dispatch record for ${record.date}`);
         }
 
-        // --- 2. SAVE FACTORY PACKING DATA ---
+       // --- 2. SAVE FACTORY PACKING DATA ---
         if (record.agSuperReceived > 0 || record.aGroupReceived > 0) {
             const packingPayload = {
                 date: record.date,
                 agSuper: { received: record.agSuperReceived },
                 aGroup: { received: record.aGroupReceived },
-                sampleBags: { received: 0 },
+                // 💡 මෙහි 0 වෙනුවට, agSuper සහ aGroup වල එකතුව ලබා දී ඇත
+                sampleBags: { received: (record.agSuperReceived || 0) + (record.aGroupReceived || 0) },
                 isDispatchUpdate: true
             };
 
@@ -650,6 +651,7 @@ export default function DispatchAndReturn() {
                 console.log("Packing Data Saved Successfully!");
             }
         }
+        
       }
 
       toast.success("Dispatch & Packing records saved successfully!", { id: toastId });
