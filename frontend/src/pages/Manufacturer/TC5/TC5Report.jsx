@@ -219,7 +219,7 @@ export default function TC5Report() {
                 activeSec8.forEach(r => {
                     let cleanG = r.grade.toUpperCase().replace(/\s+/g, "");
                     if (cleanG === 'FFEXSP1') r.grade = 'FF EX SP 1';
-                    if (cleanG === 'BOPSP') r.grade = 'BOP SP';
+                    if (cleanG === 'BOPSP') r.grade = 'BOP SP'; 
                 });
                 
                 // BOPF පේළිය Save කරපු දත්ත වල තියෙනවද කියලා හොයනවා
@@ -1168,14 +1168,14 @@ export default function TC5Report() {
                             <table className="tc5-table tc5-table-first" style={{ textAlign: 'center', fontSize: '13px', marginBottom: '8px' }}>
                                 <thead className="bg-shade">
                                     <tr>
-                                        <th className="tc5-th" style={{ width: '8%', padding: '2px' }}>
+                                        <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Invoice<br />No</div>
                                                 <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>ඉන්වොයිස්<br />අංකය</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>1</strong></div>
                                             </div>
                                         </th>
-                                        <th className="tc5-th" style={{ width: '10%', padding: '2px' }}>
+                                        <th className="tc5-th" style={{ width: '11%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'left', fontSize: '13px', lineHeight: '1.1' }}>Grade</div>
                                                 <div style={{ textAlign: 'left', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>තේ<br />වර්ගය</div>
