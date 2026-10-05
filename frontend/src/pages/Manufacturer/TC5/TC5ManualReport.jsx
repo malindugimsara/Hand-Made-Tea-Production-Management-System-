@@ -349,7 +349,7 @@ export default function TC5ManualReport() {
         }
     });
     // Ensure TOTAL row renders at the bottom if the table is completely empty
-    if (lastDataRowIndex === -1) lastDataRowIndex = 16; 
+    if (lastDataRowIndex === -1) lastDataRowIndex = 16;
 
     return (
         <div className="w-full min-h-screen bg-slate-100 p-3 md:p-6 font-sans overflow-x-auto">
@@ -404,7 +404,7 @@ export default function TC5ManualReport() {
                             title="Reload / Sync Saved Data"
                         >
                             <RefreshCw size={18} className={loading ? "animate-spin text-blue-600" : ""} />
-                        </button> 
+                        </button>
                     </div>
                 </div>
             </div>
@@ -932,10 +932,8 @@ export default function TC5ManualReport() {
                                             <div style={{ fontWeight: 'bold', fontSize: '12px' }}>Selling marks</div>
                                             <div style={{ fontSize: '11px', marginBottom: '2px' }}>වෙළඳ සලකුණ</div>
                                             <div style={{ lineHeight: '1.4', fontSize: '12px' }}>
-                                                <div>1. Athukorala Group Super</div>
-                                                <div>2. Athukorala Group</div>
-                                                <div>3. Pitigala Tea</div>
-                                                <div>4. Athukorala</div>
+                                                <div>1. Athukorala Tea</div>
+
                                             </div>
                                         </td>
                                     </tr>
@@ -1061,7 +1059,7 @@ export default function TC5ManualReport() {
                                             <React.Fragment key={idx}>
                                                 <tr style={{ height: '20px' }} className="group">
                                                     <td className="tc5-td">&nbsp;</td>
-                                                    <td className="tc5-td-c relative"  style={{ padding: 0 }}>
+                                                    <td className="tc5-td-c relative" style={{ padding: 0 }}>
                                                         {generatingPdf ? (
                                                             <span style={{ fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>{row.grade}</span>
                                                         ) : (
@@ -1160,7 +1158,7 @@ export default function TC5ManualReport() {
                                         ))}
                                     </tbody>
                                 </table>
-                                
+
                                 {/* NIL Overlay for Table 8 */}
                                 {reportData.sec8.every(r => !r.grade || r.grade.trim() === '') && (
                                     <div className="absolute flex items-center justify-center pointer-events-none" style={{ top: '144px', bottom: '20px', left: 0, right: 0, zIndex: 5 }}>
