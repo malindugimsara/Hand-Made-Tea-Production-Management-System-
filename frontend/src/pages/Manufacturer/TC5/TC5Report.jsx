@@ -11,7 +11,7 @@ const generateKey = (catId, catTitle, size) => {
     let cleanSize = (size || '').trim();
 
     if (!cleanId && cleanTitle) {
-        cleanId = cleanTitle.replace(/\s+/g, '-'); 
+        cleanId = cleanTitle.replace(/\s+/g, '-');
     }
 
     let finalId = cleanId || 'unknown';
@@ -25,7 +25,7 @@ const generateKey = (catId, catTitle, size) => {
     else if (cleanId === 'pitigala tea' || cleanId === 'pitigala') finalId = 'pitigala';
     else if (cleanId === 'athukorala') finalId = 'athukorala';
     else {
-         finalId = cleanTitle.replace(/[^a-z0-9]/g, ''); 
+        finalId = cleanTitle.replace(/[^a-z0-9]/g, '');
     }
 
     if (finalSize.toLowerCase() === 'bopf (kg)' || finalSize.toLowerCase() === 'kg' || finalSize.toLowerCase() === 'bopf') finalSize = 'BOPF';
@@ -155,7 +155,7 @@ export default function TC5Report() {
             // ==============================================================================
             let calculatedBlackTeaSoldKg = 0;
             const summaries = summaryData?.data || summaryData || [];
-            
+
             if (Array.isArray(summaries)) {
                 summaries.forEach(day => {
                     const recordDate = day.date || '';
@@ -169,7 +169,7 @@ export default function TC5Report() {
                             const idLower = id.toLowerCase();
 
                             // හරිත තේ (Green Tea) ඉවත් කිරීම
-                            if (idLower.startsWith('gt') || nameLower.includes('green tea') || nameLower.includes('g/t')) return; 
+                            if (idLower.startsWith('gt') || nameLower.includes('green tea') || nameLower.includes('g/t')) return;
 
                             let multiplier = 0;
                             if (idLower.startsWith('others') || nameLower === 'dust' || nameLower === 'dust 1' || nameLower === 'bopf') {
@@ -200,7 +200,7 @@ export default function TC5Report() {
             let activeSec8 = Object.keys(dispMap).map(grade => {
                 const row = dispMap[grade];
                 row.total = row.auction + row.private + row.forward + row.exFactory + row.direct + row.gifts + row.other;
-                
+
                 // 💡 Format specific grades with spaces
                 let displayGrade = grade;
                 if (grade === 'FFEXSP1') displayGrade = 'FF EX SP 1';
@@ -210,21 +210,20 @@ export default function TC5Report() {
             }).filter(row => row.total > 0 || row.grade === 'BOPF');
 
             // Database එකේ කලින් Save කරපු Data තියෙනවා නම් ඒක මුල්තැන ගන්නවා
-            // Database එකේ කලින් Save කරපු Data තියෙනවා නම් ඒක මුල්තැන ගන්නවා
             if (savedReport && savedReport.section8_disposals && savedReport.section8_disposals.length > 0) {
                 // හිස් පේළි අයින් කරලා කලින් Save කරපු ටික ගන්නවා
                 activeSec8 = savedReport.section8_disposals.filter(r => r.grade && r.grade.trim() !== '');
-                
+
                 // 💡 කලින් සේව් කරපු දත්ත වල නම්වලටත් ස්වයංක්‍රීයව හිස්තැන් එකතු කිරීම
                 activeSec8.forEach(r => {
                     let cleanG = r.grade.toUpperCase().replace(/\s+/g, "");
                     if (cleanG === 'FFEXSP1') r.grade = 'FF EX SP 1';
-                    if (cleanG === 'BOPSP') r.grade = 'BOP SP'; 
+                    if (cleanG === 'BOPSP') r.grade = 'BOP SP';
                 });
-                
+
                 // BOPF පේළිය Save කරපු දත්ත වල තියෙනවද කියලා හොයනවා
                 let bopfRow = activeSec8.find(r => r.grade === 'BOPF');
-                
+
                 // කලින් Save කරපු Data වල BOPF පේළිය නැත්නම් අලුතින් එකතු කරනවා
                 if (!bopfRow) {
                     bopfRow = { grade: 'BOPF', auction: 0, private: 0, forward: 0, exFactory: 0, direct: 0, gifts: 0, other: 0, total: 0 };
@@ -233,11 +232,11 @@ export default function TC5Report() {
 
                 // 💡 කලින් Direct Sales වලට සේව් වෙච්ච එක අයින් කරලා, අලුත් අගය Gifts වලට දානවා
                 if (bopfRow.direct === calculatedBlackTeaSoldKg) {
-                    bopfRow.direct = 0; 
+                    bopfRow.direct = 0;
                 }
                 bopfRow.gifts = calculatedBlackTeaSoldKg;
 
-                bopfRow.total = (Number(bopfRow.auction)||0) + (Number(bopfRow.private)||0) + (Number(bopfRow.forward)||0) + (Number(bopfRow.exFactory)||0) + (Number(bopfRow.direct)||0) + (Number(bopfRow.gifts)||0) + (Number(bopfRow.other)||0);
+                bopfRow.total = (Number(bopfRow.auction) || 0) + (Number(bopfRow.private) || 0) + (Number(bopfRow.forward) || 0) + (Number(bopfRow.exFactory) || 0) + (Number(bopfRow.direct) || 0) + (Number(bopfRow.gifts) || 0) + (Number(bopfRow.other) || 0);
             }
 
             // Pad remaining empty rows up to 17 total data rows
@@ -250,7 +249,7 @@ export default function TC5Report() {
             const currentSec8Total = activeSec8.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
 
             const sec2 = { bf, ownLeaf, boughtLeaf, otherEstate: 0, otherFactory: 0, disposals: currentSec8Total };
-            
+
             sec2.total = sec2.bf + sec2.ownLeaf + sec2.boughtLeaf + sec2.otherEstate + sec2.otherFactory;
             sec2.closing = sec2.total - sec2.disposals;
 
@@ -373,7 +372,7 @@ export default function TC5Report() {
 
         // Section 8 Total ගණනය කර Section 2 හි 'Disposals' වෙත සජීවීව යෙදීම
         const newSec8Total = updatedSec8.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
-        
+
         const updatedSec2 = { ...reportData.sec2 };
         updatedSec2.disposals = newSec8Total;
         updatedSec2.closing = updatedSec2.total - updatedSec2.disposals;
@@ -600,15 +599,15 @@ export default function TC5Report() {
                 </div>
             ) : (
                 /* ZOOM WRAPPER ADDED HERE -> style={{ zoom: 1.15 }} */
-                <div className="w-full flex flex-col gap-10 pb-12 items-center tc5-container" style={{ zoom: 1.15 }}>
+                <div className="w-full flex flex-col gap-10 pb-12 items-center tc5-container" style={{ zoom: 1 }}>
 
                     <style>{`
             .tc5-paper * { box-sizing: border-box !important; }
             .tc5-paper { 
               background-color: #ffffff !important; 
               color: #000000 !important; 
-              font-family: "Times New Roman", Times, serif !important; 
-              font-size: 13px; 
+              font-family: "Times New Roman", "Iskoola Pota", "Abhaya Libre", sans-serif !important;
+              font-size: 14px; 
               line-height: 1.2; 
               width: 794px !important; 
               min-width: 794px !important; 
@@ -673,8 +672,17 @@ export default function TC5Report() {
             }
             
             /* Helper classes */
-            .bg-shade { background-color: #f8fafc !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .border-left-fix { border-left: 1px solid #000000 !important; }
+
+            /* ======== SPECIFIC TO PAGE 1 TO INCREASE TABLE HEIGHTS AND INPUT FONT ======== */
+            #tc5-page-1 table.tc5-table td.tc5-td, 
+            #tc5-page-1 table.tc5-table td.tc5-td-c, 
+            #tc5-page-1 table.tc5-table th.tc5-th {
+              padding: 3px 5px !important; /* increased padding for extra table height */
+            }
+            #tc5-page-1 .tc5-input {
+              font-size: 15px !important; /* +1px */
+            }
           `}</style>
 
                     {/* ============================== PAGE 1 ============================== */}
@@ -686,7 +694,7 @@ export default function TC5Report() {
                                 <tbody>
                                     <tr>
                                         <td className="tc5-td" style={{ padding: '4px 8px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontWeight: 'bold', fontSize: '14px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontWeight: 'bold', fontSize: '15px' }}>
                                                 <div>
                                                     <span>MONTHLY TEA PRODUCTION RETURN FOR THE MONTH OF </span>
                                                     <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', minWidth: '90px', textAlign: 'center', fontWeight: 'bold', padding: '0 4px' }}>
@@ -697,14 +705,14 @@ export default function TC5Report() {
                                                         {reportYearText}
                                                     </span>
                                                 </div>
-                                                <div style={{ fontSize: '14px', fontWeight: 'bold' }}>T.C.5/2008-1</div>
+                                                <div style={{ fontSize: '15px', fontWeight: 'bold' }}>T.C.5/2008-1</div>
                                             </div>
 
-                                            <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '13px', margin: '4px 0' }}>
+                                            <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14px', margin: '4px 0' }}>
                                                 UNDER THE TEA CONTROL ACT NO 51 OF 1957
                                             </div>
 
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '14px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '15px' }}>
                                                 <div style={{ flex: 1, display: 'flex', alignItems: 'baseline' }}>
                                                     <span style={{ fontWeight: 'bold' }}>20</span>
                                                     <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '30px', textAlign: 'center', fontWeight: 'bold', padding: '0 2px' }}>
@@ -715,12 +723,12 @@ export default function TC5Report() {
                                                     </span>
                                                     <span style={{ marginLeft: '6px' }}>මස තේ නිෂ්පාදනය පිළිබඳ මාසික වාර්තාව</span>
                                                 </div>
-                                                <div style={{ fontSize: '12px', textAlign: 'right', minWidth: '80px' }}>
+                                                <div style={{ fontSize: '14px', textAlign: 'right', minWidth: '80px' }}>
                                                     ටීසී 5/2008-1
                                                 </div>
                                             </div>
 
-                                            <div style={{ textAlign: 'center', fontSize: '12px', marginTop: '2px' }}>
+                                            <div style={{ textAlign: 'center', fontSize: '14px', marginTop: '1px' }}>
                                                 1957 අංක 51 දරණ තේ පාලන පනත
                                             </div>
                                         </td>
@@ -732,72 +740,72 @@ export default function TC5Report() {
                             <table className="tc5-table no-top">
                                 <tbody>
                                     <tr>
-                                        <td className="tc5-td-c" style={{ width: '3%', fontWeight: 'bold', fontSize: '13px' }}>1</td>
+                                        <td className="tc5-td-c" style={{ width: '3%', fontWeight: 'bold', fontSize: '14px' }}>1</td>
                                         <td className="tc5-td" style={{ width: '37%' }}>
                                             <div style={{ display: 'flex', gap: '6px' }}>
-                                                <span style={{ fontWeight: 'bold', fontSize: '13px' }}>1.1</span>
+                                                <span style={{ fontWeight: 'bold', fontSize: '14px' }}>1.1</span>
                                                 <div>
-                                                    <span style={{ fontSize: '13px' }}>Name of Factory :</span><br />
-                                                    <span style={{ fontSize: '12px' }}>කම්හලේ නම</span>
-                                                    <strong style={{ display: 'block', marginTop: '4px', fontSize: '13px' }}>ATHUKORALA TEA FACTORY</strong>
+                                                    <span style={{ fontSize: '14px' }}>Name of Factory :</span><br />
+                                                    <span style={{ fontSize: '14px' }}>කම්හලේ නම</span>
+                                                    <strong style={{ display: 'block', marginTop: '1px', fontSize: '14px' }}>ATHUKORALA TEA FACTORY</strong>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="tc5-td" style={{ width: '35%' }}>
                                             <div style={{ display: 'flex', gap: '6px' }}>
-                                                <span style={{ fontWeight: 'bold', fontSize: '13px' }}>1.2</span>
+                                                <span style={{ fontWeight: 'bold', fontSize: '14px' }}>1.2</span>
                                                 <div>
-                                                    <span style={{ fontSize: '13px' }}>Registered No</span><br />
-                                                    <span style={{ fontSize: '13px' }}>ලියාපදිංචි අංකය</span>
-                                                    <strong style={{ display: 'block', marginTop: '4px', letterSpacing: '1px', fontSize: '13px' }}>MF1398 </strong>
+                                                    <span style={{ fontSize: '14px' }}>Registered No</span><br />
+                                                    <span style={{ fontSize: '14px' }}>ලියාපදිංචි අංකය</span>
+                                                    <strong style={{ display: 'block', marginTop: '1px', letterSpacing: '1px', fontSize: '14px' }}>MF1498 </strong>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="tc5-td" style={{ width: '25%' }}>
                                             <div style={{ display: 'flex', gap: '6px' }}>
-                                                <span style={{ fontWeight: 'bold', fontSize: '13px' }}>1.3</span>
+                                                <span style={{ fontWeight: 'bold', fontSize: '14px' }}>1.3</span>
                                                 <div>
-                                                    <span style={{ fontSize: '13px' }}>Elevation</span><br />
-                                                    <span style={{ fontSize: '13px' }}>පිහිටීම</span>
-                                                    <strong style={{ display: 'block', marginTop: '4px', fontSize: '13px' }}>Low Grown</strong>
+                                                    <span style={{ fontSize: '14px' }}>Elevation</span><br />
+                                                    <span style={{ fontSize: '14px' }}>පිහිටීම</span>
+                                                    <strong style={{ display: 'block', marginTop: '1px', fontSize: '14px' }}>Low Grown</strong>
                                                 </div>
                                             </div>
                                         </td>
                                     </tr>
 
                                     <tr>
-                                        <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '13px' }}>2</td>
+                                        <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>2</td>
                                         <td className="tc5-td">
-                                            <span style={{ fontSize: '13px' }}>Production and stock position of orthodox made tea:</span><br />
-                                            <span style={{ fontSize: '12px' }}>පාරම්පරික සකස් කළ තේ නිෂ්පාදනය සහ තොග තත්වය</span>
+                                            <span style={{ fontSize: '14px' }}>Production and stock position of orthodox made tea:</span><br />
+                                            <span style={{ fontSize: '14px' }}>පාරම්පරික සකස් කළ තේ නිෂ්පාදනය සහ තොග තත්වය</span>
                                         </td>
                                         <td className="tc5-td bg-shade" style={{ verticalAlign: 'middle' }}>
-                                            <span style={{ fontSize: '13px' }}>Management Type</span><br />
-                                            <span style={{ fontSize: '12px' }}>කළමනාකරණ කාණ්ඩය</span>
+                                            <span style={{ fontSize: '14px' }}>Management Type</span><br />
+                                            <span style={{ fontSize: '14px' }}>කළමනාකරණ කාණ්ඩය</span>
                                         </td>
                                         <td className="tc5-td" style={{ padding: 0 }}>
-                                            <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '11px' }}>
+                                            <table style={{ width: '100%', height: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '12px' }}>
                                                 <tbody>
                                                     <tr>
                                                         <td style={{ borderRight: '1px solid #000', padding: '2px 4px', width: '20%' }}>
                                                             Plan<br />tation<br />
-                                                            <span style={{ fontSize: '12px', display: 'block', marginTop: '2px' }}>☐</span>
+                                                            <span style={{ fontSize: '14px', display: 'block', marginTop: '1px' }}>☐</span>
                                                         </td>
                                                         <td style={{ borderRight: '1px solid #000', padding: '2px 4px', width: '20%' }}>
                                                             Private<br /><br />
-                                                            <strong style={{ fontSize: '12px' }}>[X]</strong>
+                                                            <strong style={{ fontSize: '14px' }}>[X]</strong>
                                                         </td>
                                                         <td style={{ borderRight: '1px solid #000', padding: '2px 4px', width: '20%' }}>
                                                             Co-op<br /><br />
-                                                            <span style={{ fontSize: '12px', display: 'block', marginTop: '2px' }}>☐</span>
+                                                            <span style={{ fontSize: '14px', display: 'block', marginTop: '1px' }}>☐</span>
                                                         </td>
                                                         <td style={{ borderRight: '1px solid #000', padding: '2px 4px', width: '20%' }}>
                                                             Tea<br />Shakthi<br />
-                                                            <span style={{ fontSize: '12px', display: 'block', marginTop: '2px' }}>☐</span>
+                                                            <span style={{ fontSize: '14px', display: 'block', marginTop: '1px' }}>☐</span>
                                                         </td>
                                                         <td style={{ padding: '2px 4px', width: '20%' }}>
                                                             Other<br /><br />
-                                                            <span style={{ fontSize: '12px', display: 'block', marginTop: '2px' }}>☐</span>
+                                                            <span style={{ fontSize: '14px', display: 'block', marginTop: '1px' }}>☐</span>
                                                         </td>
                                                     </tr>
                                                 </tbody>
@@ -812,7 +820,7 @@ export default function TC5Report() {
                                 <thead>
                                     <tr>
                                         <th className="tc5-th" rowSpan="3" style={{ width: '3%', textAlign: 'center', verticalAlign: 'middle', padding: 0 }}>
-                                            <div style={{ fontWeight: 'bold', fontSize: '10px', lineHeight: '1.2', letterSpacing: '1px' }}>
+                                            <div style={{ fontWeight: 'bold', fontSize: '11px', lineHeight: '1.2', letterSpacing: '1px' }}>
                                                 OD<br />
                                                 RO<br />
                                                 TX<br />
@@ -820,78 +828,78 @@ export default function TC5Report() {
                                                 O
                                             </div>
                                         </th>
-                                        <th className="tc5-th" rowSpan="3" style={{ width: '13%' }}>
-                                            <span style={{ fontSize: '13px' }}>Stock of tea at the beginning of the month</span><br /><br />
-                                            <span style={{ fontSize: '12px' }}>මාසය ආරම්භයේ දී තේ තොගය</span>
+                                        <th className="tc5-th" rowSpan="3" style={{ width: '14%' }}>
+                                            <span style={{ fontSize: '14px' }}>Stock of tea at the beginning of the month</span><br /><br />
+                                            <span style={{ fontSize: '14px' }}>මාසය ආරම්භයේ දී තේ තොගය</span>
                                         </th>
-                                        <th className="tc5-th" colSpan="4" style={{ textAlign: 'left', padding: '2px', fontSize: '13px' }}>
-                                            Tel No / දුරකථන අංකය : <strong></strong>
+                                        <th className="tc5-th" colSpan="4" style={{ textAlign: 'left', padding: '2px', fontSize: '14px' }}>
+                                            Tel No / දුරකථන අංකය : 0912 291 123<strong></strong>
                                         </th>
                                         <th className="tc5-th" colSpan="3" style={{ textAlign: 'left', padding: '2px' }}>
-                                            <span style={{ fontSize: '13px' }}>Miscellaneous receipt of made tea</span><br />
-                                            <span style={{ fontSize: '12px' }}>වෙනත් සකස් කල තේ ලබා ගත් මාර්ග</span>
+                                            <span style={{ fontSize: '14px' }}>Miscellaneous receipt of made tea</span><br />
+                                            <span style={{ fontSize: '14px' }}>වෙනත් සකස් කල තේ ලබා ගත් මාර් ග</span>
                                         </th>
                                     </tr>
                                     <tr>
-                                        <th className="tc5-th bg-shade border-left-fix" colSpan="4" style={{ textAlign: 'center', padding: '2px', fontSize: '13px' }}>
+                                        <th className="tc5-th bg-shade border-left-fix" colSpan="4" style={{ textAlign: 'center', padding: '2px', fontSize: '14px' }}>
                                             <strong>Manufacture / නිෂ්පාදනය කිරීම</strong>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '11%' }}>
-                                            <span style={{ fontSize: '13px' }}>Total</span><br /><br />
+                                            <span style={{ fontSize: '14px' }}>Total</span><br /><br />
                                             <span style={{ fontSize: '12px' }}>එකතුව</span><br /><br />
-                                            <center><strong>5</strong></center>
-                                        </th>
-                                        <th className="tc5-th" rowSpan="2" style={{ width: '13%' }}>
-                                            <span style={{ fontSize: '12px' }}>Disposals during the month</span><br />
-                                            <span style={{ fontSize: '11px' }}>මාසය තුල අපහරණය කළ ප්‍රමාණය</span><br />
-                                            <center style={{ marginTop: '8px' }}><strong>6</strong></center>
+                                            <center style={{ marginTop: '8px' }}><br /><br /><br /><strong>5</strong></center>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '14%' }}>
-                                            <span style={{ fontSize: '12px' }}>Stock of tea at the end of the month</span><br />
-                                            <span style={{ fontSize: '11px' }}>මාසය අවසානයේ ඉතිරි තේ තොගය</span><br />
-                                            <center style={{ marginTop: '8px' }}><strong>7</strong></center>
+                                            <span style={{ fontSize: '14px' }}>Disposals during the month</span><br />
+                                            <span style={{ fontSize: '12px' }}>මාසය තුල අපහරණය කළ ප්‍රමාණය</span><br />
+                                            <center style={{ marginTop: '8px' }}><br /><strong>6</strong></center>
+                                        </th>
+                                        <th className="tc5-th" rowSpan="2" style={{ width: '14%' }}>
+                                            <span style={{ fontSize: '14px' }}>Stock of tea at the end of the month</span><br />
+                                            <span style={{ fontSize: '12px' }}>මාසය අවසානයේ ඉතිරි තේ තොගය</span><br />
+                                            <center style={{ marginTop: '8px' }}><br /><strong>7</strong></center>
                                         </th>
                                     </tr>
                                     <tr>
                                         <th className="tc5-th border-left-fix" style={{ width: '11%' }}>
-                                            <span style={{ fontSize: '12px' }}>From own leaf</span><br /><br />
-                                            <span style={{ fontSize: '12px' }}>තම වත්තේ දළු වලින්</span><br />
-                                            <center style={{ marginTop: '4px' }}><strong>1</strong></center>
+                                            <span style={{ fontSize: '13px' }}>From own leaf</span><br /><br />
+                                            <span style={{ fontSize: '14px' }}>තම වත්තේ දළු වලින්</span><br />
+                                            <center style={{ marginTop: '4px' }}><br /><br /><strong>1</strong></center>
                                         </th>
                                         <th className="tc5-th" style={{ width: '11%' }}>
-                                            <span style={{ fontSize: '12px' }}>From leaf of other estates</span><br />
-                                            <span style={{ fontSize: '11px' }}>වෙනත් වතුවල දළු වලින්</span><br />
-                                            <center style={{ marginTop: '4px' }}><strong>2</strong></center>
+                                            <span style={{ fontSize: '14px' }}>From leaf of other estates</span><br />
+                                            <span style={{ fontSize: '12px' }}>වෙනත් වතුවල දළු වලින්</span><br />
+                                            <center style={{ marginTop: '4px' }}><br /><br /><strong>2</strong></center>
                                         </th>
                                         <th className="tc5-th" style={{ width: '11%' }}>
-                                            <span style={{ fontSize: '12px' }}>From bought leaf</span><br /><br />
-                                            <span style={{ fontSize: '11px' }}>මිලට ගත් දළු වලින්</span><br />
-                                            <center style={{ marginTop: '4px' }}><strong>3</strong></center>
+                                            <span style={{ fontSize: '14px' }}>From bought leaf</span><br /><br />
+                                            <span style={{ fontSize: '12px' }}>මිලට ගත් දළු වලින්</span><br />
+                                            <center style={{ marginTop: '4px' }}><br /><strong>3</strong></center>
                                         </th>
-                                        <th className="tc5-th" style={{ width: '13%' }}>
-                                            <span style={{ fontSize: '12px' }}>Manufactured by other factories</span><br />
-                                            <span style={{ fontSize: '11px' }}>වෙනත් කම්හල් මගින් නිපදවාගත්</span><br />
+                                        <th className="tc5-th" style={{ width: '14%' }}>
+                                            <span style={{ fontSize: '14px' }}>Manufactured by other factories</span><br />
+                                            <span style={{ fontSize: '12px' }}>වෙනත් කම්හල් මගින් නිපදවාගත්</span><br />
                                             <center style={{ marginTop: '4px' }}><strong>4</strong></center>
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr className="bg-shade" style={{ fontWeight: 'bold', fontSize: '14px', textAlign: 'center' }}>
-                                        <td className="tc5-td-c" style={{ padding: '4px 2px', fontSize: '10px' }}>&nbsp;</td>
+                                    <tr className="bg-shade" style={{ fontWeight: 'bold', fontSize: '15px', textAlign: 'center' }}>
+                                        <td className="tc5-td-c" style={{ padding: '4px 2px', fontSize: '11px' }}>&nbsp;</td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '14px' }}>{reportData.sec2.bf > 0 ? reportData.sec2.bf.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.bf || ""} onChange={(e) => handleSec2Change('bf', e.target.value)} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{reportData.sec2.bf > 0 ? reportData.sec2.bf.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.bf || ""} onChange={(e) => handleSec2Change('bf', e.target.value)} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '14px' }}>{reportData.sec2.ownLeaf > 0 ? reportData.sec2.ownLeaf.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.ownLeaf || ""} onChange={(e) => handleSec2Change('ownLeaf', e.target.value)} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{reportData.sec2.ownLeaf > 0 ? reportData.sec2.ownLeaf.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.ownLeaf || ""} onChange={(e) => handleSec2Change('ownLeaf', e.target.value)} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '14px' }}>{reportData.sec2.otherEstate > 0 ? reportData.sec2.otherEstate.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.otherEstate || ""} onChange={(e) => handleSec2Change('otherEstate', e.target.value)} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{reportData.sec2.otherEstate > 0 ? reportData.sec2.otherEstate.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.otherEstate || ""} onChange={(e) => handleSec2Change('otherEstate', e.target.value)} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '14px' }}>{reportData.sec2.boughtLeaf > 0 ? reportData.sec2.boughtLeaf.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.boughtLeaf || ""} onChange={(e) => handleSec2Change('boughtLeaf', e.target.value)} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{reportData.sec2.boughtLeaf > 0 ? reportData.sec2.boughtLeaf.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.boughtLeaf || ""} onChange={(e) => handleSec2Change('boughtLeaf', e.target.value)} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '14px' }}>{reportData.sec2.otherFactory > 0 ? reportData.sec2.otherFactory.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.otherFactory || ""} onChange={(e) => handleSec2Change('otherFactory', e.target.value)} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{reportData.sec2.otherFactory > 0 ? reportData.sec2.otherFactory.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.otherFactory || ""} onChange={(e) => handleSec2Change('otherFactory', e.target.value)} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '4px' }}>{reportData.sec2.total > 0 ? reportData.sec2.total.toFixed(1) : '-'}</td>
                                         <td className="tc5-td-c" style={{ padding: '4px' }}>{reportData.sec2.disposals > 0 ? reportData.sec2.disposals.toFixed(1) : '-'}</td>
@@ -904,40 +912,40 @@ export default function TC5Report() {
                             <table className="tc5-table no-top">
                                 <tbody>
                                     <tr>
-                                        <td className="tc5-td-c" style={{ width: '3%', fontWeight: 'bold', fontSize: '13px' }}>3</td>
+                                        <td className="tc5-td-c" style={{ width: '3%', fontWeight: 'bold', fontSize: '14px' }}>3</td>
                                         <td className="tc5-td" style={{ width: '55%', verticalAlign: 'middle' }}>
-                                            <span style={{ fontSize: '14px' }}>Average Green Tea Leaf Standard</span><br />
-                                            <span style={{ fontSize: '13px' }}>සාමාන්‍ය අමු තේ දළු ප්‍රමිතිය</span>
+                                            <span style={{ fontSize: '15px' }}>Average Green Tea Leaf Standard</span><br />
+                                            <span style={{ fontSize: '14px' }}>සාමාන්‍ය අමු තේ දළු ප්‍රමිතිය</span>
                                         </td>
                                         <td className="tc5-td-c" style={{ width: '14%', padding: '2px' }}>
-                                            <span style={{ fontSize: '13px' }}>Best</span><br /><span style={{ fontSize: '13px' }}>හොඳ</span><br />
+                                            <span style={{ fontSize: '14px' }}>Best</span><br /><span style={{ fontSize: '14px' }}>හොඳ</span><br />
                                             {generatingPdf ? (
-                                                <span style={{ display: 'block', fontWeight: 'bold', marginTop: '2px', fontSize: '16px' }}>{reportData.sec3.best > 0 ? `${reportData.sec3.best}%` : '-'}</span>
+                                                <span style={{ display: 'block', fontWeight: 'bold', marginTop: '1px', fontSize: '17px' }}>{reportData.sec3.best > 0 ? `${reportData.sec3.best}%` : '-'}</span>
                                             ) : (
                                                 <div className="flex items-center justify-center mt-1">
-                                                    <input type="number" value={reportData.sec3.best || ""} onChange={(e) => handleSec3Change('best', e.target.value)} className="tc5-input text-center text-base py-1" style={{ width: '50px' }} placeholder="-" />
+                                                    <input type="number" value={reportData.sec3.best || ""} onChange={(e) => handleSec3Change('best', e.target.value)} className="tc5-input text-center py-1" style={{ width: '50px' }} placeholder="-" />
                                                     <span className="font-bold text-base">%</span>
                                                 </div>
                                             )}
                                         </td>
                                         <td className="tc5-td-c" style={{ width: '14%', padding: '2px' }}>
-                                            <span style={{ fontSize: '13px' }}>Below Best</span><br /><span style={{ fontSize: '13px' }}>සාමාන්‍ය</span><br />
+                                            <span style={{ fontSize: '14px' }}>Below Best</span><br /><span style={{ fontSize: '14px' }}>සාමාන්‍‍ය</span><br />
                                             {generatingPdf ? (
-                                                <span style={{ display: 'block', fontWeight: 'bold', marginTop: '2px', fontSize: '16px' }}>{reportData.sec3.below > 0 ? `${reportData.sec3.below}%` : '-'}</span>
+                                                <span style={{ display: 'block', fontWeight: 'bold', marginTop: '1px', fontSize: '17px' }}>{reportData.sec3.below > 0 ? `${reportData.sec3.below}%` : '-'}</span>
                                             ) : (
                                                 <div className="flex items-center justify-center mt-1">
-                                                    <input type="number" value={reportData.sec3.below || ""} onChange={(e) => handleSec3Change('below', e.target.value)} className="tc5-input text-center text-base py-1" style={{ width: '50px' }} placeholder="-" />
+                                                    <input type="number" value={reportData.sec3.below || ""} onChange={(e) => handleSec3Change('below', e.target.value)} className="tc5-input text-center py-1" style={{ width: '50px' }} placeholder="-" />
                                                     <span className="font-bold text-base">%</span>
                                                 </div>
                                             )}
                                         </td>
                                         <td className="tc5-td-c" style={{ width: '14%', padding: '2px' }}>
-                                            <span style={{ fontSize: '13px' }}>Poor</span><br /><span style={{ fontSize: '13px' }}>දුර්වල</span><br />
+                                            <span style={{ fontSize: '14px' }}>Poor</span><br /><span style={{ fontSize: '14px' }}>දුර්වල</span><br />
                                             {generatingPdf ? (
-                                                <span style={{ display: 'block', fontWeight: 'bold', marginTop: '2px', fontSize: '16px' }}>{reportData.sec3.poor > 0 ? `${reportData.sec3.poor}%` : '-'}</span>
+                                                <span style={{ display: 'block', fontWeight: 'bold', marginTop: '1px', fontSize: '17px' }}>{reportData.sec3.poor > 0 ? `${reportData.sec3.poor}%` : '-'}</span>
                                             ) : (
                                                 <div className="flex items-center justify-center mt-1">
-                                                    <input type="number" value={reportData.sec3.poor || ""} onChange={(e) => handleSec3Change('poor', e.target.value)} className="tc5-input text-center text-base py-1" style={{ width: '50px' }} placeholder="-" />
+                                                    <input type="number" value={reportData.sec3.poor || ""} onChange={(e) => handleSec3Change('poor', e.target.value)} className="tc5-input text-center py-1" style={{ width: '50px' }} placeholder="-" />
                                                     <span className="font-bold text-base">%</span>
                                                 </div>
                                             )}
@@ -950,204 +958,241 @@ export default function TC5Report() {
                             <table className="tc5-table no-top" style={{ textAlign: 'center' }}>
                                 <tbody>
                                     <tr>
-                                        <td className="tc5-td-c" rowSpan="6" style={{ width: '3%', fontWeight: 'bold', fontSize: '13px', borderRight: '1px solid #000000 !important' }}>4</td>
+                                        <td className="tc5-td-c" rowSpan="6" style={{ width: '3%', fontWeight: 'bold', fontSize: '14px', borderRight: '1px solid #000000 !important' }}>4</td>
                                         <td className="tc5-td" colSpan="8" style={{ textAlign: 'left', fontWeight: 'bold' }}>
-                                            <span style={{ fontSize: '14px' }}>Details of Private Sales</span><br /><span style={{ fontSize: '13px', fontWeight: 'normal' }}>පෞද්ගලික විකිණීම් පිළිබඳ විස්තර</span>
+                                            <span style={{ fontSize: '15px' }}>Details of Private Sales : </span><span style={{ fontSize: '14px', fontWeight: 'normal' }}>පෞද්ගලික විකිණීම් පිළිබඳ විස්තර</span>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td className="tc5-td-c bg-shade" style={{ width: '12%', lineHeight: '1.2', padding: '2px' }}>
-                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Garden marks</div>
-                                            <div style={{ fontSize: '13px' }}>වෙළඳ ලකුණ</div>
+                                            <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Garden marks</div>
+                                            <div style={{ fontSize: '14px' }}>වෙළඳ ලකුණ</div>
                                         </td>
                                         <td className="tc5-td-c bg-shade" style={{ width: '10%', lineHeight: '1.2', padding: '2px' }}>
-                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Invoice No</div>
-                                            <div style={{ fontSize: '13px' }}>ඉන්වොයිස් අංකය</div>
+                                            <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Invoice No</div>
+                                            <div style={{ fontSize: '14px' }}>ඉන්වොයිස් අංකය</div>
                                         </td>
                                         <td className="tc5-td-c bg-shade" style={{ width: '9%', lineHeight: '1.2', padding: '2px' }}>
-                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Grade</div>
-                                            <div style={{ fontSize: '13px' }}>වර්ගය</div>
+                                            <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Grade</div>
+                                            <div style={{ fontSize: '14px' }}>වර්ගය</div>
                                         </td>
-                                        <td className="tc5-td bg-shade" style={{ width: '23%', textAlign: 'left', lineHeight: '1.2', padding: '2px' }}>
-                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Name of buyers</div>
+                                        <td className="tc5-td bg-shade" style={{ width: '23%', textAlign: 'center', lineHeight: '1.2', padding: '1px' }}>
+                                            <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Name of buyers</div>
                                             <div style={{ fontSize: '12px' }}>ගැණුම්කරුවන්ගේ නම</div>
                                         </td>
                                         <td className="tc5-td-c bg-shade" style={{ width: '10%', lineHeight: '1.2', padding: '2px' }}>
-                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Date of sale</div>
-                                            <div style={{ fontSize: '13px' }}>විකුණුම් දිනය</div>
+                                            <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Date of sale</div>
+                                            <div style={{ fontSize: '14px' }}>විකුණුම් දිනය</div>
                                         </td>
                                         <td className="tc5-td-c bg-shade" style={{ width: '11%', lineHeight: '1.1', verticalAlign: 'middle', padding: '2px' }}>
-                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Date of panel approved</div>
-                                            <div style={{ fontSize: '13px', marginTop: '1px' }}>මණ්ඩල අනුමත...</div>
+                                            <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Date of panel approved</div>
+                                            <div style={{ fontSize: '14px', marginTop: '1px' }}>මණ්ඩල අනුමත කළ දිනය    </div>
                                         </td>
                                         <td className="tc5-td-c bg-shade" style={{ width: '11%', padding: 0, verticalAlign: 'top' }}>
-                                            <div style={{ padding: '2px', borderBottom: '1px solid #000', fontWeight: 'bold', fontSize: '13px', lineHeight: '1.1' }}>
+                                            <div style={{ padding: '2px', borderBottom: '1px solid #000', fontWeight: 'bold', fontSize: '14px', lineHeight: '1.1' }}>
                                                 <div>Price per Kg</div>
-                                                <div style={{ fontSize: '12px', fontWeight: 'normal' }}>මිල කිලෝ එකකට</div>
+                                                <div style={{ fontSize: '14px', fontWeight: 'normal' }}>මිල කිලෝ එකකට</div>
                                             </div>
-                                            <div style={{ display: 'flex', fontSize: '12px', fontWeight: 'bold' }}>
+                                            <div style={{ display: 'flex', fontSize: '13px', fontWeight: 'bold' }}>
                                                 <div style={{ width: '50%', borderRight: '1px solid #000', padding: '2px 0', textAlign: 'center' }}>Rs. රු.</div>
                                                 <div style={{ width: '50%', padding: '2px 0', textAlign: 'center' }}>Cts ශත</div>
                                             </div>
                                         </td>
                                         <td className="tc5-td-c bg-shade" style={{ width: '10%', lineHeight: '1.2', padding: '2px' }}>
-                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Weight</div>
-                                            <div style={{ fontSize: '12px' }}>Kgs බර</div>
+                                            <div style={{ fontSize: '14px', fontWeight: 'bold' }}>Weight Kgs</div>
+                                            <div style={{ fontSize: '14px' }}>බර</div>
                                         </td>
                                     </tr>
-                                    {/* Row 1 */}
-                                    <tr>
-                                        <td className="tc5-td border-left-fix" style={{ height: '20px' }}>&nbsp;</td>
-                                        <td className="tc5-td">&nbsp;</td>
-                                        <td className="tc5-td">&nbsp;</td>
-                                        <td className="tc5-td">&nbsp;</td>
-                                        <td className="tc5-td">&nbsp;</td>
-                                        <td className="tc5-td">&nbsp;</td>
+
+                                    {/* Row 1: Top Blank Row (Reduced Height) */}
+                                    <tr style={{ height: '10px' }}>
+                                        <td className="tc5-td border-left-fix" style={{ padding: 0 }}></td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
                                         <td className="tc5-td" style={{ padding: 0 }}>
-                                            <div style={{ display: 'flex', height: '100%', minHeight: '20px' }}>
-                                                <div style={{ width: '50%', borderRight: '1px solid #000' }}>&nbsp;</div>
-                                                <div style={{ width: '50%' }}>&nbsp;</div>
+                                            <div style={{ display: 'flex', height: '100%', minHeight: '10px' }}>
+                                                <div style={{ width: '50%', borderRight: '1px solid #000' }}></div>
+                                                <div style={{ width: '50%' }}></div>
                                             </div>
                                         </td>
-                                        <td className="tc5-td">&nbsp;</td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
                                     </tr>
+
                                     {/* Row 2: Centered static NIL */}
-                                    <tr>
-                                        <td className="tc5-td border-left-fix" style={{ height: '20px' }}>&nbsp;</td>
-                                        <td className="tc5-td">&nbsp;</td>
-                                        <td className="tc5-td">&nbsp;</td>
-                                        <td className="tc5-td-c" style={{ color: '#6a737f', fontWeight: 'bold', fontSize: '16px', letterSpacing: '0.3em' }}>
+                                    <tr style={{ height: '24px' }}>
+                                        <td className="tc5-td border-left-fix" style={{ padding: 0 }}></td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
+                                        <td className="tc5-td-c" style={{ color: '#6a737f', fontWeight: 'bold', fontSize: '11px', letterSpacing: '0.3em', padding: 0 }}>
                                             NIL
                                         </td>
-                                        <td className="tc5-td">&nbsp;</td>
-                                        <td className="tc5-td">&nbsp;</td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
                                         <td className="tc5-td" style={{ padding: 0 }}>
-                                            <div style={{ display: 'flex', height: '100%', minHeight: '20px' }}>
-                                                <div style={{ width: '50%', borderRight: '1px solid #000' }}>&nbsp;</div>
-                                                <div style={{ width: '50%' }}>&nbsp;</div>
+                                            <div style={{ display: 'flex', height: '100%', minHeight: '24px' }}>
+                                                <div style={{ width: '50%', borderRight: '1px solid #000' }}></div>
+                                                <div style={{ width: '50%' }}></div>
                                             </div>
                                         </td>
-                                        <td className="tc5-td">&nbsp;</td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
                                     </tr>
-                                    {/* Row 3 */}
-                                    <tr>
-                                        <td className="tc5-td border-left-fix" style={{ height: '20px' }}>&nbsp;</td>
-                                        <td className="tc5-td">&nbsp;</td>
-                                        <td className="tc5-td">&nbsp;</td>
-                                        <td className="tc5-td">&nbsp;</td>
-                                        <td className="tc5-td">&nbsp;</td>
-                                        <td className="tc5-td">&nbsp;</td>
+
+                                    {/* Row 3: Bottom Blank Row (Reduced Height) */}
+                                    <tr style={{ height: '10px' }}>
+                                        <td className="tc5-td border-left-fix" style={{ padding: 0 }}></td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
                                         <td className="tc5-td" style={{ padding: 0 }}>
-                                            <div style={{ display: 'flex', height: '100%', minHeight: '20px' }}>
-                                                <div style={{ width: '50%', borderRight: '1px solid #000' }}>&nbsp;</div>
-                                                <div style={{ width: '50%' }}>&nbsp;</div>
+                                            <div style={{ display: 'flex', height: '100%', minHeight: '10px' }}>
+                                                <div style={{ width: '50%', borderRight: '1px solid #000' }}></div>
+                                                <div style={{ width: '50%' }}></div>
                                             </div>
                                         </td>
-                                        <td className="tc5-td">&nbsp;</td>
+                                        <td className="tc5-td" style={{ padding: 0 }}></td>
                                     </tr>
+
                                     {/* Row 4: Totals */}
-                                    <tr>
-                                        <td className="tc5-td border-left-fix" colSpan="4" style={{ height: '20px' }}>&nbsp;</td>
-                                        <td className="tc5-td-c" colSpan="2" style={{ fontWeight: 'bold', textAlign: 'right', paddingRight: '8px', fontSize: '13px' }}>Total / එකතුව</td>
+                                    <tr style={{ height: '20px' }}>
+                                        <td className="tc5-td border-left-fix" colSpan="4" style={{ padding: 0 }}></td>
+                                        <td className="tc5-td-c" colSpan="2" style={{ fontWeight: 'bold', textAlign: 'right', paddingRight: '8px', fontSize: '14px', verticalAlign: 'middle', padding: '2px' }}>Total / එකතුව</td>
                                         <td className="tc5-td bg-shade" style={{ padding: 0 }}>
                                             <div style={{ display: 'flex', height: '100%', minHeight: '20px' }}>
-                                                <div style={{ width: '50%', borderRight: '1px solid #000' }}>&nbsp;</div>
-                                                <div style={{ width: '50%' }}>&nbsp;</div>
+                                                <div style={{ width: '50%', borderRight: '1px solid #000' }}></div>
+                                                <div style={{ width: '50%' }}></div>
                                             </div>
                                         </td>
-                                        <td className="tc5-td bg-shade">&nbsp;</td>
+                                        <td className="tc5-td bg-shade" style={{ padding: 0 }}></td>
                                     </tr>
                                 </tbody>
                             </table>
 
                             {/* TABLE 6: REFUSE TEA (With border-left-fix on rows adjacent to rowspan 5) */}
+                            {/* TABLE 6: REFUSE TEA */}
                             <table className="tc5-table no-top" style={{ textAlign: 'center' }}>
+                                <colgroup>
+                                    <col style={{ width: '3%' }} />
+                                    <col style={{ width: '24%' }} />
+                                    <col style={{ width: '16%' }} />
+                                    <col style={{ width: '14%' }} />
+                                    <col style={{ width: '15%' }} />
+                                    <col style={{ width: '15%' }} />
+                                    <col style={{ width: '14%' }} />
+                                </colgroup>
                                 <tbody>
                                     <tr>
-                                        <td className="tc5-td-c" rowSpan="3" style={{ width: '3%', fontWeight: 'bold', fontSize: '13px', borderRight: '1px solid #000000 !important' }}>5</td>
+                                        <td className="tc5-td-c" rowSpan="3" style={{ fontWeight: 'bold', fontSize: '14px', borderRight: '1px solid #000000 !important' }}>5</td>
                                         <td className="tc5-td" colSpan="6" style={{ textAlign: 'left' }}>
-                                            <strong style={{ fontSize: '15px' }}>Refuse Tea</strong> <span style={{ fontSize: '15px' }}>කසල තේ</span>
+                                            <strong style={{ fontSize: '16px' }}>Refuse Tea : </strong> <span style={{ fontSize: '16px' }}>කසල තේ</span>
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td className="tc5-td bg-shade" style={{ width: '16%', textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '13px' }}>Stock brought<br />forward from previous month<br /><span style={{ fontSize: '13px' }}>ඉකුත් මාසයෙන් ඉදිරියට ගෙන ආ තොගය</span><br /><br /><center><strong>1</strong></center></div></td>
-                                        <td className="tc5-td bg-shade" style={{ width: '16%', textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '13px' }}>Manufactured<br />during the month<br /><span style={{ fontSize: '13px' }}>මාසය තුල නිපැයුම</span><br /><br /><br /><center><strong>2</strong></center></div></td>
-                                        <td className="tc5-td bg-shade" style={{ width: '16%', textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '13px' }}>Quantity<br />sold<br /><span style={{ fontSize: '13px' }}>විකුණු ප්‍රමාණය</span><br /><br /><br /><center><strong>3</strong></center></div></td>
-                                        <td className="tc5-td bg-shade" style={{ width: '16%', textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '13px' }}>Quantity used<br />as manure<br /><span style={{ fontSize: '13px' }}>පොහොර ලෙස යෙදූ ප්‍රමාණය</span><br /><br /><center><strong>4</strong></center></div></td>
-                                        <td className="tc5-td bg-shade" style={{ width: '18%', textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '13px' }}>Other disposals<br /><br /><span style={{ fontSize: '13px' }}>වෙනත් අපහරණයන්</span><br /><br /><br /><center><strong>5</strong></center></div></td>
-                                        <td className="tc5-td bg-shade" style={{ width: '15%', textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '13px' }}>Balance stock<br /><br /><span style={{ fontSize: '13px' }}>ඉතිරි තොගය</span><br /><br /><br /><center><strong>6</strong></center></div></td>
+                                        <td className="tc5-td bg-shade" style={{ textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '14px' }}>Stock brought<br />forward from previous month<br /><span style={{ fontSize: '14px' }}>ඉකුත් මාසයෙන් ඉදිරියට ගෙන ආ තොගය</span><br /><center><strong>1</strong></center></div></td>
+                                        <td className="tc5-td bg-shade" style={{ textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '14px' }}>Manufactured<br />during the month<br /><span style={{ fontSize: '14px' }}>මාසය තුල නිපැයුම</span><br /><br /><center><strong>2</strong></center></div></td>
+                                        <td className="tc5-td bg-shade" style={{ textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '14px' }}>Quantity<br />sold<br /><span style={{ fontSize: '14px' }}>විකුණු ප්‍රමාණය</span><br /><br /><center><strong>3</strong></center></div></td>
+                                        <td className="tc5-td bg-shade" style={{ textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '14px' }}>Quantity used<br />as manure<br /><span style={{ fontSize: '14px' }}>පොහොර ලෙස යෙදූ ප්‍රමාණය</span><br /><center><strong>4</strong></center></div></td>
+                                        <td className="tc5-td bg-shade" style={{ textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '14px' }}>Other disposals<br /><br /><span style={{ fontSize: '14px' }}>වෙනත් අපහරණයන්</span><br /><center><strong>5</strong></center></div></td>
+                                        <td className="tc5-td bg-shade" style={{ textAlign: 'center', padding: '2px' }}><div style={{ fontSize: '14px' }}>Balance stock<br /><br /><span style={{ fontSize: '14px' }}>ඉතිරි තොගය</span><br /><br /><center><strong>6</strong></center></div></td>
                                     </tr>
                                     <tr>
                                         <td className="tc5-td-c border-left-fix" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '14px' }}>{Number(refuseTea.bf) > 0 ? refuseTea.bf : "-"}</span> : <input type="number" name="bf" value={refuseTea.bf || ""} onChange={handleRefuseChange} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{Number(refuseTea.bf) > 0 ? refuseTea.bf : "-"}</span> : <input type="number" name="bf" value={refuseTea.bf || ""} onChange={handleRefuseChange} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '14px' }}>{Number(refuseTea.manufactured) > 0 ? refuseTea.manufactured : "-"}</span> : <input type="number" name="manufactured" value={refuseTea.manufactured || ""} onChange={handleRefuseChange} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{Number(refuseTea.manufactured) > 0 ? refuseTea.manufactured : "-"}</span> : <input type="number" name="manufactured" value={refuseTea.manufactured || ""} onChange={handleRefuseChange} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '14px' }}>{Number(refuseTea.sold) > 0 ? refuseTea.sold : "-"}</span> : <input type="number" name="sold" value={refuseTea.sold || ""} onChange={handleRefuseChange} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{Number(refuseTea.sold) > 0 ? refuseTea.sold : "-"}</span> : <input type="number" name="sold" value={refuseTea.sold || ""} onChange={handleRefuseChange} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '14px' }}>{Number(refuseTea.manure) > 0 ? refuseTea.manure : "-"}</span> : <input type="number" name="manure" value={refuseTea.manure || ""} onChange={handleRefuseChange} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{Number(refuseTea.manure) > 0 ? refuseTea.manure : "-"}</span> : <input type="number" name="manure" value={refuseTea.manure || ""} onChange={handleRefuseChange} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '14px' }}>{Number(refuseTea.other) > 0 ? refuseTea.other : "-"}</span> : <input type="number" name="other" value={refuseTea.other || ""} onChange={handleRefuseChange} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{Number(refuseTea.other) > 0 ? refuseTea.other : "-"}</span> : <input type="number" name="other" value={refuseTea.other || ""} onChange={handleRefuseChange} className="tc5-input py-1" placeholder="-" />}
                                         </td>
-                                        <td className="tc5-td-c bg-shade" style={{ fontWeight: 'bold', fontSize: '14px' }}>{refBalance > 0 ? refBalance.toFixed(2) : '-'}</td>
+                                        <td className="tc5-td-c bg-shade" style={{ fontWeight: 'bold', fontSize: '15px' }}>{refBalance > 0 ? refBalance.toFixed(2) : '-'}</td>
                                     </tr>
                                 </tbody>
                             </table>
 
                             {/* TABLE 7: DETAILS & BROKERS */}
-                            <table className="tc5-table no-top" style={{ marginBottom: '8px' }}>
+                            <table className="tc5-table no-top" style={{ marginBottom: '8px', width: '100%' }}>
                                 <tbody>
                                     <tr>
-                                        <td className="tc5-td-c" style={{ width: '3%', fontWeight: 'bold', fontSize: '13px' }}>6</td>
+                                        <td className="tc5-td-c" style={{ width: '3%', fontWeight: 'bold', fontSize: '14px' }}>6</td>
                                         <td className="tc5-td" colSpan="2" style={{ padding: '2px 4px' }}>
-                                            <strong style={{ fontSize: '13px' }}>Details of Disposal of Refuse Tea:</strong><br />
-                                            <span style={{ fontSize: '13px' }}>කසල තේ අපහරණය පිළිබඳ වැඩිමනත් විස්තර:</span>
+                                            <strong style={{ fontSize: '14px' }}>Details of Disposal of Refuse Tea : </strong>
+                                            <span style={{ fontSize: '14px' }}>කසල තේ අපහරණය පිළිබඳ වැඩිමනත් විස්තර</span>
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td className="tc5-td-c" style={{ width: '3%', fontWeight: 'bold', fontSize: '13px' }}>7</td>
-                                        <td className="tc5-td" style={{ width: '48%', height: '75px', verticalAlign: 'top', padding: '4px' }}>
-                                            <div style={{ fontWeight: 'bold', fontSize: '13px' }}>Name of brokers</div>
-                                            <div style={{ fontSize: '12px', marginBottom: '2px' }}>තැරැව්කරුවන්ගේ නම</div>
-                                            <div style={{ lineHeight: '1.4', fontSize: '13px' }}>
-                                                <div>1. Lanka Commodity Brokers Ltd.</div>
-                                                <div>2. Bartleet Produce Marketing (Pvt) Ltd.</div>
-                                                <div style={{ color: '#4b5563' }}>3.........................................................................</div>
-                                                <div style={{ color: '#4b5563' }}>4.........................................................................</div>
+                                        <td className="tc5-td-c" style={{ width: '3%', fontWeight: 'bold', fontSize: '14px' }}>7</td>
+                                        <td className="tc5-td" style={{ width: '48%', height: '85px', verticalAlign: 'top', padding: '4px' }}>
+                                            <div style={{ fontWeight: 'bold', fontSize: '14px' }}>Name of brokers</div>
+                                            <div style={{ fontSize: '14px', marginBottom: '6px' }}>තැරැව්කරුවන්ගේ නම</div>
+                                            <div style={{ fontSize: '14px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '1px' }}>
+                                                    <span style={{ marginRight: '4px' }}>1.</span>
+                                                    <span style={{ borderBottom: '2px dotted #4b5563', flex: 1, paddingBottom: '0px', fontSize: '15px' }}>Lanka Commodity Brokers Ltd.</span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '1px' }}>
+                                                    <span style={{ marginRight: '4px' }}>2.</span>
+                                                    <span style={{ borderBottom: '2px dotted #4b5563', flex: 1, paddingBottom: '0px', fontSize: '15px' }}>Bartleet Produce Marketing (Pvt) Ltd.</span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '1px' }}>
+                                                    <span style={{ marginRight: '4px', color: '#4b5563' }}>3.</span>
+                                                    <span style={{ borderBottom: '2px dotted #4b5563', flex: 1, paddingBottom: '0px', fontSize: '15px' }}>&nbsp;</span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '1px' }}>
+                                                    <span style={{ marginRight: '4px', color: '#4b5563' }}>4.</span>
+                                                    <span style={{ borderBottom: '2px dotted #4b5563', flex: 1, paddingBottom: '0px', fontSize: '15px' }}>&nbsp;</span>
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="tc5-td" style={{ width: '49%', verticalAlign: 'top', padding: '4px' }}>
-                                            <div style={{ fontWeight: 'bold', fontSize: '13px' }}>Selling marks</div>
-                                            <div style={{ fontSize: '12px', marginBottom: '2px' }}>වෙළඳ සලකුණ</div>
-                                            <div style={{ lineHeight: '1.4', fontSize: '13px' }}>
-                                                <div>1. Athukorala Group Super</div>
-                                                <div>2. Athukorala Group</div>
-                                                <div>3. Pitigala Tea</div>
-                                                <div>4. Athukorala</div>
+                                            <div style={{ fontWeight: 'bold', fontSize: '14px' }}>Selling marks</div>
+                                            <div style={{ fontSize: '14px', marginBottom: '6px' }}>වෙළඳ සලකුණ</div>
+                                            <div style={{ fontSize: '14px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '1px' }}>
+                                                    <span style={{ marginRight: '4px' }}>1.</span>
+                                                    <span style={{ borderBottom: '2px dotted #4b5563', flex: 1, paddingBottom: '0px', fontSize: '15px' }}>Athukorala Group Super</span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '1px' }}>
+                                                    <span style={{ marginRight: '4px' }}>2.</span>
+                                                    <span style={{ borderBottom: '2px dotted #4b5563', flex: 1, paddingBottom: '0px', fontSize: '15px' }}>Athukorala Group</span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '1px' }}>
+                                                    <span style={{ marginRight: '4px' }}>3.</span>
+                                                    <span style={{ borderBottom: '2px dotted #4b5563', flex: 1, paddingBottom: '0px', fontSize: '15px' }}>Pitigala Tea</span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '1px' }}>
+                                                    <span style={{ marginRight: '4px' }}>4.</span>
+                                                    <span style={{ borderBottom: '2px dotted #4b5563', flex: 1, paddingBottom: '0px', fontSize: '15px' }}>Athukorala</span>
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
-
                             {/* COLOR CODE FOOTER */}
-                            <div style={{ fontSize: '11px', marginTop: 'auto', display: 'flex', justifyContent: 'center', gap: '24px', borderTop: '1px solid #000', paddingTop: '8px' }}>
+                            <div style={{ fontSize: '12px', marginTop: 'auto', display: 'flex', justifyContent: 'center', gap: '24px' }}>
                                 <div>
-                                    <span style={{ fontSize: '12px' }}>Color code</span><br />
-                                    <div style={{ marginLeft: '16px', lineHeight: '1.3' }}>
-                                        &#10022; White paper = Orthodox tea Manufacture<br /><span style={{ marginLeft: '16px', fontSize: '10px' }}>සුදු කඩදාසිය=පාරම්පරික තේ නිෂ්පාදනය</span><br />
-                                        &#10022; Green Paper = Green tea Manufacture<br /><span style={{ marginLeft: '16px', fontSize: '10px' }}>කොළ කඩදාසිය=හරිත තේ</span>
+                                    <span style={{ fontSize: '14px' }}>Color code</span><br />
+                                    <div style={{ marginLeft: '16px', lineHeight: '1.1' }}>
+                                        &#10022; White paper = Orthodox tea Manufacture<br /><span style={{ marginLeft: '16px', fontSize: '11px' }}>සුදු කඩදාසිය=පාරම්පරික තේ නිෂ්පාදනය</span><br />
+                                        &#10022; Green Paper = Green tea Manufacture<br /><span style={{ marginLeft: '16px', fontSize: '11px' }}>කොළ කඩදාසිය=හරිත තේ</span>
                                     </div>
                                 </div>
                                 <div>
                                     <br />
-                                    <div style={{ marginLeft: '16px', lineHeight: '1.3' }}>
-                                        &#10022; Blue paper = Orthodox + CT C or C. T. C Manufacture<br /><span style={{ marginLeft: '16px', fontSize: '10px' }}>නිල් කඩදාසිය=පාරම්පරික සහ සී ටී සී නිෂ්පාදනය හෝ සී ටී සී නිෂ්පාදනය</span><br />
-                                        &#10022; Yellow Paper = Bio tea<br /><span style={{ marginLeft: '16px', fontSize: '10px' }}>කහ කඩදාසිය=ජීව තේ</span>
+                                    <div style={{ marginLeft: '16px', lineHeight: '1.1' }}>
+                                        &#10022; Blue paper = Orthodox + CT C or C. T. C Manufacture<br /><span style={{ marginLeft: '16px', fontSize: '11px' }}>නිල් කඩදාසිය=පාරම්පරික සහ සී ටී සී නිෂ්පාදනය හෝ සී ටී සී නිෂ්පාදනය</span><br />
+                                        &#10022; Yellow Paper = Bio tea<br /><span style={{ marginLeft: '16px', fontSize: '11px' }}>කහ කඩදාසිය=ජීව තේ</span>
                                     </div>
                                 </div>
                             </div>
@@ -1168,80 +1213,80 @@ export default function TC5Report() {
                             <table className="tc5-table tc5-table-first" style={{ textAlign: 'center', fontSize: '13px', marginBottom: '8px' }}>
                                 <thead className="bg-shade">
                                     <tr>
-                                        <th className="tc5-th" style={{ width: '8%',  padding: '2px' }}>
+                                        <th className="tc5-th" style={{ width: '8%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Invoice<br />No</div>
-                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>ඉන්වොයිස්<br />අංකය</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '1px', flex: 1 }}>ඉන්වොයිස්<br />අංකය</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>1</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '11%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Grade</div>
-                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>තේ<br />වර්ගය</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '1px', flex: 1 }}>තේ<br />වර්ගය</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>2</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '12%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>For sale at colombo<br />auction</div>
-                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>කොළඹ<br />වෙන්දේසියේ<br />විකිණීම සඳහා</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '1px', flex: 1 }}>කොළඹ<br />වෙන්දේසියේ<br />විකිණීම සඳහා</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>3</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Private<br />sales<br />scheme</div>
-                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>පුද්ගලික<br />විකිණීම<br />මත<br />විකිණීම<br />සඳහා</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '1px', flex: 1 }}>පුද්ගලික<br />විකිණීම<br />මත<br />විකිණීම<br />සඳහා</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>4</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Forward<br />contracts</div>
-                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>මතු අදාල<br />ගිවිසුම් මත<br />විකිණීම සඳහා</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '1px', flex: 1 }}>මතු අදාල<br />ගිවිසුම් මත<br />විකිණීම සඳහා</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>5</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Ex<br />factory<br />sales</div>
-                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>කර්මාන්ත<br />ශාලාවේදී<br />විකිණීම</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '1px', flex: 1 }}>කර්මාන්ත<br />ශාලාවේදී<br />විකිණීම</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>6</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '10%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Exported<br />direct<br />in value<br />added form</div>
-                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>එකතු කල<br />අගය සහිත<br />සෘජු<br />අපනයනය</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '1px', flex: 1 }}>එකතු කල<br />අගය සහිත<br />සෘජු<br />අපනයනය</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>7</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '10%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Gifts to<br />employee &<br />others</div>
-                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>සේවකයන්ට<br />සහ වෙනත්<br />ප්‍රදානය<br />කිරීම්</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '1px', flex: 1 }}>සේවකයන්ට<br />සහ වෙනත්<br />ප්‍රදානය<br />කිරීම්</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>8</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '15%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Tea<br />manufactured<br />for other estates<br />and returned</div>
-                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>වෙනත් වතු වල<br />තේ දළු වලින්<br />නිපදවා ආපසු<br />භාරදුන් ප්‍රමාණය</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '1px', flex: 1 }}>වෙනත් වතු වල<br />තේ දළු වලින්<br />නිපදවා ආපසු<br />භාරදුන් ප්‍රමාණය</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>9</strong></div>
                                             </div>
                                         </th>
                                         <th className="tc5-th" style={{ width: '7%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Direct<br />sales</div>
-                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>සෘජු<br />විකිණීම්</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '1px', flex: 1 }}>සෘජු<br />විකිණීම්</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>10</strong></div>
                                             </div>
                                         </th>
-                                        <th className="tc5-th" style={{ width: '10%', padding: '2px', backgroundColor: '#f3f4f6' }}>
+                                        <th className="tc5-th" style={{ width: '10%', padding: '2px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', height: '125px' }}>
                                                 <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.1' }}>Total</div>
-                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '2px', flex: 1 }}>මුළු<br />එකතුව</div>
+                                                <div style={{ textAlign: 'center', fontSize: '12px', lineHeight: '1.1', marginTop: '1px', flex: 1 }}>මුළු<br />එකතුව</div>
                                                 <div style={{ textAlign: 'center', marginTop: 'auto', fontSize: '13px' }}><strong>11</strong></div>
                                             </div>
                                         </th>
@@ -1334,7 +1379,7 @@ export default function TC5Report() {
                             </table>
 
                             {/* TABLE 9: DIRECT SALES */}
-                            <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '2px', marginTop: '-6px' }}>
+                            <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: '4px', marginTop: '-6px' }}>
                                 09. Direct sales - Sales made without the services of a broker<br />
                                 <span style={{ fontSize: '14px', fontWeight: 'normal' }}>සෘජු විකිණීම් - තැරැව්කරුවෙකුගේ සේවාවකින් තොරව විකිණෙන ලද සකස් කළ තේ</span>
                             </div>
@@ -1344,35 +1389,35 @@ export default function TC5Report() {
                                     <tr>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '13%', verticalAlign: 'top', padding: '2px' }}>
                                             <div style={{ fontSize: '13px', lineHeight: '1.1' }}>Garden marks</div>
-                                            <div style={{ fontSize: '13px', marginTop: '2px', lineHeight: '1.1' }}>වෙළඳ ලකුණ</div>
+                                            <div style={{ fontSize: '13px', marginTop: '1px', lineHeight: '1.1' }}>වෙළඳ ලකුණ</div>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '11%', verticalAlign: 'top', padding: '2px' }}>
                                             <div style={{ fontSize: '13px', lineHeight: '1.1' }}>Invoice No</div>
-                                            <div style={{ fontSize: '13px', marginTop: '2px', lineHeight: '1.1' }}>ඉන්වොයිස්<br />අංකය</div>
+                                            <div style={{ fontSize: '13px', marginTop: '1px', lineHeight: '1.1' }}>ඉන්වොයිස්<br />අංකය</div>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '9%', verticalAlign: 'top', padding: '2px' }}>
                                             <div style={{ fontSize: '13px', lineHeight: '1.1' }}>Grade</div>
-                                            <div style={{ fontSize: '13px', marginTop: '2px', lineHeight: '1.1' }}>වර්ගය</div>
+                                            <div style={{ fontSize: '13px', marginTop: '1px', lineHeight: '1.1' }}>වර්ගය</div>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '21%', verticalAlign: 'top', padding: '2px' }}>
                                             <div style={{ fontSize: '13px', lineHeight: '1.1' }}>Name of buyers</div>
-                                            <div style={{ fontSize: '13px', marginTop: '2px', lineHeight: '1.1' }}>ගැණුම්කරුවන්ගේ<br />නම</div>
+                                            <div style={{ fontSize: '13px', marginTop: '1px', lineHeight: '1.1' }}>ගැණුම්කරුවන්ගේ<br />නම</div>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '10%', verticalAlign: 'top', padding: '2px' }}>
                                             <div style={{ fontSize: '13px', lineHeight: '1.1' }}>Date of sale</div>
-                                            <div style={{ fontSize: '13px', marginTop: '2px', lineHeight: '1.1' }}>විකුණුම්<br />දිනය</div>
+                                            <div style={{ fontSize: '13px', marginTop: '1px', lineHeight: '1.1' }}>විකුණුම්<br />දිනය</div>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '12%', verticalAlign: 'top', padding: '2px' }}>
                                             <div style={{ fontSize: '13px', lineHeight: '1.1' }}>Date of panel<br />approve</div>
-                                            <div style={{ fontSize: '13px', marginTop: '2px', lineHeight: '1.1' }}>මණ්ඩල අනුමත<br />කළ දිනය</div>
+                                            <div style={{ fontSize: '13px', marginTop: '1px', lineHeight: '1.1' }}>මණ්ඩල අනුමත<br />කළ දිනය</div>
                                         </th>
                                         <th className="tc5-th" colSpan="2" style={{ width: '12%', textAlign: 'center', padding: '2px' }}>
                                             <div style={{ fontSize: '13px', lineHeight: '1.1' }}>Price per Kg.<br />(Rs. Rs./Cts.)</div>
-                                            <div style={{ fontSize: '13px', marginTop: '2px', lineHeight: '1.1' }}>මිල කිලෝ එකකට<br />(රු./ශත)</div>
+                                            <div style={{ fontSize: '13px', marginTop: '1px', lineHeight: '1.1' }}>මිල කිලෝ එකකට<br />(රු./ශත)</div>
                                         </th>
                                         <th className="tc5-th" rowSpan="2" style={{ width: '12%', verticalAlign: 'top', padding: '2px' }}>
                                             <div style={{ fontSize: '13px', lineHeight: '1.1' }}>Weight Kgs</div>
-                                            <div style={{ fontSize: '13px', marginTop: '2px', lineHeight: '1.1' }}>බර කිලෝ</div>
+                                            <div style={{ fontSize: '13px', marginTop: '1px', lineHeight: '1.1' }}>බර කිලෝ</div>
                                         </th>
                                     </tr>
                                     <tr>
@@ -1405,9 +1450,9 @@ export default function TC5Report() {
                                     {/* DECLARATIONS BOX */}
                                     <tr>
                                         <td className="tc5-td" colSpan="9" style={{ padding: '6px 8px' }}>
-                                            <p style={{ margin: '0 0 4px 0', fontSize: '13px' }}>I/We hereby declare that all the particulars furnished in this return are true and accurate.<br /><span style={{ fontSize: '13px' }}>මෙම වාර්තාවේ සපයා ඇති සියලු විස්තර සත්‍ය බවත් නිවැරදි බවත් මම / අපි මෙයින් ප්‍රකාශ කර සිටිමු / සිටිමි.</span></p>
+                                            <p style={{ margin: '0 0 4px 0', fontSize: '13px' }}>I/We hereby declare that all the particulars furnished in this return are true and accurate.<br /><span style={{ fontSize: '14px' }}>මෙම වාර්තාවේ සපයා ඇති සියලු විස්තර සත්‍ය බවත් නිවැරදි බවත් මම / අපි මෙයින් ප්‍රකාශ කර සිටිමු / සිටිමි.</span></p>
 
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '6px', marginBottom: '0px', textAlign: 'center', fontSize: '13px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '2px', marginBottom: '0px', textAlign: 'center', fontSize: '13px' }}>
                                                 <div style={{ textAlign: 'left', width: '20%' }}>
                                                     Date :<br /><span style={{ fontSize: '13px' }}>දිනය</span>
                                                 </div>
@@ -1426,22 +1471,22 @@ export default function TC5Report() {
                                     </tr>
                                     <tr>
                                         <td className="tc5-td" colSpan="9" style={{ padding: '6px 8px' }}>
-                                            <div style={{ fontSize: '13px' }}>
+                                            <div style={{ fontSize: '14px' }}>
                                                 State if any special remarks<br />
-                                                <span style={{ fontSize: '13px' }}>විශේෂ විමර්ශන ඇත්නම් දක්වන්න</span>
+                                                <span style={{ fontSize: '14px' }}>විශේෂ විමර්ශන ඇත්නම් දක්වන්න</span>
                                                 <br />
-                                        
+
                                                 <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '100%', marginTop: '1px' }}></span>
                                                 <br />
                                                 Date :<br />
-                                                <span style={{ fontSize: '13px' }}>දිනය</span>
+                                                <span style={{ fontSize: '14px' }}>දිනය</span>
                                                 <span style={{ borderBottom: '1px dotted #000', display: 'inline-block', width: '150px', marginLeft: '16px' }}></span>
                                             </div>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td className="tc5-td" colSpan="9" style={{ padding: '6px 8px', textAlign: 'center' }}>
-                                            <p style={{ margin: 0, fontSize: '13px' }}>
+                                            <p style={{ margin: 0, fontSize: '14px' }}>
                                                 This return should be addressed to the assistant tea commissioner of your region on or before the fifth of the following month.<br />
                                                 මෙම වාර්තාව ඔබ ප්‍රදේශයේ සහකාර තේ කොමසාරිස් වෙත ඊළඟ මාසයේ 05 දිනට හෝ ඊට පෙර එවිය යුතුය.
                                             </p>
