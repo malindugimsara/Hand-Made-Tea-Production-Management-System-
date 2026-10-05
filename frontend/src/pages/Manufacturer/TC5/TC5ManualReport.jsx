@@ -1161,7 +1161,7 @@ export default function TC5ManualReport() {
                                 {/* NIL Overlay for Table 8 */}
                                 {reportData.sec8.every(r => !r.grade || r.grade.trim() === '') && (
                                     <div className="absolute flex items-center justify-center pointer-events-none" style={{ top: '144px', bottom: '20px', left: 0, right: 0, zIndex: 5 }}>
-                                        <span style={{ color: '#727d8a', fontWeight: 'bold', fontSize: '24px', letterSpacing: '0.4em', opacity: 0.7 }}></span>
+                                        <span style={{ color: '#727d8a', fontWeight: 'bold', fontSize: '24px', letterSpacing: '0.4em', opacity: 0.7 }}>NIL</span>
                                     </div>
                                 )}
                             </div>
