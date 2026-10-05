@@ -932,7 +932,7 @@ export default function TC5ManualReport() {
                                             <div style={{ fontWeight: 'bold', fontSize: '12px' }}>Selling marks</div>
                                             <div style={{ fontSize: '11px', marginBottom: '2px' }}>වෙළඳ සලකුණ</div>
                                             <div style={{ lineHeight: '1.4', fontSize: '12px' }}>
-                                                <div>1. Athukorala Group Super</div>
+                                                <div>1. Athukorala Tea</div>
 
                                             </div>
                                         </td>
