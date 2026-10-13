@@ -1,5 +1,6 @@
 import MonthlyBalance from '../models/MonthlyBalance.js';
 import DailySummary from '../models/DailySummary.js';
+import IssueSummary from '../models/IssueTypeSummary.js'; 
 
 const productCategories = [
     { id: 'athukorala_400g', categoryId: 'athukorala', size: '400g', name: 'Athukorala BOPF 400g' },
@@ -45,41 +46,42 @@ const generateNormalizedKey = (catId, catTitle, size) => {
 };
 
 // @route   GET /api/monthly-balance
-// @route   GET /api/monthly-balance
 export const getBalance = async (req, res) => {
     try {
         const { month } = req.query; // e.g., '2026-10'
         if (!month) return res.status(400).json({ success: false, message: 'Month required' });
 
+        // 💡 කෙලින්ම Database එකෙන් B/M Stock එක කියවීම
+        const monthlyRecord = await MonthlyBalance.findOne({ month: month });
+        
+        const bmMap = {};
         const allCategoriesMap = {};
 
-        // 1. Base categories load කිරීම
+        // 1. Base Categories ඇතුලත් කිරීම
         productCategories.forEach(cat => {
             const key = generateNormalizedKey(cat.categoryId, cat.name, cat.size);
             allCategoriesMap[key] = { categoryId: cat.categoryId, categoryTitle: cat.name, size: cat.size };
+            bmMap[key] = 0;
         });
 
-        const bmMap = {};
-
-        // 💡 FIX: මෙතැනින් තමයි Database එකේ සේව් වෙලා තියෙන සැබෑ Opening Balance එක (7 අගය) කෙලින්ම ගන්නේ
-        const bmRecord = await MonthlyBalance.findOne({ month: month });
-        
-        if (bmRecord && bmRecord.items) {
-            bmRecord.items.forEach(item => {
+        // 2. Database එකේ Save වී ඇති B/M Stock අගයන් කෙලින්ම ලබා ගැනීම
+        if (monthlyRecord && monthlyRecord.items) {
+            monthlyRecord.items.forEach(item => {
                 const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
-                bmMap[key] = Number(item.bmStock) || 0; // 👈 Database එකේ 7 තිබ්බොත් 7 ම ගනී
-                
                 if (!allCategoriesMap[key]) {
                     allCategoriesMap[key] = { categoryId: item.categoryId, categoryTitle: item.categoryTitle || item.categoryId, size: item.size };
                 }
+                bmMap[key] = Number(item.bmStock) || 0;
             });
         } else if (month === '2026-07') {
-            // පළමු මාසය නම් seed එක භාවිතා කිරීම
-            Object.keys(seed).forEach(k => { bmMap[k] = seed[k]; });
+            Object.keys(seed).forEach(k => {
+                if (allCategoriesMap[k]) bmMap[k] = seed[k];
+            });
         }
 
-        // 2. Current month summaries (In/Out) load කිරීම (මේ මාසයේ ගනුදෙනු)
+        // 3. මේ මාසයට අදාල IN සහ OUT පමණක් ලබා ගැනීම (Total සහ Balance හැදීම සඳහා)
         const currentSummaries = await DailySummary.find({ date: { $regex: `^${month}` } });
+        const currentIssues = await IssueSummary.find({ date: { $regex: `^${month}` } });
         const dynamicMap = {};
 
         currentSummaries.forEach(day => {
@@ -94,10 +96,21 @@ export const getBalance = async (req, res) => {
             });
         });
 
-        // 3. අවසාන දත්ත සකස් කිරීම
+        currentIssues.forEach(issue => {
+            issue.items?.forEach(item => {
+                const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
+                if (!allCategoriesMap[key]) {
+                    allCategoriesMap[key] = { categoryId: item.categoryId, categoryTitle: item.categoryTitle || item.categoryId, size: item.size };
+                }
+                if (!dynamicMap[key]) dynamicMap[key] = { in: 0, out: 0 };
+                dynamicMap[key].out += (Number(item.out) || 0);
+            });
+        });
+
+        // 4. UI එකට දත්ත යැවීම
         const items = Object.keys(allCategoriesMap).map(key => {
             const catInfo = allCategoriesMap[key];
-            const bmStock = bmMap[key] || 0; // 👈 දැන් මෙතනට එන්නේ Database එකේ තියෙන සැබෑ අගයයි!
+            const bmStock = bmMap[key] || 0; 
             const inQty = dynamicMap[key]?.in || 0;
             const outQty = dynamicMap[key]?.out || 0;
             
@@ -120,39 +133,23 @@ export const getBalance = async (req, res) => {
     }
 };
 
-// CORE REUSABLE LOGIC 
+// CORE REUSABLE LOGIC (Update B/M Stock Button Logic)
 export const updateBMStockLogic = async (currentMonthStr) => {
     let bmRecord = await MonthlyBalance.findOne({ month: currentMonthStr });
-
-    // 1. Create a master map to hold ALL categories (base + dynamic)
     const allItemsMap = {};
 
-    // 2. Initialize with your base productCategories
     productCategories.forEach(cat => {
         const key = generateNormalizedKey(cat.categoryId, cat.name, cat.size);
         allItemsMap[key] = {
-            categoryId: cat.categoryId,
-            categoryTitle: cat.name,
-            size: cat.size,
-            bmStock: 0,
-            inQty: 0,
-            outQty: 0
+            categoryId: cat.categoryId, categoryTitle: cat.name, size: cat.size, bmStock: 0, inQty: 0, outQty: 0
         };
     });
 
-    // 3. Add existing BM Stock from the database (catching leftover custom items)
     if (bmRecord) {
         bmRecord.items.forEach(item => {
             const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
             if (!allItemsMap[key]) {
-                allItemsMap[key] = {
-                    categoryId: item.categoryId,
-                    categoryTitle: item.categoryTitle || item.categoryId,
-                    size: item.size,
-                    bmStock: 0,
-                    inQty: 0,
-                    outQty: 0
-                };
+                allItemsMap[key] = { categoryId: item.categoryId, categoryTitle: item.categoryTitle || item.categoryId, size: item.size, bmStock: 0, inQty: 0, outQty: 0 };
             }
             allItemsMap[key].bmStock += (Number(item.bmStock) || 0);
         });
@@ -162,27 +159,30 @@ export const updateBMStockLogic = async (currentMonthStr) => {
         });
     }
 
-    // 4. Add movement from Daily Summaries (This catches dynamic items & newly sold items)
     const summaries = await DailySummary.find({ date: { $regex: `^${currentMonthStr}` } });
+    const issues = await IssueSummary.find({ date: { $regex: `^${currentMonthStr}` } });
+
     summaries.forEach(day => {
         day.items?.forEach(item => {
             const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
             if (!allItemsMap[key]) {
-                allItemsMap[key] = {
-                    categoryId: item.categoryId,
-                    categoryTitle: item.categoryTitle || item.categoryId,
-                    size: item.size,
-                    bmStock: 0,
-                    inQty: 0,
-                    outQty: 0
-                };
+                allItemsMap[key] = { categoryId: item.categoryId, categoryTitle: item.categoryTitle || item.categoryId, size: item.size, bmStock: 0, inQty: 0, outQty: 0 };
             }
             allItemsMap[key].inQty += (Number(item.in) || 0);
             allItemsMap[key].outQty += (Number(item.out) || 0);
         });
     });
 
-    // 5. Calculate Final Next Month BM Items by mapping over ALL collected items
+    issues.forEach(issue => {
+        issue.items?.forEach(item => {
+            const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
+            if (!allItemsMap[key]) {
+                allItemsMap[key] = { categoryId: item.categoryId, categoryTitle: item.categoryTitle || item.categoryId, size: item.size, bmStock: 0, inQty: 0, outQty: 0 };
+            }
+            allItemsMap[key].outQty += (Number(item.out) || 0);
+        });
+    });
+
     const nextMonthBMItems = Object.values(allItemsMap).map(item => ({
         categoryId: item.categoryId,
         categoryTitle: item.categoryTitle,
@@ -190,12 +190,10 @@ export const updateBMStockLogic = async (currentMonthStr) => {
         bmStock: item.bmStock + item.inQty - item.outQty
     }));
 
-    // 6. Determine next month string
     const [year, monthStr] = currentMonthStr.split('-');
     const nextDate = new Date(year, Number(monthStr));
     const nextMonthStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}`;
 
-    // 7. Save to Database
     await MonthlyBalance.findOneAndUpdate(
         { month: nextMonthStr },
         { $set: { items: nextMonthBMItems } },
