@@ -1,5 +1,6 @@
 import MonthlyBalance from '../models/MonthlyBalance.js';
 import DailySummary from '../models/DailySummary.js';
+import IssueSummary from '../models/IssueTypeSummary.js'; // 💡 අත්‍යවශ්‍ය Import එක!
 
 const productCategories = [
     { id: 'athukorala_400g', categoryId: 'athukorala', size: '400g', name: 'Athukorala BOPF 400g' },
@@ -47,46 +48,76 @@ const generateNormalizedKey = (catId, catTitle, size) => {
 // @route   GET /api/monthly-balance
 export const getBalance = async (req, res) => {
     try {
-        const { month } = req.query; // උදා: '2026-09'
+        const { month } = req.query; // e.g., '2026-10'
         if (!month) return res.status(400).json({ success: false, message: 'Month required' });
 
-        const bmMap = { ...seed };
-
-        const pastSummaries = await DailySummary.find({ date: { $lt: `${month}-01` } });
+        // 💡 කෙලින්ම Database එකෙන් B/M Stock එක කියවීම
+        const monthlyRecord = await MonthlyBalance.findOne({ month: month });
         
-        pastSummaries.forEach(day => {
-            day.items?.forEach(item => {
-                const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
-                
-                if (bmMap[key] !== undefined) {
-                    bmMap[key] += (Number(item.in) || 0) - (Number(item.out) || 0);
-                } else {
-                    bmMap[key] = (Number(item.in) || 0) - (Number(item.out) || 0);
-                }
-            });
+        const bmMap = {};
+        const allCategoriesMap = {};
+
+        // 1. Base Categories ඇතුලත් කිරීම
+        productCategories.forEach(cat => {
+            const key = generateNormalizedKey(cat.categoryId, cat.name, cat.size);
+            allCategoriesMap[key] = { categoryId: cat.categoryId, categoryTitle: cat.name, size: cat.size };
+            bmMap[key] = 0;
         });
 
+        // 2. Database එකේ Save වී ඇති B/M Stock අගයන් කෙලින්ම ලබා ගැනීම
+        if (monthlyRecord && monthlyRecord.items) {
+            monthlyRecord.items.forEach(item => {
+                const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
+                if (!allCategoriesMap[key]) {
+                    allCategoriesMap[key] = { categoryId: item.categoryId, categoryTitle: item.categoryTitle || item.categoryId, size: item.size };
+                }
+                bmMap[key] = Number(item.bmStock) || 0;
+            });
+        } else if (month === '2026-07') {
+            Object.keys(seed).forEach(k => {
+                if (allCategoriesMap[k]) bmMap[k] = seed[k];
+            });
+        }
+
+        // 3. මේ මාසයට අදාල IN සහ OUT පමණක් ලබා ගැනීම (Total සහ Balance හැදීම සඳහා)
         const currentSummaries = await DailySummary.find({ date: { $regex: `^${month}` } });
+        const currentIssues = await IssueSummary.find({ date: { $regex: `^${month}` } });
         const dynamicMap = {};
 
         currentSummaries.forEach(day => {
             day.items?.forEach(item => {
                 const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
-                
+                if (!allCategoriesMap[key]) {
+                    allCategoriesMap[key] = { categoryId: item.categoryId, categoryTitle: item.categoryTitle || item.categoryId, size: item.size };
+                }
                 if (!dynamicMap[key]) dynamicMap[key] = { in: 0, out: 0 };
                 dynamicMap[key].in += (Number(item.in) || 0);
                 dynamicMap[key].out += (Number(item.out) || 0);
             });
         });
 
-        const items = productCategories.map(cat => {
-            const key = `${cat.categoryId}_${cat.size}`;
-            const bmStock = bmMap[key] || 0;
+        currentIssues.forEach(issue => {
+            issue.items?.forEach(item => {
+                const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
+                if (!allCategoriesMap[key]) {
+                    allCategoriesMap[key] = { categoryId: item.categoryId, categoryTitle: item.categoryTitle || item.categoryId, size: item.size };
+                }
+                if (!dynamicMap[key]) dynamicMap[key] = { in: 0, out: 0 };
+                dynamicMap[key].out += (Number(item.out) || 0);
+            });
+        });
+
+        // 4. UI එකට දත්ත යැවීම
+        const items = Object.keys(allCategoriesMap).map(key => {
+            const catInfo = allCategoriesMap[key];
+            const bmStock = bmMap[key] || 0; 
             const inQty = dynamicMap[key]?.in || 0;
             const outQty = dynamicMap[key]?.out || 0;
             
             return {
-                ...cat,
+                categoryId: catInfo.categoryId,
+                categoryTitle: catInfo.categoryTitle,
+                size: catInfo.size,
                 bmStock,
                 inQty,
                 outQty,
@@ -102,40 +133,62 @@ export const getBalance = async (req, res) => {
     }
 };
 
-// CORE REUSABLE LOGIC 
+// CORE REUSABLE LOGIC (Update B/M Stock Button Logic)
 export const updateBMStockLogic = async (currentMonthStr) => {
     let bmRecord = await MonthlyBalance.findOne({ month: currentMonthStr });
-    const bmMap = {};
+    const allItemsMap = {};
+
+    productCategories.forEach(cat => {
+        const key = generateNormalizedKey(cat.categoryId, cat.name, cat.size);
+        allItemsMap[key] = {
+            categoryId: cat.categoryId, categoryTitle: cat.name, size: cat.size, bmStock: 0, inQty: 0, outQty: 0
+        };
+    });
+
     if (bmRecord) {
-        bmRecord.items.forEach(item => bmMap[`${item.categoryId}_${item.size}`] = item.bmStock);
+        bmRecord.items.forEach(item => {
+            const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
+            if (!allItemsMap[key]) {
+                allItemsMap[key] = { categoryId: item.categoryId, categoryTitle: item.categoryTitle || item.categoryId, size: item.size, bmStock: 0, inQty: 0, outQty: 0 };
+            }
+            allItemsMap[key].bmStock += (Number(item.bmStock) || 0);
+        });
     } else if (currentMonthStr === '2026-07') {
-        Object.keys(seed).forEach(k => bmMap[k] = seed[k]);
+        Object.keys(seed).forEach(k => {
+            if (allItemsMap[k]) allItemsMap[k].bmStock += seed[k];
+        });
     }
 
     const summaries = await DailySummary.find({ date: { $regex: `^${currentMonthStr}` } });
-    const dynamicMap = {};
+    const issues = await IssueSummary.find({ date: { $regex: `^${currentMonthStr}` } });
+
     summaries.forEach(day => {
         day.items?.forEach(item => {
             const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
-            if (!dynamicMap[key]) dynamicMap[key] = { in: 0, out: 0 };
-            dynamicMap[key].in += (Number(item.in) || 0);
-            dynamicMap[key].out += (Number(item.out) || 0);
+            if (!allItemsMap[key]) {
+                allItemsMap[key] = { categoryId: item.categoryId, categoryTitle: item.categoryTitle || item.categoryId, size: item.size, bmStock: 0, inQty: 0, outQty: 0 };
+            }
+            allItemsMap[key].inQty += (Number(item.in) || 0);
+            allItemsMap[key].outQty += (Number(item.out) || 0);
         });
     });
 
-    const nextMonthBMItems = productCategories.map(cat => {
-        const key = `${cat.categoryId}_${cat.size}`;
-        const currentBM = bmMap[key] || 0;
-        const inQty = dynamicMap[key]?.in || 0;
-        const outQty = dynamicMap[key]?.out || 0;
-        
-        return {
-            categoryId: cat.categoryId,
-            categoryTitle: cat.name,
-            size: cat.size,
-            bmStock: currentBM + inQty - outQty
-        };
+    issues.forEach(issue => {
+        issue.items?.forEach(item => {
+            const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
+            if (!allItemsMap[key]) {
+                allItemsMap[key] = { categoryId: item.categoryId, categoryTitle: item.categoryTitle || item.categoryId, size: item.size, bmStock: 0, inQty: 0, outQty: 0 };
+            }
+            allItemsMap[key].outQty += (Number(item.out) || 0);
+        });
     });
+
+    const nextMonthBMItems = Object.values(allItemsMap).map(item => ({
+        categoryId: item.categoryId,
+        categoryTitle: item.categoryTitle,
+        size: item.size,
+        bmStock: item.bmStock + item.inQty - item.outQty
+    }));
 
     const [year, monthStr] = currentMonthStr.split('-');
     const nextDate = new Date(year, Number(monthStr));
