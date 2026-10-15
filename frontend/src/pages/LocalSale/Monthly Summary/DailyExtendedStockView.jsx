@@ -7,33 +7,33 @@ import html2canvas from "html2canvas";
 
 // Base structure
 const baseTableStructure = [
-    { 
-        id: 'athukorala', title: 'ATHUKORALA', 
-        columns: [{ size: '400g', key: 'athukorala_400g' }, { size: '200g', key: 'athukorala_200g' }, { size: '100g', key: 'athukorala_100g' }] 
+    {
+        id: 'athukorala', title: 'ATHUKORALA',
+        columns: [{ size: '400g', key: 'athukorala_400g' }, { size: '200g', key: 'athukorala_200g' }, { size: '100g', key: 'athukorala_100g' }]
     },
-    { 
-        id: 'bopfSp', title: 'BOPF SP.', 
-        columns: [{ size: '400g', key: 'bopfSp_400g' }, { size: '200g', key: 'bopfSp_200g' }] 
+    {
+        id: 'bopfSp', title: 'BOPF SP.',
+        columns: [{ size: '400g', key: 'bopfSp_400g' }, { size: '200g', key: 'bopfSp_200g' }]
     },
-    { 
-        id: 'bopfPremium', title: 'BOPF PRE.', 
-        columns: [{ size: '400g', key: 'bopfPremium_400g' }, { size: '200g', key: 'bopfPremium_200g' }] 
+    {
+        id: 'bopfPremium', title: 'BOPF PRE.',
+        columns: [{ size: '400g', key: 'bopfPremium_400g' }, { size: '200g', key: 'bopfPremium_200g' }]
     },
-    { 
-        id: 'tb', title: 'T/B', 
-        columns: [{ size: '100', key: 'tb_100' }, { size: '25', key: 'tb_25' }] 
+    {
+        id: 'tb', title: 'T/B',
+        columns: [{ size: '100', key: 'tb_100' }, { size: '25', key: 'tb_25' }]
     },
-    { 
-        id: 'pitigala', title: 'PITIGALA TEA', 
-        columns: [{ size: '400g', key: 'pitigala_400g' }, { size: '200g', key: 'pitigala_200g' }] 
+    {
+        id: 'pitigala', title: 'PITIGALA TEA',
+        columns: [{ size: '400g', key: 'pitigala_400g' }, { size: '200g', key: 'pitigala_200g' }]
     },
-    { 
-        id: 'gt', title: 'G/T', 
-        columns: [{ size: '200g', key: 'gt_200g' }, { size: 'T/B 25', key: 'gttb25_T/B 25' }] 
+    {
+        id: 'gt', title: 'G/T',
+        columns: [{ size: '200g', key: 'gt_200g' }, { size: 'T/B 25', key: 'gttb25_T/B 25' }]
     },
-    { 
-        id: 'others', title: 'OTHER', 
-        columns: [{ size: 'DUST', key: 'others_DUST (KG)' }, { size: 'DUST 1', key: 'others_DUST 1 (KG)' }, { size: 'BOPF', key: 'others_BOPF (KG)' }] 
+    {
+        id: 'others', title: 'OTHER',
+        columns: [{ size: 'DUST', key: 'others_DUST (KG)' }, { size: 'DUST 1', key: 'others_DUST 1 (KG)' }, { size: 'BOPF', key: 'others_BOPF (KG)' }]
     }
 ];
 
@@ -143,7 +143,7 @@ export default function DailyExtendedStockView() {
             let cleanSize = (size || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
             if (cleanId === 'gt' || cleanId === 'gttb25' || cleanId.includes('greentea')) cleanId = 'gt';
-            
+
             if (cleanId === 'bopfpremium') cleanId = 'bopfpremium';
             if (cleanId === 'bopfsp') cleanId = 'bopfsp';
             if (cleanId.includes('pitigala')) cleanId = 'pitigala';
@@ -178,9 +178,9 @@ export default function DailyExtendedStockView() {
                     categoryId: categoryId || 'Unknown',
                     displayTitle: formatTitle(categoryTitle || categoryId),
                     // UI එකට පෙන්වීමට displaySize එකක් ඇත්නම් එය යොදාගනී
-                    size: displaySize || size || '-', 
+                    size: displaySize || size || '-',
                     group: 'Other',
-                    sortOrder: 100, 
+                    sortOrder: 100,
                     openingBalance: 0,
                     openingBalanceToday: 0,
                     inToday: 0,
@@ -226,7 +226,7 @@ export default function DailyExtendedStockView() {
             const key = initItem(b.categoryId, b.categoryTitle, b.size);
             const val = Number(b.bmStock) || 0;
             if (val > 0) {
-                dataMap[key].openingBalance = val;
+                dataMap[key].openingBalance = val; // 💡 5. Use the Database's Opening Balance (bmStock) for the Current Month
             }
         });
 
@@ -282,10 +282,11 @@ export default function DailyExtendedStockView() {
         // Calculate Final Balances including "Opening Balance Today"
         return Object.values(dataMap)
             .map(row => {
-                row.balanceToDate = row.openingBalance + row.cumulativeIn - row.cumulativeOutSold;
-                
-                // 💡 අද දවසට අදාළ Opening Balance එක සෙවීම (අද දවසේ ගනුදෙනු වලට පෙර තිබූ අගය)
-                row.openingBalanceToday = row.balanceToDate - row.inToday + row.outSoldToday;
+                // අනිවාර්යයෙන්ම Sold අගය වගේම Free Issue අගයත් අඩු කරන්න ඕනේ
+                row.balanceToDate = row.openingBalance + row.cumulativeIn - row.cumulativeOutSold - row.cumulativeOutIssue;
+
+                // අද දවසේ ආරම්භක අගය ගන්න අද විකුණපු සහ නිකුත් කරපු (Issue) දෙකම ආපහු එකතු කරන්න ඕනේ
+                row.openingBalanceToday = row.balanceToDate - row.inToday + row.outSoldToday + row.outIssueToday;
 
                 return row;
             })
@@ -329,15 +330,15 @@ export default function DailyExtendedStockView() {
             printElement.style.position = "absolute";
             printElement.style.top = "-9999px";
 
-            const canvas = await html2canvas(printElement, { 
-                scale: 3, 
+            const canvas = await html2canvas(printElement, {
+                scale: 3,
                 useCORS: true,
                 backgroundColor: "#ffffff",
                 logging: false
             });
 
-            printElement.style.display = "none"; 
-            if (imgFooter) imgFooter.style.display = 'none'; 
+            printElement.style.display = "none";
+            if (imgFooter) imgFooter.style.display = 'none';
 
             let file;
             let fileName = `Daily_Stock_${selectedDate}`;
@@ -359,7 +360,7 @@ export default function DailyExtendedStockView() {
                 a.download = file.name;
                 a.click();
                 URL.revokeObjectURL(fileUrl);
-                
+
                 const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`Here is the Daily Stock Report for ${selectedDate}. Please attach the downloaded file.`)}`;
                 window.open(whatsappUrl, '_blank');
                 toast.success("File downloaded. Please attach it in WhatsApp.", { id: toastId });
@@ -422,7 +423,7 @@ export default function DailyExtendedStockView() {
                 { content: 'CATEGORY / TITLE', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [107, 114, 128] } },
                 { content: 'SIZE / TYPE', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [107, 114, 128] } },
                 { content: `OPENING BALANCE\n(${getMonthName()} 1st)`, rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [107, 114, 128] } },
-                { content: `OPENING BALANCE\n(TODAY)`, rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [107, 114, 128] } }, 
+                { content: `OPENING BALANCE\n(TODAY)`, rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [107, 114, 128] } },
                 { content: 'OUT (TODAY)', colSpan: 2, styles: { halign: 'center', textColor: [239, 68, 68] } },
                 { content: 'IN (TODAY)', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [20, 147, 82] } },
                 { content: 'BALANCE\nTO DATE', rowSpan: 2, styles: { halign: 'center', valign: 'middle', textColor: [67, 56, 202] } }
@@ -444,7 +445,7 @@ export default function DailyExtendedStockView() {
         },
         columnStyles: {
             2: { halign: 'center' },
-            3: { halign: 'center' }, 
+            3: { halign: 'center' },
             4: { halign: 'center', textColor: [220, 38, 38] },
             5: { halign: 'center', textColor: [102, 163, 191] },
             6: { halign: 'center', textColor: [34, 197, 94] },
@@ -465,7 +466,7 @@ export default function DailyExtendedStockView() {
                     </div>
                 </div>
 
-                <div className="flex items-center justify-center w-full sm:w-auto gap-3 pt-2 sm:pt-0">                    
+                <div className="flex items-center justify-center w-full sm:w-auto gap-3 pt-2 sm:pt-0">
                     <PDFDownloader
                         title={`Daily IN/OUT & Balance Report - ${selectedDate}`}
                         subtitle={`Opening Balance as of 1st ${getMonthName()}`}
@@ -477,7 +478,7 @@ export default function DailyExtendedStockView() {
                         disabled={loading || tableData.length === 0}
                         autoTableOptions={pdfTableConfig}
                     />
-                    
+
                     <div className="relative flex-1 sm:flex-none" ref={waMenuRef}>
                         <button
                             onClick={() => setIsWaMenuOpen(!isWaMenuOpen)}
@@ -486,31 +487,31 @@ export default function DailyExtendedStockView() {
                         >
                             <FaWhatsapp size={18} /> Share WhatsApp
                         </button>
-                        
+
                         {isWaMenuOpen && (
                             <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-gray-100 dark:border-zinc-700 overflow-hidden z-50 animate-in slide-in-from-top-2">
-                            <button onClick={shareImageOnWhatsApp} className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-3">
-                                <Image size={18} className="text-[#25D366]" /> Share Image
-                            </button>
-                            
-                            <PDFDownloader
-                                title={`Daily IN/OUT & Balance Report - ${selectedDate}`}
-                                subtitle={`Opening Balance as of 1st ${getMonthName()}`}
-                                headers={["Category / Title", "Size / Type", "Opening Balance", "Opening Balance (Today)", "OUT (Sold)", "OUT (Free Issue)", "IN", "Balance To Date"]}
-                                data={getPdfData()}
-                                uniqueCode={uniqueCode}
-                                fileName={`Daily_Stock_${selectedDate}.pdf`}
-                                orientation="portrait"
-                                disabled={loading || tableData.length === 0}
-                                autoTableOptions={pdfTableConfig}
-                                isWhatsApp={true} 
-                                onActionStart={() => setIsWaMenuOpen(false)} 
-                                customButton={ 
-                                    <button className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-3 border-t border-gray-100 dark:border-zinc-700">
-                                        <FileText size={18} className="text-red-500" /> Share PDF
-                                    </button>
-                                }
-                            />
+                                <button onClick={shareImageOnWhatsApp} className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-3">
+                                    <Image size={18} className="text-[#25D366]" /> Share Image
+                                </button>
+
+                                <PDFDownloader
+                                    title={`Daily IN/OUT & Balance Report - ${selectedDate}`}
+                                    subtitle={`Opening Balance as of 1st ${getMonthName()}`}
+                                    headers={["Category / Title", "Size / Type", "Opening Balance", "Opening Balance (Today)", "OUT (Sold)", "OUT (Free Issue)", "IN", "Balance To Date"]}
+                                    data={getPdfData()}
+                                    uniqueCode={uniqueCode}
+                                    fileName={`Daily_Stock_${selectedDate}.pdf`}
+                                    orientation="portrait"
+                                    disabled={loading || tableData.length === 0}
+                                    autoTableOptions={pdfTableConfig}
+                                    isWhatsApp={true}
+                                    onActionStart={() => setIsWaMenuOpen(false)}
+                                    customButton={
+                                        <button className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-zinc-700 transition-colors flex items-center gap-3 border-t border-gray-100 dark:border-zinc-700">
+                                            <FileText size={18} className="text-red-500" /> Share PDF
+                                        </button>
+                                    }
+                                />
                             </div>
                         )}
                     </div>
@@ -630,8 +631,8 @@ export default function DailyExtendedStockView() {
                                                 </td>
 
                                                 <td className={`px-6 py-4 font-black text-center ${row.balanceToDate < 0
-                                                        ? 'text-red-600 bg-red-50/80 dark:text-red-400 dark:bg-red-900/20'
-                                                        : 'text-indigo-700 dark:text-indigo-400 bg-indigo-50/30 dark:bg-indigo-900/10'
+                                                    ? 'text-red-600 bg-red-50/80 dark:text-red-400 dark:bg-red-900/20'
+                                                    : 'text-indigo-700 dark:text-indigo-400 bg-indigo-50/30 dark:bg-indigo-900/10'
                                                     }`}>
                                                     {row.balanceToDate.toFixed(2)}
                                                 </td>
@@ -646,7 +647,7 @@ export default function DailyExtendedStockView() {
             </div>
 
             <div id="stock-print-area" className="bg-[#ffffff] p-10 font-sans text-[#000000]" style={{ width: '1000px', display: 'none' }}>
-                
+
                 <div className="flex justify-between items-start mb-6">
                     <div className="flex items-start gap-4">
                         <img src="/logo.png" alt="Logo" className="w-[85px] h-[85px] object-contain mt-1" onError={(e) => e.target.style.display = 'none'} />
@@ -666,11 +667,11 @@ export default function DailyExtendedStockView() {
                         <tr className="text-[#6B7280]">
                             <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold uppercase">Category / Title</th>
                             <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold uppercase">Size / Type</th>
-                            <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold uppercase">Opening Balance<br/>({getMonthName()} 1st)</th>
-                            <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold uppercase">Opening Balance<br/>(Today)</th>
+                            <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold uppercase">Opening Balance<br />({getMonthName()} 1st)</th>
+                            <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold uppercase">Opening Balance<br />(Today)</th>
                             <th colSpan={2} className="border border-[#BFC9D1] p-2 text-center font-bold text-[#EF4444] uppercase">OUT (Today)</th>
                             <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold text-[#149352] uppercase">IN (Today)</th>
-                            <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold text-[#4338CA] uppercase">Balance<br/>To Date</th>
+                            <th rowSpan={2} className="border border-[#BFC9D1] p-2 text-center align-middle font-bold text-[#4338CA] uppercase">Balance<br />To Date</th>
                         </tr>
                         <tr>
                             <th className="border border-[#BFC9D1] p-2 text-center font-bold text-[#EF4444] uppercase">Sold</th>
@@ -693,21 +694,21 @@ export default function DailyExtendedStockView() {
                                         <td className="border border-[#BFC9D1] p-2 text-left font-bold text-[#000000]">{row.displayTitle}</td>
                                         <td className="border border-[#BFC9D1] p-2 text-[#000000]">{row.size}</td>
                                         <td className="border border-[#BFC9D1] p-2 text-[#000000]">{row.openingBalance !== 0 ? row.openingBalance.toFixed(2) : '-'}</td>
-                                        
+
                                         <td className="border border-[#BFC9D1] p-2 text-[#000000]">{row.openingBalanceToday !== 0 ? row.openingBalanceToday.toFixed(2) : '-'}</td>
-                                        
+
                                         <td className="border border-[#BFC9D1] p-2 text-[#DC2626]">
                                             {row.outSoldToday > 0 ? row.outSoldToday.toFixed(2) : '-'}
                                         </td>
-                                        
+
                                         <td className="border border-[#BFC9D1] p-2 text-[#66A3BF]">
                                             {row.outIssueToday > 0 ? row.outIssueToday.toFixed(2) : '-'}
                                         </td>
-                                        
+
                                         <td className="border border-[#BFC9D1] p-2 text-[#22C55E]">
                                             {row.inToday > 0 ? row.inToday.toFixed(2) : '-'}
                                         </td>
-                                        
+
                                         <td className={`border border-[#BFC9D1] p-2 font-bold ${row.balanceToDate < 0 ? 'text-[#DC2626]' : 'text-[#4338CA]'}`}>
                                             {row.balanceToDate.toFixed(2)}
                                         </td>
@@ -730,7 +731,7 @@ export default function DailyExtendedStockView() {
                         <p className="text-[#1E1E1E] mt-1 pr-6 font-semibold">Checked By / Signature</p>
                     </div>
                 </div>
-                
+
                 <div id="sys-image-footer" className="mt-10 text-center text-[10px] text-[#808080] font-sans" style={{ display: 'none' }}>
                     Page 1 of 1 - Generated by Unified Management System
                 </div>

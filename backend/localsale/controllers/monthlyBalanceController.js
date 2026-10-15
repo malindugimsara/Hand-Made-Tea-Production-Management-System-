@@ -1,6 +1,6 @@
 import MonthlyBalance from '../models/MonthlyBalance.js';
 import DailySummary from '../models/DailySummary.js';
-import IssueSummary from '../models/IssueTypeSummary.js'; 
+import IssueSummary from '../models/IssueTypeSummary.js'; // 💡 අත්‍යවශ්‍ය Import එක!
 
 const productCategories = [
     { id: 'athukorala_400g', categoryId: 'athukorala', size: '400g', name: 'Athukorala BOPF 400g' },
