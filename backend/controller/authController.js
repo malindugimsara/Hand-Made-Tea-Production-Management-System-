@@ -23,7 +23,7 @@ export const loginUser = async (req, res) => {
           allowedPaths: user.allowedPaths 
       }, 
       process.env.JWT_KEY, 
-      { expiresIn: '1m' } // Token expires in 12 hours
+      { expiresIn: '12h' } // Token expires in 12 hours
     );
 
     res.status(200).json({ 
