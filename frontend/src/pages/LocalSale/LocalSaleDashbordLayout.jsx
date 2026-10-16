@@ -185,6 +185,47 @@ export default function LocalSaleDashboardLayout() {
     navigate('/', { replace: true });
   };
 
+  // 💡 NEW: AUTO LOGOUT LOGIC (Token Expiration Check)
+  React.useEffect(() => {
+    const checkTokenExpiry = () => {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        handleAutoLogout();
+        return;
+      }
+
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const expiryTime = payload.exp * 1000; 
+        const currentTime = Date.now();
+
+        if (currentTime >= expiryTime) {
+          handleAutoLogout();
+        } else {
+          const timeRemaining = expiryTime - currentTime;
+          
+          const timeoutId = setTimeout(() => {
+            handleAutoLogout();
+          }, timeRemaining);
+
+          return () => clearTimeout(timeoutId); // Cleanup function
+        }
+      } catch (error) {
+        console.error("Invalid token format", error);
+        handleAutoLogout();
+      }
+    };
+
+    const handleAutoLogout = () => {
+      localStorage.clear();
+      toast.error("Session Expired. Please login again.");
+      navigate('/', { replace: true });
+    };
+
+    checkTokenExpiry();
+  }, [navigate]);
+
   // 💡 NEW: URL-BASED ACCESS CONTROL (get allowedPages)
     const allowedPages = React.useMemo(() => {
       try { return JSON.parse(localStorage.getItem('allowedPages')) || []; } 
