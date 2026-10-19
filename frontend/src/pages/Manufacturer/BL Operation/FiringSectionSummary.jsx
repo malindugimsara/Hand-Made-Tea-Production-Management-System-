@@ -13,7 +13,11 @@ import {
   X,
   Package,
   Sparkles,
-  UserCheck
+  UserCheck,
+  Edit,
+  Save,
+  Info,
+  AlertTriangle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PDFDownloader from '@/components/PDFDownloader';
@@ -48,6 +52,12 @@ const FiringSectionSummary = () => {
   const [loading, setLoading] = useState(true);
   const [filterDate, setFilterDate] = useState(getTodayDate());
   const [lang, setLang] = useState('EN');
+  const [isDirty, setIsDirty] = useState(false);
+
+  // --- EDIT STATE ---
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editFormData, setEditFormData] = useState(null);
 
   // Dynamic Translations Dictionary
   const t = useMemo(() => ({
@@ -89,6 +99,7 @@ const FiringSectionSummary = () => {
     f: "F",
     rf: "R/F",
     w: "W",
+    extra: "EXTRA",
     total: "TOTAL",
 
     // Firewood Output
@@ -117,9 +128,14 @@ const FiringSectionSummary = () => {
     costOfFw: "COST OF F/W (Rs.)",
 
     // Signatures & Benchmarks
-    officerName: "OFFICER NAME 01",
+    officerName: "OFFICER NAME",
     checkBy: "CHECK BY",
-    benchmarkTitle: lang === 'SI' ? "කර්මාන්තශාලා සම්මත මාර්ගෝපදේශ" : "Standard Factory Benchmark Specifications"
+    benchmarkTitle: lang === 'SI' ? "කර්මාන්තශාලා සම්මත මාර්ගෝපදේශ" : "Standard Factory Benchmark Specifications",
+    editBtn: "Edit Record",
+    cancelBtn: "Cancel",
+    saveBtn: "Save Changes",
+    editedBy: "LAST EDITED BY",
+    editedAt: "LAST EDITED AT"
   }), [lang]);
 
   const fetchRecords = async () => {
@@ -172,13 +188,92 @@ const FiringSectionSummary = () => {
     ) || null;
   }, [allRecords, filterDate]);
 
+  // --- EDIT FUNCTIONS ---
+  // --- EDIT FUNCTIONS ---
+  const handleEditClick = () => {
+    if (!currentRecord) return;
+    const clonedRecord = JSON.parse(JSON.stringify(currentRecord));
+    
+    clonedRecord.dhools = clonedRecord.dhools || { drier1: {}, drier2: {} };
+    clonedRecord.drier1 = clonedRecord.drier1 || {};
+    clonedRecord.drier2 = clonedRecord.drier2 || {};
+    clonedRecord.firewoodOutput = clonedRecord.firewoodOutput || { drier1: {}, drier2: {} };
+    clonedRecord.firewoodCost = clonedRecord.firewoodCost || { drier1: {}, drier2: {} };
+    
+    setEditFormData(clonedRecord);
+    setIsEditing(true);
+    setIsDirty(false); // 💡 Reset dirty state
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditFormData(null);
+    setIsDirty(false); // 💡 Reset dirty state
+  };
+
+  const handleInputChange = (section, subsection, field, value) => {
+      setEditFormData(prev => {
+          const newData = { ...prev };
+          if (subsection) {
+              if (!newData[section]) newData[section] = {};
+              if (!newData[section][subsection]) newData[section][subsection] = {};
+              newData[section][subsection][field] = value;
+          } else if (section) {
+              if (!newData[section]) newData[section] = {};
+              newData[section][field] = value;
+          } else {
+              newData[field] = value;
+          }
+          return newData;
+      });
+      setIsDirty(true); // 💡 අගයක් වෙනස් කළ විගස Dirty බවට පත් කරයි
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editFormData || !editFormData._id) return;
+    
+    setIsSaving(true);
+    const toastId = toast.loading("Saving changes...");
+
+    try {
+        const dataToSave = {
+            ...editFormData,
+            meta: { editedBy: currentUsername, editedAt: new Date().toISOString() }
+        };
+
+        const token = localStorage.getItem("token");
+        const response = await fetch(`${BACKEND_URL}/api/firing-section/${editFormData._id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(dataToSave)
+        });
+
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || "Failed to update record");
+        
+        toast.success("Record updated successfully!", { id: toastId });
+        setIsEditing(false);
+        setEditFormData(null);
+        setIsDirty(false); // 💡 Save වූ පසු Dirty State එක ඉවත් කරයි
+        fetchRecords(); 
+    } catch (error) {
+        console.error("Save error:", error);
+        toast.error(error.message || "Error saving record.", { id: toastId });
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
+  // Switch between display data and edit data
+  const displayRecord = isEditing ? editFormData : currentRecord;
+
   // Derived calculations across all sections
   const calcData = useMemo(() => {
-    if (!currentRecord) return null;
+    if (!displayRecord) return null;
 
     // 1. Dhools Data
-    const d1 = currentRecord.dhools?.drier1 || {};
-    const d2 = currentRecord.dhools?.drier2 || {};
+    const d1 = displayRecord.dhools?.drier1 || {};
+    const d2 = displayRecord.dhools?.drier2 || {};
 
     const d1Items = {
       first: Number(d1.first) || 0,
@@ -208,8 +303,8 @@ const FiringSectionSummary = () => {
     const grandTotalFired = d1Total + d2Total;
 
     // 2. Firewood Usage
-    const dr1 = currentRecord.drier1 || {};
-    const dr2 = currentRecord.drier2 || {};
+    const dr1 = displayRecord.drier1 || {};
+    const dr2 = displayRecord.drier2 || {};
 
     const u1 = {
       f: Number(dr1.ffrw1) || 0,
@@ -231,12 +326,13 @@ const FiringSectionSummary = () => {
       f: u1.f + u2.f,
       rf: u1.rf + u2.rf,
       w: u1.w + u2.w,
+      extra: u1.extra + u2.extra,
       total: u1.total + u2.total
     };
 
     // 3. Firewood Output
-    const fo1 = currentRecord.firewoodOutput?.drier1 || {};
-    const fo2 = currentRecord.firewoodOutput?.drier2 || {};
+    const fo1 = displayRecord.firewoodOutput?.drier1 || {};
+    const fo2 = displayRecord.firewoodOutput?.drier2 || {};
 
     const out1 = {
       withoutWithering: Number(fo1.withoutWithering) || 0,
@@ -268,8 +364,8 @@ const FiringSectionSummary = () => {
     const outPerH2 = h2 > 0 ? (d2Total / h2).toFixed(2) : '0.00';
 
     // 5. Cost of Firewood
-    const fc1 = currentRecord.firewoodCost?.drier1 || {};
-    const fc2 = currentRecord.firewoodCost?.drier2 || {};
+    const fc1 = displayRecord.firewoodCost?.drier1 || {};
+    const fc2 = displayRecord.firewoodCost?.drier2 || {};
 
     const c1 = {
       fwKg: Number(fc1.totalFwKg) || 0,
@@ -301,9 +397,9 @@ const FiringSectionSummary = () => {
       h1, h2, hTotal, outPerH1, outPerH2,
       c1, c2, cTotal
     };
-  }, [currentRecord]);
+  }, [displayRecord]);
 
-  const docRefCode = `DRS/${(currentRecord?.dateOfManufacture || filterDate || '').replace(/-/g, '')}`;
+  const docRefCode = `DRS/${(displayRecord?.dateOfManufacture || filterDate || '').replace(/-/g, '')}`;
 
   // Multi-tier headers for Dhools
   const pdfHeaders = useMemo(() => [
@@ -329,11 +425,11 @@ const FiringSectionSummary = () => {
 
   // Complete unified data matrix
   const pdfData = useMemo(() => {
-    if (!currentRecord || !calcData) return [];
+    if (!displayRecord || !calcData) return [];
 
     const rows = [];
-    const d1 = currentRecord.drier1 || {};
-    const d2 = currentRecord.drier2 || {};
+    const d1 = displayRecord.drier1 || {};
+    const d2 = displayRecord.drier2 || {};
 
     // Section 1: Dhools Rows
     const grades = [
@@ -381,20 +477,20 @@ const FiringSectionSummary = () => {
       { content: "FIREWOOD USAGE (kg) TOTAL", colSpan: 3, styles: { halign: 'center', fillColor: [255, 251, 235], textColor: [146, 64, 14], fontStyle: 'bold' } }
     ]);
     rows.push([
-      { content: "F", styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } },
+      { content: "F / EXTRA", styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } },
       { content: "R/F", styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } },
       { content: "W / TOTAL", styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } },
-      { content: "F", styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } },
+      { content: "F / EXTRA", styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } },
       { content: "R/F", styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } },
       { content: "W / TOTAL", styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } },
-      { content: "F", styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } },
+      { content: "F / EXTRA", styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } },
       { content: "R/F", styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } },
       { content: "W / TOTAL", styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }
     ]);
     rows.push([
-      String(calcData.u1.f), String(calcData.u1.rf), `${calcData.u1.w} (${calcData.u1.total})`,
-      String(calcData.u2.f), String(calcData.u2.rf), `${calcData.u2.w} (${calcData.u2.total})`,
-      String(calcData.uTotal.f), String(calcData.uTotal.rf), `${calcData.uTotal.w} (${calcData.uTotal.total})`
+      `${calcData.u1.f} / ${calcData.u1.extra}`, String(calcData.u1.rf), `${calcData.u1.w} / ${calcData.u1.total}`,
+      `${calcData.u2.f} / ${calcData.u2.extra}`, String(calcData.u2.rf), `${calcData.u2.w} / ${calcData.u2.total}`,
+      `${calcData.uTotal.f} / ${calcData.uTotal.extra}`, String(calcData.uTotal.rf), `${calcData.uTotal.w} / ${calcData.uTotal.total}`
     ]);
 
     // Section 3: Firewood Output
@@ -470,7 +566,7 @@ const FiringSectionSummary = () => {
     });
 
     return rows;
-  }, [currentRecord, calcData]);
+  }, [displayRecord, calcData]);
 
   const autoTableOptions = useMemo(() => ({
     startY: 56,
@@ -503,15 +599,15 @@ const FiringSectionSummary = () => {
       // 2. Metadata (Top Left)
       doc.setFontSize(8);
       doc.text("M/F DATE   :  ", startX, 36);
-      if (currentRecord?.dateOfManufacture) {
+      if (displayRecord?.dateOfManufacture) {
         doc.setFont(undefined, 'bold');
-        doc.text(currentRecord.dateOfManufacture, startX + 22, 35.6);
+        doc.text(displayRecord.dateOfManufacture, startX + 22, 35.6);
       }
 
       doc.setFont(undefined, 'bold');
       doc.text("CROP DATE :  ", startX, 43);
-      if (currentRecord?.drier1?.day) {
-        doc.text(currentRecord.drier1.day, startX + 22, 42.6);
+      if (displayRecord?.drier1?.day) {
+        doc.text(displayRecord.drier1.day, startX + 22, 42.6);
       }
 
       doc.text("CROP (Kg)  :   ", startX, 50);
@@ -554,12 +650,57 @@ const FiringSectionSummary = () => {
         doc.text(br[1], startX + 70, curY);
       });
     }
-  }), [currentRecord, calcData]);
+  }), [displayRecord, calcData]);
+
+  // Input helper for edit mode
+  const renderEditInput = (section, subsection, field, val, type = "number") => {
+    if (!isEditing) return val;
+    return (
+        <input 
+            type={type}
+            value={val || ''}
+            onChange={(e) => handleInputChange(section, subsection, field, e.target.value)}
+            className="w-20 p-1 text-center border border-orange-300 rounded focus:ring-2 focus:ring-orange-500 outline-none text-slate-800 bg-white"
+        />
+    );
+  };
+
+  const renderEditTime = (section, field, val) => {
+      if (!isEditing) return val;
+      return (
+          <input 
+              type="time"
+              value={val || ''}
+              onChange={(e) => handleInputChange(section, null, field, e.target.value)}
+              className="w-28 p-1 text-center border border-orange-300 rounded focus:ring-2 focus:ring-orange-500 outline-none text-slate-800 bg-white"
+          />
+      );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-4 md:p-8 font-sans transition-colors duration-200">
 
       <div className="max-w-7xl mx-auto flex flex-col gap-6">
+
+        {/* 💡 UNSAVED CHANGES WARNING BANNER */}
+        {isDirty && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-red-100 dark:bg-red-900/40 border-2 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)] p-4 rounded-2xl animate-pulse transition-all">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <AlertTriangle size={28} className="text-red-600 dark:text-red-400 animate-bounce shrink-0" />
+                    <div>
+                        <h3 className="text-red-800 dark:text-red-300 font-black text-sm sm:text-base uppercase tracking-wider">Unsaved Changes Detected!</h3>
+                        <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm font-semibold">Please save your data to prevent data loss.</p>
+                    </div>
+                </div>
+                <button 
+                    onClick={handleSaveEdit} 
+                    disabled={isSaving}
+                    className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50"
+                >
+                    {isSaving ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />} Save Now
+                </button>
+            </div>
+        )}
 
         {/* --- Top Header Bar --- */}
         <div className="relative overflow-hidden bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
@@ -583,20 +724,56 @@ const FiringSectionSummary = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto justify-start xl:justify-end z-10">
+            
+            {/* Edit Actions */}
+            {currentRecord && !isEditing && (
+                <button
+                    onClick={handleEditClick}
+                    className="px-4 py-2.5 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/40 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800/50 rounded-xl transition-all font-bold text-sm flex items-center gap-2 shadow-xs active:scale-95 cursor-pointer"
+                >
+                    <Edit size={15} />
+                    {t.editBtn}
+                </button>
+            )}
+
+            {isEditing && (
+                <>
+                    <button
+                        onClick={handleCancelEdit}
+                        disabled={isSaving}
+                        className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition-all font-bold text-xs flex items-center gap-2"
+                    >
+                        <X size={15} />
+                        {t.cancelBtn}
+                    </button>
+                    <button
+                        onClick={handleSaveEdit}
+                        disabled={isSaving}
+                        className="px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl transition-all font-bold text-xs flex items-center gap-2 shadow-md active:scale-95 disabled:opacity-50"
+                    >
+                        {isSaving ? <RefreshCw size={15} className="animate-spin" /> : <Save size={15} />}
+                        {t.saveBtn}
+                    </button>
+                </>
+            )}
+
+
             {/* Native PDFDownloader handling  footer */}
-            <PDFDownloader
-              title=""
-              subtitle=""
-              headers={pdfHeaders}
-              data={pdfData}
-              fileName={`Drier_Room_Record_Sheet_${lang}_MF_${currentRecord?.dateOfManufacture || filterDate || 'Report'}.pdf`}
-              orientation="portrait"
-              uniqueCode={docRefCode}
-              userName={currentRecord?.officerName || currentUsername}
-              userRole={userRole}
-              autoTableOptions={autoTableOptions}
-              disabled={!currentRecord || pdfData.length === 0}
-            />
+            {!isEditing && (
+              <PDFDownloader
+                title=""
+                subtitle=""
+                headers={pdfHeaders}
+                data={pdfData}
+                fileName={`Drier_Room_Record_Sheet_${lang}_MF_${displayRecord?.dateOfManufacture || filterDate || 'Report'}.pdf`}
+                orientation="portrait"
+                uniqueCode={docRefCode}
+                userName={displayRecord?.officerName || currentUsername}
+                userRole={userRole}
+                autoTableOptions={autoTableOptions}
+                disabled={!displayRecord || pdfData.length === 0}
+              />
+            )}
 
             {/* Language Switcher */}
             <button
@@ -609,46 +786,50 @@ const FiringSectionSummary = () => {
             </button>
 
             {/* Sync Button */}
-            <button
-              type="button"
-              onClick={fetchRecords}
-              disabled={loading}
-              className="px-4 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-all font-bold text-xs flex items-center gap-2 shadow-xs active:scale-95 cursor-pointer"
-            >
-              <RefreshCw size={14} className={loading ? 'animate-spin text-orange-600' : 'text-slate-500 dark:text-slate-400'} />
-              {loading ? t.refreshing : t.sync}
-            </button>
+            {!isEditing && (
+                <button
+                type="button"
+                onClick={fetchRecords}
+                disabled={loading}
+                className="px-4 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-all font-bold text-xs flex items-center gap-2 shadow-xs active:scale-95 cursor-pointer"
+                >
+                <RefreshCw size={14} className={loading ? 'animate-spin text-orange-600' : 'text-slate-500 dark:text-slate-400'} />
+                {loading ? t.refreshing : t.sync}
+                </button>
+            )}
           </div>
         </div>
 
         {/* --- Date Filter Bar --- */}
-        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-50 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 rounded-xl">
-              <Filter className="w-4 h-4" />
+        {!isEditing && (
+            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-50 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 rounded-xl">
+                <Filter className="w-4 h-4" />
+                </div>
+                <div>
+                <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">{t.filterDay}</span>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Filter drier logs by tea manufacturing date (M/F Date)</p>
+                </div>
             </div>
-            <div>
-              <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">{t.filterDay}</span>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Filter drier logs by tea manufacturing date (M/F Date)</p>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+                <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="w-full sm:w-auto bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none px-3.5 py-2 transition-all"
+                />
+                {filterDate && (
+                <button
+                    onClick={() => setFilterDate("")}
+                    className="flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100/70 border border-rose-200/60 dark:border-rose-900/40 px-3 py-2 rounded-xl transition-colors cursor-pointer"
+                >
+                    <X className="w-3.5 h-3.5" /> {t.clear}
+                </button>
+                )}
             </div>
-          </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <input
-              type="date"
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              className="w-full sm:w-auto bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none px-3.5 py-2 transition-all"
-            />
-            {filterDate && (
-              <button
-                onClick={() => setFilterDate("")}
-                className="flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100/70 border border-rose-200/60 dark:border-rose-900/40 px-3 py-2 rounded-xl transition-colors cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" /> {t.clear}
-              </button>
-            )}
-          </div>
-        </div>
+            </div>
+        )}
 
         {/* --- Main Dashboard Content --- */}
         {loading && allRecords.length === 0 ? (
@@ -656,7 +837,7 @@ const FiringSectionSummary = () => {
             <div className="w-10 h-10 border-4 border-orange-200 dark:border-orange-800 border-t-orange-600 rounded-full animate-spin mx-auto mb-4" />
             <p className="text-slate-500 dark:text-slate-400 font-semibold text-xs uppercase tracking-wider">Loading drier room record sheet...</p>
           </div>
-        ) : !currentRecord ? (
+        ) : !displayRecord ? (
           <div className="text-center py-24 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs">
             <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-2xl flex items-center justify-center mx-auto mb-3">
               <Package className="w-7 h-7" />
@@ -665,17 +846,22 @@ const FiringSectionSummary = () => {
             <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 max-w-sm mx-auto font-medium">{t.noRecordDesc}</p>
           </div>
         ) : (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm p-6 md:p-10 overflow-hidden font-sans transition-colors duration-200 flex flex-col gap-8">
+          <div className={`bg-white dark:bg-slate-900 rounded-3xl border ${isEditing ? 'border-orange-400 shadow-orange-500/20' : 'border-slate-200/90 dark:border-slate-800'} shadow-sm p-6 md:p-10 overflow-hidden font-sans transition-all duration-200 flex flex-col gap-8`}>
 
             {/* Title Header */}
             <div className="text-center pb-6 border-b border-slate-100 dark:border-slate-800">
+              {isEditing && (
+                  <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-800 px-4 py-1.5 rounded-full font-bold text-sm mb-4 animate-pulse">
+                      <Edit size={16}/> EDITING MODE ACTIVE
+                  </div>
+              )}
               <h2 className="text-2xl sm:text-3xl font-black tracking-wider text-slate-900 dark:text-white uppercase">
                 DRIER ROOM RECORD SHEET
               </h2>
               <div className="flex flex-wrap justify-center items-center gap-6 mt-3 text-xs font-bold text-slate-600 dark:text-slate-400">
-                <div>{t.mfDate} : <span className="text-slate-900 dark:text-white font-extrabold">{currentRecord.dateOfManufacture}</span></div>
+                <div>{t.mfDate} : <span className="text-slate-900 dark:text-white font-extrabold">{displayRecord.dateOfManufacture}</span></div>
                 <div>•</div>
-                <div>{t.cropDate} : <span className="text-slate-900 dark:text-white font-extrabold">{currentRecord.drier1?.day || '-'}</span></div>
+                <div>{t.cropDate} : <span className="text-slate-900 dark:text-white font-extrabold">{displayRecord.drier1?.day || '-'}</span></div>
                 <div>•</div>
                 <div>{t.cropKg} : <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">{calcData?.grandTotalFired ? (calcData.grandTotalFired * 4.2).toFixed(2) + ' kg' : '-'}</span></div>
               </div>
@@ -693,15 +879,15 @@ const FiringSectionSummary = () => {
                     </tr>
                     <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 text-[10px] font-bold border-b border-slate-200 dark:border-slate-700">
                       <th className="p-2 w-28 border-r border-slate-200 dark:border-slate-700 text-left pl-3">{t.item}</th>
-                      <th className="p-2 w-20 border-r border-slate-200 dark:border-slate-700">{t.kg}</th>
+                      <th className="p-2 w-24 border-r border-slate-200 dark:border-slate-700">{t.kg}</th>
                       <th className="p-2 w-16 border-r border-slate-200 dark:border-slate-700">{t.pct}</th>
 
                       <th className="p-2 w-28 border-r border-slate-200 dark:border-slate-700 text-left pl-3">{t.item}</th>
-                      <th className="p-2 w-20 border-r border-slate-200 dark:border-slate-700">{t.kg}</th>
+                      <th className="p-2 w-24 border-r border-slate-200 dark:border-slate-700">{t.kg}</th>
                       <th className="p-2 w-16 border-r border-slate-200 dark:border-slate-700">{t.pct}</th>
 
                       <th className="p-2 w-28 border-r border-slate-200 dark:border-slate-700 text-left pl-3">{t.item}</th>
-                      <th className="p-2 w-20 border-r border-slate-200 dark:border-slate-700">{t.kg}</th>
+                      <th className="p-2 w-24 border-r border-slate-200 dark:border-slate-700">{t.kg}</th>
                       <th className="p-2 w-16">{t.pct}</th>
                     </tr>
                   </thead>
@@ -725,11 +911,15 @@ const FiringSectionSummary = () => {
                       return (
                         <tr key={k} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                           <td className="p-2.5 text-left font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{label}</td>
-                          <td className="p-2.5 font-bold border-r border-slate-200 dark:border-slate-800">{d1Kg.toFixed(2)}</td>
+                          <td className="p-2.5 font-bold border-r border-slate-200 dark:border-slate-800">
+                            {renderEditInput('dhools', 'drier1', k, d1Kg)}
+                          </td>
                           <td className="p-2.5 text-slate-500 dark:text-slate-400 font-semibold border-r border-slate-200 dark:border-slate-800">{d1Pct}%</td>
 
                           <td className="p-2.5 text-left font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{label}</td>
-                          <td className="p-2.5 font-bold border-r border-slate-200 dark:border-slate-800">{d2Kg.toFixed(2)}</td>
+                          <td className="p-2.5 font-bold border-r border-slate-200 dark:border-slate-800">
+                             {renderEditInput('dhools', 'drier2', k, d2Kg)}
+                          </td>
                           <td className="p-2.5 text-slate-500 dark:text-slate-400 font-semibold border-r border-slate-200 dark:border-slate-800">{d2Pct}%</td>
 
                           <td className="p-2.5 text-left font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{label}</td>
@@ -772,12 +962,12 @@ const FiringSectionSummary = () => {
                       <th className="p-2 border-r border-slate-200 dark:border-slate-700">{t.f}</th>
                       <th className="p-2 border-r border-slate-200 dark:border-slate-700">{t.rf}</th>
                       <th className="p-2 border-r border-slate-200 dark:border-slate-700">{t.w}</th>
-                      <th className="p-2 border-r border-slate-200 dark:border-slate-700 font-black">{t.total}</th>
+                      <th className="p-2 border-r border-slate-200 dark:border-slate-700 font-black">{t.extra}</th>
 
                       <th className="p-2 border-r border-slate-200 dark:border-slate-700">{t.f}</th>
                       <th className="p-2 border-r border-slate-200 dark:border-slate-700">{t.rf}</th>
                       <th className="p-2 border-r border-slate-200 dark:border-slate-700">{t.w}</th>
-                      <th className="p-2 border-r border-slate-200 dark:border-slate-700 font-black">{t.total}</th>
+                      <th className="p-2 border-r border-slate-200 dark:border-slate-700 font-black">{t.extra}</th>
 
                       <th className="p-2 border-r border-slate-200 dark:border-slate-700">{t.f}</th>
                       <th className="p-2 border-r border-slate-200 dark:border-slate-700">{t.rf}</th>
@@ -787,15 +977,15 @@ const FiringSectionSummary = () => {
                   </thead>
                   <tbody className="bg-white dark:bg-slate-900 font-bold">
                     <tr>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{calcData?.u1.f}</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{calcData?.u1.rf}</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{calcData?.u1.w}</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 text-blue-700 dark:text-blue-400 font-black">{calcData?.u1.total}</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{renderEditInput('drier1', null, 'ffrw1', calcData?.u1.f)}</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{renderEditInput('drier1', null, 'ffrw2', calcData?.u1.rf)}</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{renderEditInput('drier1', null, 'ffrw3', calcData?.u1.w)}</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{renderEditInput('drier1', null, 'ffrw4', calcData?.u1.extra)}</td>
 
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{calcData?.u2.f}</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{calcData?.u2.rf}</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{calcData?.u2.w}</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 text-emerald-700 dark:text-emerald-400 font-black">{calcData?.u2.total}</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{renderEditInput('drier2', null, 'ffrw1', calcData?.u2.f)}</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{renderEditInput('drier2', null, 'ffrw2', calcData?.u2.rf)}</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{renderEditInput('drier2', null, 'ffrw3', calcData?.u2.w)}</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{renderEditInput('drier2', null, 'ffrw4', calcData?.u2.extra)}</td>
 
                       <td className="p-3 border-r border-slate-200 dark:border-slate-800">{calcData?.uTotal.f}</td>
                       <td className="p-3 border-r border-slate-200 dark:border-slate-800">{calcData?.uTotal.rf}</td>
@@ -821,25 +1011,37 @@ const FiringSectionSummary = () => {
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900 font-medium">
                     <tr>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800 w-1/6">{t.withoutWithering}</td>
-                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 w-1/6 text-center">{calcData?.out1.withoutWithering} kg</td>
+                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 w-1/6 text-center">
+                          {renderEditInput('firewoodOutput', 'drier1', 'withoutWithering', calcData?.out1.withoutWithering)} {isEditing ? '' : 'kg'}
+                      </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800 w-1/6">{t.withoutWithering}</td>
-                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 w-1/6 text-center">{calcData?.out2.withoutWithering} kg</td>
+                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 w-1/6 text-center">
+                          {renderEditInput('firewoodOutput', 'drier2', 'withoutWithering', calcData?.out2.withoutWithering)} {isEditing ? '' : 'kg'}
+                      </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800 w-1/6">{t.withoutWithering}</td>
                       <td className="p-2.5 w-1/6 text-center font-bold">{calcData?.outTotal.withoutWithering} kg</td>
                     </tr>
                     <tr>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.withering}</td>
-                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center">{calcData?.out1.withering} kg</td>
+                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center">
+                          {renderEditInput('firewoodOutput', 'drier1', 'withWithering', calcData?.out1.withering)} {isEditing ? '' : 'kg'}
+                      </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.withering}</td>
-                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center">{calcData?.out2.withering} kg</td>
+                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center">
+                          {renderEditInput('firewoodOutput', 'drier2', 'withWithering', calcData?.out2.withering)} {isEditing ? '' : 'kg'}
+                      </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.withering}</td>
                       <td className="p-2.5 text-center font-bold">{calcData?.outTotal.withering} kg</td>
                     </tr>
                     <tr>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.rf}</td>
-                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center">{calcData?.out1.rf} kg</td>
+                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center">
+                          {renderEditInput('firewoodOutput', 'drier1', 'rf', calcData?.out1.rf)} {isEditing ? '' : 'kg'}
+                      </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.rf}</td>
-                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center">{calcData?.out2.rf} kg</td>
+                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center">
+                          {renderEditInput('firewoodOutput', 'drier2', 'rf', calcData?.out2.rf)} {isEditing ? '' : 'kg'}
+                      </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.rf}</td>
                       <td className="p-2.5 text-center font-bold">{calcData?.outTotal.rf} kg</td>
                     </tr>
@@ -872,23 +1074,35 @@ const FiringSectionSummary = () => {
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900 font-medium">
                     <tr>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.startTime}</td>
-                      <td className="p-2.5 text-center font-bold border-r border-slate-200 dark:border-slate-800">{currentRecord.drier1?.start || '-'}</td>
+                      <td className="p-2.5 text-center font-bold border-r border-slate-200 dark:border-slate-800">
+                          {renderEditTime('drier1', 'start', displayRecord.drier1?.start)}
+                      </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.startTime}</td>
-                      <td className="p-2.5 text-center font-bold border-r border-slate-200 dark:border-slate-800">{currentRecord.drier2?.start || '-'}</td>
+                      <td className="p-2.5 text-center font-bold border-r border-slate-200 dark:border-slate-800">
+                          {renderEditTime('drier2', 'start', displayRecord.drier2?.start)}
+                      </td>
                       <td colSpan={2} className="p-2.5 bg-slate-50 dark:bg-slate-800/40"></td>
                     </tr>
                     <tr>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.endTime}</td>
-                      <td className="p-2.5 text-center font-bold border-r border-slate-200 dark:border-slate-800">{currentRecord.drier1?.finish || '-'}</td>
+                      <td className="p-2.5 text-center font-bold border-r border-slate-200 dark:border-slate-800">
+                          {renderEditTime('drier1', 'finish', displayRecord.drier1?.finish)}
+                      </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.endTime}</td>
-                      <td className="p-2.5 text-center font-bold border-r border-slate-200 dark:border-slate-800">{currentRecord.drier2?.finish || '-'}</td>
+                      <td className="p-2.5 text-center font-bold border-r border-slate-200 dark:border-slate-800">
+                           {renderEditTime('drier2', 'finish', displayRecord.drier2?.finish)}
+                      </td>
                       <td colSpan={2} className="p-2.5 bg-slate-50 dark:bg-slate-800/40"></td>
                     </tr>
                     <tr>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.totalHours}</td>
-                      <td className="p-2.5 text-center font-black border-r border-slate-200 dark:border-slate-800">{calcData?.h1 || 0} h</td>
+                      <td className="p-2.5 text-center font-black border-r border-slate-200 dark:border-slate-800">
+                          {renderEditInput('drier1', null, 'totalHours', calcData?.h1)} {isEditing ? '' : 'h'}
+                      </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.totalHours}</td>
-                      <td className="p-2.5 text-center font-black border-r border-slate-200 dark:border-slate-800">{calcData?.h2 || 0} h</td>
+                      <td className="p-2.5 text-center font-black border-r border-slate-200 dark:border-slate-800">
+                          {renderEditInput('drier2', null, 'totalHours', calcData?.h2)} {isEditing ? '' : 'h'}
+                      </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.totalHours}</td>
                       <td className="p-2.5 text-center font-black text-amber-700 dark:text-amber-400">{calcData?.hTotal || 0} h</td>
                     </tr>
@@ -918,25 +1132,37 @@ const FiringSectionSummary = () => {
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900 font-medium">
                     <tr>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.totalFwKg}</td>
-                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">{calcData?.c1.fwKg} kg</td>
+                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">
+                          {renderEditInput('firewoodCost', 'drier1', 'totalFwKg', calcData?.c1.fwKg)} {isEditing ? '' : 'kg'}
+                      </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.totalFwKg}</td>
-                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">{calcData?.c2.fwKg} kg</td>
+                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">
+                          {renderEditInput('firewoodCost', 'drier2', 'totalFwKg', calcData?.c2.fwKg)} {isEditing ? '' : 'kg'}
+                      </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.totalFwKg}</td>
                       <td className="p-2.5 text-center font-bold text-amber-700 dark:text-amber-400">{calcData?.cTotal.fwKg} kg</td>
                     </tr>
                     <tr>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.unitPrice}</td>
-                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">Rs. {calcData?.c1.unitPrice.toFixed(2)}</td>
+                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">
+                          {isEditing ? '' : 'Rs. '} {renderEditInput('firewoodCost', 'drier1', 'unitPrice', calcData?.c1.unitPrice)}
+                      </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.unitPrice}</td>
-                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">Rs. {calcData?.c2.unitPrice.toFixed(2)}</td>
+                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">
+                          {isEditing ? '' : 'Rs. '} {renderEditInput('firewoodCost', 'drier2', 'unitPrice', calcData?.c2.unitPrice)}
+                      </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.unitPrice}</td>
                       <td className="p-2.5 text-center font-bold">Rs. {calcData?.cTotal.unitPrice.toFixed(2)}</td>
                     </tr>
                     <tr>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.madeTeaKg}</td>
-                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">{calcData?.c1.madeTeaKg} kg</td>
+                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">
+                          {renderEditInput('firewoodCost', 'drier1', 'madeTeaKg', calcData?.c1.madeTeaKg)} {isEditing ? '' : 'kg'}
+                      </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.madeTeaKg}</td>
-                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">{calcData?.c2.madeTeaKg} kg</td>
+                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">
+                          {renderEditInput('firewoodCost', 'drier2', 'madeTeaKg', calcData?.c2.madeTeaKg)} {isEditing ? '' : 'kg'}
+                      </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.madeTeaKg}</td>
                       <td className="p-2.5 text-center font-bold">{calcData?.cTotal.madeTeaKg} kg</td>
                     </tr>
@@ -961,17 +1187,47 @@ const FiringSectionSummary = () => {
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t.officerName} :</span>
-                    <p className="text-sm font-black text-slate-900 dark:text-white mt-0.5">{currentRecord.officerName || '..................................................'}</p>
+                    {isEditing ? (
+                        <input 
+                            type="text"
+                            value={displayRecord.officerName || ''}
+                            onChange={(e) => handleInputChange(null, null, 'officerName', e.target.value)}
+                            className="w-full mt-1 p-1 text-sm font-black border border-orange-300 rounded focus:ring-2 focus:ring-orange-500 outline-none text-slate-800 bg-white"
+                        />
+                    ) : (
+                        <p className="text-sm font-black text-slate-900 dark:text-white mt-0.5">{displayRecord.officerName || '..................................................'}</p>
+                    )}
                   </div>
                   <UserCheck className="w-5 h-5 text-slate-400" />
                 </div>
 
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t.checkBy} :</span>
-                    <p className="text-sm font-black text-slate-900 dark:text-white mt-0.5">{currentRecord.checkedBy || '..................................................'}</p>
-                  </div>
-                  <CheckCircle2 className="w-5 h-5 text-slate-400" />
+                <div className="flex flex-col gap-2">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t.checkBy} :</span>
+                        {isEditing ? (
+                            <input 
+                                type="text"
+                                value={displayRecord.checkedBy || ''}
+                                onChange={(e) => handleInputChange(null, null, 'checkedBy', e.target.value)}
+                                className="w-full mt-1 p-1 text-sm font-black border border-orange-300 rounded focus:ring-2 focus:ring-orange-500 outline-none text-slate-800 bg-white"
+                            />
+                        ) : (
+                            <p className="text-sm font-black text-slate-900 dark:text-white mt-0.5">{displayRecord.checkedBy || '..................................................'}</p>
+                        )}
+                      </div>
+                      <CheckCircle2 className="w-5 h-5 text-slate-400" />
+                    </div>
+                    
+                    {/* Display Edit Meta Info */}
+                    {!isEditing && displayRecord?.meta?.editedBy && (
+                        <div className="flex items-center gap-2 justify-end text-[10px] text-slate-500 dark:text-slate-400 font-medium bg-slate-100/50 dark:bg-slate-800/30 px-3 py-1.5 rounded-lg w-fit self-end">
+                           <Info size={12} className="text-blue-500" />
+                           <span>
+                               {t.editedBy}: <strong className="text-slate-700 dark:text-slate-300">{displayRecord.meta.editedBy}</strong> on {new Date(displayRecord.meta.editedAt).toLocaleDateString()} at {new Date(displayRecord.meta.editedAt).toLocaleTimeString()}
+                           </span>
+                        </div>
+                    )}
                 </div>
               </div>
 
