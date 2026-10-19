@@ -50,7 +50,7 @@ export default function HydroMetersEntry() {
         TIME_SLOTS.forEach(time => {
             initial[time] = {};
             TROUGHS.forEach(trough => {
-                initial[time][trough] = { dry: '', wet: '' };
+                initial[time][trough] = { dry: '', wet: '', heatOn: false };
             });
             initial[time].meta = null; 
         });
@@ -105,12 +105,14 @@ export default function HydroMetersEntry() {
     }, [selectedDate]);
 
     // Handle Input Changes
+    // Handle Input Changes
     const handleInputChange = (trough, field, value) => {
-        if (value !== '' && !/^\d*\.?\d*$/.test(value)) return;
+        // Only apply regex number validation for dry and wet fields
+        if ((field === 'dry' || field === 'wet') && value !== '' && !/^\d*\.?\d*$/.test(value)) return;
 
         setFormData(prev => {
             const origVal = originalData[activeTime]?.[trough]?.[field];
-            const isEditingExisting = origVal && origVal !== '' && origVal !== value;
+            const isEditingExisting = origVal !== undefined && origVal !== '' && origVal !== value;
 
             let newMeta = prev[activeTime]?.meta || null;
 
@@ -121,14 +123,22 @@ export default function HydroMetersEntry() {
                 };
             }
 
+            const updatedTrough = {
+                ...prev[activeTime]?.[trough],
+                [field]: value
+            };
+
+            // If Heat On is checked, clear the wet and dry bulb values
+            if (field === 'heatOn' && value === true) {
+                updatedTrough.dry = '';
+                updatedTrough.wet = '';
+            }
+
             return {
                 ...prev,
                 [activeTime]: {
                     ...prev[activeTime],
-                    [trough]: {
-                        ...prev[activeTime]?.[trough],
-                        [field]: value
-                    },
+                    [trough]: updatedTrough,
                     meta: newMeta
                 }
             };
@@ -175,12 +185,12 @@ export default function HydroMetersEntry() {
         }
     };
 
-    // 💡 Update: DIFFERENCE = WET - DRY
+    // 💡 Update: DIFFERENCE = Dry - WET
     const calculateDifference = (dry, wet) => {
         const dryVal = parseFloat(dry);
         const wetVal = parseFloat(wet);
         if (!isNaN(dryVal) && !isNaN(wetVal)) {
-            return (wetVal - dryVal).toFixed(2);
+            return (dryVal - wetVal).toFixed(2);
         }
         return '';
     };
@@ -407,11 +417,12 @@ export default function HydroMetersEntry() {
                         {TROUGHS.map((trough, idx) => {
                             const wetVal = formData[activeTime]?.[trough]?.wet || '';
                             const dryVal = formData[activeTime]?.[trough]?.dry || '';
+                            const heatOn = formData[activeTime]?.[trough]?.heatOn || false;
                             const diffVal = calculateDifference(dryVal, wetVal);
                             const isNegative = diffVal !== '' && parseFloat(diffVal) < 0;
 
                             return (
-                                <div key={`trough-${trough}`} className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 flex flex-col gap-5 hover:border-green-300 dark:hover:border-green-700 transition-colors">
+                                <div key={`trough-${trough}`} className={`bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border ${heatOn ? 'border-orange-200 dark:border-orange-900/50' : 'border-gray-200 dark:border-zinc-800'} flex flex-col gap-5 hover:border-green-300 dark:hover:border-green-700 transition-colors`}>
                                     
                                     <div className="flex justify-between items-center border-b border-gray-100 dark:border-zinc-800 pb-3">
                                         <h4 className="text-lg font-black text-gray-800 dark:text-gray-200 uppercase">Trough {String(trough).padStart(2, '0')}</h4>
@@ -421,6 +432,20 @@ export default function HydroMetersEntry() {
                                         `}>
                                             Diff: {diffVal || '-'}
                                         </div>
+                                    </div>
+
+                                    {/* HEAT ON CHECKBOX */}
+                                    <div className="flex items-center gap-2 mb-[-10px]">
+                                        <input 
+                                            type="checkbox" 
+                                            id={`heatOn-${idx}`}
+                                            checked={heatOn}
+                                            onChange={(e) => handleInputChange(trough, 'heatOn', e.target.checked)}
+                                            className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500 cursor-pointer"
+                                        />
+                                        <label htmlFor={`heatOn-${idx}`} className="text-sm font-medium text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                                            Heat On Time
+                                        </label>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
@@ -434,7 +459,8 @@ export default function HydroMetersEntry() {
                                                 value={wetVal}
                                                 onChange={(e) => handleInputChange(trough, 'wet', e.target.value)}
                                                 onKeyDown={(e) => handleKeyDown(e, idx, 'wet')}
-                                                className="w-full bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-700 rounded-xl p-3 text-center font-bold text-lg text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all placeholder-gray-300 dark:placeholder-zinc-700"
+                                                disabled={heatOn}
+                                                className="w-full bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-700 rounded-xl p-3 text-center font-bold text-lg text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all placeholder-gray-300 dark:placeholder-zinc-700 disabled:opacity-40 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
                                                 placeholder="-"
                                             />
                                         </div>
@@ -448,7 +474,8 @@ export default function HydroMetersEntry() {
                                                 value={dryVal}
                                                 onChange={(e) => handleInputChange(trough, 'dry', e.target.value)}
                                                 onKeyDown={(e) => handleKeyDown(e, idx, 'dry')}
-                                                className="w-full bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-700 rounded-xl p-3 text-center font-bold text-lg text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all placeholder-gray-300 dark:placeholder-zinc-700"
+                                                disabled={heatOn}
+                                                className="w-full bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-700 rounded-xl p-3 text-center font-bold text-lg text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all placeholder-gray-300 dark:placeholder-zinc-700 disabled:opacity-40 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
                                                 placeholder="-"
                                             />
                                         </div>
