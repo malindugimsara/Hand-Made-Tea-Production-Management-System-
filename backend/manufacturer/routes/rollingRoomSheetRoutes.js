@@ -5,22 +5,20 @@ import {
   getRollingRoomSheetById,
   deleteRollingRoomSheet
 } from '../controllers/rollingRoomSheetController.js';
-import { authorizeRoles, verifyToken } from '../../middleware/auth.js';
+// Replace with your actual auth middleware path
+import {authorizeRoles,verifyToken } from '../../middleware/auth.js  ';
 
-const rollingRouter = express.Router();
+const router = express.Router();
 
-// Base URL: /api/rolling-room-sheet
+// Base endpoint: /api/rolling-room-sheet
+router
+  .route('/')
+  .get( getRollingRoomSheets)
+  .post( saveRollingRoomSheet);
 
-// POST request to Save
-rollingRouter.post('/', verifyToken, authorizeRoles('Admin', 'User'), saveRollingRoomSheet);
+router  
+  .route('/:id')
+  .get( getRollingRoomSheetById)
+  .delete( verifyToken, authorizeRoles('admin', 'manager'), deleteRollingRoomSheet);
 
-// GET request to Fetch all sheets 
-rollingRouter.get('/', verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getRollingRoomSheets);
-
-// GET request to Fetch sheet by ID 
-rollingRouter.get('/:id', verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getRollingRoomSheetById);
-
-// DELETE request to delete sheet 
-rollingRouter.delete('/:id', verifyToken, authorizeRoles('Admin', 'User'), deleteRollingRoomSheet);
-
-export default rollingRouter;
+export default router;

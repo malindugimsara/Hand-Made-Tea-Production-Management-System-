@@ -1,6 +1,36 @@
 import RollingRoomSheet from '../models/RollingRoomSheet.js';
 
-// @desc    Create or update a Rolling Room Sheet (Upsert by cropDate/mfDate)
+// Helper to sanitize batch data matching the manual log sheet structure
+const sanitizeBatches = (batches = [], standardBatchKg = 560) => {
+  const stdKg = Number(standardBatchKg) > 0 ? Number(standardBatchKg) : 560;
+
+  return batches.map((batch, index) => {
+    const d1Kg = Number(batch.dhool1?.wetDhoolKg) || 0;
+    const d2Kg = Number(batch.dhool2?.wetDhoolKg) || 0;
+
+    return {
+      batchNo: batch.batchNo || index + 1,
+      dhool1: {
+        roll01Start: batch.dhool1?.roll01Start || '',
+        roll01End: batch.dhool1?.roll01End || '',
+        roll02Start: batch.dhool1?.roll02Start || '',
+        roll02End: batch.dhool1?.roll02End || '',
+        wetDhoolKg: d1Kg,
+        percentage: d1Kg > 0 ? Number(((d1Kg / stdKg) * 100).toFixed(2)) : 0
+      },
+      dhool2: {
+        roll03Start: batch.dhool2?.roll03Start || '',
+        roll03End: batch.dhool2?.roll03End || '',
+        roll04Start: batch.dhool2?.roll04Start || '',
+        roll04End: batch.dhool2?.roll04End || '',
+        wetDhoolKg: d2Kg,
+        percentage: d2Kg > 0 ? Number(((d2Kg / stdKg) * 100).toFixed(2)) : 0
+      }
+    };
+  });
+};
+
+// @desc    Save or Update Rolling Room Sheet (Upsert by cropDate)
 // @route   POST /api/rolling-room-sheet
 // @access  Protected
 export const saveRollingRoomSheet = async (req, res) => {
@@ -14,67 +44,52 @@ export const saveRollingRoomSheet = async (req, res) => {
       rollingEndTime,
       totalRollingHours,
       dayType,
+      standardBatchKg,
       batches,
       factory
     } = req.body;
 
     if (!cropDate || !mfDate) {
-      return res.status(400).json({
+      return res.status(400).json({ 
         success: false,
-        message: 'Crop Date and M/F Date are required.'
+        message: 'Crop Date and M/F Date are required.' 
       });
     }
 
-    const username = req.user?.username || req.body.username || 'Admin';
+    const enteredBy = req.user ? (req.user.username || req.user.name) : (req.body.username || 'Admin');
+    const stdBatchKg = Number(standardBatchKg) > 0 ? Number(standardBatchKg) : 560;
+    const cleanBatches = sanitizeBatches(batches, stdBatchKg);
 
-    // Check if a sheet already exists for this cropDate
-    let sheet = await RollingRoomSheet.findOne({ cropDate });
-
-    if (sheet) {
-      // Update existing record
-      sheet.mfDate = mfDate;
-      sheet.cropKg = Number(cropKg) || 0;
-      sheet.otherLeafKg = Number(otherLeafKg) || 0;
-      sheet.rollingStartTime = rollingStartTime || '';
-      sheet.rollingEndTime = rollingEndTime || '';
-      sheet.totalRollingHours = totalRollingHours || '';
-      sheet.dayType = dayType || 'Same Day';
-      sheet.batches = batches || [];
-      sheet.factory = factory || sheet.factory;
-      sheet.editedBy = username;
-
-      const updatedSheet = await sheet.save();
-      return res.status(200).json({
-        success: true,
-        message: 'Rolling Room Sheet updated successfully!',
-        data: updatedSheet
-      });
-    }
-
-    // Create new record
-    const newSheet = new RollingRoomSheet({
-      factory,
-      cropDate,
+    const updateData = {
       mfDate,
       cropKg: Number(cropKg) || 0,
       otherLeafKg: Number(otherLeafKg) || 0,
-      rollingStartTime,
-      rollingEndTime,
-      totalRollingHours,
-      dayType,
-      batches: batches || [],
-      createdBy: username
-    });
+      rollingStartTime: rollingStartTime || '',
+      rollingEndTime: rollingEndTime || '',
+      totalRollingHours: totalRollingHours || '',
+      dayType: dayType || 'Same Day',
+      standardBatchKg: stdBatchKg,
+      noOfBatches: cleanBatches.length,
+      batches: cleanBatches,
+      enteredBy: enteredBy,
+      createdBy: enteredBy,
+      editedBy: enteredBy,
+      ...(factory && { factory })
+    };
 
-    const savedSheet = await newSheet.save();
+    const savedSheet = await RollingRoomSheet.findOneAndUpdate(
+      { cropDate: cropDate },
+      { $set: updateData },
+      { new: true, upsert: true, runValidators: true }
+    );
 
-    return res.status(201).json({
+    return res.status(200).json({
       success: true,
-      message: 'Rolling Room Sheet created successfully!',
+      message: 'Rolling Room Sheet saved successfully!',
       data: savedSheet
     });
   } catch (error) {
-    console.error('Error in saveRollingRoomSheet:', error);
+    console.error('Save Rolling Room Sheet Error:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to save Rolling Room Sheet.',
@@ -83,7 +98,7 @@ export const saveRollingRoomSheet = async (req, res) => {
   }
 };
 
-// @desc    Get Rolling Room Sheet records (with optional ?date= or ?cropDate= filter)
+// @desc    Get Rolling Room Sheet records (by ?cropDate=, ?mfDate=, or all)
 // @route   GET /api/rolling-room-sheet
 // @access  Protected
 export const getRollingRoomSheets = async (req, res) => {
@@ -92,7 +107,6 @@ export const getRollingRoomSheets = async (req, res) => {
     const query = {};
 
     if (date) {
-      // Matches either cropDate or mfDate
       query.$or = [{ cropDate: date }, { mfDate: date }];
     } else {
       if (cropDate) query.cropDate = cropDate;
@@ -107,7 +121,7 @@ export const getRollingRoomSheets = async (req, res) => {
       data: sheets
     });
   } catch (error) {
-    console.error('Error in getRollingRoomSheets:', error);
+    console.error('Get Rolling Room Sheets Error:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch Rolling Room Sheets.',
@@ -135,7 +149,7 @@ export const getRollingRoomSheetById = async (req, res) => {
       data: sheet
     });
   } catch (error) {
-    console.error('Error in getRollingRoomSheetById:', error);
+    console.error('Get Rolling Room Sheet By Id Error:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch the record.',
@@ -163,7 +177,7 @@ export const deleteRollingRoomSheet = async (req, res) => {
       message: 'Rolling Room Sheet deleted successfully!'
     });
   } catch (error) {
-    console.error('Error in deleteRollingRoomSheet:', error);
+    console.error('Delete Rolling Room Sheet Error:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to delete record.',
