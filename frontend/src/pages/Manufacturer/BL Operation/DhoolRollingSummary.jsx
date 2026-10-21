@@ -12,7 +12,10 @@ import {
   X,
   Package,
   Sparkles,
-  Leaf
+  Leaf,
+  Edit3,
+  Save,
+  RotateCcw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PDFDownloader from '@/components/PDFDownloader';
@@ -72,6 +75,24 @@ const formatDecimalHoursToHms = (decimalHours) => {
   return `${hrs}h ${String(mins).padStart(2, '0')}m`;
 };
 
+// Calculate duration string from start and end times
+const calculateDurationStr = (start, end) => {
+  if (!start || !end) return '';
+  const [sH, sM] = start.split(':').map(Number);
+  const [eH, eM] = end.split(':').map(Number);
+  let diff = (eH * 60 + eM) - (sH * 60 + sM);
+  if (diff < 0) diff += 24 * 60;
+  const hrs = Math.floor(diff / 60);
+  const mins = diff % 60;
+  return `${hrs}h ${String(mins).padStart(2, '0')}m`;
+};
+
+const preventNegativeKeys = (e) => {
+  if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+    e.preventDefault();
+  }
+};
+
 const RollingRoomSheetSummary = () => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -83,6 +104,11 @@ const RollingRoomSheetSummary = () => {
   const [filterDate, setFilterDate] = useState(getTodayDate());
   const [lang, setLang] = useState('EN');
 
+  // In-place editing state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+
   // Dynamic Translations
   const t = useMemo(() => ({
     title: lang === 'SI' ? "රෝලිං කාමර වාර්තා පත්‍රිකාව" : "ROLLING ROOM SHEET",
@@ -92,6 +118,9 @@ const RollingRoomSheetSummary = () => {
     downloadPdf: lang === 'SI' ? "PDF බාගත කරන්න" : "Download PDF",
     filterDay: lang === 'SI' ? "නිෂ්පාදිත දිනය අනුව තෝරන්න (M/F Date):" : "Filter by M/F Date:",
     clear: lang === 'SI' ? "මකන්න" : "Clear",
+    editRecord: lang === 'SI' ? "සංස්කරණය කරන්න" : "Edit Record",
+    saveChanges: lang === 'SI' ? "සුරකින්න" : "Save Changes",
+    cancelEdit: lang === 'SI' ? "අවලංගු කරන්න" : "Cancel",
     noRecordFound: lang === 'SI' ? "තෝරාගත් නිෂ්පාදිත දිනය සඳහා වාර්තා හමු නොවීය" : "No Rolling Sheet Found for Selected M/F Date",
     noRecordDesc: lang === 'SI' ? "මෙම නිෂ්පාදිත දිනය සඳහා තවමත් රෝලිං කාමර සටහනක් ඇතුලත් කර නොමැත." : "There is no rolling room sheet recorded for the selected manufacturing date.",
 
@@ -119,7 +148,7 @@ const RollingRoomSheetSummary = () => {
     noOfBatches: lang === 'SI' ? "කාණ්ඩ ගණන" : "No of Batches",
     standardBatch: lang === 'SI' ? "සම්මත කාණ්ඩ බර" : "Standard Batch",
 
-    // Grid Column Headers (Exact Manual Sheet)
+    // Grid Column Headers
     no: "NO:",
     dhool1: lang === 'SI' ? "1 වන ධූල් (1ST DHOOL)" : "1ST DHOOL",
     dhool2: lang === 'SI' ? "2 වන ධූල් (2ND DHOOL)" : "2ND DHOOL",
@@ -186,19 +215,123 @@ const RollingRoomSheetSummary = () => {
     ) || null;
   }, [allRecords, filterDate]);
 
+  // Cancel edit mode when changing date
+  useEffect(() => {
+    setIsEditing(false);
+    setEditForm(null);
+  }, [filterDate]);
+
+  // Start in-place editing
+  const handleStartEdit = () => {
+    if (!currentRecord) return;
+    setEditForm(JSON.parse(JSON.stringify(currentRecord)));
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditForm(null);
+  };
+
+  // Cell level editing for batches
+  const handleBatchCellChange = (batchIndex, sectionKey, field, value) => {
+    setEditForm(prev => {
+      const updatedBatches = [...(prev.batches || [])];
+      const batch = { ...updatedBatches[batchIndex] };
+      const section = { ...(batch[sectionKey] || {}) };
+
+      section[field] = value;
+
+      // Recalculate percentage if wetDhoolKg changes
+      if (field === 'wetDhoolKg') {
+        const stdKg = parseFloat(prev.standardBatchKg) || 560;
+        const enteredKg = parseFloat(value) || 0;
+        section.percentage = stdKg > 0 ? parseFloat(((enteredKg / stdKg) * 100).toFixed(2)) : 0;
+      }
+
+      batch[sectionKey] = section;
+      updatedBatches[batchIndex] = batch;
+
+      return {
+        ...prev,
+        batches: updatedBatches
+      };
+    });
+  };
+
+  // Top-level metadata editing
+  const handleMetaFieldChange = (field, value) => {
+    setEditForm(prev => {
+      const updated = { ...prev, [field]: value };
+
+      // Update totalRollingHours dynamically if start/end times change
+      if (field === 'rollingStartTime' || field === 'rollingEndTime') {
+        const start = field === 'rollingStartTime' ? value : prev.rollingStartTime;
+        const end = field === 'rollingEndTime' ? value : prev.rollingEndTime;
+        if (start && end) {
+          updated.totalRollingHours = calculateDurationStr(start, end);
+        }
+      }
+
+      return updated;
+    });
+  };
+
+  // Save changes inline
+  const handleSaveInline = async () => {
+    if (!editForm || !editForm._id) {
+      toast.error("Invalid record identifier.");
+      return;
+    }
+
+    const toastId = toast.loading("Saving changes...");
+    setIsSaving(true);
+
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(`${BACKEND_URL}/api/rolling-room-sheet/${editForm._id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(editForm)
+      });
+
+      const resData = await response.json();
+      if (response.ok && resData.success) {
+        toast.success("Rolling room record updated successfully!", { id: toastId });
+        setAllRecords(prev => prev.map(rec => rec._id === editForm._id ? (resData.data || editForm) : rec));
+        setIsEditing(false);
+        setEditForm(null);
+      } else {
+        toast.error(resData.message || "Failed to update record.", { id: toastId });
+      }
+    } catch (err) {
+      console.error("Save error:", err);
+      toast.error("Error communicating with server.", { id: toastId });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Active record based on mode
+  const activeRecord = isEditing ? editForm : currentRecord;
+
   // 30-Day Rolling Benchmark Calculation
   const analysis = useMemo(() => {
-    if (!currentRecord) {
+    if (!activeRecord) {
       return { hasData: false, isOverdue: false };
     }
 
-    const currentDateObj = new Date(currentRecord.mfDate || currentRecord.cropDate || currentRecord.createdAt);
+    const currentDateObj = new Date(activeRecord.mfDate || activeRecord.cropDate || activeRecord.createdAt);
     const thirtyDaysAgo = new Date(currentDateObj);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const past30DayRecords = allRecords.filter(r => {
       const rDate = new Date(r.mfDate || r.cropDate || r.createdAt);
-      return rDate >= thirtyDaysAgo && rDate <= currentDateObj && r._id !== currentRecord._id;
+      return rDate >= thirtyDaysAgo && rDate <= currentDateObj && r._id !== activeRecord._id;
     });
 
     let total30dKg = 0;
@@ -225,11 +358,11 @@ const RollingRoomSheetSummary = () => {
     }
 
     const hoursPer1000Kg = total30dKg > 0 ? (total30dHours / total30dKg) * 1000 : 1.35;
-    const currentDayTotalKg = (Number(currentRecord.cropKg) || 0) + (Number(currentRecord.otherLeafKg) || 0);
+    const currentDayTotalKg = (Number(activeRecord.cropKg) || 0) + (Number(activeRecord.otherLeafKg) || 0);
     const actualHours = parseDurationToDecimalHours(
-      currentRecord.totalRollingHours,
-      currentRecord.rollingStartTime,
-      currentRecord.rollingEndTime
+      activeRecord.totalRollingHours,
+      activeRecord.rollingStartTime,
+      activeRecord.rollingEndTime
     );
 
     const expectedHours = (currentDayTotalKg / 1000) * hoursPer1000Kg;
@@ -247,11 +380,11 @@ const RollingRoomSheetSummary = () => {
       ratePer1000Kg: hoursPer1000Kg.toFixed(2),
       pastRecordsCount: past30DayRecords.length
     };
-  }, [allRecords, currentRecord]);
+  }, [allRecords, activeRecord]);
 
   // Batch summary totals
-  const batches = currentRecord?.batches || [];
-  const standardBatchWeight = currentRecord?.standardBatchKg || 560;
+  const batches = activeRecord?.batches || [];
+  const standardBatchWeight = activeRecord?.standardBatchKg || 560;
 
   const sumD1Kg = batches.reduce((sum, b) => sum + (parseFloat(b.dhool1?.wetDhoolKg) || 0), 0);
   const sumD2Kg = batches.reduce((sum, b) => sum + (parseFloat(b.dhool2?.wetDhoolKg) || 0), 0);
@@ -262,9 +395,9 @@ const RollingRoomSheetSummary = () => {
   const avgD2Pct = totalCapacityKg > 0 ? ((sumD2Kg / totalCapacityKg) * 100).toFixed(2) : '0.00';
   const grandTotalPct = totalCapacityKg > 0 ? ((grandTotalWetDhool / totalCapacityKg) * 100).toFixed(2) : '0.00';
 
-  const docRefCode = `RRS/${(currentRecord?.mfDate || filterDate || '').replace(/-/g, '')}`;
+  const docRefCode = `RRS/${(activeRecord?.mfDate || filterDate || '').replace(/-/g, '')}`;
 
-  // Multi-tier PDF table headers matching the exact physical sheet with light gray borders
+  // Multi-tier PDF table headers
   const pdfHeaders = useMemo(() => [
     [
       { content: t.no, rowSpan: 3, styles: { halign: 'center', valign: 'middle', fillColor: [248, 250, 252], textColor: [15, 23, 42], fontStyle: 'bold', lineWidth: 0.1, lineColor: [226, 232, 240] } },
@@ -290,11 +423,11 @@ const RollingRoomSheetSummary = () => {
   ], [t]);
 
   const pdfData = useMemo(() => {
-    if (!currentRecord || !currentRecord.batches || currentRecord.batches.length === 0) {
+    if (!activeRecord || !activeRecord.batches || activeRecord.batches.length === 0) {
       return [];
     }
 
-    const rows = currentRecord.batches.map(b => [
+    const rows = activeRecord.batches.map(b => [
       String(b.batchNo).padStart(2, '0'),
       formatTimeRange(b.dhool1?.roll01Start, b.dhool1?.roll01End),
       formatTimeRange(b.dhool1?.roll02Start, b.dhool1?.roll02End),
@@ -323,9 +456,9 @@ const RollingRoomSheetSummary = () => {
     });
 
     return rows;
-  }, [currentRecord, sumD1Kg, avgD1Pct, sumD2Kg, avgD2Pct, t]);
+  }, [activeRecord, sumD1Kg, avgD1Pct, sumD2Kg, avgD2Pct, t]);
 
-  // PDF Autotable Layout Customization (Light Gray Borders Throughout)
+  // PDF Autotable Layout
   const autoTableOptions = useMemo(() => ({
     startY: 88,
     margin: { top: 25, bottom: 25, left: 14, right: 14 },
@@ -334,7 +467,7 @@ const RollingRoomSheetSummary = () => {
       fontSize: 8,
       cellPadding: 2.5,
       valign: 'middle',
-      lineColor: [226, 232, 240], // Light gray borders
+      lineColor: [226, 232, 240],
       lineWidth: 0.1
     },
     didDrawPage: (hookData) => {
@@ -344,15 +477,15 @@ const RollingRoomSheetSummary = () => {
       const startX = 14;
       const pageWidth = doc.internal.pageSize.getWidth();
 
-      // 1. Metadata Lines (Top Left)
+      // 1. Metadata Lines
       doc.setFontSize(9);
       doc.setTextColor(15, 23, 42);
 
       const metaItems = [
-        { label: t.cropDate, value: currentRecord?.cropDate || '...........................................' },
-        { label: t.cropKg, value: currentRecord?.cropKg ? `${currentRecord.cropKg} kg` : '...........................................' },
-        { label: t.mfDate, value: currentRecord?.mfDate || '...........................................' },
-        { label: t.otherLeafKg, value: currentRecord?.otherLeafKg ? `${currentRecord.otherLeafKg} kg` : '...........................................' }
+        { label: t.cropDate, value: activeRecord?.cropDate || '...........................................' },
+        { label: t.cropKg, value: activeRecord?.cropKg ? `${activeRecord.cropKg} kg` : '...........................................' },
+        { label: t.mfDate, value: activeRecord?.mfDate || '...........................................' },
+        { label: t.otherLeafKg, value: activeRecord?.otherLeafKg ? `${activeRecord.otherLeafKg} kg` : '...........................................' }
       ];
 
       let currentMetaY = 38;
@@ -373,14 +506,14 @@ const RollingRoomSheetSummary = () => {
       const rowH = 5.5;
 
       const opRows = [
-        [t.rollingStartTime, currentRecord?.rollingStartTime || '-'],
-        [t.rollingEndTime, currentRecord?.rollingEndTime || '-'],
-        [t.totalRollingHours, currentRecord?.totalRollingHours || '-'],
-        [t.sameOrNext, currentRecord?.dayType === 'Next Day' ? t.nextDay : t.sameDay],
+        [t.rollingStartTime, activeRecord?.rollingStartTime || '-'],
+        [t.rollingEndTime, activeRecord?.rollingEndTime || '-'],
+        [t.totalRollingHours, activeRecord?.totalRollingHours || '-'],
+        [t.sameOrNext, activeRecord?.dayType === 'Next Day' ? t.nextDay : t.sameDay],
         [t.noOfBatches, String(batches.length || 1)]
       ];
 
-      doc.setDrawColor(226, 232, 240); // Light gray
+      doc.setDrawColor(226, 232, 240);
       doc.setLineWidth(0.1);
 
       opRows.forEach((r, i) => {
@@ -492,7 +625,10 @@ const RollingRoomSheetSummary = () => {
         doc.text(badgeText, badgeX + 4, badgeY + 4.0);
       }
     }
-  }), [currentRecord, batches.length, analysis, grandTotalWetDhool, grandTotalPct, t]);
+  }), [activeRecord, batches.length, analysis, grandTotalWetDhool, grandTotalPct, t]);
+
+  const inlineInput = "w-full bg-white dark:bg-slate-800 border border-emerald-400 dark:border-emerald-500 text-slate-900 dark:text-slate-100 rounded px-1.5 py-1 text-xs text-center font-bold outline-none ring-2 ring-emerald-500/10 focus:ring-emerald-500 transition-all";
+  const inlineTimeInput = "w-full bg-white dark:bg-slate-800 border border-emerald-400 dark:border-emerald-500 text-slate-900 dark:text-slate-100 rounded px-1 py-0.5 text-[11px] text-center font-bold outline-none";
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-4 md:p-8 font-sans transition-colors duration-200">
@@ -511,27 +647,68 @@ const RollingRoomSheetSummary = () => {
                 <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
                   {t.title}
                 </h1>
-                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded-full border border-emerald-200/60 dark:border-emerald-800/60">
-                  <Sparkles className="w-3 h-3 text-emerald-500" /> Executive View
-                </span>
+                {isEditing ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 bg-amber-500 text-white rounded-full shadow-xs animate-pulse">
+                    <Edit3 className="w-3 h-3" /> In-Place Edit Mode
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded-full border border-emerald-200/60 dark:border-emerald-800/60">
+                    <Sparkles className="w-3 h-3 text-emerald-500" /> Executive View
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">{t.subtitle}</p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto justify-start xl:justify-end z-10">
+            {/* In-Place Edit / Save / Cancel Controls */}
+            {currentRecord && (
+              !isEditing ? (
+                <button
+                  type="button"
+                  onClick={handleStartEdit}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
+                >
+                  <Edit3 size={15} />
+                  {t.editRecord}
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    disabled={isSaving}
+                    className="px-3.5 py-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RotateCcw size={14} />
+                    {t.cancelEdit}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveInline}
+                    disabled={isSaving}
+                    className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
+                  >
+                    <Save size={14} />
+                    {t.saveChanges}
+                  </button>
+                </div>
+              )
+            )}
+
             <PDFDownloader
               title={`${t.title}`}
-              subtitle={`${t.filterDay} ${currentRecord?.mfDate || filterDate}`}
+              subtitle={`${t.filterDay} ${activeRecord?.mfDate || filterDate}`}
               headers={pdfHeaders}
               data={pdfData}
-              fileName={`Rolling_Room_Sheet_${lang}_MF_${currentRecord?.mfDate || filterDate || 'Report'}.pdf`}
+              fileName={`Rolling_Room_Sheet_${lang}_MF_${activeRecord?.mfDate || filterDate || 'Report'}.pdf`}
               orientation="landscape"
               uniqueCode={docRefCode}
               userName={currentUsername}
               userRole={userRole}
               autoTableOptions={autoTableOptions}
-              disabled={!currentRecord || pdfData.length === 0}
+              disabled={!activeRecord || pdfData.length === 0}
             />
 
             <button
@@ -546,8 +723,8 @@ const RollingRoomSheetSummary = () => {
             <button
               type="button"
               onClick={fetchRecords}
-              disabled={loading}
-              className="px-4 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-all font-bold text-xs flex items-center gap-2 shadow-xs active:scale-95 cursor-pointer"
+              disabled={loading || isEditing}
+              className="px-4 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-all font-bold text-xs flex items-center gap-2 shadow-xs active:scale-95 cursor-pointer disabled:opacity-50"
             >
               <RefreshCw size={14} className={loading ? 'animate-spin text-emerald-600' : 'text-slate-500 dark:text-slate-400'} />
               {loading ? t.refreshing : t.sync}
@@ -569,11 +746,12 @@ const RollingRoomSheetSummary = () => {
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <input
               type="date"
+              disabled={isEditing}
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
-              className="w-full sm:w-auto bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none px-3.5 py-2 transition-all"
+              className="w-full sm:w-auto bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none px-3.5 py-2 transition-all disabled:opacity-50"
             />
-            {filterDate && (
+            {filterDate && !isEditing && (
               <button
                 onClick={() => setFilterDate("")}
                 className="flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100/70 border border-rose-200/60 dark:border-rose-900/40 px-3 py-2 rounded-xl transition-colors cursor-pointer"
@@ -587,14 +765,14 @@ const RollingRoomSheetSummary = () => {
         {/* --- 30-Day Benchmark Status Banner --- */}
         {analysis.hasData && (
           <div className={`relative overflow-hidden p-6 rounded-3xl border transition-all duration-300 shadow-sm ${analysis.isOverdue
-              ? 'bg-gradient-to-r from-rose-50 via-red-50/50 to-orange-50/30 dark:from-rose-950/40 dark:via-red-950/30 dark:to-slate-900 border-rose-200 dark:border-rose-800/60 text-rose-950 dark:text-rose-200'
-              : 'bg-gradient-to-r from-emerald-50/80 via-teal-50/50 to-slate-50 dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-slate-900 border-emerald-200/80 dark:border-emerald-800/60 text-emerald-950 dark:text-emerald-200'
+            ? 'bg-gradient-to-r from-rose-50 via-red-50/50 to-orange-50/30 dark:from-rose-950/40 dark:via-red-950/30 dark:to-slate-900 border-rose-200 dark:border-rose-800/60 text-rose-950 dark:text-rose-200'
+            : 'bg-gradient-to-r from-emerald-50/80 via-teal-50/50 to-slate-50 dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-slate-900 border-emerald-200/80 dark:border-emerald-800/60 text-emerald-950 dark:text-emerald-200'
             }`}>
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
               <div className="flex items-start gap-4">
                 <div className={`p-3 rounded-2xl shadow-sm mt-0.5 ${analysis.isOverdue
-                    ? 'bg-gradient-to-br from-rose-500 to-red-600 text-white ring-4 ring-rose-100 dark:ring-rose-950/50'
-                    : 'bg-gradient-to-br from-emerald-600 to-teal-700 text-white ring-4 ring-emerald-100 dark:ring-emerald-950/50'
+                  ? 'bg-gradient-to-br from-rose-500 to-red-600 text-white ring-4 ring-rose-100 dark:ring-rose-950/50'
+                  : 'bg-gradient-to-br from-emerald-600 to-teal-700 text-white ring-4 ring-emerald-100 dark:ring-emerald-950/50'
                   }`}>
                   {analysis.isOverdue ? <AlertTriangle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
                 </div>
@@ -629,8 +807,8 @@ const RollingRoomSheetSummary = () => {
                 </div>
 
                 <div className={`px-4 py-2.5 rounded-2xl text-center flex-1 sm:flex-none min-w-[110px] shadow-2xs ${analysis.isOverdue
-                    ? 'bg-gradient-to-br from-rose-600 to-red-700 text-white'
-                    : 'bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 text-emerald-900 dark:text-emerald-300'
+                  ? 'bg-gradient-to-br from-rose-600 to-red-700 text-white'
+                  : 'bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 text-emerald-900 dark:text-emerald-300'
                   }`}>
                   <p className={`text-[10px] font-bold uppercase tracking-wider ${analysis.isOverdue ? 'text-rose-100' : 'text-emerald-600 dark:text-emerald-400'}`}>
                     {t.delayDifference}
@@ -664,7 +842,7 @@ const RollingRoomSheetSummary = () => {
             <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 max-w-sm mx-auto font-medium">{t.noRecordDesc}</p>
           </div>
         ) : (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 md:p-10 overflow-hidden font-sans transition-colors duration-200">
+          <div className={`bg-white dark:bg-slate-900 rounded-3xl border shadow-sm p-6 md:p-10 overflow-hidden font-sans transition-colors duration-200 ${isEditing ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-200 dark:border-slate-800'}`}>
 
             {/* Title Header */}
             <div className="text-center pb-6 mb-8 border-b border-slate-100 dark:border-slate-800">
@@ -680,19 +858,61 @@ const RollingRoomSheetSummary = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 p-3.5 rounded-xl flex justify-between items-center shadow-2xs">
                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t.cropDate}</span>
-                <span className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{currentRecord.cropDate || '-'}</span>
+                {isEditing ? (
+                  <input
+                    type="date"
+                    value={editForm.cropDate || ''}
+                    onChange={(e) => handleMetaFieldChange('cropDate', e.target.value)}
+                    className="bg-emerald-50 dark:bg-slate-800 border border-emerald-400 rounded px-2 py-0.5 text-xs font-bold outline-none"
+                  />
+                ) : (
+                  <span className="text-sm font-extrabold text-slate-900 dark:text-slate-100">{activeRecord.cropDate || '-'}</span>
+                )}
               </div>
               <div className="bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-800/50 p-3.5 rounded-xl flex justify-between items-center shadow-2xs">
                 <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400 uppercase">{t.mfDate}</span>
-                <span className="text-sm font-extrabold text-emerald-950 dark:text-emerald-200">{currentRecord.mfDate || '-'}</span>
+                {isEditing ? (
+                  <input
+                    type="date"
+                    value={editForm.mfDate || ''}
+                    onChange={(e) => handleMetaFieldChange('mfDate', e.target.value)}
+                    className="bg-emerald-50 dark:bg-slate-800 border border-emerald-400 rounded px-2 py-0.5 text-xs font-bold outline-none"
+                  />
+                ) : (
+                  <span className="text-sm font-extrabold text-emerald-950 dark:text-emerald-200">{activeRecord.mfDate || '-'}</span>
+                )}
               </div>
               <div className="bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/70 dark:border-blue-800/50 p-3.5 rounded-xl flex justify-between items-center shadow-2xs">
                 <span className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase">{t.cropKg}</span>
-                <span className="text-sm font-extrabold text-blue-900 dark:text-blue-200">{currentRecord.cropKg ? `${currentRecord.cropKg} kg` : '-'}</span>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    onKeyDown={preventNegativeKeys}
+                    value={editForm.cropKg || ''}
+                    onChange={(e) => handleMetaFieldChange('cropKg', e.target.value)}
+                    className="w-24 bg-blue-50 dark:bg-slate-800 border border-blue-400 rounded px-2 py-0.5 text-xs font-bold text-right outline-none"
+                  />
+                ) : (
+                  <span className="text-sm font-extrabold text-blue-900 dark:text-blue-200">{activeRecord.cropKg ? `${activeRecord.cropKg} kg` : '-'}</span>
+                )}
               </div>
               <div className="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/50 p-3.5 rounded-xl flex justify-between items-center shadow-2xs">
                 <span className="text-xs font-bold text-amber-800 dark:text-amber-400 uppercase">{t.otherLeafKg}</span>
-                <span className="text-sm font-extrabold text-amber-950 dark:text-amber-200">{currentRecord.otherLeafKg ? `${currentRecord.otherLeafKg} kg` : '-'}</span>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    onKeyDown={preventNegativeKeys}
+                    value={editForm.otherLeafKg || ''}
+                    onChange={(e) => handleMetaFieldChange('otherLeafKg', e.target.value)}
+                    className="w-24 bg-amber-50 dark:bg-slate-800 border border-amber-400 rounded px-2 py-0.5 text-xs font-bold text-right outline-none"
+                  />
+                ) : (
+                  <span className="text-sm font-extrabold text-amber-950 dark:text-amber-200">{activeRecord.otherLeafKg ? `${activeRecord.otherLeafKg} kg` : '-'}</span>
+                )}
               </div>
             </div>
 
@@ -702,16 +922,34 @@ const RollingRoomSheetSummary = () => {
                 <tbody>
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                     <td className="p-3 font-bold w-1/2 bg-slate-50/80 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800">{t.rollingStartTime}</td>
-                    <td className="p-3 font-semibold text-slate-900 dark:text-slate-100">{currentRecord.rollingStartTime || '-'}</td>
+                    <td className="p-2 font-semibold text-slate-900 dark:text-slate-100">
+                      {isEditing ? (
+                        <input
+                          type="time"
+                          value={editForm.rollingStartTime || ''}
+                          onChange={(e) => handleMetaFieldChange('rollingStartTime', e.target.value)}
+                          className="bg-emerald-50 dark:bg-slate-800 border border-emerald-400 rounded px-2 py-1 text-xs font-bold outline-none"
+                        />
+                      ) : (activeRecord.rollingStartTime || '-')}
+                    </td>
                   </tr>
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                     <td className="p-3 font-bold bg-slate-50/80 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800">{t.rollingEndTime}</td>
-                    <td className="p-3 font-semibold text-slate-900 dark:text-slate-100">{currentRecord.rollingEndTime || '-'}</td>
+                    <td className="p-2 font-semibold text-slate-900 dark:text-slate-100">
+                      {isEditing ? (
+                        <input
+                          type="time"
+                          value={editForm.rollingEndTime || ''}
+                          onChange={(e) => handleMetaFieldChange('rollingEndTime', e.target.value)}
+                          className="bg-emerald-50 dark:bg-slate-800 border border-emerald-400 rounded px-2 py-1 text-xs font-bold outline-none"
+                        />
+                      ) : (activeRecord.rollingEndTime || '-')}
+                    </td>
                   </tr>
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                     <td className="p-3 font-bold bg-slate-50/80 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800">{t.totalRollingHours}</td>
                     <td className="p-3 font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                      <span className="text-base font-extrabold text-slate-900 dark:text-white">{currentRecord.totalRollingHours || '-'}</span>
+                      <span className="text-base font-extrabold text-slate-900 dark:text-white">{activeRecord.totalRollingHours || '-'}</span>
                       {analysis.isOverdue && (
                         <span className="px-2 py-0.5 bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 font-bold text-xs rounded border border-red-200 dark:border-red-900/50">
                           Overdue (+{analysis.diffPercentage}%)
@@ -721,19 +959,30 @@ const RollingRoomSheetSummary = () => {
                   </tr>
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                     <td className="p-3 font-bold bg-slate-50/80 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800">{t.sameOrNext}</td>
-                    <td className="p-3 font-semibold text-slate-900 dark:text-slate-100">{currentRecord.dayType === 'Next Day' ? t.nextDay : t.sameDay}</td>
+                    <td className="p-2 font-semibold text-slate-900 dark:text-slate-100">
+                      {isEditing ? (
+                        <select
+                          value={editForm.dayType || 'Same Day'}
+                          onChange={(e) => handleMetaFieldChange('dayType', e.target.value)}
+                          className="bg-emerald-50 dark:bg-slate-800 border border-emerald-400 rounded px-2 py-1 text-xs font-bold outline-none"
+                        >
+                          <option value="Same Day">{t.sameDay}</option>
+                          <option value="Next Day">{t.nextDay}</option>
+                        </select>
+                      ) : (activeRecord.dayType === 'Next Day' ? t.nextDay : t.sameDay)}
+                    </td>
                   </tr>
                   <tr className="bg-white dark:bg-slate-900">
                     <td className="p-3 font-bold bg-slate-50/80 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800">{t.noOfBatches}</td>
                     <td className="p-3 font-bold text-slate-900 dark:text-slate-100">
-                      {batches.length} {currentRecord.standardBatchKg ? `(${t.standardBatch}: ${currentRecord.standardBatchKg} kg)` : ''}
+                      {batches.length} {activeRecord.standardBatchKg ? `(${t.standardBatch}: ${activeRecord.standardBatchKg} kg)` : ''}
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            {/* --- Exact Reference Table with Subtle Light Gray Borders --- */}
+            {/* --- Exact Reference Table --- */}
             <div className="w-full overflow-x-auto pb-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
               <table className="w-full border-collapse text-center text-xs">
                 <thead>
@@ -775,9 +1024,9 @@ const RollingRoomSheetSummary = () => {
 
                   {/* Tier 3: KG and % */}
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/70 text-[11px] font-extrabold uppercase text-slate-700 dark:text-slate-300">
-                    <th className="border-r border-slate-200 dark:border-slate-800 p-1.5 w-20">{t.kg}</th>
+                    <th className="border-r border-slate-200 dark:border-slate-800 p-1.5 w-24">{t.kg}</th>
                     <th className="border-r border-slate-200 dark:border-slate-800 p-1.5 w-16">{t.pct}</th>
-                    <th className="border-r border-slate-200 dark:border-slate-800 p-1.5 w-20">{t.kg}</th>
+                    <th className="border-r border-slate-200 dark:border-slate-800 p-1.5 w-24">{t.kg}</th>
                     <th className="p-1.5 w-16">{t.pct}</th>
                   </tr>
                 </thead>
@@ -791,18 +1040,66 @@ const RollingRoomSheetSummary = () => {
                       </td>
 
                       {/* Roll 01 Time Range */}
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-bold text-slate-700 dark:text-slate-300">
-                        {formatTimeRange(b.dhool1?.roll01Start, b.dhool1?.roll01End)}
+                      <td className="border-r border-slate-200 dark:border-slate-800 p-1 font-bold text-slate-700 dark:text-slate-300">
+                        {isEditing ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="time"
+                              value={b.dhool1?.roll01Start || ''}
+                              onChange={(e) => handleBatchCellChange(idx, 'dhool1', 'roll01Start', e.target.value)}
+                              className={inlineTimeInput}
+                            />
+                            <span>-</span>
+                            <input
+                              type="time"
+                              value={b.dhool1?.roll01End || ''}
+                              onChange={(e) => handleBatchCellChange(idx, 'dhool1', 'roll01End', e.target.value)}
+                              className={inlineTimeInput}
+                            />
+                          </div>
+                        ) : (
+                          formatTimeRange(b.dhool1?.roll01Start, b.dhool1?.roll01End)
+                        )}
                       </td>
 
                       {/* Roll 02 Time Range */}
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-bold text-slate-700 dark:text-slate-300">
-                        {formatTimeRange(b.dhool1?.roll02Start, b.dhool1?.roll02End)}
+                      <td className="border-r border-slate-200 dark:border-slate-800 p-1 font-bold text-slate-700 dark:text-slate-300">
+                        {isEditing ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="time"
+                              value={b.dhool1?.roll02Start || ''}
+                              onChange={(e) => handleBatchCellChange(idx, 'dhool1', 'roll02Start', e.target.value)}
+                              className={inlineTimeInput}
+                            />
+                            <span>-</span>
+                            <input
+                              type="time"
+                              value={b.dhool1?.roll02End || ''}
+                              onChange={(e) => handleBatchCellChange(idx, 'dhool1', 'roll02End', e.target.value)}
+                              className={inlineTimeInput}
+                            />
+                          </div>
+                        ) : (
+                          formatTimeRange(b.dhool1?.roll02Start, b.dhool1?.roll02End)
+                        )}
                       </td>
 
                       {/* 1st Dhool Wet Kg */}
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-black text-blue-700 dark:text-blue-400 bg-blue-50/20 dark:bg-blue-950/20 text-sm">
-                        {b.dhool1?.wetDhoolKg ? Number(b.dhool1.wetDhoolKg).toFixed(2) : '-'}
+                      <td className="border-r border-slate-200 dark:border-slate-800 p-1 font-black text-blue-700 dark:text-blue-400 bg-blue-50/20 dark:bg-blue-950/20 text-sm">
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            onKeyDown={preventNegativeKeys}
+                            value={b.dhool1?.wetDhoolKg ?? ''}
+                            onChange={(e) => handleBatchCellChange(idx, 'dhool1', 'wetDhoolKg', e.target.value)}
+                            className={inlineInput}
+                          />
+                        ) : (
+                          b.dhool1?.wetDhoolKg ? Number(b.dhool1.wetDhoolKg).toFixed(2) : '-'
+                        )}
                       </td>
 
                       {/* 1st Dhool % */}
@@ -811,18 +1108,66 @@ const RollingRoomSheetSummary = () => {
                       </td>
 
                       {/* Roll 03 Time Range */}
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-bold text-slate-700 dark:text-slate-300">
-                        {formatTimeRange(b.dhool2?.roll03Start, b.dhool2?.roll03End)}
+                      <td className="border-r border-slate-200 dark:border-slate-800 p-1 font-bold text-slate-700 dark:text-slate-300">
+                        {isEditing ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="time"
+                              value={b.dhool2?.roll03Start || ''}
+                              onChange={(e) => handleBatchCellChange(idx, 'dhool2', 'roll03Start', e.target.value)}
+                              className={inlineTimeInput}
+                            />
+                            <span>-</span>
+                            <input
+                              type="time"
+                              value={b.dhool2?.roll03End || ''}
+                              onChange={(e) => handleBatchCellChange(idx, 'dhool2', 'roll03End', e.target.value)}
+                              className={inlineTimeInput}
+                            />
+                          </div>
+                        ) : (
+                          formatTimeRange(b.dhool2?.roll03Start, b.dhool2?.roll03End)
+                        )}
                       </td>
 
                       {/* Roll 04 Time Range */}
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-bold text-slate-700 dark:text-slate-300">
-                        {formatTimeRange(b.dhool2?.roll04Start, b.dhool2?.roll04End)}
+                      <td className="border-r border-slate-200 dark:border-slate-800 p-1 font-bold text-slate-700 dark:text-slate-300">
+                        {isEditing ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="time"
+                              value={b.dhool2?.roll04Start || ''}
+                              onChange={(e) => handleBatchCellChange(idx, 'dhool2', 'roll04Start', e.target.value)}
+                              className={inlineTimeInput}
+                            />
+                            <span>-</span>
+                            <input
+                              type="time"
+                              value={b.dhool2?.roll04End || ''}
+                              onChange={(e) => handleBatchCellChange(idx, 'dhool2', 'roll04End', e.target.value)}
+                              className={inlineTimeInput}
+                            />
+                          </div>
+                        ) : (
+                          formatTimeRange(b.dhool2?.roll04Start, b.dhool2?.roll04End)
+                        )}
                       </td>
 
                       {/* 2nd Dhool Wet Kg */}
-                      <td className="border-r border-slate-200 dark:border-slate-800 p-2 font-black text-emerald-700 dark:text-emerald-400 bg-emerald-50/20 dark:bg-emerald-950/20 text-sm">
-                        {b.dhool2?.wetDhoolKg ? Number(b.dhool2.wetDhoolKg).toFixed(2) : '-'}
+                      <td className="border-r border-slate-200 dark:border-slate-800 p-1 font-black text-emerald-700 dark:text-emerald-400 bg-emerald-50/20 dark:bg-emerald-950/20 text-sm">
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            onKeyDown={preventNegativeKeys}
+                            value={b.dhool2?.wetDhoolKg ?? ''}
+                            onChange={(e) => handleBatchCellChange(idx, 'dhool2', 'wetDhoolKg', e.target.value)}
+                            className={inlineInput}
+                          />
+                        ) : (
+                          b.dhool2?.wetDhoolKg ? Number(b.dhool2.wetDhoolKg).toFixed(2) : '-'
+                        )}
                       </td>
 
                       {/* 2nd Dhool % */}

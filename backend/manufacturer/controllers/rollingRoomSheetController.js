@@ -98,6 +98,65 @@ export const saveRollingRoomSheet = async (req, res) => {
   }
 };
 
+// @desc    Update single Rolling Room Sheet by ID (In-place edit)
+// @route   PUT /api/rolling-room-sheet/:id
+// @access  Protected
+export const updateRollingRoomSheetById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const editor = req.user ? (req.user.username || req.user.name) : (req.body.username || 'Admin');
+
+    const updatePayload = { ...req.body };
+    delete updatePayload._id;
+    delete updatePayload.__v;
+    delete updatePayload.createdAt;
+    delete updatePayload.updatedAt;
+
+    const stdBatchKg = Number(updatePayload.standardBatchKg) > 0 ? Number(updatePayload.standardBatchKg) : 560;
+
+    // Sanitize batches and recompute percentages if batches are passed
+    if (Array.isArray(updatePayload.batches)) {
+      updatePayload.batches = sanitizeBatches(updatePayload.batches, stdBatchKg);
+      updatePayload.noOfBatches = updatePayload.batches.length;
+    }
+
+    if (updatePayload.cropKg !== undefined) {
+      updatePayload.cropKg = Number(updatePayload.cropKg) || 0;
+    }
+    if (updatePayload.otherLeafKg !== undefined) {
+      updatePayload.otherLeafKg = Number(updatePayload.otherLeafKg) || 0;
+    }
+
+    updatePayload.editedBy = editor;
+
+    const updatedSheet = await RollingRoomSheet.findByIdAndUpdate(
+      id,
+      { $set: updatePayload },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedSheet) {
+      return res.status(404).json({
+        success: false,
+        message: 'Rolling Room Sheet not found.'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Rolling Room Sheet updated successfully!',
+      data: updatedSheet
+    });
+  } catch (error) {
+    console.error('Update Rolling Room Sheet Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update Rolling Room Sheet.',
+      error: error.message
+    });
+  }
+};
+
 // @desc    Get Rolling Room Sheet records (by ?cropDate=, ?mfDate=, or all)
 // @route   GET /api/rolling-room-sheet
 // @access  Protected

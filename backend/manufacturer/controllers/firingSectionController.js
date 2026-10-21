@@ -22,15 +22,28 @@ export const saveFiringSection = async (req, res) => {
     let record = await FiringSection.findOne({ dateOfManufacture });
 
     if (record) {
-      // Update existing record
-      Object.assign(record, req.body);
-      record.editedBy = currentUserName;
-      await record.save();
+      // Clean immutable fields
+      const updateData = { ...req.body };
+      delete updateData._id;
+      delete updateData.createdAt;
+      delete updateData.updatedAt;
+
+      // Deep update document using findByIdAndUpdate to correctly merge nested objects
+      const updatedRecord = await FiringSection.findByIdAndUpdate(
+        record._id,
+        {
+          $set: {
+            ...updateData,
+            editedBy: currentUserName
+          }
+        },
+        { new: true, runValidators: true }
+      );
 
       return res.status(200).json({
         success: true,
         message: 'Firing section record updated successfully',
-        data: record
+        data: updatedRecord
       });
     }
 
@@ -52,6 +65,70 @@ export const saveFiringSection = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Server error while saving firing record'
+    });
+  }
+};
+
+/**
+ * @desc    Update single Firing Section record by ID
+ * @route   PUT /api/firing-section/:id
+ * @access  Private
+ */
+export const updateFiringSectionById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentUserName = req.user?.name || req.user?.username || 'Admin';
+
+    // Remove immutable fields to prevent Mongo errors
+    const updateData = { ...req.body };
+    delete updateData._id;
+    delete updateData.__v;
+    delete updateData.createdAt;
+    delete updateData.updatedAt;
+
+    // Optional: If dateOfManufacture changed, check for conflict with another record
+    if (updateData.dateOfManufacture) {
+      const existingDateRecord = await FiringSection.findOne({
+        dateOfManufacture: updateData.dateOfManufacture,
+        _id: { $ne: id }
+      });
+
+      if (existingDateRecord) {
+        return res.status(400).json({
+          success: false,
+          message: `A record already exists for manufacturing date: ${updateData.dateOfManufacture}`
+        });
+      }
+    }
+
+    const updatedRecord = await FiringSection.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          ...updateData,
+          editedBy: currentUserName
+        }
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedRecord) {
+      return res.status(404).json({
+        success: false,
+        message: 'Firing section record not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Firing section record updated successfully',
+      data: updatedRecord
+    });
+  } catch (error) {
+    console.error('Error updating firing record by ID:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error while updating firing record'
     });
   }
 };

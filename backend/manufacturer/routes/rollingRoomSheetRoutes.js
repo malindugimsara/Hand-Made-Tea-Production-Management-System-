@@ -1,24 +1,25 @@
 import express from 'express';
 import {
   saveRollingRoomSheet,
+  updateRollingRoomSheetById,
   getRollingRoomSheets,
   getRollingRoomSheetById,
   deleteRollingRoomSheet
 } from '../controllers/rollingRoomSheetController.js';
-// Replace with your actual auth middleware path
-import {authorizeRoles,verifyToken } from '../../middleware/auth.js  ';
+import { authorizeRoles, verifyToken } from '../../middleware/auth.js';
 
 const router = express.Router();
 
 // Base endpoint: /api/rolling-room-sheet
 router
   .route('/')
-  .get( getRollingRoomSheets)
-  .post( saveRollingRoomSheet);
+  .get(getRollingRoomSheets)
+  .post(verifyToken, authorizeRoles('admin', 'manager', 'user', 'Admin', 'User'), saveRollingRoomSheet);
 
-router  
+router
   .route('/:id')
-  .get( getRollingRoomSheetById)
-  .delete( verifyToken, authorizeRoles('admin', 'manager'), deleteRollingRoomSheet);
+  .get(getRollingRoomSheetById)
+  .put(verifyToken, authorizeRoles('admin', 'manager', 'user', 'Admin', 'User'), updateRollingRoomSheetById)
+  .delete(verifyToken, authorizeRoles('admin', 'manager', 'Admin'), deleteRollingRoomSheet);
 
 export default router;

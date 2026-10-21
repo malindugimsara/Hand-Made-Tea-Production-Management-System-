@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Calendar, 
-  Clock, 
-  Scale, 
-  Save, 
-  RotateCcw, 
-  Flame, 
-  Fuel, 
-  Calculator, 
-  Languages, 
+import {
+  Calendar,
+  Clock,
+  Scale,
+  Save,
+  RotateCcw,
+  Flame,
+  Fuel,
+  Calculator,
+  Languages,
   CheckCircle2,
   Sparkles,
   Printer,
@@ -29,17 +29,24 @@ const getTodayDate = () => {
 // Calculate duration string and decimal hours between HH:MM strings
 const calculateDuration = (start, end) => {
   if (!start || !end) return { decimal: 0, str: '' };
-  const [startH, startM] = start.split(':').map(Number);
-  const [endH, endM] = end.split(':').map(Number);
-  let diffMinutes = (endH * 60 + endM) - (startH * 60 + startM);
-  if (diffMinutes < 0) diffMinutes += 24 * 60;
-  const hrs = Math.floor(diffMinutes / 60);
-  const mins = diffMinutes % 60;
-  const decimal = parseFloat((diffMinutes / 60).toFixed(2));
-  return {
-    decimal,
-    str: `${hrs}h ${mins}m`
-  };
+  try {
+    const [startH, startM] = start.split(':').map(Number);
+    const [endH, endM] = end.split(':').map(Number);
+    if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) {
+      return { decimal: 0, str: '' };
+    }
+    let diffMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+    if (diffMinutes < 0) diffMinutes += 24 * 60; // Rollover past midnight support
+    const hrs = Math.floor(diffMinutes / 60);
+    const mins = diffMinutes % 60;
+    const decimal = parseFloat((diffMinutes / 60).toFixed(2));
+    return {
+      decimal,
+      str: `${hrs}h ${mins}m`
+    };
+  } catch {
+    return { decimal: 0, str: '' };
+  }
 };
 
 const preventNegativeKeys = (e) => {
@@ -50,7 +57,7 @@ const preventNegativeKeys = (e) => {
 
 const FiringSectionForm = () => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  
+
   const [lang, setLang] = useState('EN');
 
   const [form, setForm] = useState({
@@ -88,7 +95,7 @@ const FiringSectionForm = () => {
   const t = useMemo(() => ({
     title: lang === 'SI' ? "ඩ්‍රයර් කාමර වාර්තා පත්‍රිකාව" : "DRIER ROOM RECORD SHEET",
     subtitle: lang === 'SI' ? "දෛනික ඩ්‍රයර් 01, 02 සහ සම්පූර්ණ ධූල්, දර පරිභෝජන සහ පිරිවැය සටහන." : "Daily recording sheet for drier cycles, dhools fractionation, firewood output, and combustion costs.",
-    
+
     mfDate: lang === 'SI' ? "නිෂ්පාදිත දිනය (M/F DATE)" : "M/F DATE",
     cropDate: lang === 'SI' ? "අස්වැන්න දිනය (CROP DATE)" : "CROP DATE",
     cropKg: lang === 'SI' ? "අස්වැන්න (CROP Kg)" : "CROP (Kg)",
@@ -152,9 +159,17 @@ const FiringSectionForm = () => {
   const inputBase = "w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all font-semibold";
   const tableInput = "w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg p-1.5 text-xs text-center font-bold outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all";
 
+  // Sync cropDate with drier1.day and drier2.day when changed
   const handleMetaChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+    setForm(prev => {
+      const updated = { ...prev, [name]: value };
+      if (name === 'cropDate') {
+        updated.drier1 = { ...prev.drier1, day: value };
+        updated.drier2 = { ...prev.drier2, day: value };
+      }
+      return updated;
+    });
   };
 
   const handleNestedChange = (section, subSection, field, value) => {
@@ -254,10 +269,12 @@ const FiringSectionForm = () => {
       total: o1.total + o2.total
     };
 
+    // Calculate duration for Dryer 1 and Dryer 2 accurately
     const d1Dur = calculateDuration(form.drier1.start, form.drier1.finish);
     const d2Dur = calculateDuration(form.drier2.start, form.drier2.finish);
-    const totHours = d1Dur.decimal + d2Dur.decimal;
+    const totHours = parseFloat((d1Dur.decimal + d2Dur.decimal).toFixed(2));
 
+    // Dynamic output per hour for both dryers
     const outPerH1 = d1Dur.decimal > 0 ? (d1Total / d1Dur.decimal).toFixed(2) : '0.00';
     const outPerH2 = d2Dur.decimal > 0 ? (d2Total / d2Dur.decimal).toFixed(2) : '0.00';
 
@@ -298,9 +315,10 @@ const FiringSectionForm = () => {
   }, [form]);
 
   const handleClear = () => {
+    const today = getTodayDate();
     setForm({
-      dateOfManufacture: getTodayDate(),
-      cropDate: getTodayDate(),
+      dateOfManufacture: today,
+      cropDate: today,
       cropKg: '',
       dhools: {
         drier1: { first: '', second: '', third: '', dir: '', bigBulk: '' },
@@ -314,8 +332,8 @@ const FiringSectionForm = () => {
         drier1: { withoutWithering: '', withWithering: '', rf: '' },
         drier2: { withoutWithering: '', withWithering: '', rf: '' }
       },
-      drier1: { start: '', finish: '', day: getTodayDate(), periodStr: '', totalHours: 0, outputPerHour: 0 },
-      drier2: { start: '', finish: '', day: getTodayDate(), periodStr: '', totalHours: 0, outputPerHour: 0 },
+      drier1: { start: '', finish: '', day: today, periodStr: '', totalHours: 0, outputPerHour: 0 },
+      drier2: { start: '', finish: '', day: today, periodStr: '', totalHours: 0, outputPerHour: 0 },
       firewoodCost: {
         drier1: { totalFwKg: '', unitPrice: '', madeTeaKg: '' },
         drier2: { totalFwKg: '', unitPrice: '', madeTeaKg: '' }
@@ -330,17 +348,24 @@ const FiringSectionForm = () => {
     const loadingToast = toast.loading("Saving Drier Room Sheet...");
     try {
       const token = localStorage.getItem("token");
+      const chosenCropDate = form.cropDate || form.drier1.day || getTodayDate();
+
       const payload = {
         ...form,
+        cropDate: chosenCropDate,
         drier1: {
           ...form.drier1,
+          day: chosenCropDate,
           periodStr: calcData.d1Dur.str,
+          periodDecimal: calcData.d1Dur.decimal,
           totalHours: calcData.d1Dur.decimal,
           outputPerHour: parseFloat(calcData.outPerH1) || 0
         },
         drier2: {
           ...form.drier2,
+          day: chosenCropDate,
           periodStr: calcData.d2Dur.str,
+          periodDecimal: calcData.d2Dur.decimal,
           totalHours: calcData.d2Dur.decimal,
           outputPerHour: parseFloat(calcData.outPerH2) || 0
         },
@@ -417,12 +442,12 @@ const FiringSectionForm = () => {
 
         {/* --- Main Entry Card --- */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm p-6 md:p-10 overflow-hidden font-sans transition-colors duration-200 flex flex-col gap-8">
-          
+
           {/* Top Metadata Line */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800">
             <div>
               <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">{t.mfDate} :</label>
-              <input 
+              <input
                 type="date"
                 name="dateOfManufacture"
                 value={form.dateOfManufacture}
@@ -432,7 +457,7 @@ const FiringSectionForm = () => {
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">{t.cropDate} :</label>
-              <input 
+              <input
                 type="date"
                 name="cropDate"
                 value={form.cropDate}
@@ -443,7 +468,7 @@ const FiringSectionForm = () => {
             <div>
               <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">{t.cropKg} :</label>
               <div className="relative">
-                <input 
+                <input
                   type="number"
                   name="cropKg"
                   min="0"
@@ -504,30 +529,30 @@ const FiringSectionForm = () => {
                       <tr key={k} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="p-2 text-left font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{label}</td>
                         <td className="p-2 border-r border-slate-200 dark:border-slate-800">
-                          <input 
-                            type="number" 
-                            min="0" 
-                            step="any" 
-                            placeholder="0.0" 
-                            value={form.dhools.drier1[k]} 
-                            onChange={(e) => handleNestedChange('dhools', 'drier1', k, e.target.value)} 
-                            onKeyDown={preventNegativeKeys} 
-                            className={tableInput} 
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            placeholder="0.0"
+                            value={form.dhools.drier1[k]}
+                            onChange={(e) => handleNestedChange('dhools', 'drier1', k, e.target.value)}
+                            onKeyDown={preventNegativeKeys}
+                            className={tableInput}
                           />
                         </td>
                         <td className="p-2 text-slate-500 dark:text-slate-400 font-semibold border-r border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/20">{d1Pct}%</td>
 
                         <td className="p-2 text-left font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{label}</td>
                         <td className="p-2 border-r border-slate-200 dark:border-slate-800">
-                          <input 
-                            type="number" 
-                            min="0" 
-                            step="any" 
-                            placeholder="0.0" 
-                            value={form.dhools.drier2[k]} 
-                            onChange={(e) => handleNestedChange('dhools', 'drier2', k, e.target.value)} 
-                            onKeyDown={preventNegativeKeys} 
-                            className={tableInput} 
+                          <input
+                            type="number"
+                            min="0"
+                            step="any"
+                            placeholder="0.0"
+                            value={form.dhools.drier2[k]}
+                            onChange={(e) => handleNestedChange('dhools', 'drier2', k, e.target.value)}
+                            onKeyDown={preventNegativeKeys}
+                            className={tableInput}
                           />
                         </td>
                         <td className="p-2 text-slate-500 dark:text-slate-400 font-semibold border-r border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-800/20">{d2Pct}%</td>
@@ -607,7 +632,7 @@ const FiringSectionForm = () => {
             </div>
           </div>
 
-          {/* 3. FIREWOOD OUTPUT TABLE (Updated with WITHOUT WITHERING) */}
+          {/* 3. FIREWOOD OUTPUT TABLE */}
           <div>
             <div className="w-full overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
               <table className="w-full min-w-[850px] border-collapse text-xs">
@@ -627,28 +652,28 @@ const FiringSectionForm = () => {
                     <tr key={k}>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800 w-1/6">{label}</td>
                       <td className="p-2 border-r border-slate-200 dark:border-slate-800 w-1/6">
-                        <input 
-                          type="number" 
-                          min="0" 
-                          step="any" 
-                          placeholder="0.0" 
-                          value={form.firewoodOutput.drier1[k]} 
-                          onChange={(e) => handleNestedChange('firewoodOutput', 'drier1', k, e.target.value)} 
-                          onKeyDown={preventNegativeKeys} 
-                          className={tableInput} 
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          placeholder="0.0"
+                          value={form.firewoodOutput.drier1[k]}
+                          onChange={(e) => handleNestedChange('firewoodOutput', 'drier1', k, e.target.value)}
+                          onKeyDown={preventNegativeKeys}
+                          className={tableInput}
                         />
                       </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800 w-1/6">{label}</td>
                       <td className="p-2 border-r border-slate-200 dark:border-slate-800 w-1/6">
-                        <input 
-                          type="number" 
-                          min="0" 
-                          step="any" 
-                          placeholder="0.0" 
-                          value={form.firewoodOutput.drier2[k]} 
-                          onChange={(e) => handleNestedChange('firewoodOutput', 'drier2', k, e.target.value)} 
-                          onKeyDown={preventNegativeKeys} 
-                          className={tableInput} 
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          placeholder="0.0"
+                          value={form.firewoodOutput.drier2[k]}
+                          onChange={(e) => handleNestedChange('firewoodOutput', 'drier2', k, e.target.value)}
+                          onKeyDown={preventNegativeKeys}
+                          className={tableInput}
                         />
                       </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800 w-1/6">{label}</td>
@@ -731,28 +756,28 @@ const FiringSectionForm = () => {
                   <tr>
                     <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.totalFwKg}</td>
                     <td className="p-2 border-r border-slate-200 dark:border-slate-800">
-                      <input 
-                        type="number" 
-                        min="0" 
-                        step="any" 
-                        placeholder="0.0" 
-                        value={form.firewoodCost.drier1.totalFwKg} 
-                        onChange={(e) => handleNestedChange('firewoodCost', 'drier1', 'totalFwKg', e.target.value)} 
-                        onKeyDown={preventNegativeKeys} 
-                        className={tableInput} 
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="0.0"
+                        value={form.firewoodCost.drier1.totalFwKg}
+                        onChange={(e) => handleNestedChange('firewoodCost', 'drier1', 'totalFwKg', e.target.value)}
+                        onKeyDown={preventNegativeKeys}
+                        className={tableInput}
                       />
                     </td>
                     <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.totalFwKg}</td>
                     <td className="p-2 border-r border-slate-200 dark:border-slate-800">
-                      <input 
-                        type="number" 
-                        min="0" 
-                        step="any" 
-                        placeholder="0.0" 
-                        value={form.firewoodCost.drier2.totalFwKg} 
-                        onChange={(e) => handleNestedChange('firewoodCost', 'drier2', 'totalFwKg', e.target.value)} 
-                        onKeyDown={preventNegativeKeys} 
-                        className={tableInput} 
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="0.0"
+                        value={form.firewoodCost.drier2.totalFwKg}
+                        onChange={(e) => handleNestedChange('firewoodCost', 'drier2', 'totalFwKg', e.target.value)}
+                        onKeyDown={preventNegativeKeys}
+                        className={tableInput}
                       />
                     </td>
                     <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.totalFwKg}</td>
@@ -761,28 +786,28 @@ const FiringSectionForm = () => {
                   <tr>
                     <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.unitPrice}</td>
                     <td className="p-2 border-r border-slate-200 dark:border-slate-800">
-                      <input 
-                        type="number" 
-                        min="0" 
-                        step="any" 
-                        placeholder="0.00" 
-                        value={form.firewoodCost.drier1.unitPrice} 
-                        onChange={(e) => handleNestedChange('firewoodCost', 'drier1', 'unitPrice', e.target.value)} 
-                        onKeyDown={preventNegativeKeys} 
-                        className={tableInput} 
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="0.00"
+                        value={form.firewoodCost.drier1.unitPrice}
+                        onChange={(e) => handleNestedChange('firewoodCost', 'drier1', 'unitPrice', e.target.value)}
+                        onKeyDown={preventNegativeKeys}
+                        className={tableInput}
                       />
                     </td>
                     <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.unitPrice}</td>
                     <td className="p-2 border-r border-slate-200 dark:border-slate-800">
-                      <input 
-                        type="number" 
-                        min="0" 
-                        step="any" 
-                        placeholder="0.00" 
-                        value={form.firewoodCost.drier2.unitPrice} 
-                        onChange={(e) => handleNestedChange('firewoodCost', 'drier2', 'unitPrice', e.target.value)} 
-                        onKeyDown={preventNegativeKeys} 
-                        className={tableInput} 
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="0.00"
+                        value={form.firewoodCost.drier2.unitPrice}
+                        onChange={(e) => handleNestedChange('firewoodCost', 'drier2', 'unitPrice', e.target.value)}
+                        onKeyDown={preventNegativeKeys}
+                        className={tableInput}
                       />
                     </td>
                     <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.unitPrice}</td>
@@ -791,28 +816,28 @@ const FiringSectionForm = () => {
                   <tr>
                     <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.madeTeaKg}</td>
                     <td className="p-2 border-r border-slate-200 dark:border-slate-800">
-                      <input 
-                        type="number" 
-                        min="0" 
-                        step="any" 
-                        placeholder="0.0" 
-                        value={form.firewoodCost.drier1.madeTeaKg} 
-                        onChange={(e) => handleNestedChange('firewoodCost', 'drier1', 'madeTeaKg', e.target.value)} 
-                        onKeyDown={preventNegativeKeys} 
-                        className={tableInput} 
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="0.0"
+                        value={form.firewoodCost.drier1.madeTeaKg}
+                        onChange={(e) => handleNestedChange('firewoodCost', 'drier1', 'madeTeaKg', e.target.value)}
+                        onKeyDown={preventNegativeKeys}
+                        className={tableInput}
                       />
                     </td>
                     <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.madeTeaKg}</td>
                     <td className="p-2 border-r border-slate-200 dark:border-slate-800">
-                      <input 
-                        type="number" 
-                        min="0" 
-                        step="any" 
-                        placeholder="0.0" 
-                        value={form.firewoodCost.drier2.madeTeaKg} 
-                        onChange={(e) => handleNestedChange('firewoodCost', 'drier2', 'madeTeaKg', e.target.value)} 
-                        onKeyDown={preventNegativeKeys} 
-                        className={tableInput} 
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="0.0"
+                        value={form.firewoodCost.drier2.madeTeaKg}
+                        onChange={(e) => handleNestedChange('firewoodCost', 'drier2', 'madeTeaKg', e.target.value)}
+                        onKeyDown={preventNegativeKeys}
+                        className={tableInput}
                       />
                     </td>
                     <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.madeTeaKg}</td>
@@ -837,7 +862,7 @@ const FiringSectionForm = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2 border-t border-slate-100 dark:border-slate-800">
             <div>
               <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">{t.officer} :</label>
-              <input 
+              <input
                 type="text"
                 name="officerName"
                 value={form.officerName}
@@ -849,7 +874,7 @@ const FiringSectionForm = () => {
 
             <div>
               <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">{t.checked} :</label>
-              <input 
+              <input
                 type="text"
                 name="checkedBy"
                 value={form.checkedBy}
@@ -905,7 +930,7 @@ const FiringSectionForm = () => {
               <Printer size={15} />
               {t.savePrint}
             </button>
-            
+
             <button
               type="button"
               onClick={() => handleSave(false)}
