@@ -106,6 +106,7 @@ const SYSTEM_PERMISSIONS = [
             { id: '/manufacturer/view-factory-loft-leaf', label: 'View L/L Count' },
             { id: '/manufacturer/weekly-loft-leaf-summary', label: 'Weekly L/L Summary' },
             { id: '/manufacturer/collector-quality-difference', label: 'Collector L/L Summary' },
+            { id: '/manufacturer/best-collector-count-chart', label: 'Best L/L Chart' },
             { id: '/manufacturer/simple-avg-factory-loft-leaf', label: 'Simple Average' },
             { id: '/manufacturer/weight-avg-factory-loft-leaf', label: 'Weight Average' },
             { id: '/manufacturer/green-leaf-monthly-ranking', label: 'G/L Ranking Report' },
