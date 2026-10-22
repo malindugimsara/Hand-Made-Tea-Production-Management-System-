@@ -135,6 +135,7 @@ const DATA = {
           items: [
             { title: 'Weekly L/L Summary', url: '/manufacturer/weekly-loft-leaf-summary'},
             { title: 'Collector L/L Summary', url: '/manufacturer/collector-quality-difference'},
+            { title: 'Best L/L Chart', url: '/manufacturer/best-collector-count-chart'},
           ],
         },
 
