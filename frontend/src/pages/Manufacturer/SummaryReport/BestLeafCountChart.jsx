@@ -8,41 +8,65 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas-pro';
 
 const ROUTE_LIST = [
-    { id: "C1", label: "C1" },
-    { id: "C2", label: "C2" },
-    { id: "C3", label: "C3" },
-    { id: "C4", label: "C4" },
-    { id: "C5", label: "C5" },
-    { id: "C7", label: "C7" },
-    { id: "C8", label: "C8" },
-    { id: "FA", label: "FACTORY" },
-    { id: "E", label: "ESTATE" }
+    { id: "C1", label: "C1", fullName: "MATHTHAKA" },
+    { id: "C2", label: "C2", fullName: "WALALLAWITA" },
+    { id: "C3", label: "C3", fullName: "PELAWATHTHA" },
+    { id: "C4", label: "C4", fullName: "POLGAMPALA" },
+    { id: "C5", label: "C5", fullName: "MANAMPITA" },
+    { id: "C7", label: "C7", fullName: "GANEGODA" },
+    { id: "C8", label: "C8", fullName: "THUNDOLA" },
+    { id: "FA", label: "FA", fullName: "FACTORY" },
+    { id: "E", label: "E", fullName: "ESTATE" }
 ];
 
-// 💡 වඩාත් නවීන සහ පැහැදිලි Custom Label එකක් (Pill Shape)
+
+// 💡 1. එක් එක් Route එක සඳහා වෙනස් වර්ණ (Dynamic Colors)
+const ROUTE_COLORS = {
+    "C1": "#3b82f6", // Blue
+    "C2": "#10b981", // Emerald
+    "C3": "#8b5cf6", // Purple
+    "C4": "#f59e0b", // Amber
+    "C5": "#f43f5e", // Rose
+    "C7": "#0ea5e9", // Sky
+    "C8": "#84cc16", // Lime
+    "FA": "#64748b", // Slate
+    "E":  "#d946ef"  // Fuchsia
+};
+
+// 💡 2. Dynamic Color අදාළ වන පරිදි හැදූ Custom Label
 const CustomLabel = (props) => {
-    const { x, y, value } = props;
+    const { x, y, value, strokeColor } = props;
     if (value == null) return null;
     return (
         <g>
-            <rect x={x - 14} y={y - 28} width={28} height={20} fill="#ffffff" stroke="#16a34a" strokeWidth={1.5} rx={10} className="shadow-sm" />
-            <text x={x} y={y - 14} fill="#14532d" fontSize={11} fontWeight="900" textAnchor="middle">
+            <rect x={x - 14} y={y - 28} width={28} height={20} fill="#ffffff" stroke={strokeColor || "#16a34a"} strokeWidth={1.5} rx={10} className="shadow-sm" />
+            <text x={x} y={y - 14} fill={strokeColor || "#14532d"} fontSize={11} fontWeight="900" textAnchor="middle">
                 {value}
             </text>
         </g>
     );
 };
 
+const getDefaultDates = () => {
+    const end = new Date();
+    const start = new Date(end);
+    const dayOfWeek = start.getDay(); 
+    const diffToThu = (dayOfWeek < 4 ? dayOfWeek + 7 : dayOfWeek) - 4;
+    start.setDate(start.getDate() - diffToThu);
+    
+    return {
+        start: start.toISOString().split('T')[0],
+        end: end.toISOString().split('T')[0]
+    };
+};
+
 export default function BestLeafCountChart() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const printRef = useRef(null); 
 
-    const defaultEnd = new Date();
-    const defaultStart = new Date();
-    defaultStart.setDate(defaultStart.getDate() - 13);
-
-    const [startDate, setStartDate] = useState(defaultStart.toISOString().split('T')[0]);
-    const [endDate, setEndDate] = useState(defaultEnd.toISOString().split('T')[0]);
+    const defaultDates = getDefaultDates();
+    const [startDate, setStartDate] = useState(defaultDates.start);
+    const [endDate, setEndDate] = useState(defaultDates.end);
     
     const [loading, setLoading] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
@@ -146,7 +170,7 @@ export default function BestLeafCountChart() {
             const rData = tempRouteData[route.id];
             const avg = rData.count > 0 ? Math.round(rData.sumBest / rData.count) : 0;
             return {
-                name: route.label,
+                name: route.label, 
                 value: avg
             };
         });
@@ -159,7 +183,7 @@ export default function BestLeafCountChart() {
         if (!printRef.current) return;
         
         setIsDownloading(true);
-        const toastId = toast.loading("Generating PDF from Charts...");
+        const toastId = toast.loading("Generating High-Performance PDF...");
 
         try {
             const isDark = document.documentElement.classList.contains('dark');
@@ -215,8 +239,9 @@ export default function BestLeafCountChart() {
 
             for (let i = 0; i < blocks.length; i++) {
                 const block = blocks[i];
-                const canvas = await html2canvas(block, { scale: 2, useCORS: true, backgroundColor: bgColor });
-                const imgData = canvas.toDataURL('image/png');
+                const canvas = await html2canvas(block, { scale: 1.5, useCORS: true, backgroundColor: bgColor });
+                
+                const imgData = canvas.toDataURL('image/jpeg', 0.85);
                 const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
                 if (position + imgHeight > pdfHeight - margin) {
@@ -224,7 +249,7 @@ export default function BestLeafCountChart() {
                     position = margin + 10; 
                 }
 
-                pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+                pdf.addImage(imgData, 'JPEG', margin, position, imgWidth, imgHeight);
                 position += imgHeight + 8; 
             }
 
@@ -247,13 +272,13 @@ export default function BestLeafCountChart() {
         }
     };
 
+    // 💡 3. PDF කැපීම වැලැක්වීම සඳහා දැන් 2 ගානේ වෙනුවට 1 බැගින් (Row-by-row) Chunk කිරීම
     const activeRoutes = ROUTE_LIST.filter(route => routeTrendData[route.id]?.count > 0);
     const chunkedRoutes = [];
-    for (let i = 0; i < activeRoutes.length; i += 3) {
-        chunkedRoutes.push(activeRoutes.slice(i, i + 3));
+    for (let i = 0; i < activeRoutes.length; i += 1) { // 1 Per Block for Full Width
+        chunkedRoutes.push(activeRoutes.slice(i, i + 1));
     }
 
-    // 💡 Tooltip Style
     const customTooltipStyle = {
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
         borderRadius: '12px',
@@ -265,7 +290,7 @@ export default function BestLeafCountChart() {
     };
 
     return (
-        <div className="p-4 sm:p-8 max-w-[1400px] mx-auto font-sans min-h-screen transition-colors duration-300 dark:bg-gray-950">
+        <div className="p-4 sm:p-8 max-w-[1400px] mx-auto font-sans min-h-screen transition-colors duration-300 bg-gray-50 dark:bg-gray-950">
             
             {/* HEADER */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -284,13 +309,13 @@ export default function BestLeafCountChart() {
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 rounded-2xl shadow-sm mb-8 flex flex-wrap gap-4 items-end">
                 <div className="flex-1 min-w-[180px]">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                        <Calendar size={14} className="text-green-600"/> Start Date
+                        <Calendar size={14} className="text-green-600"/> Start Date (Thu)
                     </label>
                     <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-semibold outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 dark:text-gray-200 transition-all" />
                 </div>
                 <div className="flex-1 min-w-[180px]">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                        <Calendar size={14} className="text-green-600"/> End Date
+                        <Calendar size={14} className="text-green-600"/> End Date (Today)
                     </label>
                     <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full p-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-semibold outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 dark:text-gray-200 transition-all" />
                 </div>
@@ -319,14 +344,14 @@ export default function BestLeafCountChart() {
                         <Activity size={32} className="text-gray-400 dark:text-gray-500" />
                     </div>
                     <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">No Data Available</h3>
-                    <p className="text-sm font-medium text-gray-400 mt-2">Please select a valid date range and click Generate Graph.</p>
+                    <p className="text-sm font-medium text-gray-400 mt-2">Please click Generate Graph to view the charts.</p>
                 </div>
             ) : rawData.length > 0 && (
                 
-                <div ref={printRef} className="space-y-8 dark:bg-gray-950 p-2 rounded-xl">
+                <div ref={printRef} className="space-y-6 bg-gray-50 dark:bg-gray-950 p-2 rounded-xl">
                     
-                    {/* 💡 OVERALL SUMMARY CHART */}
-                    <div className="pdf-capture-block bg-white dark:bg-gray-900 p-6 sm:p-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                    {/* OVERALL SUMMARY CHART */}
+                    <div className="pdf-capture-block bg-white dark:bg-gray-900 p-6 sm:p-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm mb-8">
                         <h2 className="text-xl sm:text-2xl font-black text-center text-green-900 dark:text-green-400 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/50 py-3 rounded-xl mb-10 shadow-sm">
                             Todate Leaf Count ({new Date(startDate).getDate()}{['st','nd','rd'][((new Date(startDate).getDate()+90)%100-10)%10-1]||'th'} - {new Date(endDate).getDate()}{['st','nd','rd'][((new Date(endDate).getDate()+90)%100-10)%10-1]||'th'})
                         </h2>
@@ -353,53 +378,94 @@ export default function BestLeafCountChart() {
                                         fill="url(#colorTotal)" 
                                         activeDot={{ r: 7, strokeWidth: 0, fill: '#14532d' }}
                                     >
-                                        <LabelList dataKey="value" content={<CustomLabel />} />
+                                        <LabelList dataKey="value" content={<CustomLabel strokeColor="#16a34a" />} />
                                     </Area>
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
-                    {/* 💡 INDIVIDUAL ROUTE CHARTS */}
+                    {/* 💡 4. INDIVIDUAL ROUTE CHARTS (SPLIT LAYOUT WITH DYNAMIC COLORS) */}
                     <div className="space-y-6">
                         {chunkedRoutes.map((rowRoutes, rowIdx) => (
-                            <div key={rowIdx} className="pdf-capture-block grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                            <div key={rowIdx} className="pdf-capture-block flex flex-col gap-6">
                                 {rowRoutes.map(route => {
                                     const data = routeTrendData[route.id]?.dailyData || [];
-                                    
+                                    const routeColor = ROUTE_COLORS[route.id] || "#3b82f6";
+
+                                    // Calculate Stats
+                                    const validValues = data.map(d => d.value).filter(v => v !== null);
+                                    const maxVal = validValues.length ? Math.max(...validValues) : 0;
+                                    const minVal = validValues.length ? Math.min(...validValues) : 0;
+                                    const avgVal = routeTrendData[route.id]?.sumBest > 0 ? Math.round(routeTrendData[route.id].sumBest / routeTrendData[route.id].count) : 0;
+
                                     return (
-                                        <div key={route.id} className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-900/80 p-5 rounded-3xl border border-gray-200/80 dark:border-gray-800 shadow-sm flex flex-col items-center hover:shadow-md transition-shadow">
-                                            <h3 className="text-xl font-black text-blue-900 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 px-6 py-1.5 rounded-lg shadow-sm mb-8 mt-2 tracking-wider">
-                                                {route.id}
-                                            </h3>
-                                            <div className="w-full h-[220px]">
+                                        <div key={route.id} className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden flex flex-col lg:flex-row hover:shadow-md transition-shadow">
+                                            
+                                            {/* LEFT SIDE: Stats Panel */}
+                                            <div className="lg:w-[25%] p-6 sm:p-8 bg-gray-50/50 dark:bg-gray-800/20 border-b lg:border-b-0 lg:border-r border-gray-100 dark:border-gray-800 flex flex-col justify-center">
+                                                
+                                                <div className="flex items-center gap-3.5 mb-6">
+                                                    <div className="w-2.5 h-16 rounded-full flex-shrink-0" style={{backgroundColor: routeColor}}></div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-2xl font-black text-[#1e293b] dark:text-gray-300 leading-none mb-1">
+                                                            {route.label} {route.id.startsWith('C') ? "" : ""}
+                                                        </span>
+                                                        <span className="text-xl sm:text-[28px] md:text-xl font-black text-[#151e2e] dark:text-white leading-none uppercase tracking-wide">
+                                                            {route.fullName}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="space-y-4">
+                                                    <div className="bg-white dark:bg-gray-900 p-3 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                                                        <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-0.5">Average Best</p>
+                                                        <p className="text-2xl font-black" style={{color: routeColor}}>{avgVal}%</p>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div className="bg-white dark:bg-gray-900 p-3 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Highest</p>
+                                                            <p className="text-lg font-bold text-gray-700 dark:text-gray-300">{maxVal}%</p>
+                                                        </div>
+                                                        <div className="bg-white dark:bg-gray-900 p-3 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Lowest</p>
+                                                            <p className="text-lg font-bold text-gray-700 dark:text-gray-300">{minVal}%</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* RIGHT SIDE: Chart Panel */}
+                                            <div className="lg:w-[75%] p-6 sm:p-8 h-[280px] lg:h-auto min-h-[280px] w-full">
                                                 <ResponsiveContainer width="100%" height="100%">
-                                                    <AreaChart data={data} margin={{ top: 25, right: 15, left: -25, bottom: 0 }}>
+                                                    <AreaChart data={data} margin={{ top: 25, right: 20, left: -25, bottom: 0 }}>
                                                         <defs>
                                                             <linearGradient id={`colorRoute-${route.id}`} x1="0" y1="0" x2="0" y2="1">
-                                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25}/>
-                                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                                                <stop offset="5%" stopColor={routeColor} stopOpacity={0.25}/>
+                                                                <stop offset="95%" stopColor={routeColor} stopOpacity={0}/>
                                                             </linearGradient>
                                                         </defs>
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                                         <XAxis dataKey="day" tick={{fill: '#64748b', fontSize: 11, fontWeight: 700}} axisLine={false} tickLine={false} dy={5} />
-                                                        <YAxis domain={[0, 50]} tick={{fill: '#94a3b8', fontSize: 11}} axisLine={false} tickLine={false} />
-                                                        <Tooltip contentStyle={{...customTooltipStyle, fontSize: '12px'}} itemStyle={{ color: '#2563eb' }} cursor={{ stroke: '#e2e8f0', strokeWidth: 1 }} />
+                                                        <YAxis domain={[0, 60]} tick={{fill: '#94a3b8', fontSize: 11}} axisLine={false} tickLine={false} />
+                                                        <Tooltip contentStyle={{...customTooltipStyle, fontSize: '12px'}} itemStyle={{ color: routeColor }} cursor={{ stroke: '#e2e8f0', strokeWidth: 1 }} />
                                                         <Area 
                                                             connectNulls={true} 
                                                             type="monotone" 
                                                             dataKey="value" 
                                                             name="Best %"
-                                                            stroke="#2563eb" 
-                                                            strokeWidth={3} 
+                                                            stroke={routeColor} 
+                                                            strokeWidth={3.5} 
                                                             fill={`url(#colorRoute-${route.id})`}
-                                                            activeDot={{ r: 6, strokeWidth: 0, fill: '#1e3a8a' }}
+                                                            activeDot={{ r: 6, strokeWidth: 0, fill: routeColor }}
                                                         >
-                                                            <LabelList dataKey="value" content={<CustomLabel />} />
+                                                            {/* 💡 Pass the dynamic color to the Label */}
+                                                            <LabelList dataKey="value" content={(props) => <CustomLabel {...props} strokeColor={routeColor} />} />
                                                         </Area>
                                                     </AreaChart>
                                                 </ResponsiveContainer>
                                             </div>
+                                            
                                         </div>
                                     );
                                 })}
