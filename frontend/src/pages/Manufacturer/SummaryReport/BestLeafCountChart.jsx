@@ -142,10 +142,17 @@ export default function BestLeafCountChart() {
             const dayLabel = new Date(date).getDate().toString(); 
 
             ROUTE_LIST.forEach(route => {
-                const record = rawData.find(r => 
-                    r._recordDate === date && 
-                    (r.route.includes(route.id) || r.route.includes(route.label))
-                );
+                
+                // 💡 UPDATE: E අකුර වෙනත් නම් වල (PELAWATHTHA, GANEGODA) තිබීම නිසා වන ගැටළුව විසඳීමට Exact Match කිරීම
+                const record = rawData.find(r => {
+                    if (r._recordDate !== date || !r.route) return false;
+                    
+                    const dbRoute = r.route.toUpperCase();
+                    // උදා: "E - ESTATE TEA" හෝ "C3 - PELAWATHTHA" වලින් ඉරට කලින් ඇති "E" හෝ "C3" පමණක් වෙන්කර ගනී
+                    const prefix = dbRoute.split('-')[0].trim(); 
+                    
+                    return prefix === route.id.toUpperCase() || dbRoute.includes(route.fullName.toUpperCase());
+                });
 
                 let bestVal = null;
 
