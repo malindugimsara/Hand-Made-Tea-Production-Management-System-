@@ -834,34 +834,6 @@ export default function HydroMetersView() {
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
-                        {/* 💡 WET BULB First */}
-                        <div>
-                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                            Wet Bulb
-                          </label>
-                          <input
-                            id={`modal-wet-${idx}`}
-                            type="text"
-                            value={wetVal}
-                            onChange={(e) =>
-                              handleModalInputChange(
-                                trough,
-                                "wet",
-                                e.target.value,
-                              )
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter")
-                                document
-                                  .getElementById(`modal-dry-${idx}`)
-                                  ?.focus();
-                            }}
-                            disabled={heatOn}
-                            className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg p-2.5 text-center font-bold text-gray-800 dark:text-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-500 outline-none disabled:opacity-40 disabled:cursor-not-allowed"
-                            placeholder="-"
-                          />
-                        </div>
-                        {/* 💡 DRY BULB Second */}
                         <div>
                           <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
                             Dry Bulb
