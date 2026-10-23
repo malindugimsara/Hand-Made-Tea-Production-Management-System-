@@ -282,12 +282,8 @@ export default function DailyExtendedStockView() {
         // Calculate Final Balances including "Opening Balance Today"
         return Object.values(dataMap)
             .map(row => {
-                // අනිවාර්යයෙන්ම Sold අගය වගේම Free Issue අගයත් අඩු කරන්න ඕනේ
-                row.balanceToDate = row.openingBalance + row.cumulativeIn - row.cumulativeOutSold - row.cumulativeOutIssue;
-
-                // අද දවසේ ආරම්භක අගය ගන්න අද විකුණපු සහ නිකුත් කරපු (Issue) දෙකම ආපහු එකතු කරන්න ඕනේ
-                row.openingBalanceToday = row.balanceToDate - row.inToday + row.outSoldToday + row.outIssueToday;
-
+                row.balanceToDate = row.openingBalance + row.cumulativeIn - row.cumulativeOutSold;
+                row.openingBalanceToday = row.balanceToDate - row.inToday + row.outSoldToday;
                 return row;
             })
             .filter(row => {

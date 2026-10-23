@@ -66,6 +66,7 @@ import {
   SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
+import toast from 'react-hot-toast';
 
 // --- NEW ROLE-BASED DATA CONFIGURATION FOR MANUFACTURER ---
 const DATA = {
@@ -134,6 +135,7 @@ const DATA = {
           items: [
             { title: 'Weekly L/L Summary', url: '/manufacturer/weekly-loft-leaf-summary'},
             { title: 'Collector L/L Summary', url: '/manufacturer/collector-quality-difference'},
+            { title: 'Best L/L Chart', url: '/manufacturer/best-collector-count-chart'},
           ],
         },
 
@@ -227,6 +229,47 @@ export default function ManufacturerDashboardLayout() {
     localStorage.clear();
     navigate('/', { replace: true });
   };
+
+  // 💡 NEW: AUTO LOGOUT LOGIC (Token Expiration Check)
+  React.useEffect(() => {
+    const checkTokenExpiry = () => {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        handleAutoLogout();
+        return;
+      }
+
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const expiryTime = payload.exp * 1000; 
+        const currentTime = Date.now();
+
+        if (currentTime >= expiryTime) {
+          handleAutoLogout();
+        } else {
+          const timeRemaining = expiryTime - currentTime;
+          
+          const timeoutId = setTimeout(() => {
+            handleAutoLogout();
+          }, timeRemaining);
+
+          return () => clearTimeout(timeoutId); // Cleanup function
+        }
+      } catch (error) {
+        console.error("Invalid token format", error);
+        handleAutoLogout();
+      }
+    };
+
+    const handleAutoLogout = () => {
+      localStorage.clear();
+      toast.error("Session Expired. Please login again.");
+      navigate('/', { replace: true });
+    };
+
+    checkTokenExpiry();
+  }, [navigate]);
 
   // 💡 NEW: URL-BASED ACCESS CONTROL (allowedPages ලබාගැනීම)
   const allowedPages = React.useMemo(() => {

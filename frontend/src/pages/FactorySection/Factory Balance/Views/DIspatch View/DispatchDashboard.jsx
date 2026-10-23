@@ -3,8 +3,8 @@ import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Toolti
 import { Calendar, Filter, PieChart as PieChartIcon, BarChart3, Table as TableIcon, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-// 💡 1. Grade Classification (According to Business Logic)
-const MAIN_GRADES = ["OP", "OPA", "OP 1", "BOP", "BOPF", "BOPF SP", "FF", "FF SP", "FF EX SP", "FBOP", "DUST 1", "PEKOE", "PEKOE 1", "BOP1", "FF 1"];
+// 💡 1. Grade Classification Arrays
+const MAIN_GRADES = ["OP", "OPA", "OP1", "BOP", "BOPF", "BOPF SP", "FF", "FF SP", "FF EX SP", "FBOP", "DUST 1", "PEKOE", "PEKOE 1", "BOP 1", "FF 1"];
 const OFF_GRADES = ["BOP 1 A", "DUST", "BT", "BM", "BP", "FNGS"];
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8b5cf6', '#ec4899', '#10b981', '#f43f5e', '#3b82f6', '#eab308'];
@@ -13,27 +13,24 @@ export default function DispatchDashboard() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   // --- States ---
-  const [activeView, setActiveView] = useState('table'); // 'table', 'bar', 'pie'
+  const [activeView, setActiveView] = useState('table'); 
   const [isLoading, setIsLoading] = useState(false);
   const [rawData, setRawData] = useState([]);
   
   // Filters
   const [filters, setFilters] = useState({
-    fromDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0], // First day of current month
-    toDate: new Date().toISOString().split('T')[0], // Today
+    fromDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0], 
+    toDate: new Date().toISOString().split('T')[0], 
     broker: 'ALL',
     sellingMark: 'ALL',
     factoryName: 'ATHUKORALA TEA FACTORY'
   });
 
   // --- Fetch Data ---
-  // --- Fetch Data ---
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      
-      // 💡 වෙනස: URL එකට startDate සහ endDate අගයන් එකතු කර ඇත
       const fetchUrl = `${BACKEND_URL}/api/factory-logs?startDate=${filters.fromDate}&endDate=${filters.toDate}`;
       
       const res = await fetch(fetchUrl, {
@@ -57,13 +54,14 @@ export default function DispatchDashboard() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []); // Run once on mount. You can add filters dependency if API supports date filtering
+  }, []); 
 
   // --- Data Aggregation Logic ---
   const { chartData, summary, sellingMarkData } = useMemo(() => {
     let totalKg = 0;
     let mainGradeKg = 0;
     let offGradeKg = 0;
+    let otherGradeKg = 0; // 💡 අලුතින් OTHER සඳහා
     const gradeMap = {};
 
     // 1. Filter by Date Range
@@ -79,31 +77,43 @@ export default function DispatchDashboard() {
           const weight = Number(d.weight) || 0;
           if (weight <= 0) return;
 
-          const grade = d.teaType ? d.teaType.toUpperCase() : "UNKNOWN";
+          const exactDbName = d.teaType || "UNKNOWN";
+          const checkGrade = exactDbName.trim().toUpperCase();
+
           totalKg += weight;
 
-          if (!gradeMap[grade]) {
-            gradeMap[grade] = { name: grade, weight: 0, category: 'OTHER' };
+          if (!gradeMap[exactDbName]) {
+            gradeMap[exactDbName] = { dbName: exactDbName, weight: 0, category: 'OTHER' };
           }
-          gradeMap[grade].weight += weight;
+          gradeMap[exactDbName].weight += weight;
 
-          // Classify Grade
-          if (MAIN_GRADES.includes(grade)) {
-            gradeMap[grade].category = 'MAIN';
+          // 💡 Classify Grade
+          if (MAIN_GRADES.includes(checkGrade)) {
+            gradeMap[exactDbName].category = 'MAIN';
             mainGradeKg += weight;
-          } else if (OFF_GRADES.includes(grade)) {
-            gradeMap[grade].category = 'OFF';
+          } else if (OFF_GRADES.includes(checkGrade)) {
+            gradeMap[exactDbName].category = 'OFF';
             offGradeKg += weight;
+          } else {
+            // MAIN සහ OFF දෙකේම නැති දේවල් මෙතැනට (OTHER) එකතු වේ
+            gradeMap[exactDbName].category = 'OTHER';
+            otherGradeKg += weight;
           }
         });
       }
     });
 
-    // 3. Format Chart Data (Calculate Percentages)
-    const formattedChartData = Object.values(gradeMap).map(item => ({
-      ...item,
-      percentage: totalKg > 0 ? ((item.weight / totalKg) * 100).toFixed(1) : 0
-    })).sort((a, b) => b.weight - a.weight); // Sort descending
+    // 3. Format Chart Data (Calculate Percentages & Display Name)
+    const formattedChartData = Object.values(gradeMap).map(item => {
+      // 💡 OTHER category එකේ දේවල් වලට පමණක් අගට "(OTHER)" ලෙස එක් කරයි
+      const displayName = item.category === 'OTHER' ? `${item.dbName} (OTHER)` : item.dbName;
+      
+      return {
+        ...item,
+        name: displayName,
+        percentage: totalKg > 0 ? ((item.weight / totalKg) * 100).toFixed(1) : 0
+      };
+    }).sort((a, b) => b.weight - a.weight); 
 
     // 4. Summaries
     const summaryData = {
@@ -112,9 +122,11 @@ export default function DispatchDashboard() {
       mainPct: totalKg > 0 ? ((mainGradeKg / totalKg) * 100).toFixed(2) : 0,
       off: offGradeKg,
       offPct: totalKg > 0 ? ((offGradeKg / totalKg) * 100).toFixed(2) : 0,
+      other: otherGradeKg,
+      otherPct: totalKg > 0 ? ((otherGradeKg / totalKg) * 100).toFixed(2) : 0,
     };
 
-    // 5. Mock Selling Mark Data (For UI demonstration as requested)
+    // 5. Mock Selling Mark Data
     const mockSellingMarkData = [
       { mark: "ATHUKORALA GROUP", weight: mainGradeKg * 0.4, percentage: 40 },
       { mark: "ATHUKORALA SUPER", weight: mainGradeKg * 0.6, percentage: 60 }
@@ -132,7 +144,8 @@ export default function DispatchDashboard() {
     <div className="p-4 sm:p-6 md:p-8 max-w-[1400px] mx-auto font-sans min-h-screen transition-colors duration-300 bg-gray-50 dark:bg-gray-950">
       
      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">        
+        <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm border bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 transition-colors">
             <BarChart3 size={28} />
           </div>
@@ -145,7 +158,6 @@ export default function DispatchDashboard() {
 
       {/* FILTER SECTION */}
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 rounded-2xl shadow-sm mb-6 flex flex-wrap gap-4 items-end">
-        
         <div className="flex-1 min-w-[200px]">
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">From Date</label>
           <input type="date" name="fromDate" value={filters.fromDate} onChange={handleFilterChange} className="w-full p-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-semibold outline-none focus:border-green-500 dark:text-gray-200" />
@@ -213,7 +225,9 @@ export default function DispatchDashboard() {
                       <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                         {chartData.map((row, i) => (
                           <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                            <td className="px-6 py-3 font-bold text-gray-800 dark:text-gray-200">{row.name}</td>
+                            <td className="px-6 py-3 font-bold text-gray-800 dark:text-gray-200">
+                                {row.name}
+                            </td>
                             <td className="px-6 py-3 font-semibold text-gray-600 dark:text-gray-400 text-right">{row.weight.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}</td>
                             <td className="px-6 py-3 font-semibold text-green-600 dark:text-green-400 text-right">{row.percentage}%</td>
                           </tr>
@@ -298,6 +312,17 @@ export default function DispatchDashboard() {
                   <p className="text-xs font-bold text-orange-600 bg-orange-100 dark:bg-orange-900/50 inline-block px-2 py-0.5 rounded mt-1">{summary.offPct}%</p>
                 </div>
               </div>
+
+              {/* 💡 NEW: OTHER GRADE Summary */}
+              {summary.other > 0 && (
+                <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 p-4 rounded-xl flex justify-between items-center">
+                  <span className="font-bold text-blue-800 dark:text-blue-400">OTHER GRADE</span>
+                  <div className="text-right">
+                    <p className="text-lg font-black text-blue-900 dark:text-blue-300">{summary.other.toLocaleString(undefined, {minimumFractionDigits: 1})} <span className="text-xs font-semibold">Kg</span></p>
+                    <p className="text-xs font-bold text-blue-600 bg-blue-100 dark:bg-blue-900/50 inline-block px-2 py-0.5 rounded mt-1">{summary.otherPct}%</p>
+                  </div>
+                </div>
+              )}
 
               <div className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 rounded-xl flex justify-between items-center mt-6">
                 <span className="font-black text-gray-800 dark:text-gray-200">TOTAL</span>

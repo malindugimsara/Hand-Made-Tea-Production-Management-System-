@@ -216,3 +216,28 @@ export const deleteFiringSection = async (req, res) => {
     });
   }
 };
+
+
+// 💡 අලුතින් එකතු කළ යුතු Update Function එක
+export const updateFiringSectionRecord = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updateData = req.body;
+
+        // FiringSection යනු ඔබගේ Database Model එකයි (නම වෙනස් නම් එය යොදන්න)
+        const updatedRecord = await FiringSection.findByIdAndUpdate(
+            id,
+            updateData,
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedRecord) {
+            return res.status(404).json({ success: false, message: "Record not found." });
+        }
+
+        res.status(200).json({ success: true, message: "Record updated successfully!", data: updatedRecord });
+    } catch (error) {
+        console.error("Update Error:", error);
+        res.status(500).json({ success: false, message: "Server Error during update." });
+    }
+};

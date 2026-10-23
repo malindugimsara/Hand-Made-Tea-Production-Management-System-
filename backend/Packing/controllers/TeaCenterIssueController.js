@@ -2,6 +2,11 @@ import TeaCenterIssue from '../models/TeaCenterIssueModel.js';
 import PackingStock from '../models/PackingStock.js'; 
 import RawMaterialStock from '../models/RawMaterialStock.js'; 
 
+// 💡 NEW: Regex එක කැඩී යාම වළක්වා විශේෂ සංකේත (*, (, )) සාමාන්‍ය අකුරු ලෙස හැසිරවීම සඳහා
+const escapeRegex = (string) => {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
+};
+
 // --- UPDATED LOGIC: BASE TEA MAPPING (Consistent with LocalSale) ---
 const getBaseTeaGrade = (productName) => {
     if (!productName) return "";
@@ -83,7 +88,7 @@ export const createTeaCenterIssue = async (req, res) => {
         // 2. PRE-VALIDATION: CHECK IF ENOUGH STOCK IS AVAILABLE 
         // ====================================================================
         for (const [grade, requestedQty] of Object.entries(requiredTea)) {
-            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${grade}$`, "i") } });
+            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
             const available = stock ? stock.totalBulkStockKg || 0 : 0;
             if (requestedQty > available) {
                 return res.status(400).json({ message: `Insufficient stock for Tea Grade: ${grade}. Available: ${available.toFixed(2)} kg, Requested: ${requestedQty.toFixed(2)} kg` });
@@ -91,7 +96,7 @@ export const createTeaCenterIssue = async (req, res) => {
         }
 
         for (const [name, requestedQty] of Object.entries(requiredRM)) {
-            const stock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${name}$`, "i") } });
+            const stock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
             const available = stock ? stock.totalQuantity || 0 : 0;
             if (requestedQty > available) {
                 return res.status(400).json({ message: `Insufficient stock for Material: ${name}. Available: ${available.toFixed(2)}, Requested: ${requestedQty.toFixed(2)}` });
@@ -106,7 +111,7 @@ export const createTeaCenterIssue = async (req, res) => {
         
         // Deduct Tea Stock
         for (const [grade, totalRequestedQty] of Object.entries(requiredTea)) {
-            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${grade}$`, "i") } });
+            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
             if (stock) {
                 let remainingToDeduct = totalRequestedQty;
                 const originalDeductAmount = remainingToDeduct;
@@ -135,7 +140,7 @@ export const createTeaCenterIssue = async (req, res) => {
 
         // Deduct Raw/Packing Materials
         for (const [name, totalRequestedQty] of Object.entries(requiredRM)) {
-            const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${name}$`, "i") } });
+            const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
             if (rmStock) {
                 rmStock.totalQuantity -= totalRequestedQty;
                 rmStock.issueAmount = (rmStock.issueAmount || 0) + totalRequestedQty;
@@ -234,7 +239,7 @@ export const updateTeaCenterIssue = async (req, res) => {
         // 3. Pre-Validation
         // ====================================================================
         for (const [grade, requestedQty] of Object.entries(requiredTea)) {
-            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${grade}$`, "i") } });
+            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
             const currentAvailable = stock ? stock.totalBulkStockKg || 0 : 0;
             const willBeReturned = oldTea[grade] || 0;
             const totalAvailableForUpdate = currentAvailable + willBeReturned;
@@ -245,7 +250,7 @@ export const updateTeaCenterIssue = async (req, res) => {
         }
 
         for (const [name, requestedQty] of Object.entries(requiredRM)) {
-            const stock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${name}$`, "i") } });
+            const stock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
             const currentAvailable = stock ? stock.totalQuantity || 0 : 0;
             const willBeReturned = oldRM[name] || 0;
             const totalAvailableForUpdate = currentAvailable + willBeReturned;
@@ -259,7 +264,7 @@ export const updateTeaCenterIssue = async (req, res) => {
         // 4. REVERSE OLD STOCK 
         // ====================================================================
         for (const [grade, amountToReturn] of Object.entries(oldTea)) {
-            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${grade}$`, "i") } });
+            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
             if (stock) {
                 if (stock.stockBySource && stock.stockBySource.length > 0) {
                     let targetSource = stock.stockBySource.find((s) => s.sourceName === "Factory") || stock.stockBySource[0];
@@ -273,7 +278,7 @@ export const updateTeaCenterIssue = async (req, res) => {
         }
 
         for (const [name, amountToReturn] of Object.entries(oldRM)) {
-            const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${name}$`, "i") } });
+            const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
             if (rmStock) {
                 rmStock.totalQuantity += amountToReturn;
                 rmStock.issueAmount -= amountToReturn;
@@ -286,7 +291,7 @@ export const updateTeaCenterIssue = async (req, res) => {
         // 5. DEDUCT NEW STOCK
         // ====================================================================
         for (const [grade, totalRequestedQty] of Object.entries(requiredTea)) {
-            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${grade}$`, "i") } });
+            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
             if (stock) {
                 let remainingToDeduct = totalRequestedQty;
                 const originalDeductAmount = remainingToDeduct;
@@ -314,7 +319,7 @@ export const updateTeaCenterIssue = async (req, res) => {
         }
 
         for (const [name, totalRequestedQty] of Object.entries(requiredRM)) {
-            const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${name}$`, "i") } });
+            const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
             if (rmStock) {
                 rmStock.totalQuantity -= totalRequestedQty;
                 rmStock.issueAmount = (rmStock.issueAmount || 0) + totalRequestedQty;
@@ -377,7 +382,7 @@ export const deleteTeaCenterIssue = async (req, res) => {
 
         // 2. REVERSE TEA STOCK
         for (const [grade, amountToReturn] of Object.entries(oldTea)) {
-            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${grade}$`, "i") } });
+            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
             if (stock) {
                 if (stock.stockBySource && stock.stockBySource.length > 0) {
                     let targetSource = stock.stockBySource.find((s) => s.sourceName === "Factory") || stock.stockBySource[0];
@@ -392,7 +397,7 @@ export const deleteTeaCenterIssue = async (req, res) => {
 
         // 3. REVERSE RAW/PACKING MATERIAL STOCK
         for (const [name, amountToReturn] of Object.entries(oldRM)) {
-            const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${name}$`, "i") } });
+            const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
             if (rmStock) {
                 rmStock.totalQuantity += amountToReturn;
                 rmStock.issueAmount -= amountToReturn;
