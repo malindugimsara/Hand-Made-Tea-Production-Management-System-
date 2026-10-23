@@ -450,21 +450,6 @@ export default function HydroMetersEntry() {
 
                                     <div className="grid grid-cols-2 gap-4">
                                         
-                                        {/* WET BULB */}
-                                        <div className="flex flex-col gap-2">
-                                            <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 tracking-wider">WET BULB</label>
-                                            <input 
-                                                id={`input-wet-${idx}`}
-                                                type="text" 
-                                                value={wetVal}
-                                                onChange={(e) => handleInputChange(trough, 'wet', e.target.value)}
-                                                onKeyDown={(e) => handleKeyDown(e, idx, 'wet')}
-                                                disabled={heatOn}
-                                                className="w-full bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-700 rounded-xl p-3 text-center font-bold text-lg text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all placeholder-gray-300 dark:placeholder-zinc-700 disabled:opacity-40 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
-                                                placeholder="-"
-                                            />
-                                        </div>
-
                                         {/* DRY BULB */}
                                         <div className="flex flex-col gap-2">
                                             <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 tracking-wider">DRY BULB</label>
@@ -479,6 +464,22 @@ export default function HydroMetersEntry() {
                                                 placeholder="-"
                                             />
                                         </div>
+
+                                        {/* WET BULB */}
+                                        <div className="flex flex-col gap-2">
+                                            <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 tracking-wider">WET BULB</label>
+                                            <input 
+                                                id={`input-wet-${idx}`}
+                                                type="text" 
+                                                value={wetVal}
+                                                onChange={(e) => handleInputChange(trough, 'wet', e.target.value)}
+                                                onKeyDown={(e) => handleKeyDown(e, idx, 'wet')}
+                                                disabled={heatOn}
+                                                className="w-full bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-700 rounded-xl p-3 text-center font-bold text-lg text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all placeholder-gray-300 dark:placeholder-zinc-700 disabled:opacity-40 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
+                                                placeholder="-"
+                                            />
+                                        </div>
+                                        
                                     </div>
 
                                 </div>
