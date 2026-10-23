@@ -353,7 +353,7 @@ export default function HydroMetersView() {
     activeTroughs.forEach(() => {
       // 💡 WET BULB First, DRY BULB Second
       row2.push({
-        content: "WET BULB",
+        content: "DRY BULB",
         styles: {
           halign: "center",
           fillColor: [248, 250, 252],
@@ -365,7 +365,7 @@ export default function HydroMetersView() {
         },
       });
       row2.push({
-        content: "DRY BULB",
+        content: "WET BULB",
         styles: {
           halign: "center",
           fillColor: [248, 250, 252],
@@ -453,8 +453,8 @@ export default function HydroMetersView() {
 
           // 💡 WET BULB First, DRY BULB Second
           row.push(
-            { content: wet, styles: normalStyle },
             { content: dry, styles: normalStyle },
+            { content: wet, styles: normalStyle },
             { content: diff, styles: diffStyle },
           );
         }
@@ -648,12 +648,11 @@ export default function HydroMetersView() {
                 <tr className="bg-[#f1f5f9] dark:bg-zinc-800/50">
                   {TROUGHS.map((trough) => (
                     <React.Fragment key={`sub-${trough}`}>
-                      {/* 💡 WET BULB First, DRY BULB Second */}
-                      <th className="p-2 border border-green-200 dark:border-zinc-700 text-[11px] font-bold text-gray-600 dark:text-gray-400 w-[60px]">
-                        WET BULB
-                      </th>
                       <th className="p-2 border border-green-200 dark:border-zinc-700 text-[11px] font-bold text-gray-600 dark:text-gray-400 w-[60px]">
                         DRY BULB
+                      </th>
+                      <th className="p-2 border border-green-200 dark:border-zinc-700 text-[11px] font-bold text-gray-600 dark:text-gray-400 w-[60px]">
+                        WET BULB
                       </th>
                       <th className="p-2 border border-green-200 dark:border-zinc-700 text-[11px] font-bold text-green-700 dark:text-green-400 w-[60px] bg-green-50/50 dark:bg-green-900/10">
                         DIFFERENCE
@@ -698,13 +697,11 @@ export default function HydroMetersView() {
                               </td>
                             ) : (
                               <>
-                                {/* 💡 WET BULB First */}
-                                <td className="p-2 border border-green-200 dark:border-zinc-700 text-center font-bold text-gray-800 dark:text-gray-200">
-                                  {wetVal || "-"}
-                                </td>
-                                {/* 💡 DRY BULB Second */}
                                 <td className="p-2 border border-green-200 dark:border-zinc-700 text-center font-bold text-gray-800 dark:text-gray-200">
                                   {dryVal || "-"}
+                                </td>
+                                <td className="p-2 border border-green-200 dark:border-zinc-700 text-center font-bold text-gray-800 dark:text-gray-200">
+                                  {wetVal || "-"}
                                 </td>
                                 <td
                                   className={`p-2 border border-green-200 dark:border-zinc-700 text-center font-black bg-green-50/50 dark:bg-green-900/10
@@ -881,9 +878,35 @@ export default function HydroMetersView() {
                               )
                             }
                             onKeyDown={(e) => {
+                              if (e.key === "Enter")
+                                document
+                                  .getElementById(`modal-wet-${idx}`)
+                                  ?.focus();
+                            }}
+                            disabled={heatOn}
+                            className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg p-2.5 text-center font-bold text-gray-800 dark:text-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-500 outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+                            placeholder="-"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                            Wet Bulb
+                          </label>
+                          <input
+                            id={`modal-wet-${idx}`}
+                            type="text"
+                            value={wetVal}
+                            onChange={(e) =>
+                              handleModalInputChange(
+                                trough,
+                                "wet",
+                                e.target.value,
+                              )
+                            }
+                            onKeyDown={(e) => {
                               if (e.key === "Enter" && idx < TROUGHS.length - 1)
                                 document
-                                  .getElementById(`modal-wet-${idx + 1}`)
+                                  .getElementById(`modal-dry-${idx + 1}`)
                                   ?.focus();
                             }}
                             disabled={heatOn}
