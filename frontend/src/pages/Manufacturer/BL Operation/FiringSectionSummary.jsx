@@ -15,6 +15,8 @@ import {
   Sparkles,
   UserCheck,
   Edit3,
+  Edit,
+  AlertTriangle,
   Save,
   RotateCcw
 } from 'lucide-react';
@@ -82,12 +84,7 @@ const FiringSectionSummary = () => {
   const [lang, setLang] = useState('EN');
   const [isDirty, setIsDirty] = useState(false);
 
-  // --- EDIT STATE ---
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [editFormData, setEditFormData] = useState(null);
-
-  // In-place editing state
+  // In-place editing state (Duplicates removed)
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -768,6 +765,7 @@ const FiringSectionSummary = () => {
         setAllRecords(prev => prev.map(rec => rec._id === editForm._id ? (resData.data || payload) : rec));
         setIsEditing(false);
         setEditForm(null);
+        setIsDirty(false);
       } else {
         toast.error(resData.message || "Failed to update record.", { id: toastId });
       }
@@ -788,22 +786,22 @@ const FiringSectionSummary = () => {
 
         {/* 💡 UNSAVED CHANGES WARNING BANNER */}
         {isDirty && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-red-100 dark:bg-red-900/40 border-2 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)] p-4 rounded-2xl animate-pulse transition-all">
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <AlertTriangle size={28} className="text-red-600 dark:text-red-400 animate-bounce shrink-0" />
-                    <div>
-                        <h3 className="text-red-800 dark:text-red-300 font-black text-sm sm:text-base uppercase tracking-wider">Unsaved Changes Detected!</h3>
-                        <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm font-semibold">Please save your data to prevent data loss.</p>
-                    </div>
-                </div>
-                <button 
-                    onClick={handleSaveEdit} 
-                    disabled={isSaving}
-                    className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50"
-                >
-                    {isSaving ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />} Save Now
-                </button>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-red-100 dark:bg-red-900/40 border-2 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)] p-4 rounded-2xl animate-pulse transition-all">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <AlertTriangle size={28} className="text-red-600 dark:text-red-400 animate-bounce shrink-0" />
+              <div>
+                <h3 className="text-red-800 dark:text-red-300 font-black text-sm sm:text-base uppercase tracking-wider">Unsaved Changes Detected!</h3>
+                <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm font-semibold">Please save your data to prevent data loss.</p>
+              </div>
             </div>
+            <button
+              onClick={handleSaveInline}
+              disabled={isSaving}
+              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50"
+            >
+              {isSaving ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />} Save Now
+            </button>
+          </div>
         )}
 
         {/* --- Top Header Bar --- */}
@@ -909,51 +907,34 @@ const FiringSectionSummary = () => {
 
         {/* --- Date Filter Bar --- */}
         {!isEditing && (
-            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-50 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 rounded-xl">
+              <div className="p-2 bg-orange-50 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 rounded-xl">
                 <Filter className="w-4 h-4" />
-                </div>
-                <div>
+              </div>
+              <div>
                 <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">{t.filterDay}</span>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Filter drier logs by tea manufacturing date (M/F Date)</p>
-                </div>
+              </div>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-                <input
+              <input
                 type="date"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
                 className="w-full sm:w-auto bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none px-3.5 py-2 transition-all"
-                />
-                {filterDate && (
+              />
+              {filterDate && (
                 <button
-                    onClick={() => setFilterDate("")}
-                    className="flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100/70 border border-rose-200/60 dark:border-rose-900/40 px-3 py-2 rounded-xl transition-colors cursor-pointer"
+                  onClick={() => setFilterDate("")}
+                  className="flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100/70 border border-rose-200/60 dark:border-rose-900/40 px-3 py-2 rounded-xl transition-colors cursor-pointer"
                 >
-                    <X className="w-3.5 h-3.5" /> {t.clear}
+                  <X className="w-3.5 h-3.5" /> {t.clear}
                 </button>
-                )}
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <input
-              type="date"
-              disabled={isEditing}
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              className="w-full sm:w-auto bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none px-3.5 py-2 transition-all disabled:opacity-50"
-            />
-            {filterDate && !isEditing && (
-              <button
-                onClick={() => setFilterDate("")}
-                className="flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100/70 border border-rose-200/60 dark:border-rose-900/40 px-3 py-2 rounded-xl transition-colors cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" /> {t.clear}
-              </button>
-            )}
-          </div>
-        </div>
+        )}
 
         {/* --- Main Dashboard Content --- */}
         {loading && allRecords.length === 0 ? (
@@ -961,7 +942,7 @@ const FiringSectionSummary = () => {
             <div className="w-10 h-10 border-4 border-orange-200 dark:border-orange-800 border-t-orange-600 rounded-full animate-spin mx-auto mb-4" />
             <p className="text-slate-500 dark:text-slate-400 font-semibold text-xs uppercase tracking-wider">Loading drier room record sheet...</p>
           </div>
-        ) : !displayRecord ? (
+        ) : !currentRecord ? (
           <div className="text-center py-24 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs">
             <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-2xl flex items-center justify-center mx-auto mb-3">
               <Package className="w-7 h-7" />
@@ -975,9 +956,9 @@ const FiringSectionSummary = () => {
             {/* Title Header & Editable Metadata */}
             <div className="text-center pb-6 border-b border-slate-100 dark:border-slate-800">
               {isEditing && (
-                  <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-800 px-4 py-1.5 rounded-full font-bold text-sm mb-4 animate-pulse">
-                      <Edit size={16}/> EDITING MODE ACTIVE
-                  </div>
+                <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-800 px-4 py-1.5 rounded-full font-bold text-sm mb-4 animate-pulse">
+                  <Edit size={16} /> EDITING MODE ACTIVE
+                </div>
               )}
               <h2 className="text-2xl sm:text-3xl font-black tracking-wider text-slate-900 dark:text-white uppercase">
                 DRIER ROOM RECORD SHEET
