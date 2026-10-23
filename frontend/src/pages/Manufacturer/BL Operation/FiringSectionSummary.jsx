@@ -15,6 +15,8 @@ import {
   Sparkles,
   UserCheck,
   Edit3,
+  Edit,
+  AlertTriangle,
   Save,
   RotateCcw,
 } from "lucide-react";
@@ -82,7 +84,7 @@ const FiringSectionSummary = () => {
   const [lang, setLang] = useState("EN");
   const [isDirty, setIsDirty] = useState(false);
 
-  // In-place editing state
+  // In-place editing state (Duplicates removed)
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -1325,6 +1327,7 @@ const FiringSectionSummary = () => {
         );
         setIsEditing(false);
         setEditForm(null);
+        setIsDirty(false);
       } else {
         toast.error(resData.message || "Failed to update record.", {
           id: toastId,
@@ -1348,30 +1351,18 @@ const FiringSectionSummary = () => {
         {isDirty && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-red-100 dark:bg-red-900/40 border-2 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)] p-4 rounded-2xl animate-pulse transition-all">
             <div className="flex items-center gap-3 w-full sm:w-auto">
-              <AlertTriangle
-                size={28}
-                className="text-red-600 dark:text-red-400 animate-bounce shrink-0"
-              />
+              <AlertTriangle size={28} className="text-red-600 dark:text-red-400 animate-bounce shrink-0" />
               <div>
-                <h3 className="text-red-800 dark:text-red-300 font-black text-sm sm:text-base uppercase tracking-wider">
-                  Unsaved Changes Detected!
-                </h3>
-                <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm font-semibold">
-                  Please save your data to prevent data loss.
-                </p>
+                <h3 className="text-red-800 dark:text-red-300 font-black text-sm sm:text-base uppercase tracking-wider">Unsaved Changes Detected!</h3>
+                <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm font-semibold">Please save your data to prevent data loss.</p>
               </div>
             </div>
             <button
-              onClick={handleSaveEdit}
+              onClick={handleSaveInline}
               disabled={isSaving}
               className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50"
             >
-              {isSaving ? (
-                <RefreshCw size={18} className="animate-spin" />
-              ) : (
-                <Save size={18} />
-              )}{" "}
-              Save Now
+              {isSaving ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />} Save Now
             </button>
           </div>
         )}
@@ -1497,12 +1488,8 @@ const FiringSectionSummary = () => {
                 <Filter className="w-4 h-4" />
               </div>
               <div>
-                <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-                  {t.filterDay}
-                </span>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                  Filter drier logs by tea manufacturing date (M/F Date)
-                </p>
+                <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">{t.filterDay}</span>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Filter drier logs by tea manufacturing date (M/F Date)</p>
               </div>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -1532,7 +1519,7 @@ const FiringSectionSummary = () => {
               Loading drier room record sheet...
             </p>
           </div>
-        ) : !displayRecord ? (
+        ) : !currentRecord ? (
           <div className="text-center py-24 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs">
             <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-2xl flex items-center justify-center mx-auto mb-3">
               <Package className="w-7 h-7" />
