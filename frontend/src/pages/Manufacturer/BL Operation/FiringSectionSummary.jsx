@@ -14,10 +14,9 @@ import {
   Package,
   Sparkles,
   UserCheck,
-  Edit,
+  Edit3,
   Save,
-  Info,
-  AlertTriangle
+  RotateCcw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PDFDownloader from '@/components/PDFDownloader';
@@ -42,6 +41,35 @@ const getTodayDate = () => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
+// Calculate duration string and decimal hours between HH:MM strings
+const calculateDuration = (start, finish) => {
+  if (!start || !finish) return { decimal: 0, str: '' };
+  try {
+    const [startH, startM] = start.split(':').map(Number);
+    const [endH, endM] = finish.split(':').map(Number);
+    if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) {
+      return { decimal: 0, str: '' };
+    }
+    let diffMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+    if (diffMinutes < 0) diffMinutes += 24 * 60;
+    const hrs = Math.floor(diffMinutes / 60);
+    const mins = diffMinutes % 60;
+    const decimal = parseFloat((diffMinutes / 60).toFixed(2));
+    return {
+      decimal,
+      str: `${hrs}h ${mins}m`
+    };
+  } catch {
+    return { decimal: 0, str: '' };
+  }
+};
+
+const preventNegativeKeys = (e) => {
+  if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
+    e.preventDefault();
+  }
+};
+
 const FiringSectionSummary = () => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -59,6 +87,11 @@ const FiringSectionSummary = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [editFormData, setEditFormData] = useState(null);
 
+  // In-place editing state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+
   // Dynamic Translations Dictionary
   const t = useMemo(() => ({
     title: lang === 'SI' ? "ඩ්‍රයර් කාමර වාර්තා පත්‍රිකාව" : "DRIER ROOM RECORD SHEET",
@@ -68,6 +101,9 @@ const FiringSectionSummary = () => {
     downloadPdf: lang === 'SI' ? "PDF බාගත කරන්න" : "Download PDF",
     filterDay: lang === 'SI' ? "නිෂ්පාදිත දිනය අනුව තෝරන්න (M/F Date):" : "Filter by M/F Date:",
     clear: lang === 'SI' ? "මකන්න" : "Clear",
+    editRecord: lang === 'SI' ? "සංස්කරණය කරන්න" : "Edit Record",
+    saveChanges: lang === 'SI' ? "සුරකින්න" : "Save Changes",
+    cancelEdit: lang === 'SI' ? "අවලංගු කරන්න" : "Cancel",
     noRecordFound: lang === 'SI' ? "තෝරාගත් දිනය සඳහා වාර්තා හමු නොවීය" : "No Drier Records Found",
     noRecordDesc: lang === 'SI' ? "මෙම නිෂ්පාදිත දිනය සඳහා තවමත් ඩ්‍රයර් කාමර සටහනක් ඇතුලත් කර නොමැත." : "There is no drier room sheet recorded for the selected manufacturing date.",
 
@@ -188,92 +224,81 @@ const FiringSectionSummary = () => {
     ) || null;
   }, [allRecords, filterDate]);
 
-  // --- EDIT FUNCTIONS ---
-  // --- EDIT FUNCTIONS ---
-  const handleEditClick = () => {
+  // When switching records or dates, cancel edit mode
+  useEffect(() => {
+    setIsEditing(false);
+    setEditForm(null);
+  }, [filterDate]);
+
+  // Start in-place editing: copy currentRecord into editForm
+  const handleStartEdit = () => {
     if (!currentRecord) return;
-    const clonedRecord = JSON.parse(JSON.stringify(currentRecord));
-    
-    clonedRecord.dhools = clonedRecord.dhools || { drier1: {}, drier2: {} };
-    clonedRecord.drier1 = clonedRecord.drier1 || {};
-    clonedRecord.drier2 = clonedRecord.drier2 || {};
-    clonedRecord.firewoodOutput = clonedRecord.firewoodOutput || { drier1: {}, drier2: {} };
-    clonedRecord.firewoodCost = clonedRecord.firewoodCost || { drier1: {}, drier2: {} };
-    
-    setEditFormData(clonedRecord);
+    setEditForm({
+      ...currentRecord,
+      dateOfManufacture: normalizeDate(currentRecord.dateOfManufacture),
+      cropDate: normalizeDate(currentRecord.cropDate) || normalizeDate(currentRecord.drier1?.day) || '',
+      cropKg: currentRecord.cropKg || '',
+      dhools: {
+        drier1: { ...(currentRecord.dhools?.drier1 || {}) },
+        drier2: { ...(currentRecord.dhools?.drier2 || {}) }
+      },
+      firewoodUsage: {
+        drier1: {
+          f: currentRecord.drier1?.ffrw1 ?? currentRecord.firewoodUsage?.drier1?.f ?? '',
+          rf: currentRecord.drier1?.ffrw2 ?? currentRecord.firewoodUsage?.drier1?.rf ?? '',
+          w: currentRecord.drier1?.ffrw3 ?? currentRecord.firewoodUsage?.drier1?.w ?? ''
+        },
+        drier2: {
+          f: currentRecord.drier2?.ffrw1 ?? currentRecord.firewoodUsage?.drier2?.f ?? '',
+          rf: currentRecord.drier2?.ffrw2 ?? currentRecord.firewoodUsage?.drier2?.rf ?? '',
+          w: currentRecord.drier2?.ffrw3 ?? currentRecord.firewoodUsage?.drier2?.w ?? ''
+        }
+      },
+      firewoodOutput: {
+        drier1: { ...(currentRecord.firewoodOutput?.drier1 || {}) },
+        drier2: { ...(currentRecord.firewoodOutput?.drier2 || {}) }
+      },
+      drier1: { ...(currentRecord.drier1 || {}) },
+      drier2: { ...(currentRecord.drier2 || {}) },
+      firewoodCost: {
+        drier1: { ...(currentRecord.firewoodCost?.drier1 || {}) },
+        drier2: { ...(currentRecord.firewoodCost?.drier2 || {}) }
+      },
+      officerName: currentRecord.officerName || '',
+      checkedBy: currentRecord.checkedBy || ''
+    });
     setIsEditing(true);
-    setIsDirty(false); // 💡 Reset dirty state
   };
 
   const handleCancelEdit = () => {
     setIsEditing(false);
-    setEditFormData(null);
-    setIsDirty(false); // 💡 Reset dirty state
+    setEditForm(null);
   };
 
-  const handleInputChange = (section, subsection, field, value) => {
-      setEditFormData(prev => {
-          const newData = { ...prev };
-          if (subsection) {
-              if (!newData[section]) newData[section] = {};
-              if (!newData[section][subsection]) newData[section][subsection] = {};
-              newData[section][subsection][field] = value;
-          } else if (section) {
-              if (!newData[section]) newData[section] = {};
-              newData[section][field] = value;
-          } else {
-              newData[field] = value;
-          }
-          return newData;
-      });
-      setIsDirty(true); // 💡 අගයක් වෙනස් කළ විගස Dirty බවට පත් කරයි
+  const handleNestedChange = (section, subSection, field, val) => {
+    if (val !== '' && parseFloat(val) < 0) return;
+    setEditForm(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [subSection]: {
+          ...prev[section]?.[subSection],
+          [field]: val
+        }
+      }
+    }));
   };
 
-  const handleSaveEdit = async () => {
-    if (!editFormData || !editFormData._id) return;
-    
-    setIsSaving(true);
-    const toastId = toast.loading("Saving changes...");
+  // Active data source: editForm when editing, else currentRecord
+  const activeRecord = isEditing ? editForm : currentRecord;
 
-    try {
-        const dataToSave = {
-            ...editFormData,
-            meta: { editedBy: currentUsername, editedAt: new Date().toISOString() }
-        };
-
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${BACKEND_URL}/api/firing-section/${editFormData._id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify(dataToSave)
-        });
-
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.message || "Failed to update record");
-        
-        toast.success("Record updated successfully!", { id: toastId });
-        setIsEditing(false);
-        setEditFormData(null);
-        setIsDirty(false); // 💡 Save වූ පසු Dirty State එක ඉවත් කරයි
-        fetchRecords(); 
-    } catch (error) {
-        console.error("Save error:", error);
-        toast.error(error.message || "Error saving record.", { id: toastId });
-    } finally {
-        setIsSaving(false);
-    }
-  };
-
-  // Switch between display data and edit data
-  const displayRecord = isEditing ? editFormData : currentRecord;
-
-  // Derived calculations across all sections
+  // Real-time calculations across all sections
   const calcData = useMemo(() => {
-    if (!displayRecord) return null;
+    if (!activeRecord) return null;
 
     // 1. Dhools Data
-    const d1 = displayRecord.dhools?.drier1 || {};
-    const d2 = displayRecord.dhools?.drier2 || {};
+    const d1 = activeRecord.dhools?.drier1 || {};
+    const d2 = activeRecord.dhools?.drier2 || {};
 
     const d1Items = {
       first: Number(d1.first) || 0,
@@ -303,21 +328,23 @@ const FiringSectionSummary = () => {
     const grandTotalFired = d1Total + d2Total;
 
     // 2. Firewood Usage
-    const dr1 = displayRecord.drier1 || {};
-    const dr2 = displayRecord.drier2 || {};
+    const dr1 = activeRecord.drier1 || {};
+    const dr2 = activeRecord.drier2 || {};
+    const fu1 = activeRecord.firewoodUsage?.drier1 || {};
+    const fu2 = activeRecord.firewoodUsage?.drier2 || {};
 
     const u1 = {
-      f: Number(dr1.ffrw1) || 0,
-      rf: Number(dr1.ffrw2) || 0,
-      w: Number(dr1.ffrw3) || 0,
+      f: Number(fu1.f) || Number(dr1.ffrw1) || 0,
+      rf: Number(fu1.rf) || Number(dr1.ffrw2) || 0,
+      w: Number(fu1.w) || Number(dr1.ffrw3) || 0,
       extra: Number(dr1.ffrw4) || 0
     };
     u1.total = u1.f + u1.rf + u1.w + u1.extra;
 
     const u2 = {
-      f: Number(dr2.ffrw1) || 0,
-      rf: Number(dr2.ffrw2) || 0,
-      w: Number(dr2.ffrw3) || 0,
+      f: Number(fu2.f) || Number(dr2.ffrw1) || 0,
+      rf: Number(fu2.rf) || Number(dr2.ffrw2) || 0,
+      w: Number(fu2.w) || Number(dr2.ffrw3) || 0,
       extra: Number(dr2.ffrw4) || 0
     };
     u2.total = u2.f + u2.rf + u2.w + u2.extra;
@@ -331,8 +358,8 @@ const FiringSectionSummary = () => {
     };
 
     // 3. Firewood Output
-    const fo1 = displayRecord.firewoodOutput?.drier1 || {};
-    const fo2 = displayRecord.firewoodOutput?.drier2 || {};
+    const fo1 = activeRecord.firewoodOutput?.drier1 || {};
+    const fo2 = activeRecord.firewoodOutput?.drier2 || {};
 
     const out1 = {
       withoutWithering: Number(fo1.withoutWithering) || 0,
@@ -355,17 +382,31 @@ const FiringSectionSummary = () => {
       total: out1.total + out2.total
     };
 
-    // 4. Drier Hours and Output / Hour
-    const h1 = Number(dr1.totalHours) || Number(dr1.periodDecimal) || 0;
-    const h2 = Number(dr2.totalHours) || Number(dr2.periodDecimal) || 0;
-    const hTotal = h1 + h2;
+    // 4. Robust Drier Hours and Output / Hour
+    const d1Dur = calculateDuration(dr1.start, dr1.finish);
+    const d2Dur = calculateDuration(dr2.start, dr2.finish);
 
-    const outPerH1 = h1 > 0 ? (d1Total / h1).toFixed(2) : '0.00';
-    const outPerH2 = h2 > 0 ? (d2Total / h2).toFixed(2) : '0.00';
+    const h1 = Number(dr1.totalHours) > 0
+      ? Number(dr1.totalHours)
+      : (d1Dur.decimal > 0 ? d1Dur.decimal : (Number(dr1.periodDecimal) || 0));
+
+    const h2 = Number(dr2.totalHours) > 0
+      ? Number(dr2.totalHours)
+      : (d2Dur.decimal > 0 ? d2Dur.decimal : (Number(dr2.periodDecimal) || 0));
+
+    const hTotal = parseFloat((h1 + h2).toFixed(2));
+
+    const outPerH1 = h1 > 0
+      ? (d1Total / h1).toFixed(2)
+      : (Number(dr1.outputPerHour) ? Number(dr1.outputPerHour).toFixed(2) : '0.00');
+
+    const outPerH2 = h2 > 0
+      ? (d2Total / h2).toFixed(2)
+      : (Number(dr2.outputPerHour) ? Number(dr2.outputPerHour).toFixed(2) : '0.00');
 
     // 5. Cost of Firewood
-    const fc1 = displayRecord.firewoodCost?.drier1 || {};
-    const fc2 = displayRecord.firewoodCost?.drier2 || {};
+    const fc1 = activeRecord.firewoodCost?.drier1 || {};
+    const fc2 = activeRecord.firewoodCost?.drier2 || {};
 
     const c1 = {
       fwKg: Number(fc1.totalFwKg) || 0,
@@ -394,12 +435,17 @@ const FiringSectionSummary = () => {
       totalItems, grandTotalFired,
       u1, u2, uTotal,
       out1, out2, outTotal,
+      d1Dur, d2Dur,
       h1, h2, hTotal, outPerH1, outPerH2,
       c1, c2, cTotal
     };
-  }, [displayRecord]);
+  }, [activeRecord]);
 
-  const docRefCode = `DRS/${(displayRecord?.dateOfManufacture || filterDate || '').replace(/-/g, '')}`;
+  const resolvedCropDate = useMemo(() => {
+    return normalizeDate(activeRecord?.cropDate) || normalizeDate(activeRecord?.drier1?.day) || '-';
+  }, [activeRecord]);
+
+  const docRefCode = `DRS/${(normalizeDate(activeRecord?.dateOfManufacture) || filterDate || '').replace(/-/g, '')}`;
 
   // Multi-tier headers for Dhools
   const pdfHeaders = useMemo(() => [
@@ -425,13 +471,10 @@ const FiringSectionSummary = () => {
 
   // Complete unified data matrix
   const pdfData = useMemo(() => {
-    if (!displayRecord || !calcData) return [];
+    if (!activeRecord || !calcData) return [];
 
     const rows = [];
-    const d1 = displayRecord.drier1 || {};
-    const d2 = displayRecord.drier2 || {};
 
-    // Section 1: Dhools Rows
     const grades = [
       { l1: "1ST", l2: "1ST", l3: "1ST", k: 'first' },
       { l1: "2ND", l2: "2ND", l3: "2ND", k: 'second' },
@@ -523,13 +566,13 @@ const FiringSectionSummary = () => {
     ]);
 
     rows.push([
-      { content: "START TIME", colSpan: 2, styles: { fontStyle: 'bold' } }, { content: d1.start || '-' },
-      { content: "START TIME", colSpan: 2, styles: { fontStyle: 'bold' } }, { content: d2.start || '-' },
+      { content: "START TIME", colSpan: 2, styles: { fontStyle: 'bold' } }, { content: activeRecord.drier1?.start || '-' },
+      { content: "START TIME", colSpan: 2, styles: { fontStyle: 'bold' } }, { content: activeRecord.drier2?.start || '-' },
       { content: "", colSpan: 3, styles: { fillColor: [248, 250, 252] } }
     ]);
     rows.push([
-      { content: "END TIME", colSpan: 2, styles: { fontStyle: 'bold' } }, { content: d1.finish || '-' },
-      { content: "END TIME", colSpan: 2, styles: { fontStyle: 'bold' } }, { content: d2.finish || '-' },
+      { content: "END TIME", colSpan: 2, styles: { fontStyle: 'bold' } }, { content: activeRecord.drier1?.finish || '-' },
+      { content: "END TIME", colSpan: 2, styles: { fontStyle: 'bold' } }, { content: activeRecord.drier2?.finish || '-' },
       { content: "", colSpan: 3, styles: { fillColor: [248, 250, 252] } }
     ]);
     rows.push([
@@ -566,7 +609,7 @@ const FiringSectionSummary = () => {
     });
 
     return rows;
-  }, [displayRecord, calcData]);
+  }, [activeRecord, calcData]);
 
   const autoTableOptions = useMemo(() => ({
     startY: 56,
@@ -589,7 +632,7 @@ const FiringSectionSummary = () => {
       const pageWidth = doc.internal.pageSize.getWidth();
       const contentWidth = pageWidth - 24;
 
-      // 1. Clean Title
+      // 1. Title
       doc.setFontSize(18);
       doc.setTextColor(0, 0, 0);
       doc.setFont(undefined, 'bold');
@@ -599,15 +642,15 @@ const FiringSectionSummary = () => {
       // 2. Metadata (Top Left)
       doc.setFontSize(8);
       doc.text("M/F DATE   :  ", startX, 36);
-      if (displayRecord?.dateOfManufacture) {
+      if (activeRecord?.dateOfManufacture) {
         doc.setFont(undefined, 'bold');
-        doc.text(displayRecord.dateOfManufacture, startX + 22, 35.6);
+        doc.text(normalizeDate(activeRecord.dateOfManufacture), startX + 22, 35.6);
       }
 
       doc.setFont(undefined, 'bold');
       doc.text("CROP DATE :  ", startX, 43);
-      if (displayRecord?.drier1?.day) {
-        doc.text(displayRecord.drier1.day, startX + 22, 42.6);
+      if (resolvedCropDate && resolvedCropDate !== '-') {
+        doc.text(resolvedCropDate, startX + 22, 42.6);
       }
 
       doc.text("CROP (Kg)  :   ", startX, 50);
@@ -615,11 +658,9 @@ const FiringSectionSummary = () => {
         doc.text(`${(calcData.grandTotalFired * 4.2).toFixed(2)} kg`, startX + 22, 49.6);
       }
 
-      // ----------------------------------------------------
-      // 3. Benchmark Spec Box (Shifted 15 units higher)
-      // ----------------------------------------------------
+      // 3. Benchmark Spec Box
       const tableFinalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 230;
-      const bBoxY = tableFinalY - 4; // Shifted 15 points higher from previous (+5 to -10)
+      const bBoxY = tableFinalY - 4;
       const bBoxH = 17;
 
       doc.setDrawColor(182, 176, 159);
@@ -641,7 +682,6 @@ const FiringSectionSummary = () => {
         doc.setTextColor(182, 176, 159);
         doc.text(br[0], startX + 20, curY);
 
-        // Native Arrow Lines
         doc.setLineWidth(0.2);
         doc.line(startX + 52, curY - 0.8, startX + 64, curY - 0.8);
         doc.line(startX + 62, curY - 1.8, startX + 64, curY - 0.8);
@@ -650,32 +690,96 @@ const FiringSectionSummary = () => {
         doc.text(br[1], startX + 70, curY);
       });
     }
-  }), [displayRecord, calcData]);
+  }), [activeRecord, calcData, resolvedCropDate]);
 
-  // Input helper for edit mode
-  const renderEditInput = (section, subsection, field, val, type = "number") => {
-    if (!isEditing) return val;
-    return (
-        <input 
-            type={type}
-            value={val || ''}
-            onChange={(e) => handleInputChange(section, subsection, field, e.target.value)}
-            className="w-20 p-1 text-center border border-orange-300 rounded focus:ring-2 focus:ring-orange-500 outline-none text-slate-800 bg-white"
-        />
-    );
+  // Save in-place changes directly to backend
+  const handleSaveInline = async () => {
+    if (!editForm || !editForm._id) {
+      toast.error("Invalid record identifier.");
+      return;
+    }
+
+    const toastId = toast.loading("Saving changes...");
+    setIsSaving(true);
+
+    try {
+      const token = localStorage.getItem("token");
+
+      const d1 = editForm.dhools?.drier1 || {};
+      const d2 = editForm.dhools?.drier2 || {};
+      const d1Total = (Number(d1.first) || 0) + (Number(d1.second) || 0) + (Number(d1.third) || 0) + (Number(d1.dir) || 0) + (Number(d1.bigBulk) || 0);
+      const d2Total = (Number(d2.first) || 0) + (Number(d2.second) || 0) + (Number(d2.third) || 0) + (Number(d2.dir) || 0) + (Number(d2.bigBulk) || 0);
+
+      const d1Dur = calculateDuration(editForm.drier1?.start, editForm.drier1?.finish);
+      const d2Dur = calculateDuration(editForm.drier2?.start, editForm.drier2?.finish);
+
+      const outPerH1 = d1Dur.decimal > 0 ? parseFloat((d1Total / d1Dur.decimal).toFixed(2)) : 0;
+      const outPerH2 = d2Dur.decimal > 0 ? parseFloat((d2Total / d2Dur.decimal).toFixed(2)) : 0;
+
+      const c1Cost = (Number(editForm.firewoodCost?.drier1?.totalFwKg) || 0) * (Number(editForm.firewoodCost?.drier1?.unitPrice) || 0);
+      const c2Cost = (Number(editForm.firewoodCost?.drier2?.totalFwKg) || 0) * (Number(editForm.firewoodCost?.drier2?.unitPrice) || 0);
+
+      const payload = {
+        ...editForm,
+        cropDate: editForm.cropDate,
+        drier1: {
+          ...editForm.drier1,
+          day: editForm.cropDate,
+          ffrw1: editForm.firewoodUsage?.drier1?.f || 0,
+          ffrw2: editForm.firewoodUsage?.drier1?.rf || 0,
+          ffrw3: editForm.firewoodUsage?.drier1?.w || 0,
+          periodStr: d1Dur.str,
+          periodDecimal: d1Dur.decimal,
+          totalHours: d1Dur.decimal,
+          outputPerHour: outPerH1
+        },
+        drier2: {
+          ...editForm.drier2,
+          day: editForm.cropDate,
+          ffrw1: editForm.firewoodUsage?.drier2?.f || 0,
+          ffrw2: editForm.firewoodUsage?.drier2?.rf || 0,
+          ffrw3: editForm.firewoodUsage?.drier2?.w || 0,
+          periodStr: d2Dur.str,
+          periodDecimal: d2Dur.decimal,
+          totalHours: d2Dur.decimal,
+          outputPerHour: outPerH2
+        },
+        summary: {
+          d1TotalFired: d1Total,
+          d2TotalFired: d2Total,
+          grandTotalFiredTea: d1Total + d2Total,
+          d1FwCost: c1Cost,
+          d2FwCost: c2Cost
+        }
+      };
+
+      const response = await fetch(`${BACKEND_URL}/api/firing-section/${editForm._id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const resData = await response.json();
+      if (response.ok && resData.success) {
+        toast.success("Drier record updated successfully!", { id: toastId });
+        setAllRecords(prev => prev.map(rec => rec._id === editForm._id ? (resData.data || payload) : rec));
+        setIsEditing(false);
+        setEditForm(null);
+      } else {
+        toast.error(resData.message || "Failed to update record.", { id: toastId });
+      }
+    } catch (err) {
+      console.error("Save error:", err);
+      toast.error("Error communicating with server.", { id: toastId });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const renderEditTime = (section, field, val) => {
-      if (!isEditing) return val;
-      return (
-          <input 
-              type="time"
-              value={val || ''}
-              onChange={(e) => handleInputChange(section, null, field, e.target.value)}
-              className="w-28 p-1 text-center border border-orange-300 rounded focus:ring-2 focus:ring-orange-500 outline-none text-slate-800 bg-white"
-          />
-      );
-  }
+  const inlineInput = "w-full bg-white dark:bg-slate-800 border border-orange-400/80 dark:border-orange-500/80 text-slate-900 dark:text-slate-100 rounded-md px-1.5 py-1 text-xs text-center font-bold outline-none ring-2 ring-orange-500/10 focus:ring-orange-500 transition-all";
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-4 md:p-8 font-sans transition-colors duration-200">
@@ -715,65 +819,70 @@ const FiringSectionSummary = () => {
                 <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
                   {t.title}
                 </h1>
-                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 bg-orange-50 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 rounded-full border border-orange-200/60 dark:border-orange-800/60">
-                  <Sparkles className="w-3 h-3 text-orange-500" /> Operational Record
-                </span>
+                {isEditing ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 bg-amber-500 text-white rounded-full shadow-xs animate-pulse">
+                    <Edit3 className="w-3 h-3" /> In-Place Edit Mode
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 bg-orange-50 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 rounded-full border border-orange-200/60 dark:border-orange-800/60">
+                    <Sparkles className="w-3 h-3 text-orange-500" /> Operational Record
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">{t.subtitle}</p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto justify-start xl:justify-end z-10">
-            
-            {/* Edit Actions */}
-            {currentRecord && !isEditing && (
+            {/* Edit / Save / Cancel Buttons */}
+            {currentRecord && (
+              !isEditing ? (
                 <button
-                    onClick={handleEditClick}
-                    className="px-4 py-2.5 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/40 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800/50 rounded-xl transition-all font-bold text-sm flex items-center gap-2 shadow-xs active:scale-95 cursor-pointer"
+                  type="button"
+                  onClick={handleStartEdit}
+                  className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
                 >
-                    <Edit size={15} />
-                    {t.editBtn}
+                  <Edit3 size={15} />
+                  {t.editRecord}
                 </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    disabled={isSaving}
+                    className="px-3.5 py-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RotateCcw size={14} />
+                    {t.cancelEdit}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveInline}
+                    disabled={isSaving}
+                    className="px-4 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
+                  >
+                    <Save size={14} />
+                    {t.saveChanges}
+                  </button>
+                </div>
+              )
             )}
 
-            {isEditing && (
-                <>
-                    <button
-                        onClick={handleCancelEdit}
-                        disabled={isSaving}
-                        className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition-all font-bold text-xs flex items-center gap-2"
-                    >
-                        <X size={15} />
-                        {t.cancelBtn}
-                    </button>
-                    <button
-                        onClick={handleSaveEdit}
-                        disabled={isSaving}
-                        className="px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl transition-all font-bold text-xs flex items-center gap-2 shadow-md active:scale-95 disabled:opacity-50"
-                    >
-                        {isSaving ? <RefreshCw size={15} className="animate-spin" /> : <Save size={15} />}
-                        {t.saveBtn}
-                    </button>
-                </>
-            )}
-
-
-            {/* Native PDFDownloader handling  footer */}
-            {!isEditing && (
-              <PDFDownloader
-                title=""
-                subtitle=""
-                headers={pdfHeaders}
-                data={pdfData}
-                fileName={`Drier_Room_Record_Sheet_${lang}_MF_${displayRecord?.dateOfManufacture || filterDate || 'Report'}.pdf`}
-                orientation="portrait"
-                uniqueCode={docRefCode}
-                userName={displayRecord?.officerName || currentUsername}
-                userRole={userRole}
-                autoTableOptions={autoTableOptions}
-                disabled={!displayRecord || pdfData.length === 0}
-              />
-            )}
+            {/* Native PDFDownloader */}
+            <PDFDownloader
+              title=""
+              subtitle=""
+              headers={pdfHeaders}
+              data={pdfData}
+              fileName={`Drier_Room_Record_Sheet_${lang}_MF_${normalizeDate(activeRecord?.dateOfManufacture) || filterDate || 'Report'}.pdf`}
+              orientation="portrait"
+              uniqueCode={docRefCode}
+              userName={activeRecord?.officerName || currentUsername}
+              userRole={userRole}
+              autoTableOptions={autoTableOptions}
+              disabled={!activeRecord || pdfData.length === 0}
+            />
 
             {/* Language Switcher */}
             <button
@@ -786,17 +895,15 @@ const FiringSectionSummary = () => {
             </button>
 
             {/* Sync Button */}
-            {!isEditing && (
-                <button
-                type="button"
-                onClick={fetchRecords}
-                disabled={loading}
-                className="px-4 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-all font-bold text-xs flex items-center gap-2 shadow-xs active:scale-95 cursor-pointer"
-                >
-                <RefreshCw size={14} className={loading ? 'animate-spin text-orange-600' : 'text-slate-500 dark:text-slate-400'} />
-                {loading ? t.refreshing : t.sync}
-                </button>
-            )}
+            <button
+              type="button"
+              onClick={fetchRecords}
+              disabled={loading || isEditing}
+              className="px-4 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl transition-all font-bold text-xs flex items-center gap-2 shadow-xs active:scale-95 cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin text-orange-600' : 'text-slate-500 dark:text-slate-400'} />
+              {loading ? t.refreshing : t.sync}
+            </button>
           </div>
         </div>
 
@@ -828,8 +935,25 @@ const FiringSectionSummary = () => {
                 </button>
                 )}
             </div>
-            </div>
-        )}
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <input
+              type="date"
+              disabled={isEditing}
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="w-full sm:w-auto bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs font-bold rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none px-3.5 py-2 transition-all disabled:opacity-50"
+            />
+            {filterDate && !isEditing && (
+              <button
+                onClick={() => setFilterDate("")}
+                className="flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100/70 border border-rose-200/60 dark:border-rose-900/40 px-3 py-2 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" /> {t.clear}
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* --- Main Dashboard Content --- */}
         {loading && allRecords.length === 0 ? (
@@ -846,9 +970,9 @@ const FiringSectionSummary = () => {
             <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 max-w-sm mx-auto font-medium">{t.noRecordDesc}</p>
           </div>
         ) : (
-          <div className={`bg-white dark:bg-slate-900 rounded-3xl border ${isEditing ? 'border-orange-400 shadow-orange-500/20' : 'border-slate-200/90 dark:border-slate-800'} shadow-sm p-6 md:p-10 overflow-hidden font-sans transition-all duration-200 flex flex-col gap-8`}>
+          <div className={`bg-white dark:bg-slate-900 rounded-3xl border shadow-sm p-6 md:p-10 overflow-hidden font-sans transition-colors duration-200 flex flex-col gap-8 ${isEditing ? 'border-orange-400 ring-2 ring-orange-400/20' : 'border-slate-200/90 dark:border-slate-800'}`}>
 
-            {/* Title Header */}
+            {/* Title Header & Editable Metadata */}
             <div className="text-center pb-6 border-b border-slate-100 dark:border-slate-800">
               {isEditing && (
                   <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-800 px-4 py-1.5 rounded-full font-bold text-sm mb-4 animate-pulse">
@@ -859,11 +983,56 @@ const FiringSectionSummary = () => {
                 DRIER ROOM RECORD SHEET
               </h2>
               <div className="flex flex-wrap justify-center items-center gap-6 mt-3 text-xs font-bold text-slate-600 dark:text-slate-400">
-                <div>{t.mfDate} : <span className="text-slate-900 dark:text-white font-extrabold">{displayRecord.dateOfManufacture}</span></div>
+                <div className="flex items-center gap-1.5">
+                  {t.mfDate} :{" "}
+                  {isEditing ? (
+                    <input
+                      type="date"
+                      value={editForm.dateOfManufacture}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, dateOfManufacture: e.target.value }))}
+                      className="bg-orange-50 dark:bg-slate-800 border border-orange-300 dark:border-orange-700 rounded-md px-2 py-0.5 text-xs font-black text-slate-900 dark:text-white outline-none"
+                    />
+                  ) : (
+                    <span className="text-slate-900 dark:text-white font-extrabold">{normalizeDate(activeRecord.dateOfManufacture)}</span>
+                  )}
+                </div>
                 <div>•</div>
-                <div>{t.cropDate} : <span className="text-slate-900 dark:text-white font-extrabold">{displayRecord.drier1?.day || '-'}</span></div>
+                <div className="flex items-center gap-1.5">
+                  {t.cropDate} :{" "}
+                  {isEditing ? (
+                    <input
+                      type="date"
+                      value={editForm.cropDate}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, cropDate: e.target.value }))}
+                      className="bg-orange-50 dark:bg-slate-800 border border-orange-300 dark:border-orange-700 rounded-md px-2 py-0.5 text-xs font-black text-slate-900 dark:text-white outline-none"
+                    />
+                  ) : (
+                    <span className="text-slate-900 dark:text-white font-extrabold">{resolvedCropDate}</span>
+                  )}
+                </div>
                 <div>•</div>
-                <div>{t.cropKg} : <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">{calcData?.grandTotalFired ? (calcData.grandTotalFired * 4.2).toFixed(2) + ' kg' : '-'}</span></div>
+                <div className="flex items-center gap-1.5">
+                  {t.cropKg} :{" "}
+                  {isEditing ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="0.00"
+                        onKeyDown={preventNegativeKeys}
+                        value={editForm.cropKg}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, cropKg: e.target.value }))}
+                        className="w-24 bg-orange-50 dark:bg-slate-800 border border-orange-300 dark:border-orange-700 rounded-md px-2 py-0.5 text-xs font-black text-emerald-700 dark:text-emerald-400 outline-none text-center"
+                      />
+                      <span className="text-[10px] text-slate-400">kg</span>
+                    </div>
+                  ) : (
+                    <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">
+                      {activeRecord.cropKg ? `${Number(activeRecord.cropKg).toFixed(2)} kg` : (calcData?.grandTotalFired ? (calcData.grandTotalFired * 4.2).toFixed(2) + ' kg' : '-')}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -910,21 +1079,45 @@ const FiringSectionSummary = () => {
 
                       return (
                         <tr key={k} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
-                          <td className="p-2.5 text-left font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{label}</td>
-                          <td className="p-2.5 font-bold border-r border-slate-200 dark:border-slate-800">
-                            {renderEditInput('dhools', 'drier1', k, d1Kg)}
+                          <td className="p-2 text-left font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{label}</td>
+                          <td className="p-1.5 border-r border-slate-200 dark:border-slate-800">
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                onKeyDown={preventNegativeKeys}
+                                value={editForm.dhools?.drier1?.[k] ?? ''}
+                                onChange={(e) => handleNestedChange('dhools', 'drier1', k, e.target.value)}
+                                className={inlineInput}
+                              />
+                            ) : (
+                              <span className="font-bold">{d1Kg.toFixed(2)}</span>
+                            )}
                           </td>
-                          <td className="p-2.5 text-slate-500 dark:text-slate-400 font-semibold border-r border-slate-200 dark:border-slate-800">{d1Pct}%</td>
+                          <td className="p-2 text-slate-500 dark:text-slate-400 font-semibold border-r border-slate-200 dark:border-slate-800">{d1Pct}%</td>
 
-                          <td className="p-2.5 text-left font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{label}</td>
-                          <td className="p-2.5 font-bold border-r border-slate-200 dark:border-slate-800">
-                             {renderEditInput('dhools', 'drier2', k, d2Kg)}
+                          <td className="p-2 text-left font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{label}</td>
+                          <td className="p-1.5 border-r border-slate-200 dark:border-slate-800">
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                onKeyDown={preventNegativeKeys}
+                                value={editForm.dhools?.drier2?.[k] ?? ''}
+                                onChange={(e) => handleNestedChange('dhools', 'drier2', k, e.target.value)}
+                                className={inlineInput}
+                              />
+                            ) : (
+                              <span className="font-bold">{d2Kg.toFixed(2)}</span>
+                            )}
                           </td>
-                          <td className="p-2.5 text-slate-500 dark:text-slate-400 font-semibold border-r border-slate-200 dark:border-slate-800">{d2Pct}%</td>
+                          <td className="p-2 text-slate-500 dark:text-slate-400 font-semibold border-r border-slate-200 dark:border-slate-800">{d2Pct}%</td>
 
-                          <td className="p-2.5 text-left font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{label}</td>
-                          <td className="p-2.5 font-black text-amber-700 dark:text-amber-400 border-r border-slate-200 dark:border-slate-800">{totKg.toFixed(2)}</td>
-                          <td className="p-2.5 font-bold text-amber-800 dark:text-amber-300">{totPct}%</td>
+                          <td className="p-2 text-left font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{label}</td>
+                          <td className="p-2 font-black text-amber-700 dark:text-amber-400 border-r border-slate-200 dark:border-slate-800">{totKg.toFixed(2)}</td>
+                          <td className="p-2 font-bold text-amber-800 dark:text-amber-300">{totPct}%</td>
                         </tr>
                       );
                     })}
@@ -977,15 +1170,39 @@ const FiringSectionSummary = () => {
                   </thead>
                   <tbody className="bg-white dark:bg-slate-900 font-bold">
                     <tr>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{renderEditInput('drier1', null, 'ffrw1', calcData?.u1.f)}</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{renderEditInput('drier1', null, 'ffrw2', calcData?.u1.rf)}</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{renderEditInput('drier1', null, 'ffrw3', calcData?.u1.w)}</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{renderEditInput('drier1', null, 'ffrw4', calcData?.u1.extra)}</td>
+                      <td className="p-1.5 border-r border-slate-200 dark:border-slate-800">
+                        {isEditing ? (
+                          <input type="number" min="0" onKeyDown={preventNegativeKeys} value={editForm.firewoodUsage?.drier1?.f ?? ''} onChange={(e) => handleNestedChange('firewoodUsage', 'drier1', 'f', e.target.value)} className={inlineInput} />
+                        ) : calcData?.u1.f}
+                      </td>
+                      <td className="p-1.5 border-r border-slate-200 dark:border-slate-800">
+                        {isEditing ? (
+                          <input type="number" min="0" onKeyDown={preventNegativeKeys} value={editForm.firewoodUsage?.drier1?.rf ?? ''} onChange={(e) => handleNestedChange('firewoodUsage', 'drier1', 'rf', e.target.value)} className={inlineInput} />
+                        ) : calcData?.u1.rf}
+                      </td>
+                      <td className="p-1.5 border-r border-slate-200 dark:border-slate-800">
+                        {isEditing ? (
+                          <input type="number" min="0" onKeyDown={preventNegativeKeys} value={editForm.firewoodUsage?.drier1?.w ?? ''} onChange={(e) => handleNestedChange('firewoodUsage', 'drier1', 'w', e.target.value)} className={inlineInput} />
+                        ) : calcData?.u1.w}
+                      </td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 text-blue-700 dark:text-blue-400 font-black">{calcData?.u1.total}</td>
 
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{renderEditInput('drier2', null, 'ffrw1', calcData?.u2.f)}</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{renderEditInput('drier2', null, 'ffrw2', calcData?.u2.rf)}</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{renderEditInput('drier2', null, 'ffrw3', calcData?.u2.w)}</td>
-                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">{renderEditInput('drier2', null, 'ffrw4', calcData?.u2.extra)}</td>
+                      <td className="p-1.5 border-r border-slate-200 dark:border-slate-800">
+                        {isEditing ? (
+                          <input type="number" min="0" onKeyDown={preventNegativeKeys} value={editForm.firewoodUsage?.drier2?.f ?? ''} onChange={(e) => handleNestedChange('firewoodUsage', 'drier2', 'f', e.target.value)} className={inlineInput} />
+                        ) : calcData?.u2.f}
+                      </td>
+                      <td className="p-1.5 border-r border-slate-200 dark:border-slate-800">
+                        {isEditing ? (
+                          <input type="number" min="0" onKeyDown={preventNegativeKeys} value={editForm.firewoodUsage?.drier2?.rf ?? ''} onChange={(e) => handleNestedChange('firewoodUsage', 'drier2', 'rf', e.target.value)} className={inlineInput} />
+                        ) : calcData?.u2.rf}
+                      </td>
+                      <td className="p-1.5 border-r border-slate-200 dark:border-slate-800">
+                        {isEditing ? (
+                          <input type="number" min="0" onKeyDown={preventNegativeKeys} value={editForm.firewoodUsage?.drier2?.w ?? ''} onChange={(e) => handleNestedChange('firewoodUsage', 'drier2', 'w', e.target.value)} className={inlineInput} />
+                        ) : calcData?.u2.w}
+                      </td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 text-emerald-700 dark:text-emerald-400 font-black">{calcData?.u2.total}</td>
 
                       <td className="p-3 border-r border-slate-200 dark:border-slate-800">{calcData?.uTotal.f}</td>
                       <td className="p-3 border-r border-slate-200 dark:border-slate-800">{calcData?.uTotal.rf}</td>
@@ -1009,42 +1226,44 @@ const FiringSectionSummary = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900 font-medium">
-                    <tr>
-                      <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800 w-1/6">{t.withoutWithering}</td>
-                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 w-1/6 text-center">
-                          {renderEditInput('firewoodOutput', 'drier1', 'withoutWithering', calcData?.out1.withoutWithering)} {isEditing ? '' : 'kg'}
-                      </td>
-                      <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800 w-1/6">{t.withoutWithering}</td>
-                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 w-1/6 text-center">
-                          {renderEditInput('firewoodOutput', 'drier2', 'withoutWithering', calcData?.out2.withoutWithering)} {isEditing ? '' : 'kg'}
-                      </td>
-                      <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800 w-1/6">{t.withoutWithering}</td>
-                      <td className="p-2.5 w-1/6 text-center font-bold">{calcData?.outTotal.withoutWithering} kg</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.withering}</td>
-                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center">
-                          {renderEditInput('firewoodOutput', 'drier1', 'withWithering', calcData?.out1.withering)} {isEditing ? '' : 'kg'}
-                      </td>
-                      <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.withering}</td>
-                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center">
-                          {renderEditInput('firewoodOutput', 'drier2', 'withWithering', calcData?.out2.withering)} {isEditing ? '' : 'kg'}
-                      </td>
-                      <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.withering}</td>
-                      <td className="p-2.5 text-center font-bold">{calcData?.outTotal.withering} kg</td>
-                    </tr>
-                    <tr>
-                      <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.rf}</td>
-                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center">
-                          {renderEditInput('firewoodOutput', 'drier1', 'rf', calcData?.out1.rf)} {isEditing ? '' : 'kg'}
-                      </td>
-                      <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.rf}</td>
-                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center">
-                          {renderEditInput('firewoodOutput', 'drier2', 'rf', calcData?.out2.rf)} {isEditing ? '' : 'kg'}
-                      </td>
-                      <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.rf}</td>
-                      <td className="p-2.5 text-center font-bold">{calcData?.outTotal.rf} kg</td>
-                    </tr>
+                    {[
+                      { label: t.withoutWithering, k: 'withoutWithering' },
+                      { label: t.withering, k: 'withering' },
+                      { label: t.rf, k: 'rf' }
+                    ].map(({ label, k }) => (
+                      <tr key={k}>
+                        <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800 w-1/6">{label}</td>
+                        <td className="p-1.5 border-r border-slate-200 dark:border-slate-800 w-1/6 text-center">
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              onKeyDown={preventNegativeKeys}
+                              value={editForm.firewoodOutput?.drier1?.[k] ?? ''}
+                              onChange={(e) => handleNestedChange('firewoodOutput', 'drier1', k, e.target.value)}
+                              className={inlineInput}
+                            />
+                          ) : `${calcData?.out1[k].toFixed(2)} kg`}
+                        </td>
+                        <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800 w-1/6">{label}</td>
+                        <td className="p-1.5 border-r border-slate-200 dark:border-slate-800 w-1/6 text-center">
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              onKeyDown={preventNegativeKeys}
+                              value={editForm.firewoodOutput?.drier2?.[k] ?? ''}
+                              onChange={(e) => handleNestedChange('firewoodOutput', 'drier2', k, e.target.value)}
+                              className={inlineInput}
+                            />
+                          ) : `${calcData?.out2[k].toFixed(2)} kg`}
+                        </td>
+                        <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800 w-1/6">{label}</td>
+                        <td className="p-2.5 w-1/6 text-center font-bold">{calcData?.outTotal[k].toFixed(2)} kg</td>
+                      </tr>
+                    ))}
                   </tbody>
                   <tfoot>
                     <tr className="bg-slate-100 dark:bg-slate-800 font-black text-slate-900 dark:text-white border-t-2 border-slate-300 dark:border-slate-700">
@@ -1074,35 +1293,59 @@ const FiringSectionSummary = () => {
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900 font-medium">
                     <tr>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.startTime}</td>
-                      <td className="p-2.5 text-center font-bold border-r border-slate-200 dark:border-slate-800">
-                          {renderEditTime('drier1', 'start', displayRecord.drier1?.start)}
+                      <td className="p-1.5 text-center font-bold border-r border-slate-200 dark:border-slate-800">
+                        {isEditing ? (
+                          <input
+                            type="time"
+                            value={editForm.drier1?.start || ''}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, drier1: { ...prev.drier1, start: e.target.value } }))}
+                            className={inlineInput}
+                          />
+                        ) : (activeRecord.drier1?.start || '-')}
                       </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.startTime}</td>
-                      <td className="p-2.5 text-center font-bold border-r border-slate-200 dark:border-slate-800">
-                          {renderEditTime('drier2', 'start', displayRecord.drier2?.start)}
+                      <td className="p-1.5 text-center font-bold border-r border-slate-200 dark:border-slate-800">
+                        {isEditing ? (
+                          <input
+                            type="time"
+                            value={editForm.drier2?.start || ''}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, drier2: { ...prev.drier2, start: e.target.value } }))}
+                            className={inlineInput}
+                          />
+                        ) : (activeRecord.drier2?.start || '-')}
                       </td>
                       <td colSpan={2} className="p-2.5 bg-slate-50 dark:bg-slate-800/40"></td>
                     </tr>
                     <tr>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.endTime}</td>
-                      <td className="p-2.5 text-center font-bold border-r border-slate-200 dark:border-slate-800">
-                          {renderEditTime('drier1', 'finish', displayRecord.drier1?.finish)}
+                      <td className="p-1.5 text-center font-bold border-r border-slate-200 dark:border-slate-800">
+                        {isEditing ? (
+                          <input
+                            type="time"
+                            value={editForm.drier1?.finish || ''}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, drier1: { ...prev.drier1, finish: e.target.value } }))}
+                            className={inlineInput}
+                          />
+                        ) : (activeRecord.drier1?.finish || '-')}
                       </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.endTime}</td>
-                      <td className="p-2.5 text-center font-bold border-r border-slate-200 dark:border-slate-800">
-                           {renderEditTime('drier2', 'finish', displayRecord.drier2?.finish)}
+                      <td className="p-1.5 text-center font-bold border-r border-slate-200 dark:border-slate-800">
+                        {isEditing ? (
+                          <input
+                            type="time"
+                            value={editForm.drier2?.finish || ''}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, drier2: { ...prev.drier2, finish: e.target.value } }))}
+                            className={inlineInput}
+                          />
+                        ) : (activeRecord.drier2?.finish || '-')}
                       </td>
                       <td colSpan={2} className="p-2.5 bg-slate-50 dark:bg-slate-800/40"></td>
                     </tr>
                     <tr>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.totalHours}</td>
-                      <td className="p-2.5 text-center font-black border-r border-slate-200 dark:border-slate-800">
-                          {renderEditInput('drier1', null, 'totalHours', calcData?.h1)} {isEditing ? '' : 'h'}
-                      </td>
+                      <td className="p-2.5 text-center font-black border-r border-slate-200 dark:border-slate-800 text-blue-700 dark:text-blue-400">{calcData?.h1 || 0} h</td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.totalHours}</td>
-                      <td className="p-2.5 text-center font-black border-r border-slate-200 dark:border-slate-800">
-                          {renderEditInput('drier2', null, 'totalHours', calcData?.h2)} {isEditing ? '' : 'h'}
-                      </td>
+                      <td className="p-2.5 text-center font-black border-r border-slate-200 dark:border-slate-800 text-emerald-700 dark:text-emerald-400">{calcData?.h2 || 0} h</td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.totalHours}</td>
                       <td className="p-2.5 text-center font-black text-amber-700 dark:text-amber-400">{calcData?.hTotal || 0} h</td>
                     </tr>
@@ -1132,39 +1375,51 @@ const FiringSectionSummary = () => {
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900 font-medium">
                     <tr>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.totalFwKg}</td>
-                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">
-                          {renderEditInput('firewoodCost', 'drier1', 'totalFwKg', calcData?.c1.fwKg)} {isEditing ? '' : 'kg'}
+                      <td className="p-1.5 border-r border-slate-200 dark:border-slate-800 text-center">
+                        {isEditing ? (
+                          <input type="number" step="any" min="0" onKeyDown={preventNegativeKeys} value={editForm.firewoodCost?.drier1?.totalFwKg ?? ''} onChange={(e) => handleNestedChange('firewoodCost', 'drier1', 'totalFwKg', e.target.value)} className={inlineInput} />
+                        ) : `${calcData?.c1.fwKg} kg`}
                       </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.totalFwKg}</td>
-                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">
-                          {renderEditInput('firewoodCost', 'drier2', 'totalFwKg', calcData?.c2.fwKg)} {isEditing ? '' : 'kg'}
+                      <td className="p-1.5 border-r border-slate-200 dark:border-slate-800 text-center">
+                        {isEditing ? (
+                          <input type="number" step="any" min="0" onKeyDown={preventNegativeKeys} value={editForm.firewoodCost?.drier2?.totalFwKg ?? ''} onChange={(e) => handleNestedChange('firewoodCost', 'drier2', 'totalFwKg', e.target.value)} className={inlineInput} />
+                        ) : `${calcData?.c2.fwKg} kg`}
                       </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.totalFwKg}</td>
-                      <td className="p-2.5 text-center font-bold text-amber-700 dark:text-amber-400">{calcData?.cTotal.fwKg} kg</td>
+                      <td className="p-2.5 text-center font-bold text-amber-700 dark:text-amber-400">{calcData?.cTotal.fwKg.toFixed(2)} kg</td>
                     </tr>
                     <tr>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.unitPrice}</td>
-                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">
-                          {isEditing ? '' : 'Rs. '} {renderEditInput('firewoodCost', 'drier1', 'unitPrice', calcData?.c1.unitPrice)}
+                      <td className="p-1.5 border-r border-slate-200 dark:border-slate-800 text-center">
+                        {isEditing ? (
+                          <input type="number" step="any" min="0" onKeyDown={preventNegativeKeys} value={editForm.firewoodCost?.drier1?.unitPrice ?? ''} onChange={(e) => handleNestedChange('firewoodCost', 'drier1', 'unitPrice', e.target.value)} className={inlineInput} />
+                        ) : `Rs. ${calcData?.c1.unitPrice.toFixed(2)}`}
                       </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.unitPrice}</td>
-                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">
-                          {isEditing ? '' : 'Rs. '} {renderEditInput('firewoodCost', 'drier2', 'unitPrice', calcData?.c2.unitPrice)}
+                      <td className="p-1.5 border-r border-slate-200 dark:border-slate-800 text-center">
+                        {isEditing ? (
+                          <input type="number" step="any" min="0" onKeyDown={preventNegativeKeys} value={editForm.firewoodCost?.drier2?.unitPrice ?? ''} onChange={(e) => handleNestedChange('firewoodCost', 'drier2', 'unitPrice', e.target.value)} className={inlineInput} />
+                        ) : `Rs. ${calcData?.c2.unitPrice.toFixed(2)}`}
                       </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.unitPrice}</td>
                       <td className="p-2.5 text-center font-bold">Rs. {calcData?.cTotal.unitPrice.toFixed(2)}</td>
                     </tr>
                     <tr>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.madeTeaKg}</td>
-                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">
-                          {renderEditInput('firewoodCost', 'drier1', 'madeTeaKg', calcData?.c1.madeTeaKg)} {isEditing ? '' : 'kg'}
+                      <td className="p-1.5 border-r border-slate-200 dark:border-slate-800 text-center">
+                        {isEditing ? (
+                          <input type="number" step="any" min="0" onKeyDown={preventNegativeKeys} value={editForm.firewoodCost?.drier1?.madeTeaKg ?? ''} onChange={(e) => handleNestedChange('firewoodCost', 'drier1', 'madeTeaKg', e.target.value)} className={inlineInput} />
+                        ) : `${calcData?.c1.madeTeaKg} kg`}
                       </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.madeTeaKg}</td>
-                      <td className="p-2.5 text-center border-r border-slate-200 dark:border-slate-800">
-                          {renderEditInput('firewoodCost', 'drier2', 'madeTeaKg', calcData?.c2.madeTeaKg)} {isEditing ? '' : 'kg'}
+                      <td className="p-1.5 border-r border-slate-200 dark:border-slate-800 text-center">
+                        {isEditing ? (
+                          <input type="number" step="any" min="0" onKeyDown={preventNegativeKeys} value={editForm.firewoodCost?.drier2?.madeTeaKg ?? ''} onChange={(e) => handleNestedChange('firewoodCost', 'drier2', 'madeTeaKg', e.target.value)} className={inlineInput} />
+                        ) : `${calcData?.c2.madeTeaKg} kg`}
                       </td>
                       <td className="p-2.5 font-bold text-slate-700 dark:text-slate-300 pl-3 border-r border-slate-200 dark:border-slate-800">{t.madeTeaKg}</td>
-                      <td className="p-2.5 text-center font-bold">{calcData?.cTotal.madeTeaKg} kg</td>
+                      <td className="p-2.5 text-center font-bold">{calcData?.cTotal.madeTeaKg.toFixed(2)} kg</td>
                     </tr>
                   </tbody>
                   <tfoot>
@@ -1185,49 +1440,37 @@ const FiringSectionSummary = () => {
             <div className="flex flex-col gap-6 pt-2">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                  <div>
+                  <div className="flex-1 mr-3">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t.officerName} :</span>
                     {isEditing ? (
-                        <input 
-                            type="text"
-                            value={displayRecord.officerName || ''}
-                            onChange={(e) => handleInputChange(null, null, 'officerName', e.target.value)}
-                            className="w-full mt-1 p-1 text-sm font-black border border-orange-300 rounded focus:ring-2 focus:ring-orange-500 outline-none text-slate-800 bg-white"
-                        />
+                      <input
+                        type="text"
+                        value={editForm.officerName || ''}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, officerName: e.target.value }))}
+                        className="w-full mt-1 bg-white dark:bg-slate-800 border border-orange-300 dark:border-orange-700 rounded-md p-1.5 text-xs font-bold text-slate-900 dark:text-white outline-none"
+                      />
                     ) : (
-                        <p className="text-sm font-black text-slate-900 dark:text-white mt-0.5">{displayRecord.officerName || '..................................................'}</p>
+                      <p className="text-sm font-black text-slate-900 dark:text-white mt-0.5">{activeRecord.officerName || '..................................................'}</p>
                     )}
                   </div>
-                  <UserCheck className="w-5 h-5 text-slate-400" />
+                  <UserCheck className="w-5 h-5 text-slate-400 shrink-0" />
                 </div>
 
-                <div className="flex flex-col gap-2">
-                    <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t.checkBy} :</span>
-                        {isEditing ? (
-                            <input 
-                                type="text"
-                                value={displayRecord.checkedBy || ''}
-                                onChange={(e) => handleInputChange(null, null, 'checkedBy', e.target.value)}
-                                className="w-full mt-1 p-1 text-sm font-black border border-orange-300 rounded focus:ring-2 focus:ring-orange-500 outline-none text-slate-800 bg-white"
-                            />
-                        ) : (
-                            <p className="text-sm font-black text-slate-900 dark:text-white mt-0.5">{displayRecord.checkedBy || '..................................................'}</p>
-                        )}
-                      </div>
-                      <CheckCircle2 className="w-5 h-5 text-slate-400" />
-                    </div>
-                    
-                    {/* Display Edit Meta Info */}
-                    {!isEditing && displayRecord?.meta?.editedBy && (
-                        <div className="flex items-center gap-2 justify-end text-[10px] text-slate-500 dark:text-slate-400 font-medium bg-slate-100/50 dark:bg-slate-800/30 px-3 py-1.5 rounded-lg w-fit self-end">
-                           <Info size={12} className="text-blue-500" />
-                           <span>
-                               {t.editedBy}: <strong className="text-slate-700 dark:text-slate-300">{displayRecord.meta.editedBy}</strong> on {new Date(displayRecord.meta.editedAt).toLocaleDateString()} at {new Date(displayRecord.meta.editedAt).toLocaleTimeString()}
-                           </span>
-                        </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                  <div className="flex-1 mr-3">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t.checkBy} :</span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editForm.checkedBy || ''}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, checkedBy: e.target.value }))}
+                        className="w-full mt-1 bg-white dark:bg-slate-800 border border-orange-300 dark:border-orange-700 rounded-md p-1.5 text-xs font-bold text-slate-900 dark:text-white outline-none"
+                      />
+                    ) : (
+                      <p className="text-sm font-black text-slate-900 dark:text-white mt-0.5">{activeRecord.checkedBy || '..................................................'}</p>
                     )}
+                  </div>
+                  <CheckCircle2 className="w-5 h-5 text-slate-400 shrink-0" />
                 </div>
               </div>
 

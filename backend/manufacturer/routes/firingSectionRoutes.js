@@ -3,8 +3,8 @@ import {
   saveFiringSection,
   getFiringSections,
   getFiringSectionById,
-  deleteFiringSection,
-  updateFiringSectionRecord
+  updateFiringSectionById,
+  deleteFiringSection
 } from '../controllers/firingSectionController.js';
 import { authorizeRoles, verifyToken } from '../../middleware/auth.js';
 
@@ -17,7 +17,7 @@ FiringRouter.route('/')
 
 FiringRouter.route('/:id')
   .get(verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getFiringSectionById)
-  .delete(verifyToken, authorizeRoles('Admin', 'User'), deleteFiringSection)
-  .put(verifyToken, authorizeRoles('Admin', 'User'), updateFiringSectionRecord);
+  .put(verifyToken, authorizeRoles('Admin', 'User'), updateFiringSectionById)
+  .delete(verifyToken, authorizeRoles('Admin', 'User'), deleteFiringSection);
 
 export default FiringRouter;
