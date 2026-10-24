@@ -23,7 +23,6 @@ import {
 import toast from "react-hot-toast";
 import PDFDownloader from "@/components/PDFDownloader";
 
-// Helper to normalize date values
 const normalizeDate = (dateVal) => {
   if (!dateVal) return "";
   if (typeof dateVal === "string") return dateVal.split("T")[0];
@@ -34,7 +33,6 @@ const normalizeDate = (dateVal) => {
   }
 };
 
-// Helper to get local date in YYYY-MM-DD
 const getTodayDate = () => {
   const today = new Date();
   const yyyy = today.getFullYear();
@@ -43,7 +41,6 @@ const getTodayDate = () => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
-// Calculate duration string and decimal hours between HH:MM strings
 const calculateDuration = (start, finish) => {
   if (!start || !finish) return { decimal: 0, str: "" };
   try {
@@ -84,12 +81,10 @@ const FiringSectionSummary = () => {
   const [lang, setLang] = useState("EN");
   const [isDirty, setIsDirty] = useState(false);
 
-  // In-place editing state (Duplicates removed)
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Dynamic Translations Dictionary
   const t = useMemo(
     () => ({
       title:
@@ -120,12 +115,10 @@ const FiringSectionSummary = () => {
           ? "මෙම නිෂ්පාදිත දිනය සඳහා තවමත් ඩ්‍රයර් කාමර සටහනක් ඇතුලත් කර නොමැත."
           : "There is no drier room sheet recorded for the selected manufacturing date.",
 
-      // Metadata
       mfDate: lang === "SI" ? "නිෂ්පාදිත දිනය (M/F Date)" : "M/F DATE",
       cropDate: lang === "SI" ? "අස්වැන්න දිනය (Crop Date)" : "CROP DATE",
       cropKg: lang === "SI" ? "අස්වැන්න (Crop Kg)" : "CROP (Kg)",
 
-      // Tables
       drier1: "DHOOLS (kg) - 01",
       drier2: "DHOOLS (kg) - 02",
       drierTotal: "DHOOLS (kg) TOTAL",
@@ -133,7 +126,6 @@ const FiringSectionSummary = () => {
       kg: lang === "SI" ? "කි.ග්‍රෑ." : "Kg",
       pct: "%",
 
-      // Dhool Grades
       first: "1ST",
       second: "2ND",
       third: "3RD",
@@ -141,7 +133,6 @@ const FiringSectionSummary = () => {
       bigBulk: "BIG BULK",
       totalFiredTea: "TOTAL FIRED TEA",
 
-      // Firewood Usage
       fwUsage1: "FIREWOOD USAGE (kg) - 01",
       fwUsage2: "FIREWOOD USAGE (kg) - 02",
       fwUsageTotal: "FIREWOOD USAGE (kg) TOTAL",
@@ -151,7 +142,6 @@ const FiringSectionSummary = () => {
       extra: "EXTRA",
       total: "TOTAL",
 
-      // Firewood Output
       fwOut1: "FIREWOOD OUTPUT - 01",
       fwOut2: "FIREWOOD OUTPUT - 02",
       fwOutTotal: "FIREWOOD OUTPUT TOTAL",
@@ -159,7 +149,6 @@ const FiringSectionSummary = () => {
       withering: "WITH WITHERING",
       totalOutput: "TOTAL OUTPUT",
 
-      // Drier Time & Output
       drier01Title: "DRIER - 01",
       drier02Title: "DRIER - 02",
       startTime: "START TIME",
@@ -167,7 +156,6 @@ const FiringSectionSummary = () => {
       totalHours: "TOTAL HOURS",
       drierOutputPerHour: "DRIER OUTPUT / H",
 
-      // Cost of Firewood
       costDrier01: "DRIER - 01",
       costDrier02: "DRIER - 02",
       costTotal: "TOTAL",
@@ -176,7 +164,6 @@ const FiringSectionSummary = () => {
       madeTeaKg: "MADE TEA KG",
       costOfFw: "COST OF F/W (Rs.)",
 
-      // Signatures & Benchmarks
       officerName: "OFFICER NAME",
       checkBy: "CHECK BY",
       benchmarkTitle:
@@ -244,17 +231,26 @@ const FiringSectionSummary = () => {
     );
   }, [allRecords, filterDate]);
 
-  // When switching records or dates, cancel edit mode
   useEffect(() => {
     setIsEditing(false);
     setEditForm(null);
+    setIsDirty(false);
   }, [filterDate]);
 
-  // Start in-place editing: copy currentRecord into editForm
   const handleStartEdit = () => {
     if (!currentRecord) return;
     setEditForm({
       ...currentRecord,
+      allocation: {
+        slot1Dhool:
+          currentRecord.allocation?.slot1Dhool ||
+          currentRecord.drier1?.allocatedDhool ||
+          "drier1",
+        slot2Dhool:
+          currentRecord.allocation?.slot2Dhool ||
+          currentRecord.drier2?.allocatedDhool ||
+          "drier2",
+      },
       dateOfManufacture: normalizeDate(currentRecord.dateOfManufacture),
       cropDate:
         normalizeDate(currentRecord.cropDate) ||
@@ -309,15 +305,18 @@ const FiringSectionSummary = () => {
       checkedBy: currentRecord.checkedBy || "",
     });
     setIsEditing(true);
+    setIsDirty(false);
   };
 
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditForm(null);
+    setIsDirty(false);
   };
 
   const handleNestedChange = (section, subSection, field, val) => {
     if (val !== "" && parseFloat(val) < 0) return;
+    setIsDirty(true);
     setEditForm((prev) => ({
       ...prev,
       [section]: {
@@ -330,14 +329,45 @@ const FiringSectionSummary = () => {
     }));
   };
 
-  // Active data source: editForm when editing, else currentRecord
+  const handleAllocationChange = (slotKey, val) => {
+    setIsDirty(true);
+    setEditForm((prev) => ({
+      ...prev,
+      allocation: {
+        ...prev.allocation,
+        [slotKey]: val,
+      },
+    }));
+  };
+
   const activeRecord = isEditing ? editForm : currentRecord;
 
-  // Real-time calculations across all sections
+  // Active allocation resolver prioritizing explicit values
+  const activeAllocation = useMemo(() => {
+    const slot1 =
+      activeRecord?.allocation?.slot1Dhool ||
+      activeRecord?.drier1?.allocatedDhool ||
+      (activeRecord?.drier1?.allocatedDhoolLabel === "Dhool 02" ? "drier2" : "drier1");
+
+    const slot2 =
+      activeRecord?.allocation?.slot2Dhool ||
+      activeRecord?.drier2?.allocatedDhool ||
+      (activeRecord?.drier2?.allocatedDhoolLabel === "Dhool 01" ? "drier1" : "drier2");
+
+    return {
+      slot1Dhool: slot1,
+      slot2Dhool: slot2,
+    };
+  }, [activeRecord]);
+
+  const slot1DhoolLabel =
+    activeAllocation.slot1Dhool === "drier1" ? "Dhool 01" : "Dhool 02";
+  const slot2DhoolLabel =
+    activeAllocation.slot2Dhool === "drier1" ? "Dhool 01" : "Dhool 02";
+
   const calcData = useMemo(() => {
     if (!activeRecord) return null;
 
-    // 1. Dhools Data
     const d1 = activeRecord.dhools?.drier1 || {};
     const d2 = activeRecord.dhools?.drier2 || {};
 
@@ -378,7 +408,6 @@ const FiringSectionSummary = () => {
     };
     const grandTotalFired = d1Total + d2Total;
 
-    // 2. Firewood Usage
     const dr1 = activeRecord.drier1 || {};
     const dr2 = activeRecord.drier2 || {};
     const fu1 = activeRecord.firewoodUsage?.drier1 || {};
@@ -408,7 +437,6 @@ const FiringSectionSummary = () => {
       total: u1.total + u2.total,
     };
 
-    // 3. Firewood Output
     const fo1 = activeRecord.firewoodOutput?.drier1 || {};
     const fo2 = activeRecord.firewoodOutput?.drier2 || {};
 
@@ -433,7 +461,6 @@ const FiringSectionSummary = () => {
       total: out1.total + out2.total,
     };
 
-    // 4. Robust Drier Hours and Output / Hour
     const d1Dur = calculateDuration(dr1.start, dr1.finish);
     const d2Dur = calculateDuration(dr2.start, dr2.finish);
 
@@ -453,21 +480,25 @@ const FiringSectionSummary = () => {
 
     const hTotal = parseFloat((h1 + h2).toFixed(2));
 
+    const slot1TeaTotal =
+      activeAllocation.slot1Dhool === "drier2" ? d2Total : d1Total;
+    const slot2TeaTotal =
+      activeAllocation.slot2Dhool === "drier1" ? d1Total : d2Total;
+
     const outPerH1 =
       h1 > 0
-        ? (d1Total / h1).toFixed(2)
+        ? (slot1TeaTotal / h1).toFixed(2)
         : Number(dr1.outputPerHour)
           ? Number(dr1.outputPerHour).toFixed(2)
           : "0.00";
 
     const outPerH2 =
       h2 > 0
-        ? (d2Total / h2).toFixed(2)
+        ? (slot2TeaTotal / h2).toFixed(2)
         : Number(dr2.outputPerHour)
           ? Number(dr2.outputPerHour).toFixed(2)
           : "0.00";
 
-    // 5. Cost of Firewood
     const fc1 = activeRecord.firewoodCost?.drier1 || {};
     const fc2 = activeRecord.firewoodCost?.drier2 || {};
 
@@ -511,13 +542,15 @@ const FiringSectionSummary = () => {
       h1,
       h2,
       hTotal,
+      slot1TeaTotal,
+      slot2TeaTotal,
       outPerH1,
       outPerH2,
       c1,
       c2,
       cTotal,
     };
-  }, [activeRecord]);
+  }, [activeRecord, activeAllocation]);
 
   const resolvedCropDate = useMemo(() => {
     return (
@@ -529,7 +562,6 @@ const FiringSectionSummary = () => {
 
   const docRefCode = `DRS/${(normalizeDate(activeRecord?.dateOfManufacture) || filterDate || "").replace(/-/g, "")}`;
 
-  // Multi-tier headers for Dhools
   const pdfHeaders = useMemo(
     () => [
       [
@@ -604,7 +636,6 @@ const FiringSectionSummary = () => {
             lineColor: [182, 176, 159],
           },
         },
-
         {
           content: "Item",
           styles: {
@@ -638,7 +669,6 @@ const FiringSectionSummary = () => {
             lineColor: [182, 176, 159],
           },
         },
-
         {
           content: "Item",
           styles: {
@@ -677,7 +707,6 @@ const FiringSectionSummary = () => {
     [],
   );
 
-  // Complete unified data matrix
   const pdfData = useMemo(() => {
     if (!activeRecord || !calcData) return [];
 
@@ -723,7 +752,6 @@ const FiringSectionSummary = () => {
       ]);
     });
 
-    // Total Fired Tea Row
     rows.push([
       {
         content: "TOTAL FIRED TEA",
@@ -775,10 +803,9 @@ const FiringSectionSummary = () => {
       },
     ]);
 
-    // Section 2: Firewood Usage (kg)
     rows.push([
       {
-        content: "FIREWOOD USAGE (kg) - 01",
+        content: `FIREWOOD USAGE (kg) - 01 (${slot1DhoolLabel})`,
         colSpan: 3,
         styles: {
           halign: "center",
@@ -788,7 +815,7 @@ const FiringSectionSummary = () => {
         },
       },
       {
-        content: "FIREWOOD USAGE (kg) - 02",
+        content: `FIREWOOD USAGE (kg) - 02 (${slot2DhoolLabel})`,
         colSpan: 3,
         styles: {
           halign: "center",
@@ -858,10 +885,9 @@ const FiringSectionSummary = () => {
       `${calcData.uTotal.w} / ${calcData.uTotal.total}`,
     ]);
 
-    // Section 3: Firewood Output
     rows.push([
       {
-        content: "FIREWOOD OUTPUT - 01",
+        content: `FIREWOOD OUTPUT - 01 (${slot1DhoolLabel})`,
         colSpan: 3,
         styles: {
           halign: "center",
@@ -871,7 +897,7 @@ const FiringSectionSummary = () => {
         },
       },
       {
-        content: "FIREWOOD OUTPUT - 02",
+        content: `FIREWOOD OUTPUT - 02 (${slot2DhoolLabel})`,
         colSpan: 3,
         styles: {
           halign: "center",
@@ -941,10 +967,9 @@ const FiringSectionSummary = () => {
       ]);
     });
 
-    // Section 4: Drier Time & Output
     rows.push([
       {
-        content: "DRIER - 01",
+        content: `DRIER - 01 (${slot1DhoolLabel})`,
         colSpan: 3,
         styles: {
           halign: "center",
@@ -954,7 +979,7 @@ const FiringSectionSummary = () => {
         },
       },
       {
-        content: "DRIER - 02",
+        content: `DRIER - 02 (${slot2DhoolLabel})`,
         colSpan: 3,
         styles: {
           halign: "center",
@@ -1022,10 +1047,9 @@ const FiringSectionSummary = () => {
       { content: "", colSpan: 3, styles: { fillColor: [248, 250, 252] } },
     ]);
 
-    // Section 5: Cost of Firewood
     rows.push([
       {
-        content: "DRIER - 01",
+        content: `DRIER - 01 (${slot1DhoolLabel})`,
         colSpan: 3,
         styles: {
           halign: "center",
@@ -1035,7 +1059,7 @@ const FiringSectionSummary = () => {
         },
       },
       {
-        content: "DRIER - 02",
+        content: `DRIER - 02 (${slot2DhoolLabel})`,
         colSpan: 3,
         styles: {
           halign: "center",
@@ -1114,7 +1138,7 @@ const FiringSectionSummary = () => {
     });
 
     return rows;
-  }, [activeRecord, calcData]);
+  }, [activeRecord, calcData, slot1DhoolLabel, slot2DhoolLabel]);
 
   const autoTableOptions = useMemo(
     () => ({
@@ -1138,7 +1162,6 @@ const FiringSectionSummary = () => {
         const pageWidth = doc.internal.pageSize.getWidth();
         const contentWidth = pageWidth - 24;
 
-        // 1. Title
         doc.setFontSize(18);
         doc.setTextColor(0, 0, 0);
         doc.setFont(undefined, "bold");
@@ -1147,7 +1170,6 @@ const FiringSectionSummary = () => {
         });
         doc.setLineWidth(0.4);
 
-        // 2. Metadata (Top Left)
         doc.setFontSize(8);
         doc.text("M/F DATE   :  ", startX, 36);
         if (activeRecord?.dateOfManufacture) {
@@ -1174,7 +1196,6 @@ const FiringSectionSummary = () => {
           );
         }
 
-        // 3. Benchmark Spec Box
         const tableFinalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 230;
         const bBoxY = tableFinalY - 4;
         const bBoxH = 17;
@@ -1218,7 +1239,6 @@ const FiringSectionSummary = () => {
     [activeRecord, calcData, resolvedCropDate],
   );
 
-  // Save in-place changes directly to backend
   const handleSaveInline = async () => {
     if (!editForm || !editForm._id) {
       toast.error("Invalid record identifier.");
@@ -1255,13 +1275,22 @@ const FiringSectionSummary = () => {
         editForm.drier2?.finish,
       );
 
+      const curAllocation = editForm.allocation || {
+        slot1Dhool: "drier1",
+        slot2Dhool: "drier2",
+      };
+      const slot1TeaTotal =
+        curAllocation.slot1Dhool === "drier2" ? d2Total : d1Total;
+      const slot2TeaTotal =
+        curAllocation.slot2Dhool === "drier1" ? d1Total : d2Total;
+
       const outPerH1 =
         d1Dur.decimal > 0
-          ? parseFloat((d1Total / d1Dur.decimal).toFixed(2))
+          ? parseFloat((slot1TeaTotal / d1Dur.decimal).toFixed(2))
           : 0;
       const outPerH2 =
         d2Dur.decimal > 0
-          ? parseFloat((d2Total / d2Dur.decimal).toFixed(2))
+          ? parseFloat((slot2TeaTotal / d2Dur.decimal).toFixed(2))
           : 0;
 
       const c1Cost =
@@ -1273,9 +1302,13 @@ const FiringSectionSummary = () => {
 
       const payload = {
         ...editForm,
+        allocation: curAllocation,
         cropDate: editForm.cropDate,
         drier1: {
           ...editForm.drier1,
+          allocatedDhool: curAllocation.slot1Dhool,
+          allocatedDhoolLabel:
+            curAllocation.slot1Dhool === "drier1" ? "Dhool 01" : "Dhool 02",
           day: editForm.cropDate,
           ffrw1: editForm.firewoodUsage?.drier1?.f || 0,
           ffrw2: editForm.firewoodUsage?.drier1?.rf || 0,
@@ -1287,6 +1320,9 @@ const FiringSectionSummary = () => {
         },
         drier2: {
           ...editForm.drier2,
+          allocatedDhool: curAllocation.slot2Dhool,
+          allocatedDhoolLabel:
+            curAllocation.slot2Dhool === "drier1" ? "Dhool 01" : "Dhool 02",
           day: editForm.cropDate,
           ffrw1: editForm.firewoodUsage?.drier2?.f || 0,
           ffrw2: editForm.firewoodUsage?.drier2?.rf || 0,
@@ -1297,8 +1333,10 @@ const FiringSectionSummary = () => {
           outputPerHour: outPerH2,
         },
         summary: {
-          d1TotalFired: d1Total,
-          d2TotalFired: d2Total,
+          d1TotalFired: slot1TeaTotal,
+          d2TotalFired: slot2TeaTotal,
+          rawDhool1Total: d1Total,
+          rawDhool2Total: d2Total,
           grandTotalFiredTea: d1Total + d2Total,
           d1FwCost: c1Cost,
           d2FwCost: c2Cost,
@@ -1347,14 +1385,20 @@ const FiringSectionSummary = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-4 md:p-8 font-sans transition-colors duration-200">
       <div className="max-w-7xl mx-auto flex flex-col gap-6">
-        {/* 💡 UNSAVED CHANGES WARNING BANNER */}
         {isDirty && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-red-100 dark:bg-red-900/40 border-2 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)] p-4 rounded-2xl animate-pulse transition-all">
             <div className="flex items-center gap-3 w-full sm:w-auto">
-              <AlertTriangle size={28} className="text-red-600 dark:text-red-400 animate-bounce shrink-0" />
+              <AlertTriangle
+                size={28}
+                className="text-red-600 dark:text-red-400 animate-bounce shrink-0"
+              />
               <div>
-                <h3 className="text-red-800 dark:text-red-300 font-black text-sm sm:text-base uppercase tracking-wider">Unsaved Changes Detected!</h3>
-                <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm font-semibold">Please save your data to prevent data loss.</p>
+                <h3 className="text-red-800 dark:text-red-300 font-black text-sm sm:text-base uppercase tracking-wider">
+                  Unsaved Changes Detected!
+                </h3>
+                <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm font-semibold">
+                  Please save your data to prevent data loss.
+                </p>
               </div>
             </div>
             <button
@@ -1362,7 +1406,12 @@ const FiringSectionSummary = () => {
               disabled={isSaving}
               className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50"
             >
-              {isSaving ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />} Save Now
+              {isSaving ? (
+                <RefreshCw size={18} className="animate-spin" />
+              ) : (
+                <Save size={18} />
+              )}{" "}
+              Save Now
             </button>
           </div>
         )}
@@ -1386,8 +1435,7 @@ const FiringSectionSummary = () => {
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 bg-orange-50 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 rounded-full border border-orange-200/60 dark:border-orange-800/60">
-                    <Sparkles className="w-3 h-3 text-orange-500" /> Operational
-                    Record
+                    <Sparkles className="w-3 h-3 text-orange-500" /> Operational Record
                   </span>
                 )}
               </div>
@@ -1398,7 +1446,6 @@ const FiringSectionSummary = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto justify-start xl:justify-end z-10">
-            {/* Edit / Save / Cancel Buttons */}
             {currentRecord &&
               (!isEditing ? (
                 <button
@@ -1432,7 +1479,6 @@ const FiringSectionSummary = () => {
                 </div>
               ))}
 
-            {/* Native PDFDownloader */}
             <PDFDownloader
               title=""
               subtitle=""
@@ -1447,7 +1493,6 @@ const FiringSectionSummary = () => {
               disabled={!activeRecord || pdfData.length === 0}
             />
 
-            {/* Language Switcher */}
             <button
               type="button"
               onClick={() => setLang(lang === "EN" ? "SI" : "EN")}
@@ -1460,7 +1505,6 @@ const FiringSectionSummary = () => {
               {lang === "EN" ? "සිංහල" : "English"}
             </button>
 
-            {/* Sync Button */}
             <button
               type="button"
               onClick={fetchRecords}
@@ -1488,8 +1532,12 @@ const FiringSectionSummary = () => {
                 <Filter className="w-4 h-4" />
               </div>
               <div>
-                <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">{t.filterDay}</span>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Filter drier logs by tea manufacturing date (M/F Date)</p>
+                <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">
+                  {t.filterDay}
+                </span>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                  Filter drier logs by tea manufacturing date (M/F Date)
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -1552,12 +1600,13 @@ const FiringSectionSummary = () => {
                     <input
                       type="date"
                       value={editForm.dateOfManufacture}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        setIsDirty(true);
                         setEditForm((prev) => ({
                           ...prev,
                           dateOfManufacture: e.target.value,
-                        }))
-                      }
+                        }));
+                      }}
                       className="bg-orange-50 dark:bg-slate-800 border border-orange-300 dark:border-orange-700 rounded-md px-2 py-0.5 text-xs font-black text-slate-900 dark:text-white outline-none"
                     />
                   ) : (
@@ -1573,12 +1622,13 @@ const FiringSectionSummary = () => {
                     <input
                       type="date"
                       value={editForm.cropDate}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        setIsDirty(true);
                         setEditForm((prev) => ({
                           ...prev,
                           cropDate: e.target.value,
-                        }))
-                      }
+                        }));
+                      }}
                       className="bg-orange-50 dark:bg-slate-800 border border-orange-300 dark:border-orange-700 rounded-md px-2 py-0.5 text-xs font-black text-slate-900 dark:text-white outline-none"
                     />
                   ) : (
@@ -1599,12 +1649,13 @@ const FiringSectionSummary = () => {
                         placeholder="0.00"
                         onKeyDown={preventNegativeKeys}
                         value={editForm.cropKg}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          setIsDirty(true);
                           setEditForm((prev) => ({
                             ...prev,
                             cropKg: e.target.value,
-                          }))
-                        }
+                          }));
+                        }}
                         className="w-24 bg-orange-50 dark:bg-slate-800 border border-orange-300 dark:border-orange-700 rounded-md px-2 py-0.5 text-xs font-black text-emerald-700 dark:text-emerald-400 outline-none text-center"
                       />
                       <span className="text-[10px] text-slate-400">kg</span>
@@ -1700,9 +1751,10 @@ const FiringSectionSummary = () => {
                       const totKg = calcData?.totalItems[k] || 0;
                       const totPct =
                         calcData?.grandTotalFired > 0
-                          ? ((totKg / calcData.grandTotalFired) * 100).toFixed(
-                              2,
-                            )
+                          ? (
+                            (totKg / calcData.grandTotalFired) *
+                            100
+                          ).toFixed(2)
                           : "0.00";
 
                       return (
@@ -1830,13 +1882,85 @@ const FiringSectionSummary = () => {
                         colSpan={4}
                         className="p-2.5 bg-blue-100/90 dark:bg-blue-950/80 text-blue-950 dark:text-blue-200 border-r border-slate-200 dark:border-slate-700 font-black"
                       >
-                        {t.fwUsage1}
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                          <span>{t.fwUsage1}</span>
+                          {isEditing ? (
+                            <div className="inline-flex items-center gap-1 bg-white/90 dark:bg-slate-900/90 px-2 py-0.5 rounded-lg border border-blue-300 dark:border-blue-700">
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold lowercase">
+                                alloc:
+                              </span>
+                              <select
+                                value={activeAllocation.slot1Dhool}
+                                onChange={(e) =>
+                                  handleAllocationChange(
+                                    "slot1Dhool",
+                                    e.target.value,
+                                  )
+                                }
+                                className="bg-transparent font-black text-blue-800 dark:text-blue-300 text-xs outline-none cursor-pointer"
+                              >
+                                <option
+                                  value="drier1"
+                                  className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+                                >
+                                  DHOOL 01
+                                </option>
+                                <option
+                                  value="drier2"
+                                  className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+                                >
+                                  DHOOL 02
+                                </option>
+                              </select>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-200/60 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 rounded-md">
+                              ({slot1DhoolLabel})
+                            </span>
+                          )}
+                        </div>
                       </th>
                       <th
                         colSpan={4}
                         className="p-2.5 bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-200 border-r border-slate-200 dark:border-slate-700 font-black"
                       >
-                        {t.fwUsage2}
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                          <span>{t.fwUsage2}</span>
+                          {isEditing ? (
+                            <div className="inline-flex items-center gap-1 bg-white/90 dark:bg-slate-900/90 px-2 py-0.5 rounded-lg border border-emerald-300 dark:border-emerald-700">
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold lowercase">
+                                alloc:
+                              </span>
+                              <select
+                                value={activeAllocation.slot2Dhool}
+                                onChange={(e) =>
+                                  handleAllocationChange(
+                                    "slot2Dhool",
+                                    e.target.value,
+                                  )
+                                }
+                                className="bg-transparent font-black text-emerald-800 dark:text-emerald-300 text-xs outline-none cursor-pointer"
+                              >
+                                <option
+                                  value="drier2"
+                                  className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+                                >
+                                  DHOOL 02
+                                </option>
+                                <option
+                                  value="drier1"
+                                  className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+                                >
+                                  DHOOL 01
+                                </option>
+                              </select>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-200/60 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 rounded-md">
+                              ({slot2DhoolLabel})
+                            </span>
+                          )}
+                        </div>
                       </th>
                       <th
                         colSpan={4}
@@ -2048,13 +2172,19 @@ const FiringSectionSummary = () => {
                         colSpan={2}
                         className="p-2.5 bg-blue-100/90 dark:bg-blue-950/80 text-blue-950 dark:text-blue-200 border-r border-slate-200 dark:border-slate-700 font-black"
                       >
-                        {t.fwOut1}
+                        {t.fwOut1}{" "}
+                        <span className="text-[10px] opacity-75">
+                          ({slot1DhoolLabel})
+                        </span>
                       </th>
                       <th
                         colSpan={2}
                         className="p-2.5 bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-200 border-r border-slate-200 dark:border-slate-700 font-black"
                       >
-                        {t.fwOut2}
+                        {t.fwOut2}{" "}
+                        <span className="text-[10px] opacity-75">
+                          ({slot2DhoolLabel})
+                        </span>
                       </th>
                       <th
                         colSpan={2}
@@ -2166,13 +2296,19 @@ const FiringSectionSummary = () => {
                         colSpan={2}
                         className="p-2.5 bg-blue-100/90 dark:bg-blue-950/80 text-blue-950 dark:text-blue-200 border-r border-slate-200 dark:border-slate-700 font-black w-1/3"
                       >
-                        {t.drier01Title}
+                        {t.drier01Title}{" "}
+                        <span className="text-[10px] opacity-75">
+                          ({slot1DhoolLabel})
+                        </span>
                       </th>
                       <th
                         colSpan={2}
                         className="p-2.5 bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-200 border-r border-slate-200 dark:border-slate-700 font-black w-1/3"
                       >
-                        {t.drier02Title}
+                        {t.drier02Title}{" "}
+                        <span className="text-[10px] opacity-75">
+                          ({slot2DhoolLabel})
+                        </span>
                       </th>
                       <th
                         colSpan={2}
@@ -2192,15 +2328,16 @@ const FiringSectionSummary = () => {
                           <input
                             type="time"
                             value={editForm.drier1?.start || ""}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              setIsDirty(true);
                               setEditForm((prev) => ({
                                 ...prev,
                                 drier1: {
                                   ...prev.drier1,
                                   start: e.target.value,
                                 },
-                              }))
-                            }
+                              }));
+                            }}
                             className={inlineInput}
                           />
                         ) : (
@@ -2215,15 +2352,16 @@ const FiringSectionSummary = () => {
                           <input
                             type="time"
                             value={editForm.drier2?.start || ""}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              setIsDirty(true);
                               setEditForm((prev) => ({
                                 ...prev,
                                 drier2: {
                                   ...prev.drier2,
                                   start: e.target.value,
                                 },
-                              }))
-                            }
+                              }));
+                            }}
                             className={inlineInput}
                           />
                         ) : (
@@ -2244,15 +2382,16 @@ const FiringSectionSummary = () => {
                           <input
                             type="time"
                             value={editForm.drier1?.finish || ""}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              setIsDirty(true);
                               setEditForm((prev) => ({
                                 ...prev,
                                 drier1: {
                                   ...prev.drier1,
                                   finish: e.target.value,
                                 },
-                              }))
-                            }
+                              }));
+                            }}
                             className={inlineInput}
                           />
                         ) : (
@@ -2267,15 +2406,16 @@ const FiringSectionSummary = () => {
                           <input
                             type="time"
                             value={editForm.drier2?.finish || ""}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              setIsDirty(true);
                               setEditForm((prev) => ({
                                 ...prev,
                                 drier2: {
                                   ...prev.drier2,
                                   finish: e.target.value,
                                 },
-                              }))
-                            }
+                              }));
+                            }}
                             className={inlineInput}
                           />
                         ) : (
@@ -2340,13 +2480,19 @@ const FiringSectionSummary = () => {
                         colSpan={2}
                         className="p-2.5 bg-blue-100/90 dark:bg-blue-950/80 text-blue-950 dark:text-blue-200 border-r border-slate-200 dark:border-slate-700 font-black w-1/3"
                       >
-                        {t.costDrier01}
+                        {t.costDrier01}{" "}
+                        <span className="text-[10px] opacity-75">
+                          ({slot1DhoolLabel})
+                        </span>
                       </th>
                       <th
                         colSpan={2}
                         className="p-2.5 bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-200 border-r border-slate-200 dark:border-slate-700 font-black w-1/3"
                       >
-                        {t.costDrier02}
+                        {t.costDrier02}{" "}
+                        <span className="text-[10px] opacity-75">
+                          ({slot2DhoolLabel})
+                        </span>
                       </th>
                       <th
                         colSpan={2}
@@ -2582,12 +2728,13 @@ const FiringSectionSummary = () => {
                       <input
                         type="text"
                         value={editForm.officerName || ""}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          setIsDirty(true);
                           setEditForm((prev) => ({
                             ...prev,
                             officerName: e.target.value,
-                          }))
-                        }
+                          }));
+                        }}
                         className="w-full mt-1 bg-white dark:bg-slate-800 border border-orange-300 dark:border-orange-700 rounded-md p-1.5 text-xs font-bold text-slate-900 dark:text-white outline-none"
                       />
                     ) : (
@@ -2609,12 +2756,13 @@ const FiringSectionSummary = () => {
                       <input
                         type="text"
                         value={editForm.checkedBy || ""}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          setIsDirty(true);
                           setEditForm((prev) => ({
                             ...prev,
                             checkedBy: e.target.value,
-                          }))
-                        }
+                          }));
+                        }}
                         className="w-full mt-1 bg-white dark:bg-slate-800 border border-orange-300 dark:border-orange-700 rounded-md p-1.5 text-xs font-bold text-slate-900 dark:text-white outline-none"
                       />
                     ) : (
