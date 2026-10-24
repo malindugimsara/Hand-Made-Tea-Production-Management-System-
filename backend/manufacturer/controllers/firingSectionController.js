@@ -22,28 +22,22 @@ export const saveFiringSection = async (req, res) => {
     let record = await FiringSection.findOne({ dateOfManufacture });
 
     if (record) {
-      // Clean immutable fields
       const updateData = { ...req.body };
       delete updateData._id;
       delete updateData.createdAt;
       delete updateData.updatedAt;
 
-      // Deep update document using findByIdAndUpdate to correctly merge nested objects
-      const updatedRecord = await FiringSection.findByIdAndUpdate(
-        record._id,
-        {
-          $set: {
-            ...updateData,
-            editedBy: currentUserName
-          }
-        },
-        { new: true, runValidators: true }
-      );
+      // Merge incoming fields onto the existing Mongoose document
+      Object.assign(record, updateData);
+      record.editedBy = currentUserName;
+
+      // Triggers the pre('save') hook to re-run allocation & output calculations
+      const savedRecord = await record.save();
 
       return res.status(200).json({
         success: true,
         message: 'Firing section record updated successfully',
-        data: updatedRecord
+        data: savedRecord
       });
     }
 
@@ -53,12 +47,13 @@ export const saveFiringSection = async (req, res) => {
       createdBy: currentUserName
     });
 
-    await record.save();
+    // Triggers pre('save') hook
+    const savedRecord = await record.save();
 
     res.status(201).json({
       success: true,
       message: 'Firing section record created successfully',
-      data: record
+      data: savedRecord
     });
   } catch (error) {
     console.error('Error saving firing section record:', error);
@@ -79,15 +74,23 @@ export const updateFiringSectionById = async (req, res) => {
     const { id } = req.params;
     const currentUserName = req.user?.name || req.user?.username || 'Admin';
 
-    // Remove immutable fields to prevent Mongo errors
+    const record = await FiringSection.findById(id);
+
+    if (!record) {
+      return res.status(404).json({
+        success: false,
+        message: 'Firing section record not found'
+      });
+    }
+
     const updateData = { ...req.body };
     delete updateData._id;
     delete updateData.__v;
     delete updateData.createdAt;
     delete updateData.updatedAt;
 
-    // Optional: If dateOfManufacture changed, check for conflict with another record
-    if (updateData.dateOfManufacture) {
+    // Check for date conflict if dateOfManufacture changed
+    if (updateData.dateOfManufacture && updateData.dateOfManufacture !== record.dateOfManufacture) {
       const existingDateRecord = await FiringSection.findOne({
         dateOfManufacture: updateData.dateOfManufacture,
         _id: { $ne: id }
@@ -101,23 +104,12 @@ export const updateFiringSectionById = async (req, res) => {
       }
     }
 
-    const updatedRecord = await FiringSection.findByIdAndUpdate(
-      id,
-      {
-        $set: {
-          ...updateData,
-          editedBy: currentUserName
-        }
-      },
-      { new: true, runValidators: true }
-    );
+    // Merge incoming data and mark editor
+    Object.assign(record, updateData);
+    record.editedBy = currentUserName;
 
-    if (!updatedRecord) {
-      return res.status(404).json({
-        success: false,
-        message: 'Firing section record not found'
-      });
-    }
+    // Save document to trigger pre('save') hook with accurate allocations
+    const updatedRecord = await record.save();
 
     res.status(200).json({
       success: true,
@@ -215,29 +207,4 @@ export const deleteFiringSection = async (req, res) => {
       message: 'Server error while deleting firing record'
     });
   }
-};
-
-
-// 💡 අලුතින් එකතු කළ යුතු Update Function එක
-export const updateFiringSectionRecord = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const updateData = req.body;
-
-        // FiringSection යනු ඔබගේ Database Model එකයි (නම වෙනස් නම් එය යොදන්න)
-        const updatedRecord = await FiringSection.findByIdAndUpdate(
-            id,
-            updateData,
-            { new: true, runValidators: true }
-        );
-
-        if (!updatedRecord) {
-            return res.status(404).json({ success: false, message: "Record not found." });
-        }
-
-        res.status(200).json({ success: true, message: "Record updated successfully!", data: updatedRecord });
-    } catch (error) {
-        console.error("Update Error:", error);
-        res.status(500).json({ success: false, message: "Server Error during update." });
-    }
 };

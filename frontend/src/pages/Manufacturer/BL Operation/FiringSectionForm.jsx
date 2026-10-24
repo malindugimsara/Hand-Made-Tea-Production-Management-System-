@@ -1,19 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-  Calendar,
-  Clock,
-  Scale,
-  Save,
-  RotateCcw,
   Flame,
-  Fuel,
-  Calculator,
   Languages,
-  CheckCircle2,
   Sparkles,
   Printer,
-  UserCheck,
-  FileSpreadsheet
+  Save,
+  RotateCcw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -23,6 +15,16 @@ const getTodayDate = () => {
   const yyyy = today.getFullYear();
   const mm = String(today.getMonth() + 1).padStart(2, '0');
   const dd = String(today.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+// Helper to get tomorrow's date (one day ahead) in YYYY-MM-DD
+const getTomorrowDate = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const yyyy = tomorrow.getFullYear();
+  const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+  const dd = String(tomorrow.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 };
 
@@ -36,7 +38,7 @@ const calculateDuration = (start, end) => {
       return { decimal: 0, str: '' };
     }
     let diffMinutes = (endH * 60 + endM) - (startH * 60 + startM);
-    if (diffMinutes < 0) diffMinutes += 24 * 60; // Rollover past midnight support
+    if (diffMinutes < 0) diffMinutes += 24 * 60;
     const hrs = Math.floor(diffMinutes / 60);
     const mins = diffMinutes % 60;
     const decimal = parseFloat((diffMinutes / 60).toFixed(2));
@@ -60,9 +62,14 @@ const FiringSectionForm = () => {
 
   const [lang, setLang] = useState('EN');
 
+  const [allocation, setAllocation] = useState({
+    slot1Dhool: 'drier1',
+    slot2Dhool: 'drier2'
+  });
+
   const [form, setForm] = useState({
     dateOfManufacture: getTodayDate(),
-    cropDate: getTodayDate(),
+    cropDate: getTomorrowDate(), // Default crop date is 1 day ahead
     cropKg: '',
 
     dhools: {
@@ -80,8 +87,8 @@ const FiringSectionForm = () => {
       drier2: { withoutWithering: '', withWithering: '', rf: '' }
     },
 
-    drier1: { start: '', finish: '', day: getTodayDate(), periodStr: '', totalHours: 0, outputPerHour: 0 },
-    drier2: { start: '', finish: '', day: getTodayDate(), periodStr: '', totalHours: 0, outputPerHour: 0 },
+    drier1: { start: '', finish: '', day: getTomorrowDate(), periodStr: '', totalHours: 0, outputPerHour: 0 },
+    drier2: { start: '', finish: '', day: getTomorrowDate(), periodStr: '', totalHours: 0, outputPerHour: 0 },
 
     firewoodCost: {
       drier1: { totalFwKg: '', unitPrice: '', madeTeaKg: '' },
@@ -107,12 +114,6 @@ const FiringSectionForm = () => {
     kg: lang === 'SI' ? "කි.ග්‍රෑ." : "Kg",
     pct: "%",
 
-    first: "1ST",
-    second: "2ND",
-    third: "3RD",
-    dir: "DIR / R",
-    bigBulk: "BIG BULK",
-    gBulk: "G BULK",
     totalFiredTea: "TOTAL FIRED TEA",
 
     fwUsage1: "FIREWOOD USAGE (kg) - 01",
@@ -159,7 +160,24 @@ const FiringSectionForm = () => {
   const inputBase = "w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all font-semibold";
   const tableInput = "w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg p-1.5 text-xs text-center font-bold outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all";
 
-  // Sync cropDate with drier1.day and drier2.day when changed
+  // Mutual Toggle Function: when one slot changes, the other flips automatically
+  const handleAllocationSelect = (slotKey, value) => {
+    if (slotKey === 'slot1Dhool') {
+      setAllocation({
+        slot1Dhool: value,
+        slot2Dhool: value === 'drier1' ? 'drier2' : 'drier1'
+      });
+    } else {
+      setAllocation({
+        slot2Dhool: value,
+        slot1Dhool: value === 'drier1' ? 'drier2' : 'drier1'
+      });
+    }
+  };
+
+  const slot1DhoolLabel = allocation.slot1Dhool === 'drier1' ? 'Dhool 01' : 'Dhool 02';
+  const slot2DhoolLabel = allocation.slot2Dhool === 'drier1' ? 'Dhool 01' : 'Dhool 02';
+
   const handleMetaChange = (e) => {
     const { name, value } = e.target;
     setForm(prev => {
@@ -269,14 +287,15 @@ const FiringSectionForm = () => {
       total: o1.total + o2.total
     };
 
-    // Calculate duration for Dryer 1 and Dryer 2 accurately
     const d1Dur = calculateDuration(form.drier1.start, form.drier1.finish);
     const d2Dur = calculateDuration(form.drier2.start, form.drier2.finish);
     const totHours = parseFloat((d1Dur.decimal + d2Dur.decimal).toFixed(2));
 
-    // Dynamic output per hour for both dryers
-    const outPerH1 = d1Dur.decimal > 0 ? (d1Total / d1Dur.decimal).toFixed(2) : '0.00';
-    const outPerH2 = d2Dur.decimal > 0 ? (d2Total / d2Dur.decimal).toFixed(2) : '0.00';
+    const slot1TeaTotal = allocation.slot1Dhool === 'drier2' ? d2Total : d1Total;
+    const slot2TeaTotal = allocation.slot2Dhool === 'drier1' ? d1Total : d2Total;
+
+    const outPerH1 = d1Dur.decimal > 0 ? (slot1TeaTotal / d1Dur.decimal).toFixed(2) : '0.00';
+    const outPerH2 = d2Dur.decimal > 0 ? (slot2TeaTotal / d2Dur.decimal).toFixed(2) : '0.00';
 
     const fc1 = form.firewoodCost.drier1;
     const fc2 = form.firewoodCost.drier2;
@@ -310,15 +329,18 @@ const FiringSectionForm = () => {
       o1, o2, oTotal,
       d1Dur, d2Dur, totHours,
       outPerH1, outPerH2,
+      slot1TeaTotal, slot2TeaTotal,
       c1, c2, cTotal
     };
-  }, [form]);
+  }, [form, allocation]);
 
   const handleClear = () => {
     const today = getTodayDate();
+    const tomorrow = getTomorrowDate();
+    setAllocation({ slot1Dhool: 'drier1', slot2Dhool: 'drier2' });
     setForm({
       dateOfManufacture: today,
-      cropDate: today,
+      cropDate: tomorrow,
       cropKg: '',
       dhools: {
         drier1: { first: '', second: '', third: '', dir: '', bigBulk: '' },
@@ -332,8 +354,8 @@ const FiringSectionForm = () => {
         drier1: { withoutWithering: '', withWithering: '', rf: '' },
         drier2: { withoutWithering: '', withWithering: '', rf: '' }
       },
-      drier1: { start: '', finish: '', day: today, periodStr: '', totalHours: 0, outputPerHour: 0 },
-      drier2: { start: '', finish: '', day: today, periodStr: '', totalHours: 0, outputPerHour: 0 },
+      drier1: { start: '', finish: '', day: tomorrow, periodStr: '', totalHours: 0, outputPerHour: 0 },
+      drier2: { start: '', finish: '', day: tomorrow, periodStr: '', totalHours: 0, outputPerHour: 0 },
       firewoodCost: {
         drier1: { totalFwKg: '', unitPrice: '', madeTeaKg: '' },
         drier2: { totalFwKg: '', unitPrice: '', madeTeaKg: '' }
@@ -348,13 +370,19 @@ const FiringSectionForm = () => {
     const loadingToast = toast.loading("Saving Drier Room Sheet...");
     try {
       const token = localStorage.getItem("token");
-      const chosenCropDate = form.cropDate || form.drier1.day || getTodayDate();
+      const chosenCropDate = form.cropDate || form.drier1.day || getTomorrowDate();
 
       const payload = {
         ...form,
+        allocation: {
+          slot1Dhool: allocation.slot1Dhool,
+          slot2Dhool: allocation.slot2Dhool
+        },
         cropDate: chosenCropDate,
         drier1: {
           ...form.drier1,
+          allocatedDhool: allocation.slot1Dhool,
+          allocatedDhoolLabel: slot1DhoolLabel,
           day: chosenCropDate,
           periodStr: calcData.d1Dur.str,
           periodDecimal: calcData.d1Dur.decimal,
@@ -363,6 +391,8 @@ const FiringSectionForm = () => {
         },
         drier2: {
           ...form.drier2,
+          allocatedDhool: allocation.slot2Dhool,
+          allocatedDhoolLabel: slot2DhoolLabel,
           day: chosenCropDate,
           periodStr: calcData.d2Dur.str,
           periodDecimal: calcData.d2Dur.decimal,
@@ -370,8 +400,10 @@ const FiringSectionForm = () => {
           outputPerHour: parseFloat(calcData.outPerH2) || 0
         },
         summary: {
-          d1TotalFired: calcData.d1Total,
-          d2TotalFired: calcData.d2Total,
+          d1TotalFired: calcData.slot1TeaTotal,
+          d2TotalFired: calcData.slot2TeaTotal,
+          rawDhool1Total: calcData.d1Total,
+          rawDhool2Total: calcData.d2Total,
           grandTotalFiredTea: calcData.grandTotalFired,
           d1FwCost: calcData.c1.cost,
           d2FwCost: calcData.c2.cost
@@ -404,7 +436,6 @@ const FiringSectionForm = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-4 md:p-8 font-sans transition-colors duration-200">
-
       <div className="max-w-7xl mx-auto flex flex-col gap-6">
 
         {/* --- Top Bar & Controls --- */}
@@ -583,15 +614,45 @@ const FiringSectionForm = () => {
             </div>
           </div>
 
-          {/* 2. FIREWOOD USAGE (kg) TABLE */}
+          {/* 2. FIREWOOD USAGE (kg) TABLE WITH DHOOL ALLOCATION SELECTOR */}
           <div>
             <div className="w-full overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
               <table className="w-full min-w-[850px] border-collapse text-center text-xs">
                 <thead>
                   <tr className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-extrabold uppercase border-b border-slate-200 dark:border-slate-700">
-                    <th colSpan={4} className="p-2.5 bg-blue-100/90 dark:bg-blue-950/80 text-blue-950 dark:text-blue-200 border-r border-slate-200 dark:border-slate-700 font-black">{t.fwUsage1}</th>
-                    <th colSpan={4} className="p-2.5 bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-200 border-r border-slate-200 dark:border-slate-700 font-black">{t.fwUsage2}</th>
-                    <th colSpan={4} className="p-2.5 bg-amber-100/90 dark:bg-amber-950/80 text-amber-950 dark:text-amber-200 font-black">{t.fwUsageTotal}</th>
+                    <th colSpan={4} className="p-3 bg-blue-100/90 dark:bg-blue-950/80 text-blue-950 dark:text-blue-200 border-r border-slate-200 dark:border-slate-700 font-black">
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                        <span>{t.fwUsage1}</span>
+                        <div className="inline-flex items-center gap-1.5 bg-white/90 dark:bg-slate-900/90 px-2 py-0.5 rounded-lg border border-blue-300 dark:border-blue-700">
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold lowercase">alloc:</span>
+                          <select
+                            value={allocation.slot1Dhool}
+                            onChange={(e) => handleAllocationSelect('slot1Dhool', e.target.value)}
+                            className="bg-transparent font-black text-blue-800 dark:text-blue-300 text-xs outline-none cursor-pointer"
+                          >
+                            <option value="drier1" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100">DHOOL 01</option>
+                            <option value="drier2" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100">DHOOL 02</option>
+                          </select>
+                        </div>
+                      </div>
+                    </th>
+                    <th colSpan={4} className="p-3 bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-200 border-r border-slate-200 dark:border-slate-700 font-black">
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                        <span>{t.fwUsage2}</span>
+                        <div className="inline-flex items-center gap-1.5 bg-white/90 dark:bg-slate-900/90 px-2 py-0.5 rounded-lg border border-emerald-300 dark:border-emerald-700">
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold lowercase">alloc:</span>
+                          <select
+                            value={allocation.slot2Dhool}
+                            onChange={(e) => handleAllocationSelect('slot2Dhool', e.target.value)}
+                            className="bg-transparent font-black text-emerald-800 dark:text-emerald-300 text-xs outline-none cursor-pointer"
+                          >
+                            <option value="drier2" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100">DHOOL 02</option>
+                            <option value="drier1" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100">DHOOL 01</option>
+                          </select>
+                        </div>
+                      </div>
+                    </th>
+                    <th colSpan={4} className="p-3 bg-amber-100/90 dark:bg-amber-950/80 text-amber-950 dark:text-amber-200 font-black">{t.fwUsageTotal}</th>
                   </tr>
                   <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 text-[10px] font-bold border-b border-slate-200 dark:border-slate-700">
                     <th className="p-2 border-r border-slate-200 dark:border-slate-700">{t.f}</th>
@@ -638,8 +699,12 @@ const FiringSectionForm = () => {
               <table className="w-full min-w-[850px] border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-extrabold uppercase border-b border-slate-200 dark:border-slate-700">
-                    <th colSpan={2} className="p-2.5 bg-blue-100/90 dark:bg-blue-950/80 text-blue-950 dark:text-blue-200 border-r border-slate-200 dark:border-slate-700 font-black">{t.fwOut1}</th>
-                    <th colSpan={2} className="p-2.5 bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-200 border-r border-slate-200 dark:border-slate-700 font-black">{t.fwOut2}</th>
+                    <th colSpan={2} className="p-2.5 bg-blue-100/90 dark:bg-blue-950/80 text-blue-950 dark:text-blue-200 border-r border-slate-200 dark:border-slate-700 font-black">
+                      {t.fwOut1} <span className="text-[10px] opacity-75">({slot1DhoolLabel})</span>
+                    </th>
+                    <th colSpan={2} className="p-2.5 bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-200 border-r border-slate-200 dark:border-slate-700 font-black">
+                      {t.fwOut2} <span className="text-[10px] opacity-75">({slot2DhoolLabel})</span>
+                    </th>
                     <th colSpan={2} className="p-2.5 bg-amber-100/90 dark:bg-amber-950/80 text-amber-950 dark:text-amber-200 font-black">{t.fwOutTotal}</th>
                   </tr>
                 </thead>
@@ -701,8 +766,12 @@ const FiringSectionForm = () => {
               <table className="w-full min-w-[850px] border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-extrabold uppercase border-b border-slate-200 dark:border-slate-700">
-                    <th colSpan={2} className="p-2.5 bg-blue-100/90 dark:bg-blue-950/80 text-blue-950 dark:text-blue-200 border-r border-slate-200 dark:border-slate-700 font-black w-1/3">{t.drier01Title}</th>
-                    <th colSpan={2} className="p-2.5 bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-200 border-r border-slate-200 dark:border-slate-700 font-black w-1/3">{t.drier02Title}</th>
+                    <th colSpan={2} className="p-2.5 bg-blue-100/90 dark:bg-blue-950/80 text-blue-950 dark:text-blue-200 border-r border-slate-200 dark:border-slate-700 font-black w-1/3">
+                      {t.drier01Title} <span className="text-[10px] opacity-75">({slot1DhoolLabel})</span>
+                    </th>
+                    <th colSpan={2} className="p-2.5 bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-200 border-r border-slate-200 dark:border-slate-700 font-black w-1/3">
+                      {t.drier02Title} <span className="text-[10px] opacity-75">({slot2DhoolLabel})</span>
+                    </th>
                     <th colSpan={2} className="p-2.5 bg-amber-100/90 dark:bg-amber-950/80 text-amber-950 dark:text-amber-200 font-black w-1/3">{t.costTotal}</th>
                   </tr>
                 </thead>
@@ -747,8 +816,12 @@ const FiringSectionForm = () => {
               <table className="w-full min-w-[850px] border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-extrabold uppercase border-b border-slate-200 dark:border-slate-700">
-                    <th colSpan={2} className="p-2.5 bg-blue-100/90 dark:bg-blue-950/80 text-blue-950 dark:text-blue-200 border-r border-slate-200 dark:border-slate-700 font-black w-1/3">{t.costDrier01}</th>
-                    <th colSpan={2} className="p-2.5 bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-200 border-r border-slate-200 dark:border-slate-700 font-black w-1/3">{t.costDrier02}</th>
+                    <th colSpan={2} className="p-2.5 bg-blue-100/90 dark:bg-blue-950/80 text-blue-950 dark:text-blue-200 border-r border-slate-200 dark:border-slate-700 font-black w-1/3">
+                      {t.costDrier01} <span className="text-[10px] opacity-75">({slot1DhoolLabel})</span>
+                    </th>
+                    <th colSpan={2} className="p-2.5 bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-200 border-r border-slate-200 dark:border-slate-700 font-black w-1/3">
+                      {t.costDrier02} <span className="text-[10px] opacity-75">({slot2DhoolLabel})</span>
+                    </th>
                     <th colSpan={2} className="p-2.5 bg-amber-100/90 dark:bg-amber-950/80 text-amber-950 dark:text-amber-200 font-black w-1/3">{t.costTotal}</th>
                   </tr>
                 </thead>
@@ -942,7 +1015,6 @@ const FiringSectionForm = () => {
           </div>
 
         </div>
-
       </div>
     </div>
   );
