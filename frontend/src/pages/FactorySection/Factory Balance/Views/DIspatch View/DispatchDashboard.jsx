@@ -4,8 +4,8 @@ import { Calendar, Filter, PieChart as PieChartIcon, BarChart3, Table as TableIc
 import toast from 'react-hot-toast';
 
 // 💡 1. Grade Classification Arrays
-const MAIN_GRADES = ["OP", "OPA", "OP1", "BOP", "BOPF", "BOPF SP", "FF", "FF SP", "FF EX SP", "FBOP", "DUST 1", "PEKOE", "PEKOE 1", "BOP 1", "FF 1"];
-const OFF_GRADES = ["BOP 1 A", "DUST", "BT", "BM", "BP", "FNGS"];
+const MAIN_GRADES = ["OP", "OPA", "OP 1", "OP1", "BOP", "BOPF", "BOPF SP", "BOPSP","BOP SP", "BOPA", "BOPF", "FF", "FF SP", "FF EX SP", "FF EX SP 1", "FBOP", "FBOP1", "FBOPF1", "FBOPF", "DUST 1",  "PEKOE", "PEKOE1", "PEKOE 1", "BOP1", "BOP 1", "FF 1", "FBOPF SP",];
+const OFF_GRADES = ["BOP1A","BOP 1 A", "BOP 1A", "DUST", "BT", "BM", "BP", "FNGS"];
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8b5cf6', '#ec4899', '#10b981', '#f43f5e', '#3b82f6', '#eab308'];
 
