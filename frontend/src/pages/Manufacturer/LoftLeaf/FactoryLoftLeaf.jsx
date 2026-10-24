@@ -12,7 +12,7 @@ const collectorNameMapping = {
   "C4": "W. P. Madushanka",
   "C5": "J. D. I. Chandrakumara",
   "C7": "T. M. Jayasinghe",
-  "C8": "K. C. Sampath"
+  "C8": "J.S.Madushan"
 };
 
 const routeOptions = [
