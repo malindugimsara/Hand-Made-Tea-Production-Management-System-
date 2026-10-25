@@ -26,6 +26,11 @@ const rawMaterialInSchema = new mongoose.Schema({
     },
     items: [materialItemSchema],
     
+    billImageUrl: { 
+        type: String, 
+        default: null 
+    },
+    
     receivedBy: { type: String },
     remarks: { type: String },
     

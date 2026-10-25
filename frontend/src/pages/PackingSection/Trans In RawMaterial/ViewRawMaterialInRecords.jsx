@@ -1,541 +1,847 @@
-import React, { useState, useEffect, useRef } from 'react';
-import toast from 'react-hot-toast';
+import React, { useState, useEffect, useRef } from "react";
+import toast from "react-hot-toast";
 import { MdOutlineDeleteOutline, MdOutlineEdit } from "react-icons/md";
-import { Calendar, RefreshCw, FileText, FilterX, Truck, Box, PackagePlus, Hash, Layers, Leaf } from "lucide-react";
-import PDFDownloader from '@/components/PDFDownloader';
+import {
+  Calendar,
+  RefreshCw,
+  FileText,
+  FilterX,
+  Truck,
+  Box,
+  PackagePlus,
+  Hash,
+  Layers,
+  Image as ImageIcon,
+  X,
+} from "lucide-react";
+import PDFDownloader from "@/components/PDFDownloader";
 
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
+
+import { createClient } from '@supabase/supabase-js';
+
+// 💡 SUPABASE CONFIGURATION
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const getMaterialColor = (material) => {
-    const m = material?.toLowerCase() || '';
-    
-    if (m.includes('pouch')) return 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-800/50';
-    if (m.includes('box') || m.includes('carton')) return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/50';
-    if (m.includes('label') || m.includes('tape')) return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/50';
-    if (m.includes('paper') || m.includes('polybag')) return 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-800/50';
-    if (m.includes('thread') || m.includes('glue')) return 'bg-rose-100 dark:bg-rose-900/30 text-rose-800 dark:text-rose-200 border-rose-200 dark:border-rose-800/50';
-    
-    return 'bg-gray-100 dark:bg-zinc-800/80 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700';
+  const m = material?.toLowerCase() || "";
+
+  if (m.includes("pouch"))
+    return "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-800/50";
+  if (m.includes("box") || m.includes("carton"))
+    return "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800/50";
+  if (m.includes("label") || m.includes("tape"))
+    return "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/50";
+  if (m.includes("paper") || m.includes("polybag"))
+    return "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-800/50";
+  if (m.includes("thread") || m.includes("glue"))
+    return "bg-rose-100 dark:bg-rose-900/30 text-rose-800 dark:text-rose-200 border-rose-200 dark:border-rose-800/50";
+
+  return "bg-gray-100 dark:bg-zinc-800/80 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700";
 };
 
 const getPdfMaterialColor = (material) => {
-    const m = material?.toLowerCase() || '';
-    
-    if (m.includes('pouch')) return { fillColor: [254, 243, 199], textColor: [146, 64, 14] };
-    if (m.includes('box') || m.includes('carton')) return { fillColor: [219, 234, 254], textColor: [30, 64, 175] };
-    if (m.includes('label') || m.includes('tape')) return { fillColor: [209, 250, 229], textColor: [6, 95, 70] };
-    if (m.includes('paper') || m.includes('polybag')) return { fillColor: [243, 232, 255], textColor: [107, 33, 168] };
-    if (m.includes('thread') || m.includes('glue')) return { fillColor: [255, 228, 230], textColor: [159, 18, 57] };
-    
-    return { fillColor: [244, 244, 245], textColor: [31, 41, 55] };
+  const m = material?.toLowerCase() || "";
+
+  if (m.includes("pouch"))
+    return { fillColor: [254, 243, 199], textColor: [146, 64, 14] };
+  if (m.includes("box") || m.includes("carton"))
+    return { fillColor: [219, 234, 254], textColor: [30, 64, 175] };
+  if (m.includes("label") || m.includes("tape"))
+    return { fillColor: [209, 250, 229], textColor: [6, 95, 70] };
+  if (m.includes("paper") || m.includes("polybag"))
+    return { fillColor: [243, 232, 255], textColor: [107, 33, 168] };
+  if (m.includes("thread") || m.includes("glue"))
+    return { fillColor: [255, 228, 230], textColor: [159, 18, 57] };
+
+  return { fillColor: [244, 244, 245], textColor: [31, 41, 55] };
 };
 
 const RAW_MATERIALS = [
-    "Coil Bag (100g)", "Coil Bag (200g)", "Cloth Bag", "Paper Bag", "Standard Bag", "Price Sticker",
-    "Chest Box", "Paper Can", "Wooden Cylinder", "Sticker", "Label", "Barcode", "Box", "Label Bag", "Coil Bag"
+  "Coil Bag (100g)",
+  "Coil Bag (200g)",
+  "Cloth Bag",
+  "Paper Bag",
+  "Standard Bag",
+  "Price Sticker",
+  "Chest Box",
+  "Paper Can",
+  "Wooden Cylinder",
+  "Sticker",
+  "Label",
+  "Barcode",
+  "Box",
+  "Label Bag",
+  "Coil Bag",
 ];
 
 // Flavors list for Autocomplete
 const FLAVOR_NAMES = [
-    "Cinnamon", "Chakra", "Ginger", "Masala", "Vanilla", "Mint", 
-    "Moringa", "Curry Leaves", "Gotukola", "Heen Bovitiya", "Cardamom", 
-    "Rose", "Strawberry", "Peach", "Mix Fruit", "Pineapple", "Mango", 
-    "Honey", "Earl Grey", "Lime", "Soursop", "Jasmine", "Flower", "Turmeric", "Black Pepper"
+  "Cinnamon",
+  "Chakra",
+  "Ginger",
+  "Masala",
+  "Vanilla",
+  "Mint",
+  "Moringa",
+  "Curry Leaves",
+  "Gotukola",
+  "Heen Bovitiya",
+  "Cardamom",
+  "Rose",
+  "Strawberry",
+  "Peach",
+  "Mix Fruit",
+  "Pineapple",
+  "Mango",
+  "Honey",
+  "Earl Grey",
+  "Lime",
+  "Soursop",
+  "Jasmine",
+  "Flower",
+  "Turmeric",
+  "Black Pepper",
 ];
 
 // Helper function to check if a material is a flavor
 const getCategory = (materialName) => {
-    const isFlavor = FLAVOR_NAMES.some(flavor => 
-        (materialName || "").toLowerCase().includes(flavor.toLowerCase())
-    );
-    return isFlavor ? 'spicy' : 'other';
+  const isFlavor = FLAVOR_NAMES.some((flavor) =>
+    (materialName || "").toLowerCase().includes(flavor.toLowerCase()),
+  );
+  return isFlavor ? "spicy" : "other";
 };
 
 export default function ViewRawMaterialInRecords() {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-    const [records, setRecords] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [recordToDelete, setRecordToDelete] = useState(null);
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [recordToDelete, setRecordToDelete] = useState(null);
 
-    const userRole = localStorage.getItem('userRole') || ''; 
-    const isViewer = userRole.toLowerCase() === 'viewer';
-    // Add this new line right below them:
-    const isAdmin = userRole.toLowerCase() === 'admin';
+  const userRole = localStorage.getItem("userRole") || "";
+  const isViewer = userRole.toLowerCase() === "viewer";
+  // Add this new line right below them:
+  const isAdmin = userRole.toLowerCase() === "admin";
 
-    // --- FILTER STATES ---
-    const [filterCategory, setFilterCategory] = useState('all'); // NEW: Category Filter
-    const [filterMonth, setFilterMonth] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
-    const [searchFilter, setSearchFilter] = useState('');
-    
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const dropdownRef = useRef(null);
-    
-    const navigate = useNavigate(); 
-    
-    useEffect(() => {
-        fetchRecords();
-        
-        const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setIsDropdownOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+  // --- FILTER STATES ---
+  const [filterCategory, setFilterCategory] = useState("all"); // NEW: Category Filter
+  const [filterMonth, setFilterMonth] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [searchFilter, setSearchFilter] = useState("");
 
-    const fetchRecords = async () => {
-        setLoading(true); 
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/raw-materials-in`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
-            if (!response.ok) {
-                if(response.status === 401) throw new Error("Unauthorized. Please log in.");
-                throw new Error("Failed to fetch data");
-            }
+  const [viewImage, setViewImage] = useState(null);
 
-            const data = await response.json();
-            const recordsData = data.data ? data.data : data;
+  const navigate = useNavigate();
 
-            const processedData = recordsData.map(rec => {
-                const createdTime = rec.createdAt ? new Date(rec.createdAt).getTime() : 0;
-                const updatedTime = rec.updatedAt ? new Date(rec.updatedAt).getTime() : 0;
-                const isEdited = createdTime > 0 && updatedTime > 0 && (updatedTime - createdTime) > 5000;
-                const lastUpdatedDate = isEdited ? new Date(rec.updatedAt).toISOString().split('T')[0] : '';
-                
-                const itemsArray = (rec.items || []).map(item => ({
-                    ...item,
-                    category: getCategory(item.materialName)
-                }));
-                
-                const searchString = `${rec.invoiceNo || ''} ${rec.supplierName || ''} ${itemsArray.map(item => item.materialName).join(' ')}`;
+  useEffect(() => {
+    fetchRecords();
 
-                return {
-                    ...rec, itemsArray, searchString, isEdited, lastUpdatedDate,
-                    editedBy: rec.updatedBy || rec.editorName || 'Unknown User' 
-                };
-            });
-
-            const sortedData = processedData.sort((a, b) => {
-                const dateDiff = new Date(b.date) - new Date(a.date);
-                if (dateDiff !== 0) return dateDiff;
-                return new Date(b.createdAt) - new Date(a.createdAt);
-            });
-
-            setRecords(sortedData);
-        } catch (error) {
-            console.error("Fetch Error:", error);
-            toast.error(error.message || "Could not load data from server.");
-        } finally {
-            setLoading(false);
-        }
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
     };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-    const filteredRecords = records.reduce((acc, record) => {
+  const fetchRecords = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${BACKEND_URL}/api/raw-materials-in`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401)
+          throw new Error("Unauthorized. Please log in.");
+        throw new Error("Failed to fetch data");
+      }
+
+      const data = await response.json();
+      const recordsData = data.data ? data.data : data;
+
+      const processedData = recordsData.map((rec) => {
+        const createdTime = rec.createdAt
+          ? new Date(rec.createdAt).getTime()
+          : 0;
+        const updatedTime = rec.updatedAt
+          ? new Date(rec.updatedAt).getTime()
+          : 0;
+        const isEdited =
+          createdTime > 0 &&
+          updatedTime > 0 &&
+          updatedTime - createdTime > 5000;
+        const lastUpdatedDate = isEdited
+          ? new Date(rec.updatedAt).toISOString().split("T")[0]
+          : "";
+
+        const itemsArray = (rec.items || []).map((item) => ({
+          ...item,
+          category: getCategory(item.materialName),
+        }));
+
+        const searchString = `${rec.invoiceNo || ""} ${rec.supplierName || ""} ${itemsArray.map((item) => item.materialName).join(" ")}`;
+
+        return {
+          ...rec,
+          itemsArray,
+          searchString,
+          isEdited,
+          lastUpdatedDate,
+          editedBy: rec.updatedBy || rec.editorName || "Unknown User",
+        };
+      });
+
+      const sortedData = processedData.sort((a, b) => {
+        const dateDiff = new Date(b.date) - new Date(a.date);
+        if (dateDiff !== 0) return dateDiff;
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+
+      setRecords(sortedData);
+    } catch (error) {
+      console.error("Fetch Error:", error);
+      toast.error(error.message || "Could not load data from server.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredRecords = records.reduce((acc, record) => {
     // Date සහ Month filters චෙක් කිරීම
-    const rDate = record.date ? new Date(record.date).toISOString().split('T')[0] : '';
+    const rDate = record.date
+      ? new Date(record.date).toISOString().split("T")[0]
+      : "";
     const monthMatch = !filterMonth || rDate.startsWith(filterMonth);
-    const dateMatch = (!startDate || rDate >= startDate) && (!endDate || rDate <= endDate);
-    
+    const dateMatch =
+      (!startDate || rDate >= startDate) && (!endDate || rDate <= endDate);
+
     // මාසය හෝ දිනය ගැලපෙන්නේ නැත්නම් මේ record එක අතහරින්න
     if (!monthMatch || !dateMatch) return acc;
 
     // record එක ඇතුලේ තියෙන items ටික ගන්න. (undefined ආවොත් crash නොවෙන්න || [] දාලා තියෙනවා)
-    let matchedItems = record.itemsArray || []; 
+    let matchedItems = record.itemsArray || [];
 
     // 1. Category Filter එක මෙතනදීම Apply කරනවා
-    if (filterCategory !== 'all') {
-        matchedItems = matchedItems.filter(item => (item.category || 'other') === filterCategory);
+    if (filterCategory !== "all") {
+      matchedItems = matchedItems.filter(
+        (item) => (item.category || "other") === filterCategory,
+      );
     }
-    
+
     // 2. Search Box Filter එක Apply කරනවා
     if (searchFilter) {
-        const searchVal = searchFilter.toLowerCase();
-        
-        // Invoice No හෝ Supplier Name එකට සමානද කියලා බලනවා (Partial Match)
-        const isInvoiceMatch = record.invoiceNo?.toLowerCase().includes(searchVal);
-        const isSupplierMatch = record.supplierName?.toLowerCase().includes(searchVal);
-        
-        // ඒ දෙකටම ගැලපුනේ නැත්නම්, හරියටම Material Name එකට සමාන (Exact Match) items විතරක් ගන්නවා
-        if (!isInvoiceMatch && !isSupplierMatch) {
-            matchedItems = matchedItems.filter(
-                item => item.materialName?.toLowerCase() === searchVal
-            );
-        }
+      const searchVal = searchFilter.toLowerCase();
+
+      // Invoice No හෝ Supplier Name එකට සමානද කියලා බලනවා (Partial Match)
+      const isInvoiceMatch = record.invoiceNo
+        ?.toLowerCase()
+        .includes(searchVal);
+      const isSupplierMatch = record.supplierName
+        ?.toLowerCase()
+        .includes(searchVal);
+
+      // ඒ දෙකටම ගැලපුනේ නැත්නම්, හරියටම Material Name එකට සමාන (Exact Match) items විතරක් ගන්නවා
+      if (!isInvoiceMatch && !isSupplierMatch) {
+        matchedItems = matchedItems.filter(
+          (item) => item.materialName?.toLowerCase() === searchVal,
+        );
+      }
     }
 
     // ගැලපෙන items එකක් හෝ තියෙනවා නම් පමණක් එය පෙන්නන්න
     if (matchedItems.length > 0) {
-        acc.push({
-            ...record,
-            itemsArray: matchedItems // ෆිල්ටර් වුන items පමණක් replace කරයි
-        });
+      acc.push({
+        ...record,
+        itemsArray: matchedItems, // ෆිල්ටර් වුන items පමණක් replace කරයි
+      });
     }
 
     return acc;
-}, []);
+  }, []);
 
-    // --- GENERATE DATA FOR SUMMARY TABLE ---
-    const summaryMap = {};
+  // --- GENERATE DATA FOR SUMMARY TABLE ---
+  const summaryMap = {};
 
-    filteredRecords.forEach(record => {
-        record.itemsArray.forEach(item => {
-            // Apply category filter to the summary items as well
-            if (filterCategory !== 'all' && (item.category || 'other') !== filterCategory) return;
+  filteredRecords.forEach((record) => {
+    record.itemsArray.forEach((item) => {
+      // Apply category filter to the summary items as well
+      if (
+        filterCategory !== "all" &&
+        (item.category || "other") !== filterCategory
+      )
+        return;
 
-            const key = `${item.materialName}_|_${item.unit}`;
-            if (!summaryMap[key]) {
-                summaryMap[key] = { 
-                    materialName: item.materialName, 
-                    unit: item.unit, 
-                    category: item.category,
-                    qty: 0 
-                };
-            }
-            summaryMap[key].qty += Number(item.quantity) || 0;
-        });
+      const key = `${item.materialName}_|_${item.unit}`;
+      if (!summaryMap[key]) {
+        summaryMap[key] = {
+          materialName: item.materialName,
+          unit: item.unit,
+          category: item.category,
+          qty: 0,
+        };
+      }
+      summaryMap[key].qty += Number(item.quantity) || 0;
     });
-    
-    const summaryArray = Object.values(summaryMap).sort((a, b) => b.qty - a.qty);
+  });
 
-    const handleEditClick = (record) => {
-        navigate('/packing/edit-raw-material-in', { state: { recordData: record } }); 
-    };
+  const summaryArray = Object.values(summaryMap).sort((a, b) => b.qty - a.qty);
 
-    const handleConfirmDelete = async () => {
-    if (!recordToDelete) return;
-    const toastId = toast.loading('Deleting record...');
-    try {
-        const token = localStorage.getItem('token');
-        // මෙතැනින් '/delete' ඉවත් කරන්න
-        const response = await fetch(`${BACKEND_URL}/api/raw-materials-in/${recordToDelete._id}`, { 
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (response.ok) {
-            toast.success("Record deleted successfully!", { id: toastId });
-            fetchRecords(); 
-        } else {
-            toast.error("Failed to delete record.", { id: toastId });
-        }
-    } catch (error) {
-        toast.error("Network error while deleting.", { id: toastId });
-    } finally {
-        setRecordToDelete(null);
-    }
-};
+  const handleEditClick = (record) => {
+    navigate("/packing/edit-raw-material-in", {
+      state: { recordData: record },
+    });
+  };
 
-    const clearFilters = () => {
-        setFilterCategory('all');
-        setFilterMonth('');
-        setStartDate('');
-        setEndDate('');
-        setSearchFilter('');
-    };
+  const handleConfirmDelete = async () => {
+        if (!recordToDelete) return;
+        const toastId = toast.loading('Deleting record...');
+        try {
+            if (recordToDelete.billImageUrl) {
+                const rawPath = recordToDelete.billImageUrl.split('/raw-material-bills/')[1];
+                if (rawPath) {
+                    const cleanPath = decodeURIComponent(rawPath.split('?')[0]); 
+                    
+                    const { data, error } = await supabase.storage.from('raw-material-bills').remove([cleanPath]);
+                    
+                    if (error) {
+                        console.error("Failed to delete image from Supabase:", error);
+                    } else {
+                        console.log("Image deleted successfully from Supabase:", data);
+                    }
+                }
+            }
 
-    const handleStartDateChange = (e) => {
-        setStartDate(e.target.value);
-        if (endDate && e.target.value > endDate) {
-            setEndDate(''); 
-        }
-    };
-
-    // --- PDF GENERATION LOGIC ---
-    const getPdfData = () => {
-        const pdfSortedRecords = [...filteredRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
-        const tableRows = [];
-
-        pdfSortedRecords.forEach(record => {
-            const baseDate = new Date(record.date).toISOString().split('T')[0];
-            const pdfDateCell = record.isEdited ? `${baseDate}\n(Edited by ${record.editedBy})` : baseDate;
-
-            record.itemsArray.forEach((item, index) => {
-                // Skip items that don't match the selected category (if a specific category is filtered)
-                if (filterCategory !== 'all' && (item.category || 'other') !== filterCategory) return;
-
-                const isFirst = index === 0;
-
-                tableRows.push([
-                    isFirst ? pdfDateCell : "",
-                    isFirst ? (record.invoiceNo || "-") : "",
-                    isFirst ? (record.supplierName || "-") : "",
-                    { 
-                        content: `${item.materialName}\n(${item.category})`, 
-                        styles: { ...getPdfMaterialColor(item.materialName), fontStyle: 'bold', halign: 'center' } 
-                    },
-                    `${Number(item.quantity).toFixed(2)}`,
-                    item.unit
-                ]);
+            const token = localStorage.getItem('token');
+            // 💡 2. ඉන්පසු Backend එකෙන් Record එක මකා දැමීම
+            const response = await fetch(`${BACKEND_URL}/api/raw-materials-in/${recordToDelete._id}`, { 
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
             });
-        });
-
-        return tableRows;
+            
+            if (response.ok) {
+                toast.success("Record deleted successfully!", { id: toastId });
+                fetchRecords(); 
+            } else {
+                toast.error("Failed to delete record.", { id: toastId });
+            }
+        } catch (error) {
+            toast.error("Network error while deleting.", { id: toastId });
+        } finally {
+            setRecordToDelete(null);
+        }
     };
 
-    const uniqueCode = `INV/RMI/${new Date().toLocaleString('default', { month: 'short' }).toUpperCase()}.${new Date().getFullYear()}`;
+  const clearFilters = () => {
+    setFilterCategory("all");
+    setFilterMonth("");
+    setStartDate("");
+    setEndDate("");
+    setSearchFilter("");
+  };
 
-    const ALL_SEARCH_ITEMS = [...RAW_MATERIALS, ...FLAVOR_NAMES];
+  const handleStartDateChange = (e) => {
+    setStartDate(e.target.value);
+    if (endDate && e.target.value > endDate) {
+      setEndDate("");
+    }
+  };
 
-    return (
-        <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen transition-colors duration-300  dark:bg-zinc-950">
-            <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="w-full sm:w-auto">
-                    <h2 className="text-2xl font-bold text-[#0f766e] dark:text-teal-400 flex items-center gap-2">
-                        <PackagePlus size={24} /> Trans In Raw Material Records
-                    </h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Overview of received packaging and raw materials</p>
-                </div>
-                
-                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-                    <div className="w-full sm:w-auto">
-                        <PDFDownloader 
-                            title="Raw Material Inward Records"
-                            subtitle={`Filters -> Category: ${filterCategory === 'all' ? 'All' : filterCategory} | Month: ${filterMonth || 'All'} | Search: ${searchFilter || 'All'}`}
-                            headers={["Date", "Invoice No", "Supplier", "Material Name", "Quantity", "Unit"]}
-                            data={getPdfData()}
-                            uniqueCode={uniqueCode}
-                            fileName={`Raw_Material_Inward_${new Date().toISOString().split('T')[0]}.pdf`}
-                            orientation="landscape" 
-                            disabled={loading || filteredRecords.length === 0}
-                        />
-                    </div>
-                    <button onClick={fetchRecords} disabled={loading} className={`w-full sm:w-auto justify-center px-4 py-2.5 bg-white dark:bg-zinc-900 text-[#0f766e] dark:text-teal-400 border border-[#0d9488] dark:border-teal-800 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#f0fdfa] dark:hover:bg-zinc-800'}`}>
-                        <RefreshCw size={18} className={loading ? 'animate-spin' : ''} /> Sync Data
-                    </button>
-                </div>
-            </div>
-
-            {/* --- FILTER SECTION --- */}
-            <div className="mb-6 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-colors duration-300">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-                    
-                    {/* NEW: CATEGORY FILTER */}
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Category</label>
-                        <select 
-                            value={filterCategory} 
-                            onChange={(e) => setFilterCategory(e.target.value)} 
-                            className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf]/50 transition-colors cursor-pointer"
-                        >
-                            <option value="all">All Categories</option>
-                            <option value="flavor">Spicy Only</option>
-                            <option value="other">Other Materials</option>
-                        </select>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Month</label>
-                        <input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf]/50 transition-colors" />
-                    </div>
-                    
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">From Date</label>
-                        <input type="date" value={startDate} onChange={handleStartDateChange} className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf]/50 transition-colors" />
-                    </div>
-                    
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">To Date</label>
-                        <input type="date" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} disabled={!startDate} className="w-full border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf]/50 transition-colors disabled:opacity-50" />
-                    </div>
-                    
-                    <div className="flex flex-col gap-1.5 relative" ref={dropdownRef}>
-                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Search Details</label>
-                        <input 
-                            type="text" 
-                            placeholder="Invoice/Supplier/Mat..." 
-                            value={searchFilter} 
-                            onChange={(e) => {
-                                setSearchFilter(e.target.value);
-                                setIsDropdownOpen(true);
-                            }} 
-                            onFocus={() => setIsDropdownOpen(true)}
-                            className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf]/50 transition-colors" 
-                        />
-                        {isDropdownOpen && (
-                            <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
-                                {ALL_SEARCH_ITEMS.filter(t => t.toLowerCase().includes(searchFilter.toLowerCase()))
-                                    .map((mat, idx) => (
-                                    <li 
-                                        key={idx} 
-                                        onMouseDown={(e) => e.preventDefault()}
-                                        onClick={() => {
-                                            setSearchFilter(mat);
-                                            setIsDropdownOpen(false);
-                                        }}
-                                        className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex items-center gap-2"
-                                    >
-                                        <div className={`w-3 h-3 rounded-full ${getMaterialColor(mat)} border border-white/20`}></div> {mat}
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
-
-                    <div className="flex items-end lg:justify-end">
-                        <button onClick={clearFilters} disabled={filterCategory === 'all' && !filterMonth && !startDate && !endDate && !searchFilter} className={`w-full lg:w-auto px-4 py-2.5 text-sm font-bold rounded-md transition-colors flex items-center justify-center gap-2 ${filterCategory !== 'all' || filterMonth || startDate || endDate || searchFilter ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 border border-red-200 dark:border-red-800' : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-gray-600 cursor-not-allowed border border-transparent'}`}>
-                            <FilterX size={16} /> Clear
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            {/* --- MAIN GRID LAYOUT --- */}
-            <div className="grid grid-cols-1 gap-6">
-                
-                {/* LEFT: MAIN TABLE (Col Span 3) */}
-                <div className="xl:col-span-3 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden self-start w-full transition-colors duration-300">
-                    {loading ? (
-                        <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center h-64">
-                            <div className="w-8 h-8 border-4 border-[#99f6e4] border-t-[#0f766e] rounded-full animate-spin mb-4"></div>
-                            <p className="font-medium">Loading records...</p>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto w-full scrollbar-thin scrollbar-thumb-gray-300">
-                            <table className="w-full text-sm text-left border-collapse whitespace-nowrap min-w-full">
-                                <thead>
-                                    <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-500">
-                                        <th className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-500 align-bottom min-w-[120px]"><Calendar size={14} className="inline mr-1"/> Date</th>
-                                        <th className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-500 align-bottom"><FileText size={14} className="inline mr-1"/> Invoice Info</th>
-                                        <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 align-bottom "><Box size={14} className="inline mr-1"/> Material Name</th>
-                                        <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 text-center"><Layers size={14} className="inline mr-1"/> Category</th>
-                                        <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 text-center"><Hash size={14} className="inline mr-1"/> Quantity</th>
-                                        <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 text-center">Unit</th>
-                                        {!isViewer && <th className="px-4 py-3 font-semibold align-bottom text-center bg-gray-50 dark:bg-zinc-950/50">Action</th>}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
-                                    {filteredRecords.length > 0 ? (
-                                        filteredRecords.map((record) => {
-                                            // Pre-filter items to show only if they match the selected category
-                                            const displayItems = filterCategory === 'all' 
-                                                ? record.itemsArray 
-                                                : record.itemsArray.filter(item => (item.category || 'other') === filterCategory);
-
-                                            if (displayItems.length === 0) return null; // Edge case safety
-
-                                            return (
-                                                <tr key={record._id} className="hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors group">
-                                                    
-                                                    <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                        <span className="font-semibold text-gray-800 dark:text-gray-200">{new Date(record.date).toISOString().split('T')[0]}</span>
-                                                        {record.isEdited && (
-                                                            <div className="mt-1.5 text-[10px] bg-[#f0fdfa] dark:bg-teal-900 text-[#0f766e] dark:text-teal-400 border border-[#99f6e4] dark:border-teal-700 px-2 py-1 rounded font-medium w-max leading-tight">
-                                                                <span className="font-bold">Edited by {record.editedBy}</span><br />
-                                                                <span className="opacity-100">{record.lastUpdatedDate}</span>
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                    
-                                                    <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                        <div className="flex flex-col gap-1.5">
-                                                            <span className="font-black text-gray-800 dark:text-gray-200 text-base">{record.invoiceNo}</span>
-                                                            {record.supplierName && (
-                                                                <div className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 font-medium mt-0.5">
-                                                                    <Truck size={12} className="text-[#0d9488] dark:text-teal-400"/> {record.supplierName}
-                                                                </div>
-                                                            )}
-                                                            {record.remarks && (
-                                                                <div className="text-[10px] text-gray-500 italic mt-1 max-w-[180px] truncate" title={record.remarks}>
-                                                                    * {record.remarks}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    
-                                                    <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px">
-                                                        <div className="flex flex-col w-full h-full">
-                                                            {displayItems.map((t, i) => (
-                                                                <div key={i} className={`flex-1 flex items-center px-4 py-3 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0 ${getMaterialColor(t.materialName)}`}>
-                                                                    {t.materialName}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </td>
-
-                                                    <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                        <div className="flex flex-col w-full h-full">
-                                                            {displayItems.map((t, i) => (
-                                                                <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                                    <span className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded tracking-wider ${t.category === 'spicy' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'}`}>
-                                                                        {t.category}
-                                                                    </span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </td>
-                                                    
-                                                    <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                        <div className="flex flex-col w-full h-full">
-                                                            {displayItems.map((t, i) => (
-                                                                <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-800 dark:text-gray-200 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                                    <span className="text-[#0f766e] dark:text-teal-400">{Number(t.quantity).toFixed(2)}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </td>
-
-                                                    <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                        <div className="flex flex-col w-full h-full">
-                                                            {displayItems.map((t, i) => (
-                                                                <div key={i} className="flex-1 flex items-center justify-center px-3 py-3 text-gray-600 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0">
-                                                                    {t.unit}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </td>
-                                                    
-                                                    {!isViewer && (
-                                                        <td className="px-3 py-4 text-center align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
-                                                            <div className="flex flex-wrap items-center justify-center gap-1 mt-1">
-                                                                <button onClick={() => handleEditClick(record)} className="p-1.5 text-gray-500 hover:text-[#0f766e] rounded transition-colors"><MdOutlineEdit size={20} /></button>
-                                                                {isAdmin && (
-                                                                    <AlertDialog>
-                                                                        <AlertDialogTrigger asChild><button onClick={() => setRecordToDelete(record)} className="p-1.5 text-gray-500 hover:text-red-600 rounded transition-colors"><MdOutlineDeleteOutline size={20} /></button></AlertDialogTrigger>
-                                                                        <AlertDialogContent className="bg-white rounded-2xl max-w-md w-[90vw] max-w-[425px]">
-                                                                            <AlertDialogHeader>
-                                                                                <AlertDialogTitle className="text-xl font-bold">Delete Record</AlertDialogTitle>
-                                                                                <AlertDialogDescription>Are you sure you want to delete this record?</AlertDialogDescription>
-                                                                            </AlertDialogHeader>
-                                                                            <AlertDialogFooter>
-                                                                                <AlertDialogCancel onClick={() => setRecordToDelete(null)}>Cancel</AlertDialogCancel>
-                                                                                <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 text-white hover:bg-red-700">Delete</AlertDialogAction>
-                                                                            </AlertDialogFooter>
-                                                                        </AlertDialogContent>
-                                                                    </AlertDialog>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                    )}
-                                                </tr>
-                                            );
-                                        })
-                                    ) : (
-                                        <tr><td colSpan={isViewer ? "6" : "7"} className="p-16 text-center text-gray-400"><p>No records found</p></td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
+  // --- PDF GENERATION LOGIC ---
+  const getPdfData = () => {
+    const pdfSortedRecords = [...filteredRecords].sort(
+      (a, b) => new Date(a.date) - new Date(b.date),
     );
+    const tableRows = [];
+
+    pdfSortedRecords.forEach((record) => {
+      const baseDate = new Date(record.date).toISOString().split("T")[0];
+      const pdfDateCell = record.isEdited
+        ? `${baseDate}\n(Edited by ${record.editedBy})`
+        : baseDate;
+
+      record.itemsArray.forEach((item, index) => {
+        // Skip items that don't match the selected category (if a specific category is filtered)
+        if (
+          filterCategory !== "all" &&
+          (item.category || "other") !== filterCategory
+        )
+          return;
+
+        const isFirst = index === 0;
+
+        tableRows.push([
+          isFirst ? pdfDateCell : "",
+          isFirst ? record.invoiceNo || "-" : "",
+          isFirst ? record.supplierName || "-" : "",
+          {
+            content: `${item.materialName}\n(${item.category})`,
+            styles: {
+              ...getPdfMaterialColor(item.materialName),
+              fontStyle: "bold",
+              halign: "center",
+            },
+          },
+          `${Number(item.quantity).toFixed(2)}`,
+          item.unit,
+        ]);
+      });
+    });
+
+    return tableRows;
+  };
+
+  const uniqueCode = `INV/RMI/${new Date().toLocaleString("default", { month: "short" }).toUpperCase()}.${new Date().getFullYear()}`;
+
+  const ALL_SEARCH_ITEMS = [...RAW_MATERIALS, ...FLAVOR_NAMES];
+
+  return (
+    <div className="p-4 sm:p-8 max-w-[1600px] mx-auto font-sans relative min-h-screen transition-colors duration-300  dark:bg-zinc-950">
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="w-full sm:w-auto">
+          <h2 className="text-2xl font-bold text-[#0f766e] dark:text-teal-400 flex items-center gap-2">
+            <PackagePlus size={24} /> Trans In Raw Material Records
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Overview of received packaging and raw materials
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+          <div className="w-full sm:w-auto">
+            <PDFDownloader
+              title="Raw Material Inward Records"
+              subtitle={`Filters -> Category: ${filterCategory === "all" ? "All" : filterCategory} | Month: ${filterMonth || "All"} | Search: ${searchFilter || "All"}`}
+              headers={[
+                "Date",
+                "Invoice No",
+                "Supplier",
+                "Material Name",
+                "Quantity",
+                "Unit",
+              ]}
+              data={getPdfData()}
+              uniqueCode={uniqueCode}
+              fileName={`Raw_Material_Inward_${new Date().toISOString().split("T")[0]}.pdf`}
+              orientation="landscape"
+              disabled={loading || filteredRecords.length === 0}
+            />
+          </div>
+          <button
+            onClick={fetchRecords}
+            disabled={loading}
+            className={`w-full sm:w-auto justify-center px-4 py-2.5 bg-white dark:bg-zinc-900 text-[#0f766e] dark:text-teal-400 border border-[#0d9488] dark:border-teal-800 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all duration-300 ${loading ? "opacity-70 cursor-not-allowed" : "hover:bg-[#f0fdfa] dark:hover:bg-zinc-800"}`}
+          >
+            <RefreshCw size={18} className={loading ? "animate-spin" : ""} />{" "}
+            Sync Data
+          </button>
+        </div>
+      </div>
+
+      {/* --- FILTER SECTION --- */}
+      <div className="mb-6 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm transition-colors duration-300">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+          {/* NEW: CATEGORY FILTER */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">
+              Category
+            </label>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf]/50 transition-colors cursor-pointer"
+            >
+              <option value="all">All Categories</option>
+              <option value="flavor">Spicy Only</option>
+              <option value="other">Other Materials</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">
+              Month
+            </label>
+            <input
+              type="month"
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+              className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf]/50 transition-colors"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">
+              From Date
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={handleStartDateChange}
+              className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf]/50 transition-colors"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">
+              To Date
+            </label>
+            <input
+              type="date"
+              min={startDate}
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              disabled={!startDate}
+              className="w-full border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf]/50 transition-colors disabled:opacity-50"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5 relative" ref={dropdownRef}>
+            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">
+              Search Details
+            </label>
+            <input
+              type="text"
+              placeholder="Invoice/Supplier/Mat..."
+              value={searchFilter}
+              onChange={(e) => {
+                setSearchFilter(e.target.value);
+                setIsDropdownOpen(true);
+              }}
+              onFocus={() => setIsDropdownOpen(true)}
+              className="w-full border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-gray-200 rounded-md p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#2dd4bf]/50 transition-colors"
+            />
+            {isDropdownOpen && (
+              <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-y-auto max-h-[220px] custom-scrollbar">
+                {ALL_SEARCH_ITEMS.filter((t) =>
+                  t.toLowerCase().includes(searchFilter.toLowerCase()),
+                ).map((mat, idx) => (
+                  <li
+                    key={idx}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setSearchFilter(mat);
+                      setIsDropdownOpen(false);
+                    }}
+                    className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-[#f0fdfa] dark:hover:bg-teal-900/30 cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex items-center gap-2"
+                  >
+                    <div
+                      className={`w-3 h-3 rounded-full ${getMaterialColor(mat)} border border-white/20`}
+                    ></div>{" "}
+                    {mat}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="flex items-end lg:justify-end">
+            <button
+              onClick={clearFilters}
+              disabled={
+                filterCategory === "all" &&
+                !filterMonth &&
+                !startDate &&
+                !endDate &&
+                !searchFilter
+              }
+              className={`w-full lg:w-auto px-4 py-2.5 text-sm font-bold rounded-md transition-colors flex items-center justify-center gap-2 ${filterCategory !== "all" || filterMonth || startDate || endDate || searchFilter ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 border border-red-200 dark:border-red-800" : "bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-gray-600 cursor-not-allowed border border-transparent"}`}
+            >
+              <FilterX size={16} /> Clear
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* --- MAIN GRID LAYOUT --- */}
+      <div className="grid grid-cols-1 gap-6">
+        {/* LEFT: MAIN TABLE (Col Span 3) */}
+        <div className="xl:col-span-3 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-600 overflow-hidden self-start w-full transition-colors duration-300">
+          {loading ? (
+            <div className="p-12 text-center text-gray-500 flex flex-col items-center justify-center h-64">
+              <div className="w-8 h-8 border-4 border-[#99f6e4] border-t-[#0f766e] rounded-full animate-spin mb-4"></div>
+              <p className="font-medium">Loading records...</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto w-full scrollbar-thin scrollbar-thumb-gray-300">
+              <table className="w-full text-sm text-left border-collapse whitespace-nowrap min-w-full">
+                <thead>
+                  <tr className="bg-gray-50 dark:bg-zinc-950/50 text-gray-500 dark:text-gray-400 uppercase text-xs tracking-wider border-b border-gray-200 dark:border-zinc-500">
+                    <th className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-500 align-bottom min-w-[120px]">
+                      <Calendar size={14} className="inline mr-1" /> Date
+                    </th>
+                    <th className="px-4 py-3 font-semibold border-r border-gray-200 dark:border-zinc-500 align-bottom">
+                      <FileText size={14} className="inline mr-1" /> Invoice
+                      Info
+                    </th>
+                    <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 align-bottom ">
+                      <Box size={14} className="inline mr-1" /> Material Name
+                    </th>
+                    <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 text-center">
+                      <Layers size={14} className="inline mr-1" /> Category
+                    </th>
+                    <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 text-center">
+                      <Hash size={14} className="inline mr-1" /> Quantity
+                    </th>
+                    <th className="px-4 py-3 font-bold text-[#0f766e] dark:text-teal-400 border-r border-gray-200 dark:border-zinc-600 bg-[#f0fdfa] dark:bg-teal-950/30 text-center">
+                      Unit
+                    </th>
+                    {!isViewer && (
+                      <th className="px-4 py-3 font-semibold align-bottom text-center bg-gray-50 dark:bg-zinc-950/50">
+                        Action
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-zinc-700">
+                  {filteredRecords.length > 0 ? (
+                    filteredRecords.map((record) => {
+                      // Pre-filter items to show only if they match the selected category
+                      const displayItems =
+                        filterCategory === "all"
+                          ? record.itemsArray
+                          : record.itemsArray.filter(
+                              (item) =>
+                                (item.category || "other") === filterCategory,
+                            );
+
+                      if (displayItems.length === 0) return null; // Edge case safety
+
+                      return (
+                        <tr
+                          key={record._id}
+                          className="hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors group"
+                        >
+                          <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                            <span className="font-semibold text-gray-800 dark:text-gray-200">
+                              {
+                                new Date(record.date)
+                                  .toISOString()
+                                  .split("T")[0]
+                              }
+                            </span>
+                            {record.isEdited && (
+                              <div className="mt-1.5 text-[10px] bg-[#f0fdfa] dark:bg-teal-900 text-[#0f766e] dark:text-teal-400 border border-[#99f6e4] dark:border-teal-700 px-2 py-1 rounded font-medium w-max leading-tight">
+                                <span className="font-bold">
+                                  Edited by {record.editedBy}
+                                </span>
+                                <br />
+                                <span className="opacity-100">
+                                  {record.lastUpdatedDate}
+                                </span>
+                              </div>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-4 border-r border-gray-200 dark:border-zinc-700 align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                            <div className="flex flex-col gap-1.5">
+                              <span className="font-black text-gray-800 dark:text-gray-200 text-base">
+                                {record.invoiceNo}
+                              </span>
+                              {record.supplierName && (
+                                <div className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 font-medium mt-0.5">
+                                  <Truck
+                                    size={12}
+                                    className="text-[#0d9488] dark:text-teal-400"
+                                  />{" "}
+                                  {record.supplierName}
+                                </div>
+                              )}
+                              {record.remarks && (
+                                <div
+                                  className="text-[10px] text-gray-500 italic mt-1 max-w-[180px] truncate"
+                                  title={record.remarks}
+                                >
+                                  * {record.remarks}
+                                </div>
+                              )}
+
+                              {/* 💡 Hosa Image View Button (Image iddalli mathra baruttade) */}
+                              {record.billImageUrl && (
+                                <button
+                                  onClick={() =>
+                                    setViewImage(record.billImageUrl)
+                                  }
+                                  className="mt-2 text-[10px] font-bold bg-[#f0fdfa] dark:bg-teal-900/40 text-[#0f766e] dark:text-teal-400 border border-[#99f6e4] dark:border-teal-800 px-2 py-1.5 rounded flex items-center gap-1 w-max hover:bg-[#ccfbf1] dark:hover:bg-teal-900/60 transition-colors shadow-sm cursor-pointer"
+                                >
+                                  <ImageIcon size={13} /> View Bill
+                                </button>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px">
+                            <div className="flex flex-col w-full h-full">
+                              {displayItems.map((t, i) => (
+                                <div
+                                  key={i}
+                                  className={`flex-1 flex items-center px-4 py-3 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0 ${getMaterialColor(t.materialName)}`}
+                                >
+                                  {t.materialName}
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+
+                          <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                            <div className="flex flex-col w-full h-full">
+                              {displayItems.map((t, i) => (
+                                <div
+                                  key={i}
+                                  className="flex-1 flex items-center justify-center px-3 py-3 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0"
+                                >
+                                  <span
+                                    className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded tracking-wider ${t.category === "spicy" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"}`}
+                                  >
+                                    {t.category}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+
+                          <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                            <div className="flex flex-col w-full h-full">
+                              {displayItems.map((t, i) => (
+                                <div
+                                  key={i}
+                                  className="flex-1 flex items-center justify-center px-3 py-3 text-gray-800 dark:text-gray-200 font-bold border-b border-gray-200 dark:border-zinc-700 last:border-b-0"
+                                >
+                                  <span className="text-[#0f766e] dark:text-teal-400">
+                                    {Number(t.quantity).toFixed(2)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+
+                          <td className="p-0 border-r border-gray-200 dark:border-zinc-700 align-top h-px bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                            <div className="flex flex-col w-full h-full">
+                              {displayItems.map((t, i) => (
+                                <div
+                                  key={i}
+                                  className="flex-1 flex items-center justify-center px-3 py-3 text-gray-600 dark:text-gray-400 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0"
+                                >
+                                  {t.unit}
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+
+                          {!isViewer && (
+                            <td className="px-3 py-4 text-center align-top bg-white dark:bg-zinc-900 group-hover:bg-gray-100 dark:group-hover:bg-zinc-800">
+                              <div className="flex flex-wrap items-center justify-center gap-1 mt-1">
+                                <button
+                                  onClick={() => handleEditClick(record)}
+                                  className="p-1.5 text-gray-500 hover:text-[#0f766e] rounded transition-colors"
+                                >
+                                  <MdOutlineEdit size={20} />
+                                </button>
+                                {isAdmin && (
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <button
+                                        onClick={() =>
+                                          setRecordToDelete(record)
+                                        }
+                                        className="p-1.5 text-gray-500 hover:text-red-600 rounded transition-colors"
+                                      >
+                                        <MdOutlineDeleteOutline size={20} />
+                                      </button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent className="bg-white rounded-2xl max-w-md w-[90vw] max-w-[425px]">
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle className="text-xl font-bold">
+                                          Delete Record
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Are you sure you want to delete this
+                                          record?
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel
+                                          onClick={() =>
+                                            setRecordToDelete(null)
+                                          }
+                                        >
+                                          Cancel
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={handleConfirmDelete}
+                                          className="bg-red-600 text-white hover:bg-red-700"
+                                        >
+                                          Delete
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                )}
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={isViewer ? "6" : "7"}
+                        className="p-16 text-center text-gray-400"
+                      >
+                        <p>No records found</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+      {/* 💡 IMAGE VIEW MODAL */}
+            {viewImage && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 transition-all duration-300">
+                    <div className="relative bg-white dark:bg-zinc-900 p-3 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
+                        
+                        {/* 💡 Klos botin dɔn kam insay now (top-3 right-3) */}
+                        <button 
+                            onClick={() => setViewImage(null)}
+                            className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-lg transition-transform hover:scale-110 z-[60] cursor-pointer"
+                        >
+                            <X size={20} />
+                        </button>
+
+                        {/* Image Container */}
+                        <div className="overflow-auto rounded-xl flex justify-center items-center h-full bg-gray-50 dark:bg-zinc-950/50 p-2 mt-4 border border-gray-200 dark:border-zinc-800">
+                            <img 
+                                src={viewImage} 
+                                alt="Bill/Invoice" 
+                                className="max-w-full max-h-[80vh] object-contain rounded-lg" 
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+    </div>
+  );
 }
