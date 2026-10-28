@@ -1,5 +1,15 @@
 import mongoose from 'mongoose';
 
+const witheringDetailsSchema = new mongoose.Schema({
+  tNo: { type: Number },
+  troughFanOnTime: { type: String, default: "" },
+  heatOnTime: { type: String, default: "" },
+  heatOffTime: { type: String, default: "" },
+  turnOn: { type: String, default: "" },
+  turnOff: { type: String, default: "" },
+  heatOn: { type: String, default: "" }
+}, { _id: false });
+
 const witherLeafSchema = new mongoose.Schema({
   factory: { type: String }, // <-- Removed required: true
   dateOfCrop: { type: String }, // <-- Removed required: true
@@ -16,7 +26,8 @@ const witherLeafSchema = new mongoose.Schema({
   day: { type: String },
   noOfBatchers: { type: Number, default: 0 },
   weatheringQuality: { type: String },
-  batches: { type: [Number], default: () => Array(25).fill(0) }
+  batches: { type: [Number], default: () => Array(25).fill(0) },
+  witheringDetails: { type: [witheringDetailsSchema], default: [] }
 }, {
   timestamps: true 
 });
