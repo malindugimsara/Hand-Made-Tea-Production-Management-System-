@@ -30,6 +30,17 @@ const sanitizeBatches = (batches = [], standardBatchKg = 560) => {
   });
 };
 
+// 💡 Helper to sanitize Hydro Meter readings
+const sanitizeHydroReadings = (readings = []) => {
+  if (!Array.isArray(readings)) return [];
+  return readings.map(r => ({
+    time: r.time || '',
+    dryBulb: r.dryBulb || '',
+    wetBulb: r.wetBulb || '',
+    difference: r.difference || ''
+  }));
+};
+
 // @desc    Save or Update Rolling Room Sheet (Upsert by cropDate)
 // @route   POST /api/rolling-room-sheet
 // @access  Protected
@@ -46,6 +57,7 @@ export const saveRollingRoomSheet = async (req, res) => {
       dayType,
       standardBatchKg,
       batches,
+      hydroReadings, // 💡 Extract hydroReadings from req.body
       factory
     } = req.body;
 
@@ -59,6 +71,7 @@ export const saveRollingRoomSheet = async (req, res) => {
     const enteredBy = req.user ? (req.user.username || req.user.name) : (req.body.username || 'Admin');
     const stdBatchKg = Number(standardBatchKg) > 0 ? Number(standardBatchKg) : 560;
     const cleanBatches = sanitizeBatches(batches, stdBatchKg);
+    const cleanHydroReadings = sanitizeHydroReadings(hydroReadings); // 💡 Sanitize hydroReadings
 
     const updateData = {
       mfDate,
@@ -71,6 +84,7 @@ export const saveRollingRoomSheet = async (req, res) => {
       standardBatchKg: stdBatchKg,
       noOfBatches: cleanBatches.length,
       batches: cleanBatches,
+      hydroReadings: cleanHydroReadings, // 💡 Add to update data
       enteredBy: enteredBy,
       createdBy: enteredBy,
       editedBy: enteredBy,
@@ -118,6 +132,11 @@ export const updateRollingRoomSheetById = async (req, res) => {
     if (Array.isArray(updatePayload.batches)) {
       updatePayload.batches = sanitizeBatches(updatePayload.batches, stdBatchKg);
       updatePayload.noOfBatches = updatePayload.batches.length;
+    }
+
+    // 💡 Sanitize hydroReadings if they are updated
+    if (Array.isArray(updatePayload.hydroReadings)) {
+      updatePayload.hydroReadings = sanitizeHydroReadings(updatePayload.hydroReadings);
     }
 
     if (updatePayload.cropKg !== undefined) {
