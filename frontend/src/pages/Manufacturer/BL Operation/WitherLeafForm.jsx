@@ -44,10 +44,24 @@ const WitherLeafForm = () => {
     batches: Array(25).fill(0)
   };
 
+  const initialWitheringDetails = Array.from({ length: 5 }, (_, i) => ({
+    tNo: i + 1,
+    troughFanOnTime: '',
+    heatOnTime: '',
+    heatOffTime: '',
+    turnOn: '',
+    turnOff: '',
+    heatOn: ''
+  }));
+
   const [topForm, setTopForm] = useState(initialTopFormState);
+  const [witheringDetails, setWitheringDetails] = useState(initialWitheringDetails);
   const [bottomForm, setBottomForm] = useState(initialBottomFormState);
   const [deleteAlert, setDeleteAlert] = useState({ isOpen: false, batchIndex: null });
-  
+
+  // Track the ID of the record being created/updated in the current session
+  const [currentRecordId, setCurrentRecordId] = useState(null);
+
   // Language Toggle State ("EN" or "SI")
   const [lang, setLang] = useState("EN");
 
@@ -55,7 +69,7 @@ const WitherLeafForm = () => {
   const t = {
     title: lang === 'SI' ? "අමු තේ දළු ඇතුළත් කිරීම" : "Wither Leaf Entry",
     subtitle: lang === 'SI' ? "කර්මාන්තශාලා, මැලවූ දළු සහ කාණ්ඩ විස්තර දත්ත ගබඩාවට එක් කරන්න." : "Record Factory, Wither Leaf & Batch Details directly to the database.",
-    
+
     sec1Title: lang === 'SI' ? "කොටස 1: අමු තේ දළු විස්තර" : "Section 1: Wither Leaf Details",
     factory: lang === 'SI' ? "කර්මාන්තශාලාව" : "Factory",
     selectFactory: lang === 'SI' ? "කර්මාන්තශාලාව තෝරන්න..." : "Select Factory...",
@@ -79,7 +93,16 @@ const WitherLeafForm = () => {
     noOfBatchers: lang === 'SI' ? "කාණ්ඩ සේවකයින් ගණන" : "No. of Batchers",
     weatherQuality: lang === 'SI' ? "මැලවීමේ ගුණාත්මය" : "Weathering Quality",
 
-    sec3Title: lang === 'SI' ? "කොටස 3: නිෂ්පාදන ප්‍රමාණ" : "Section 3: Manufacture Quantities",
+    secWitheringTitle: lang === 'SI' ? "කොටස 3: මැලවීමේ විස්තර" : "Section 3: Withering Details",
+    tNo: lang === 'SI' ? "අංකය (T.NO)" : "T.NO",
+    troughFanOn: lang === 'SI' ? "පංකා ක්‍රියාත්මක වේලාව" : "TROUGH FAN ON TIME",
+    heatOnTime: lang === 'SI' ? "උණුසුම ආරම්භක වේලාව" : "HEAT ON TIME",
+    heatOffTime: lang === 'SI' ? "උණුසුම අවසන් වේලාව" : "HEAT OFF TIME",
+    turnOn: lang === 'SI' ? "හැරවීම ආරම්භය" : "TURN ON",
+    turnOff: lang === 'SI' ? "හැරවීම අවසානය" : "TURN OFF",
+    heatOn: lang === 'SI' ? "උණුසුම ක්‍රියාත්මක" : "HEAT ON",
+
+    sec4Title: lang === 'SI' ? "කොටස 4: නිෂ්පාදන ප්‍රමාණ" : "Section 4: Manufacture Quantities",
     awaitingDom: lang === 'SI' ? "අස්වැන්න දිනය බලාපොරොත්තුවෙන්..." : "Awaiting Date of Crop...",
     selectBatch: lang === 'SI' ? "කාණ්ඩය තෝරන්න" : "Select Batch",
     batch: lang === 'SI' ? "කාණ්ඩය" : "Batch",
@@ -89,8 +112,12 @@ const WitherLeafForm = () => {
     noBatches: lang === 'SI' ? "තවමත් කාණ්ඩ වාර්තා කර නොමැත. ප්‍රමාණ එකතු කිරීමට ඉහළින් කාණ්ඩයක් තෝරන්න." : "No batches recorded yet. Select a batch above to add quantities.",
 
     saveSec12: lang === 'SI' ? "කොටස් 1 සහ 2 සුරකින්න" : "Save Sections 1 & 2",
-    clearSec: lang === 'SI' ? "කොටස් මකන්න" : "Clear Sections",
+    clearSec12: lang === 'SI' ? "කොටස් මකන්න" : "Clear Sections",
+
     saveSec3: lang === 'SI' ? "කොටස 3 සුරකින්න" : "Save Section 3",
+    clearSec3: lang === 'SI' ? "විස්තර මකන්න" : "Clear Details",
+
+    saveSec4: lang === 'SI' ? "කොටස 4 සුරකින්න" : "Save Section 4",
     clearBatches: lang === 'SI' ? "කාණ්ඩ මකන්න" : "Clear Batches",
 
     removeTitle: lang === 'SI' ? "කාණ්ඩ දත්ත ඉවත් කරන්න" : "Remove Batch Data",
@@ -99,6 +126,11 @@ const WitherLeafForm = () => {
     cancelBtn: lang === 'SI' ? "අවලංගු කරන්න" : "Cancel",
     removeBtn: lang === 'SI' ? "ඔව්, ඉවත් කරන්න" : "Yes, Remove"
   };
+
+  // Reset currentRecordId if the date is changed (to prevent overwriting a different day's record)
+  useEffect(() => {
+    setCurrentRecordId(null);
+  }, [topForm.dateOfCrop]);
 
   // 1. Fetch Total Crop
   useEffect(() => {
@@ -180,6 +212,23 @@ const WitherLeafForm = () => {
   const handleTopChange = (e) => setTopForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   const handleBottomChange = (e) => setBottomForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
+  const handleWitheringDetailsChange = (index, field, value) => {
+    const updatedDetails = [...witheringDetails];
+    updatedDetails[index][field] = value;
+    setWitheringDetails(updatedDetails);
+  };
+
+  const addWitheringRow = () => {
+    setWitheringDetails(prev => [
+      ...prev,
+      { tNo: prev.length > 0 ? prev[prev.length - 1].tNo + 1 : 1, troughFanOnTime: '', heatOnTime: '', heatOffTime: '', turnOn: '', turnOff: '', heatOn: '' }
+    ]);
+  };
+
+  const removeWitheringRow = (indexToRemove) => {
+    setWitheringDetails(prev => prev.filter((_, index) => index !== indexToRemove));
+  };
+
   // --- Batch Handling ---
   const handleBatchKeyDown = (e) => {
     if (e.key === 'Enter') {
@@ -235,7 +284,7 @@ const WitherLeafForm = () => {
   const cancelDelete = () => setDeleteAlert({ isOpen: false, batchIndex: null });
 
   // --- Clear Handlers ---
-  const handleClearTopSections = () => {
+  const handleClearSec1And2 = () => {
     setTopForm(prev => ({
       ...initialTopFormState,
       factory: prev.factory,
@@ -246,35 +295,74 @@ const WitherLeafForm = () => {
     }));
   };
 
-  const handleClearBottomSection = () => setBottomForm(initialBottomFormState);
+  const handleClearSec3 = () => setWitheringDetails(initialWitheringDetails);
 
-  // --- Save Sections 1 & 2 ---
-  const handleSaveTopSections = async (e) => {
-    e.preventDefault();
-    const loadingToast = toast.loading(lang === 'SI' ? "කොටස් 1 සහ 2 සුරකිමින්..." : "Saving Sections 1 & 2...");
+  const handleClearSec4 = () => setBottomForm(initialBottomFormState);
 
+  // --- API Generic Save Function ---
+  const saveToDb = async (payload, loadingMsg, successMsg, failMsg) => {
+    const loadingToast = toast.loading(loadingMsg);
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`${BACKEND_URL}/api/wither-leaf`, {
-        method: 'POST',
+      const method = currentRecordId ? 'PUT' : 'POST';
+      const url = currentRecordId
+        ? `${BACKEND_URL}/api/wither-leaf/${currentRecordId}`
+        : `${BACKEND_URL}/api/wither-leaf`;
+
+      const response = await fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(topForm)
+        body: JSON.stringify(payload)
       });
 
       const result = await response.json();
       if (response.ok && result.success) {
-        toast.success(lang === 'SI' ? "සාර්ථකව සුරකින ලදී!" : "Sections 1 & 2 saved successfully!", { id: loadingToast });
-        handleClearTopSections();
+        // If this was a new record (POST), save the generated ID to update it subsequently
+        if (!currentRecordId && result.data && result.data._id) {
+          setCurrentRecordId(result.data._id);
+        }
+        toast.success(successMsg, { id: loadingToast });
+        return true;
       } else {
-        toast.error(lang === 'SI' ? "සුරැකීම අසාර්ථකයි." : "Failed to save Sections 1 & 2.", { id: loadingToast });
+        toast.error(failMsg, { id: loadingToast });
+        return false;
       }
     } catch (error) {
       toast.error(lang === 'SI' ? "සේවාදායක දෝෂයකි." : "Server connection error.", { id: loadingToast });
+      return false;
     }
   };
 
+  // --- Save Sections 1 & 2 ---
+  const handleSaveSec1And2 = async (e) => {
+    e.preventDefault();
+    await saveToDb(
+      topForm,
+      lang === 'SI' ? "කොටස් 1 සහ 2 සුරකිමින්..." : "Saving Sections 1 & 2...",
+      lang === 'SI' ? "සාර්ථකව සුරකින ලදී!" : "Sections 1 & 2 saved successfully!",
+      lang === 'SI' ? "සුරැකීම අසාර්ථකයි." : "Failed to save Sections 1 & 2."
+    );
+  };
+
   // --- Save Section 3 ---
-  const handleSaveBottomSection = async (e) => {
+  const handleSaveSec3 = async (e) => {
+    e.preventDefault();
+    const payload = {
+      dateOfCrop: topForm.dateOfCrop,
+      dateOfManufacture: topForm.dateOfManufacture, // <-- FIX: Added this field to ensure correct grouping in summary
+      factory: topForm.factory,
+      witheringDetails
+    };
+    await saveToDb(
+      payload,
+      lang === 'SI' ? "කොටස 3 සුරකිමින්..." : "Saving Section 3...",
+      lang === 'SI' ? "සාර්ථකව සුරකින ලදී!" : "Section 3 saved successfully!",
+      lang === 'SI' ? "සුරැකීම අසාර්ථකයි." : "Failed to save Section 3."
+    );
+  };
+
+  // --- Save Section 4 ---
+  const handleSaveSec4 = async (e) => {
     e.preventDefault();
 
     const hasData = bottomForm.batches.some(val => val > 0);
@@ -283,32 +371,19 @@ const WitherLeafForm = () => {
       return;
     }
 
-    const loadingToast = toast.loading(lang === 'SI' ? "කොටස 3 සුරකිමින්..." : "Saving Section 3...");
+    const payload = {
+      dateOfCrop: topForm.dateOfCrop,
+      dateOfManufacture: topForm.dateOfManufacture,
+      factory: topForm.factory,
+      batches: bottomForm.batches
+    };
 
-    try {
-      const token = localStorage.getItem("token");
-      const payload = {
-        dateOfCrop: topForm.dateOfCrop,
-        dateOfManufacture: topForm.dateOfManufacture,
-        batches: bottomForm.batches
-      };
-
-      const response = await fetch(`${BACKEND_URL}/api/wither-leaf`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-      if (response.ok && result.success) {
-        toast.success(lang === 'SI' ? "සාර්ථකව සුරකින ලදී!" : "Section 3 saved successfully!", { id: loadingToast });
-        handleClearBottomSection();
-      } else {
-        toast.error(lang === 'SI' ? "සුරැකීම අසාර්ථකයි." : "Failed to save Section 3.", { id: loadingToast });
-      }
-    } catch (error) {
-      toast.error(lang === 'SI' ? "සේවාදායක දෝෂයකි." : "Server connection error.", { id: loadingToast });
-    }
+    await saveToDb(
+      payload,
+      lang === 'SI' ? "කොටස 4 සුරකිමින්..." : "Saving Section 4...",
+      lang === 'SI' ? "සාර්ථකව සුරකින ලදී!" : "Section 4 saved successfully!",
+      lang === 'SI' ? "සුරැකීම අසාර්ථකයි." : "Failed to save Section 4."
+    );
   };
 
   const activeBatches = bottomForm.batches.map((kg, index) => ({ index, kg })).filter(batch => batch.kg > 0);
@@ -317,24 +392,22 @@ const WitherLeafForm = () => {
   const inputClass = "w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 block p-2.5 transition-colors";
   const readOnlyClass = "w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-sm rounded-lg block p-2.5 font-medium select-none";
   const labelClass = "block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2";
+  const tableInputClass = "w-full bg-transparent border-0 text-slate-800 dark:text-slate-100 text-sm focus:ring-0 p-2 text-center";
   const btnSaveClass = "bg-[#34a853] hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl transition-colors shadow-sm text-sm w-full sm:w-auto cursor-pointer";
   const btnClearClass = "bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2.5 px-6 rounded-xl transition-colors shadow-sm text-sm w-full sm:w-auto cursor-pointer";
 
   // --- Number Input Helpers ---
   const handleWheel = (e) => e.target.blur();
-  
   const blockMinus = (e) => {
     if (e.key === '-' || e.key === 'e' || e.key === 'E') {
       e.preventDefault();
     }
   };
 
-
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-8 font-sans relative transition-colors duration-200">
-
       {/* --- HEADER --- */}
-      <div className="mb-6 border-b border-slate-200 dark:border-slate-800 pb-4 max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="mb-6 border-b border-slate-200 dark:border-slate-800 pb-4 max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <div className="flex items-center space-x-2">
             <svg className="w-6 h-6 text-emerald-700 dark:text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -344,7 +417,7 @@ const WitherLeafForm = () => {
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 ml-8">{t.subtitle}</p>
         </div>
-        
+
         {/* LANGUAGE TOGGLE BUTTON */}
         <button
           onClick={() => setLang(lang === 'EN' ? 'SI' : 'EN')}
@@ -356,10 +429,13 @@ const WitherLeafForm = () => {
         </button>
       </div>
 
-      <div className="w-full max-w-5xl mx-auto flex flex-col gap-6">
+      <div className="w-full max-w-7xl mx-auto flex flex-col gap-6">
 
+        {/* ============================================================== */}
+        {/* CARD 1: SECTIONS 1 & 2                                         */}
+        {/* ============================================================== */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col gap-6 transition-colors duration-200">
-          
+
           {/* --- SECTION 1 --- */}
           <div>
             <div className="flex items-center space-x-2 mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
@@ -467,19 +543,104 @@ const WitherLeafForm = () => {
           </div>
 
           <div className="flex gap-3 pt-2 flex-wrap">
-            <button type="button" onClick={handleSaveTopSections} className={btnSaveClass}>{t.saveSec12}</button>
-            <button type="button" onClick={handleClearTopSections} className={btnClearClass}>{t.clearSec}</button>
+            <button type="button" onClick={handleSaveSec1And2} className={btnSaveClass}>{t.saveSec12}</button>
+            <button type="button" onClick={handleClearSec1And2} className={btnClearClass}>{t.clearSec12}</button>
           </div>
         </div>
 
-        {/* --- SECTION 3 --- */}
+
+        {/* ============================================================== */}
+        {/* CARD 2: SECTION 3 (WITHERING DETAILS)                          */}
+        {/* ============================================================== */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm transition-colors duration-200">
+          <div className="flex justify-between items-center mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+            <div className="flex items-center space-x-2">
+              <div className="p-1.5 bg-purple-50 dark:bg-purple-950/60 rounded-lg">
+                <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              </div>
+              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200">{t.secWitheringTitle}</h2>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+            <table className="w-full min-w-max text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase">
+                  <th className="p-3 border-b border-r border-slate-200 dark:border-slate-700 text-center w-16">{t.tNo}</th>
+                  <th className="p-3 border-b border-r border-slate-200 dark:border-slate-700 text-center">{t.troughFanOn}</th>
+                  <th className="p-3 border-b border-r border-slate-200 dark:border-slate-700 text-center">{t.heatOnTime}</th>
+                  <th className="p-3 border-b border-r border-slate-200 dark:border-slate-700 text-center">{t.heatOffTime}</th>
+                  <th className="p-3 border-b border-r border-slate-200 dark:border-slate-700 text-center">{t.turnOn}</th>
+                  <th className="p-3 border-b border-r border-slate-200 dark:border-slate-700 text-center">{t.turnOff}</th>
+                  <th className="p-3 border-b border-r border-slate-200 dark:border-slate-700 text-center">{t.heatOn}</th>
+                  <th className="p-3 border-b border-slate-200 dark:border-slate-700 text-center w-12"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {witheringDetails.map((row, index) => (
+                  <tr key={index} className="border-b border-slate-200 dark:border-slate-700 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 text-center font-bold text-slate-600 dark:text-slate-400">
+                      {row.tNo}
+                    </td>
+                    <td className="border-r border-slate-200 dark:border-slate-700 p-0">
+                      <input type="time" value={row.troughFanOnTime} onChange={(e) => handleWitheringDetailsChange(index, 'troughFanOnTime', e.target.value)} className={tableInputClass} />
+                    </td>
+                    <td className="border-r border-slate-200 dark:border-slate-700 p-0">
+                      <input type="time" value={row.heatOnTime} onChange={(e) => handleWitheringDetailsChange(index, 'heatOnTime', e.target.value)} className={tableInputClass} />
+                    </td>
+                    <td className="border-r border-slate-200 dark:border-slate-700 p-0">
+                      <input type="time" value={row.heatOffTime} onChange={(e) => handleWitheringDetailsChange(index, 'heatOffTime', e.target.value)} className={tableInputClass} />
+                    </td>
+                    <td className="border-r border-slate-200 dark:border-slate-700 p-0">
+                      <input type="time" value={row.turnOn} onChange={(e) => handleWitheringDetailsChange(index, 'turnOn', e.target.value)} className={tableInputClass} />
+                    </td>
+                    <td className="border-r border-slate-200 dark:border-slate-700 p-0">
+                      <input type="time" value={row.turnOff} onChange={(e) => handleWitheringDetailsChange(index, 'turnOff', e.target.value)} className={tableInputClass} />
+                    </td>
+                    <td className="border-r border-slate-200 dark:border-slate-700 p-0">
+                      <input type="time" value={row.heatOn} onChange={(e) => handleWitheringDetailsChange(index, 'heatOn', e.target.value)} className={tableInputClass} />
+                    </td>
+                    <td className="p-1 text-center align-middle">
+                      <button
+                        type="button"
+                        onClick={() => removeWitheringRow(index)}
+                        className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors cursor-pointer"
+                        title="Remove Row"
+                      >
+                        <svg className="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-3 mb-6 flex justify-end">
+            <button type="button" onClick={addWitheringRow} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 flex items-center gap-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+              Add Row
+            </button>
+          </div>
+
+          <div className="flex gap-3 pt-2 flex-wrap">
+            <button type="button" onClick={handleSaveSec3} className={btnSaveClass}>{t.saveSec3}</button>
+            <button type="button" onClick={handleClearSec3} className={btnClearClass}>{t.clearSec3}</button>
+          </div>
+        </div>
+
+
+        {/* ============================================================== */}
+        {/* CARD 3: SECTION 4 (BATCH QUANTITIES)                           */}
+        {/* ============================================================== */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm transition-colors duration-200">
           <div className="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-2">
             <div className="flex items-center space-x-2">
               <div className="p-1.5 bg-blue-50 dark:bg-blue-950/60 rounded-lg">
                 <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
               </div>
-              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200">{t.sec3Title}</h2>
+              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200">{t.sec4Title}</h2>
             </div>
           </div>
 
@@ -510,9 +671,8 @@ const WitherLeafForm = () => {
                 onChange={handleBottomChange}
                 placeholder={t.enterKg}
                 className={inputClass}
-                min="0" 
-                onWheel={handleWheel} 
-             
+                min="0"
+                onWheel={handleWheel}
               />
             </div>
             <div className="w-full md:w-auto">
@@ -555,8 +715,8 @@ const WitherLeafForm = () => {
           )}
 
           <div className="flex gap-3 pt-2 flex-wrap">
-            <button type="button" onClick={handleSaveBottomSection} className={btnSaveClass}>{t.saveSec3}</button>
-            <button type="button" onClick={handleClearBottomSection} className={btnClearClass}>{t.clearBatches}</button>
+            <button type="button" onClick={handleSaveSec4} className={btnSaveClass}>{t.saveSec4}</button>
+            <button type="button" onClick={handleClearSec4} className={btnClearClass}>{t.clearBatches}</button>
           </div>
         </div>
       </div>
