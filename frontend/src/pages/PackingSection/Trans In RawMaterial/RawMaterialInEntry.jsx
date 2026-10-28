@@ -1,183 +1,65 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast'; 
-import { PlusCircle, Trash2, ListChecks, Save, Package, ShoppingCart, Calendar, Weight, Tag, X, Calculator, AlertTriangle, ArrowRight, Box, Leaf, FileText, Truck, Layers } from "lucide-react"; 
+import { PlusCircle, Trash2, ListChecks, Save, Package, Calendar, X, Calculator, AlertTriangle, Box, Leaf, FileText, Truck, Layers, Image as ImageIcon } from "lucide-react"; 
 import { useNavigate } from 'react-router-dom';
+import { createClient } from '@supabase/supabase-js';
+import imageCompression from 'browser-image-compression';
 
-// Common Raw Materials list for Autocomplete
+// 💡 SUPABASE CONFIGURATION 
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 const RAW_MATERIALS = [
-   "Bag-200g half bag 13*18.5",
-    "Bag - A/T Diamond B/T",
-    "Bag - A/T Diamond G/T",
-    "Bag-BOPF 100G",
-    "Bag - BOPF 200G",
-    "Bag - BOPF 400G",
-    "Bag - Black (not Transparent) - 12*20",
-    "Bag - Black (not Transparent) - 14*20",
-    "Bag - Black (not Transparent) - 16*24",
-    "Bag - Black (not Transparent) - 18*26",
-    "Bag - Black (not Transparent) - 20*30",
-    "Bag - Black (Transparent) - 14*20",
-    "Bag - Black (Transparent) - 15*22",
-    "Bag - Black (Transparent) - 16*24",
-    "Bag - Black (Transparent) - 18*26",
-    "Bag - Black (Transparent) - 20*30",
-    "Bag-Black-10 15",
-    "Bag - Black T/B",
-    "Bag - Black T/B (Welfare)",
-    "Bag - Black colour - 16*24 (BOPF SP 400G)",
-    "Bag - Black colour - 18*28",
-    "Bag - Blue colour - 18*15",
-    "Bag-Cloth Bag 100g - BOP",
-    "Bag-Cloth Bag 100g - OP",
-    "Bag-Cloth Bag 100g - OP1",
-    "Bag-Cloth Bag 100g - OPA",
-    "Bag-Cloth Bag 100g - PEKОЕ",
-    "Bag - G/T 25",
-    "Bag - Golden (light) - 14*20",
-    "Bag Golden (light) - 15*22",
-    "Bag - Golden (light) - 16*24",
-    "Bag - Golden (light) - 2618*",
-    "Bag - Golden (light) - Drinking tea bag",
-    "Bag - Golden (transparent on both side) - 28*18",
-    "Bag - Golden Transparent (Dark) - 15*21",
-    "Bag - Golden Transparent (Dark) - 2416*",
-    "Bag - Golden colour (dark) - 16*24",
-    "Bag - Golden colour (dark) - 19.512*",
-    "Bag - Golden colour - 14*24",
-    "Bag - Golden colour - 15*32.5",
-    "Bag - Golden colour - 16*24",
-    "Bag - Golden tips (fully transparent - 1015*",
-    "Bag - Golden tips (fully transparent - 12*19.5",
-    "Bag - Golden tips (fully transparent - 20.512*",
-    "Bag - Golden zip bag (-13*20 (FF EX sp)",
-    "Bag - Golden zip bag (-9*18 (40)",
-    "Bag - Golden zip bag (transparent on both side) - 18*24",
-    "Bag Golder colour 13 26.5",
-    "Bag - Golder colour - 23*9",
-    "Bag Green (transparent on both side) - 24*14",
-    "Bag - Green (transparent on both side) - 24*15",
-    "Bag - Green (transparent on both side) - 28*18",
-    "Bag - Green T/B (welfare)",
-    "Bag - Green colour infront transparent - 10*15",
-    "Bag - Green colour infront transparent - 12 *19",
-    "Bag - Green colour infront transparent - 15*22",
-    "Bag - Green colour infront transparent - 18* 26",
-    "Bag - Green colour infront transparent - 20\" 14",
-    "Bag - Green colour infront transparent - 30\" 20",
-    "Bag - Green colour infront transparent-913",
-    "Bag-OP (E/L) 200g",
-    "Bag-OP1 (E/L) 200g",
-    "Bag-OPA (E/L) 200g",
-    "Bag-Paper bag - 11*18",
-    "Bag - Paper bag - 12 19.5",
-    "Bag-Paper bag - 13*26",
-    "Bag - Paper bag - 14*20",
-    "Bag - Paper bag - 19.5*12",
-    "Bag - Paper bag - 22*16",
-    "Bag - Paper bag - 23*35",
-    "Bag - Paper bag - 25*18",
-    "Bag - Paper bag - Sample bag",
-    "Bag - PeKoe (E/L) 200g",
-    "Bag-Pink-10*15",
-    "Bag-Pink-10*20",
-    "Bag - Pitigala 200g",
-    "Bag - Pitigala 400g",
-    "Bag - Pitigala T/B 100",
-    "Bag - Pitigala T/B 25",
-    "Bag - Purple Colour (dark) - 1015*",
-    "Bag - Purple Colour (dark) - 12*20",
-    "Bag - Purple Colour (dark) - 13*9",
-    "Bag - Purple Colour (dark) - 14*20",
-    "Bag - Purple Colour (dark) - 22*15",
-    "Bag - Purple Colour (dark) - 2416*",
-    "Bag - Purple Colour (dark) - 26*18",
-    "Bag - Purple Colour (dark) - 30*20",
-    "Bag - Purple Colour (light) - 14.5*9.5",
-    "Bag - Red (infront transparent) - 10*15",
-    "Bag-Red (infront transparent) - 1219.5*",
-    "Bag - Red (infront transparent) - 13*9",
-    "Bag - Red (infront transparent) - 14*20",
-    "Bag - Red (infront transparent) - 15 21.5",
-    "Bag - Red (infront transparent) - 16*24",
-    "Bag-Red (infront transparent) - 18*26",
-    "Bag - Red (infront transparent) - 30*20",
-    "Bag-Red-10*15",
-    "Bag - Silver (fully Transparent) - 14*20",
-    "Bag - Silver (infront Transparent) - 14*20",
-    "Bag - Silver zip bag (silver tips 40g) - 9*18",
-    "Bag - Silver zip bag (Premium 200g) - 13*20",
-    "Bag - Silver zip bag - 15*32.5",
-    "Bag - Transparent/Azlfoil (vacum) - 1015.5*",
-    "Bag - Transparent /Azlfoil (vacum) - 13.5 13.8",
-    "Bag - Transparent /Azifoil (vacum) - 14*21",
-    "Bag - Transparent/Azifoil (vacum) - 14*22.5",
-    "Bag - Transparent /Azlfoil (vacum) - 14.5*20",
-    "Bag - Transparent/Azlfoil (vacum) - 15*22",
-    "Bag - Transparent /Azlfoil (vacum) - 16*24",
-    "Bag - Transparent/Azifoil (vacum) - 16.5*27",
-    "Bag - Transparent/Azifoil (vacum) - 18.513.5*",
-    "Bag - Transparent /Azlfoil (vacum) - 26.517.5*",
-    "Bag - Transparent/Azlfoil (vacum) - 29.8*22",
-    "Bag - Transparent /Azlfoil (vacum) - 8.513.5*",
-    "Bag - Transparent/Azlfoil (vacum) - 9.8*8",
-    "Bag - White (Not Transparent) - 10*15",
-    "Bag - White (Not Transparent) - 2416*",
-    "Bag - White Zip bag - 13 20 (Bop)",
-    "Bag - White Zip bag - 9*18 (Pekoe 100g)",
-    "Bag - White colour (transparent) - 16*23.5",
-    "Bag - White infront transparent - 10*15",
-    "Bag - White infront transparent - 12*20",
-    "Bag - White infront transparent - 14*20",
-    "Bag-White infront transparent - 16*24",
-    "Bag - White infront transparent - 18*26",
-    "Bag - White infront transparent - 20 30",
-    "Bag - White infront transparent - 22*15",
-    "Bag - Yellow Infront Transparent - 9*13",
-    "Bag-orange (infront transparent) - 9*13",
-    "Bag-white (Transparent on both side) - 14*24",
-    "Bag-white (Transparent on both side) - 16*24",
-    "Bag-white (Transparent on both side) - 18*28",
-    "Sticker - B/T Lemongrass 100g",
-    "Sticker - BOP 200g",
-    "Sticker - BOPF 100g",
-    "Sticker - BOPF 200g",
-    "Sticker - BOPF 400g",
-    "Sticker - BOPF SP 200g",
-    "Sticker - BOPF SP 400g",
-    "Sticker Bop 150g",
-    "Sticker - Ceylon premium 125g",
-    "Sticker - Chakra 25g",
-    "Sticker - Cinnamon 100g",
-    "Sticker - Earl grey 100g",
-    "Sticker - English Afternoon 125g",
-    "Sticker - English Breakfast 125g",
-    "Sticker - FBOP 150g",
-    "Sticker - FF EX SP 150g",
-    "Sticker - FF SP 125g",
-    "Sticker G/T Lemongrass 100g",
-    "Sticker Gift Pack",
-    "Sticker - Golden Tips 40g",
-    "Sticker - Golden Tips 80g",
-    "Sticker Golden tips 20g",
-    "Sticker Green tea 200g",
-    "Sticker - Masala 100g",
-    "Sticker - OP 200g",
-    "Sticker - OP1 200g",
-    "Sticker - OPA 200g",
-    "Sticker - OPA 50g",
-    "Sticker - Pekoe 200g",
-    "Sticker - Premium 200g",
-    "Sticker - Premium 400g",
-    "Sticker - Silver Tips 20g",
-    "Sticker - Silver Tips 40g",
-    "Sticker Vita glow 25g",
-    "Sticker - White tea 25g",
-    "Sticker pekoe 100g",
-    "Stickers - Ginger 100g",
-    "Stickers - Silver tips 80g"
+   "Bag-200g half bag 13*18.5", "Bag - A/T Diamond B/T", "Bag - A/T Diamond G/T", "Bag-BOPF 100G",
+    "Bag - BOPF 200G", "Bag - BOPF 400G", "Bag - Black (not Transparent) - 12*20", "Bag - Black (not Transparent) - 14*20",
+    "Bag - Black (not Transparent) - 16*24", "Bag - Black (not Transparent) - 18*26", "Bag - Black (not Transparent) - 20*30",
+    "Bag - Black (Transparent) - 14*20", "Bag - Black (Transparent) - 15*22", "Bag - Black (Transparent) - 16*24",
+    "Bag - Black (Transparent) - 18*26", "Bag - Black (Transparent) - 20*30", "Bag-Black-10 15", "Bag - Black T/B",
+    "Bag - Black T/B (Welfare)", "Bag - Black colour - 16*24 (BOPF SP 400G)", "Bag - Black colour - 18*28",
+    "Bag - Blue colour - 18*15", "Bag-Cloth Bag 100g - BOP", "Bag-Cloth Bag 100g - OP", "Bag-Cloth Bag 100g - OP1",
+    "Bag-Cloth Bag 100g - OPA", "Bag-Cloth Bag 100g - PEKОЕ", "Bag - G/T 25", "Bag - Golden (light) - 14*20",
+    "Bag Golden (light) - 15*22", "Bag - Golden (light) - 16*24", "Bag - Golden (light) - 2618*", "Bag - Golden (light) - Drinking tea bag",
+    "Bag - Golden (transparent on both side) - 28*18", "Bag - Golden Transparent (Dark) - 15*21", "Bag - Golden Transparent (Dark) - 2416*",
+    "Bag - Golden colour (dark) - 16*24", "Bag - Golden colour (dark) - 19.512*", "Bag - Golden colour - 14*24",
+    "Bag - Golden colour - 15*32.5", "Bag - Golden colour - 16*24", "Bag - Golden tips (fully transparent - 1015*",
+    "Bag - Golden tips (fully transparent - 12*19.5", "Bag - Golden tips (fully transparent - 20.512*", "Bag - Golden zip bag (-13*20 (FF EX sp)",
+    "Bag - Golden zip bag (-9*18 (40)", "Bag - Golden zip bag (transparent on both side) - 18*24", "Bag Golder colour 13 26.5",
+    "Bag - Golder colour - 23*9", "Bag Green (transparent on both side) - 24*14", "Bag - Green (transparent on both side) - 24*15",
+    "Bag - Green (transparent on both side) - 28*18", "Bag - Green T/B (welfare)", "Bag - Green colour infront transparent - 10*15",
+    "Bag - Green colour infront transparent - 12 *19", "Bag - Green colour infront transparent - 15*22", "Bag - Green colour infront transparent - 18* 26",
+    "Bag - Green colour infront transparent - 20\" 14", "Bag - Green colour infront transparent - 30\" 20", "Bag - Green colour infront transparent-913",
+    "Bag-OP (E/L) 200g", "Bag-OP1 (E/L) 200g", "Bag-OPA (E/L) 200g", "Bag-Paper bag - 11*18", "Bag - Paper bag - 12 19.5",
+    "Bag-Paper bag - 13*26", "Bag - Paper bag - 14*20", "Bag - Paper bag - 19.5*12", "Bag - Paper bag - 22*16", "Bag - Paper bag - 23*35",
+    "Bag - Paper bag - 25*18", "Bag - Paper bag - Sample bag", "Bag - PeKoe (E/L) 200g", "Bag-Pink-10*15", "Bag-Pink-10*20",
+    "Bag - Pitigala 200g", "Bag - Pitigala 400g", "Bag - Pitigala T/B 100", "Bag - Pitigala T/B 25", "Bag - Purple Colour (dark) - 1015*",
+    "Bag - Purple Colour (dark) - 12*20", "Bag - Purple Colour (dark) - 13*9", "Bag - Purple Colour (dark) - 14*20",
+    "Bag - Purple Colour (dark) - 22*15", "Bag - Purple Colour (dark) - 2416*", "Bag - Purple Colour (dark) - 26*18",
+    "Bag - Purple Colour (dark) - 30*20", "Bag - Purple Colour (light) - 14.5*9.5", "Bag - Red (infront transparent) - 10*15",
+    "Bag-Red (infront transparent) - 1219.5*", "Bag - Red (infront transparent) - 13*9", "Bag - Red (infront transparent) - 14*20",
+    "Bag - Red (infront transparent) - 15 21.5", "Bag - Red (infront transparent) - 16*24", "Bag-Red (infront transparent) - 18*26",
+    "Bag - Red (infront transparent) - 30*20", "Bag-Red-10*15", "Bag - Silver (fully Transparent) - 14*20", "Bag - Silver (infront Transparent) - 14*20",
+    "Bag - Silver zip bag (silver tips 40g) - 9*18", "Bag - Silver zip bag (Premium 200g) - 13*20", "Bag - Silver zip bag - 15*32.5",
+    "Bag - Transparent/Azlfoil (vacum) - 1015.5*", "Bag - Transparent /Azlfoil (vacum) - 13.5 13.8", "Bag - Transparent /Azifoil (vacum) - 14*21",
+    "Bag - Transparent/Azifoil (vacum) - 14*22.5", "Bag - Transparent /Azlfoil (vacum) - 14.5*20", "Bag - Transparent/Azlfoil (vacum) - 15*22",
+    "Bag - Transparent /Azlfoil (vacum) - 16*24", "Bag - Transparent/Azifoil (vacum) - 16.5*27", "Bag - Transparent/Azifoil (vacum) - 18.513.5*",
+    "Bag - Transparent /Azlfoil (vacum) - 26.517.5*", "Bag - Transparent/Azlfoil (vacum) - 29.8*22", "Bag - Transparent /Azlfoil (vacum) - 8.513.5*",
+    "Bag - Transparent/Azlfoil (vacum) - 9.8*8", "Bag - White (Not Transparent) - 10*15", "Bag - White (Not Transparent) - 2416*",
+    "Bag - White Zip bag - 13 20 (Bop)", "Bag - White Zip bag - 9*18 (Pekoe 100g)", "Bag - White colour (transparent) - 16*23.5",
+    "Bag - White infront transparent - 10*15", "Bag - White infront transparent - 12*20", "Bag - White infront transparent - 14*20",
+    "Bag-White infront transparent - 16*24", "Bag - White infront transparent - 18*26", "Bag - White infront transparent - 20 30",
+    "Bag - White infront transparent - 22*15", "Bag - Yellow Infront Transparent - 9*13", "Bag-orange (infront transparent) - 9*13",
+    "Bag-white (Transparent on both side) - 14*24", "Bag-white (Transparent on both side) - 16*24", "Bag-white (Transparent on both side) - 18*28",
+    "Sticker - B/T Lemongrass 100g", "Sticker - BOP 200g", "Sticker - BOPF 100g", "Sticker - BOPF 200g", "Sticker - BOPF 400g",
+    "Sticker - BOPF SP 200g", "Sticker - BOPF SP 400g", "Sticker Bop 150g", "Sticker - Ceylon premium 125g", "Sticker - Chakra 25g",
+    "Sticker - Cinnamon 100g", "Sticker - Earl grey 100g", "Sticker - English Afternoon 125g", "Sticker - English Breakfast 125g",
+    "Sticker - FBOP 150g", "Sticker - FF EX SP 150g", "Sticker - FF SP 125g", "Sticker G/T Lemongrass 100g", "Sticker Gift Pack",
+    "Sticker - Golden Tips 40g", "Sticker - Golden Tips 80g", "Sticker Golden tips 20g", "Sticker Green tea 200g", "Sticker - Masala 100g",
+    "Sticker - OP 200g", "Sticker - OP1 200g", "Sticker - OPA 200g", "Sticker - OPA 50g", "Sticker - Pekoe 200g", "Sticker - Premium 200g",
+    "Sticker - Premium 400g", "Sticker - Silver Tips 20g", "Sticker - Silver Tips 40g", "Sticker Vita glow 25g", "Sticker - White tea 25g",
+    "Sticker pekoe 100g", "Stickers - Ginger 100g", "Stickers - Silver tips 80g"
 ];
 
-// Flavors list for Autocomplete
 const FLAVOR_NAMES = [
     "Cinnamon", "Chakra", "Ginger", "Masala", "Vanilla", "Mint", 
     "Moringa", "Curry Leaves", "Gotukola", "Heen Bovitiya", "Cardamom", 
@@ -193,7 +75,6 @@ export default function RawMaterialInEntry() {
     const [pendingRecords, setPendingRecords] = useState([]);
     const navigate = useNavigate();
 
-    // 👇 මුලින්ම කිසිවක් auto-select නොවීමට හිස් String එකක් ('') ලබා දී ඇත
     const [entryType, setEntryType] = useState('');
 
     const [formData, setFormData] = useState({
@@ -206,6 +87,9 @@ export default function RawMaterialInEntry() {
     const [itemsList, setItemsList] = useState([
         { id: Date.now(), materialName: '', quantity: '', unit: '' } 
     ]);
+    
+    // 💡 File State
+    const [billFile, setBillFile] = useState(null);
 
     const [openDropdownId, setOpenDropdownId] = useState(null);
     const dropdownRefs = useRef({}); 
@@ -246,7 +130,7 @@ export default function RawMaterialInEntry() {
     };
 
     const handleAddItemRow = () => {
-        if (!entryType) return; // Category එක තෝරා නැත්නම් row එකක් add වීම වළක්වයි
+        if (!entryType) return; 
         setItemsList([...itemsList, { id: Date.now(), materialName: '', quantity: '', unit: entryType === 'flavor' ? 'kg' : 'pcs' }]);
     };
 
@@ -271,10 +155,16 @@ export default function RawMaterialInEntry() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    // 💡 File Selection
+    const handleFileChange = (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+            setBillFile(e.target.files[0]);
+        }
+    };
+
     const handleAddToList = (e) => {
         e.preventDefault();
 
-        // 👇 අනිවාර්යයෙන්ම Category එක තෝරා ඇති දැයි පරීක්ෂා කිරීම
         if (!entryType) {
             toast.error("Please select a Category (Spicy or Other Raw Materials) first!");
             return;
@@ -293,7 +183,8 @@ export default function RawMaterialInEntry() {
 
         const newRecord = { 
             ...formData,
-            items: itemsList.map(item => ({ ...item, category: entryType })) 
+            items: itemsList.map(item => ({ ...item, category: entryType })),
+            billFile: billFile // 💡 Add file to pending record
         };
 
         setPendingRecords([...pendingRecords, newRecord]);
@@ -301,11 +192,53 @@ export default function RawMaterialInEntry() {
         
         setItemsList([{ id: Date.now(), materialName: '', quantity: '', unit: entryType === 'flavor' ? 'kg' : 'pcs' }]);
         setFormData(prev => ({ ...prev, invoiceNo: '', remarks: '' })); 
+        setBillFile(null); // Clear file input
     };
 
     const handleRemoveFromList = (indexToRemove) => {
         const updatedList = pendingRecords.filter((_, index) => index !== indexToRemove);
         setPendingRecords(updatedList);
+    };
+
+    // 💡 Upload & Compress Function
+    const uploadImageToSupabase = async (file) => {
+        if (!file) return null; 
+
+        let fileToUpload = file;
+
+        if (file.type.startsWith('image/')) {
+            const options = {
+                maxSizeMB: 0.5,            
+                maxWidthOrHeight: 1600,   
+                useWebWorker: true,
+                fileType: 'image/jpeg'    
+            };
+
+            try {
+                fileToUpload = await imageCompression(file, options);
+            } catch (error) {
+                console.error("Compression error:", error);
+            }
+        }
+
+        const fileExt = fileToUpload.type === 'application/pdf' ? 'pdf' : 'jpg';
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `bills/${fileName}`;
+
+        const { error } = await supabase.storage
+            .from('raw-material-bills') 
+            .upload(filePath, fileToUpload);
+
+        if (error) {
+            console.error("Upload error: ", error);
+            throw new Error("Image upload failed");
+        }
+
+        const { data } = supabase.storage
+            .from('raw-material-bills')
+            .getPublicUrl(filePath);
+
+        return data.publicUrl;
     };
 
     const handleSaveAll = async () => {
@@ -315,16 +248,40 @@ export default function RawMaterialInEntry() {
         }
 
         setShowSpinner(true);
-        const toastId = toast.loading(`Saving ${pendingRecords.length} records...`);
+        
+        // 💡 Progress Bar එක සඳහා අවශ්‍ය Variables
+        const total = pendingRecords.length;
+        let completed = 0;
+
+        // 💡 1. ආරම්භක Toast එක (0% Progress)
+        const toastId = toast.loading(
+            <div className="flex flex-col gap-1.5 min-w-[200px]">
+                <div className="text-sm font-bold text-gray-700">
+                    Saving 0 of {total} records... (0%)
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                    <div className="bg-[#0f766e] h-2 rounded-full transition-all duration-300" style={{ width: '0%' }}></div>
+                </div>
+            </div>
+        );
 
         try {
             const token = localStorage.getItem('token');
-            const promises = pendingRecords.map(record => {
+            
+            const promises = pendingRecords.map(async (record) => {
+                
+                // Upload File if exists
+                let uploadedUrl = null;
+                if (record.billFile) {
+                    uploadedUrl = await uploadImageToSupabase(record.billFile);
+                }
+
                 const payload = {
                     date: record.date,
                     invoiceNo: record.invoiceNo,
                     supplierName: record.supplierName,
                     remarks: record.remarks,
+                    billImageUrl: uploadedUrl, 
                     items: record.items.map(item => ({
                         materialName: item.materialName,
                         quantity: Number(item.quantity),
@@ -333,24 +290,43 @@ export default function RawMaterialInEntry() {
                     }))
                 };
 
-                return fetch(`${BACKEND_URL}/api/raw-materials-in/`, { 
+                const res = await fetch(`${BACKEND_URL}/api/raw-materials-in/`, { 
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify(payload)
-                }).then(async (res) => {
-                    if (!res.ok) {
-                        if (res.status === 403) throw new Error('Access Denied');
-                        throw new Error('Failed');
-                    }
-                    return res.json();
                 });
+                
+                if (!res.ok) {
+                    if (res.status === 403) throw new Error('Access Denied');
+                    throw new Error('Failed');
+                }
+
+                // 💡 2. Record එකක් Save වූ වහාම Progress එක Update කිරීම
+                completed += 1;
+                const percentage = Math.round((completed / total) * 100);
+                
+                toast.loading(
+                    <div className="flex flex-col gap-1.5 min-w-[200px]">
+                        <div className="text-sm font-bold text-gray-700">
+                            Saving {completed} of {total} records... ({percentage}%)
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                            <div className="bg-[#0f766e] h-2 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(15,118,110,0.6)]" style={{ width: `${percentage}%` }}></div>
+                        </div>
+                    </div>,
+                    { id: toastId } // එකම Toast ID එකට Update කිරීම
+                );
+
+                return res.json();
             });
 
+            // සියලුම Records Save වන තුරු රැඳී සිටීම
             await Promise.all(promises);
 
+            // 💡 3. අවසානයේ Success Toast එක පෙන්වීම
             toast.success("All records saved successfully!", { id: toastId });
             setPendingRecords([]);
             
@@ -431,6 +407,24 @@ export default function RawMaterialInEntry() {
                                 </label>
                                 <input type="text" name="supplierName" value={formData.supplierName} onChange={handleInputChange} required placeholder="e.g. ABC Packaging" className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
                             </div>
+                        </div>
+
+                        {/* 💡 BILL IMAGE UPLOAD SECTION */}
+                        <div className="mb-8">
+                            <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-2">
+                                <ImageIcon size={16} className="text-[#0d9488]"/> Bill / Invoice Image (Optional)
+                            </label>
+                            <input 
+                                type="file" 
+                                accept="image/png, image/jpeg, image/jpg, application/pdf"
+                                onChange={handleFileChange}
+                                className="w-full p-2.5 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-gray-50 dark:bg-zinc-900/50 dark:text-gray-300 cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-bold file:bg-[#0f766e] file:text-white hover:file:bg-[#0d9488] transition-colors" 
+                            />
+                            {billFile && (
+                                <p className="text-xs text-[#0f766e] font-semibold mt-2 flex items-center gap-1">
+                                    <ListChecks size={14}/> Selected: {billFile.name}
+                                </p>
+                            )}
                         </div>
 
                         <div className={`mb-8 border rounded-lg p-6 transition-colors duration-300 ${!entryType ? 'bg-gray-50/50 dark:bg-zinc-900/30 border-gray-200 dark:border-zinc-800 opacity-60' : 'bg-[#f0fdfa] dark:bg-teal-950/20 border-[#99f6e4] dark:border-teal-800/50'}`}>
@@ -563,6 +557,12 @@ export default function RawMaterialInEntry() {
                                                 <div className="text-xs font-medium text-gray-500 flex items-center gap-1">
                                                     <Truck size={12}/> {record.supplierName}
                                                 </div>
+                                                {/* 💡 Display file attachment status */}
+                                                {record.billFile && (
+                                                    <div className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded inline-flex items-center gap-1 mt-1 w-fit">
+                                                        <ImageIcon size={10}/> Image Attached
+                                                    </div>
+                                                )}
                                                 
                                                 <div className="bg-white dark:bg-zinc-900 p-2.5 rounded border border-gray-100 dark:border-zinc-700/50 text-xs mt-1 space-y-2">
                                                     {record.items.map((item, i) => (
@@ -588,7 +588,7 @@ export default function RawMaterialInEntry() {
                         <div className="mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800 space-y-3">
                             <button type="button" onClick={handleCancel} disabled={showSpinner} className="w-full py-3 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl transition-colors disabled:opacity-50">Cancel</button>
                             <button onClick={handleSaveAll} disabled={showSpinner || pendingRecords.length === 0} className={`w-full py-4 rounded-xl text-white text-lg font-bold flex justify-center items-center gap-2 shadow-lg transition-all ${showSpinner || pendingRecords.length === 0 ? 'bg-gray-400 dark:bg-zinc-700 cursor-not-allowed' : 'bg-gradient-to-r from-[#0f766e] to-[#34d399] hover:shadow-[#0d9488]/40 hover:-translate-y-1'}`}>
-                                <Save size={20} /> {showSpinner ? "Saving..." : `Save All To Inventory`}
+                                <Save size={20} /> {showSpinner ? "Uploading & Saving..." : `Save All To Inventory`}
                             </button>
                         </div>
                     </div>

@@ -1,181 +1,65 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { PlusCircle, Save, Calendar, FileText, Truck, Box, X, Hash, PackagePlus, ArrowLeft, Leaf, Layers } from "lucide-react";
+import { PlusCircle, Save, Calendar, FileText, Truck, Box, X, Hash, PackagePlus, ArrowLeft, Leaf, Layers, Image as ImageIcon, ListChecks } from "lucide-react";
 import { useNavigate, useLocation } from 'react-router-dom';
+import { createClient } from '@supabase/supabase-js';
+import imageCompression from 'browser-image-compression';
+
+// 💡 SUPABASE CONFIGURATION
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const RAW_MATERIALS = [
-   "Bag-200g half bag 13*18.5",
-    "Bag - A/T Diamond B/T",
-    "Bag - A/T Diamond G/T",
-    "Bag-BOPF 100G",
-    "Bag - BOPF 200G",
-    "Bag - BOPF 400G",
-    "Bag - Black (not Transparent) - 12*20",
-    "Bag - Black (not Transparent) - 14*20",
-    "Bag - Black (not Transparent) - 16*24",
-    "Bag - Black (not Transparent) - 18*26",
-    "Bag - Black (not Transparent) - 20*30",
-    "Bag - Black (Transparent) - 14*20",
-    "Bag - Black (Transparent) - 15*22",
-    "Bag - Black (Transparent) - 16*24",
-    "Bag - Black (Transparent) - 18*26",
-    "Bag - Black (Transparent) - 20*30",
-    "Bag-Black-10 15",
-    "Bag - Black T/B",
-    "Bag - Black T/B (Welfare)",
-    "Bag - Black colour - 16*24 (BOPF SP 400G)",
-    "Bag - Black colour - 18*28",
-    "Bag - Blue colour - 18*15",
-    "Bag-Cloth Bag 100g - BOP",
-    "Bag-Cloth Bag 100g - OP",
-    "Bag-Cloth Bag 100g - OP1",
-    "Bag-Cloth Bag 100g - OPA",
-    "Bag-Cloth Bag 100g - PEKОЕ",
-    "Bag - G/T 25",
-    "Bag - Golden (light) - 14*20",
-    "Bag Golden (light) - 15*22",
-    "Bag - Golden (light) - 16*24",
-    "Bag - Golden (light) - 2618*",
-    "Bag - Golden (light) - Drinking tea bag",
-    "Bag - Golden (transparent on both side) - 28*18",
-    "Bag - Golden Transparent (Dark) - 15*21",
-    "Bag - Golden Transparent (Dark) - 2416*",
-    "Bag - Golden colour (dark) - 16*24",
-    "Bag - Golden colour (dark) - 19.512*",
-    "Bag - Golden colour - 14*24",
-    "Bag - Golden colour - 15*32.5",
-    "Bag - Golden colour - 16*24",
-    "Bag - Golden tips (fully transparent - 1015*",
-    "Bag - Golden tips (fully transparent - 12*19.5",
-    "Bag - Golden tips (fully transparent - 20.512*",
-    "Bag - Golden zip bag (-13*20 (FF EX sp)",
-    "Bag - Golden zip bag (-9*18 (40)",
-    "Bag - Golden zip bag (transparent on both side) - 18*24",
-    "Bag Golder colour 13 26.5",
-    "Bag - Golder colour - 23*9",
-    "Bag Green (transparent on both side) - 24*14",
-    "Bag - Green (transparent on both side) - 24*15",
-    "Bag - Green (transparent on both side) - 28*18",
-    "Bag - Green T/B (welfare)",
-    "Bag - Green colour infront transparent - 10*15",
-    "Bag - Green colour infront transparent - 12 *19",
-    "Bag - Green colour infront transparent - 15*22",
-    "Bag - Green colour infront transparent - 18* 26",
-    "Bag - Green colour infront transparent - 20\" 14",
-    "Bag - Green colour infront transparent - 30\" 20",
-    "Bag - Green colour infront transparent-913",
-    "Bag-OP (E/L) 200g",
-    "Bag-OP1 (E/L) 200g",
-    "Bag-OPA (E/L) 200g",
-    "Bag-Paper bag - 11*18",
-    "Bag - Paper bag - 12 19.5",
-    "Bag-Paper bag - 13*26",
-    "Bag - Paper bag - 14*20",
-    "Bag - Paper bag - 19.5*12",
-    "Bag - Paper bag - 22*16",
-    "Bag - Paper bag - 23*35",
-    "Bag - Paper bag - 25*18",
-    "Bag - Paper bag - Sample bag",
-    "Bag - PeKoe (E/L) 200g",
-    "Bag-Pink-10*15",
-    "Bag-Pink-10*20",
-    "Bag - Pitigala 200g",
-    "Bag - Pitigala 400g",
-    "Bag - Pitigala T/B 100",
-    "Bag - Pitigala T/B 25",
-    "Bag - Purple Colour (dark) - 1015*",
-    "Bag - Purple Colour (dark) - 12*20",
-    "Bag - Purple Colour (dark) - 13*9",
-    "Bag - Purple Colour (dark) - 14*20",
-    "Bag - Purple Colour (dark) - 22*15",
-    "Bag - Purple Colour (dark) - 2416*",
-    "Bag - Purple Colour (dark) - 26*18",
-    "Bag - Purple Colour (dark) - 30*20",
-    "Bag - Purple Colour (light) - 14.5*9.5",
-    "Bag - Red (infront transparent) - 10*15",
-    "Bag-Red (infront transparent) - 1219.5*",
-    "Bag - Red (infront transparent) - 13*9",
-    "Bag - Red (infront transparent) - 14*20",
-    "Bag - Red (infront transparent) - 15 21.5",
-    "Bag - Red (infront transparent) - 16*24",
-    "Bag-Red (infront transparent) - 18*26",
-    "Bag - Red (infront transparent) - 30*20",
-    "Bag-Red-10*15",
-    "Bag - Silver (fully Transparent) - 14*20",
-    "Bag - Silver (infront Transparent) - 14*20",
-    "Bag - Silver zip bag (silver tips 40g) - 9*18",
-    "Bag - Silver zip bag (Premium 200g) - 13*20",
-    "Bag - Silver zip bag - 15*32.5",
-    "Bag - Transparent/Azlfoil (vacum) - 1015.5*",
-    "Bag - Transparent /Azlfoil (vacum) - 13.5 13.8",
-    "Bag - Transparent /Azifoil (vacum) - 14*21",
-    "Bag - Transparent/Azifoil (vacum) - 14*22.5",
-    "Bag - Transparent /Azlfoil (vacum) - 14.5*20",
-    "Bag - Transparent/Azlfoil (vacum) - 15*22",
-    "Bag - Transparent /Azlfoil (vacum) - 16*24",
-    "Bag - Transparent/Azifoil (vacum) - 16.5*27",
-    "Bag - Transparent/Azifoil (vacum) - 18.513.5*",
-    "Bag - Transparent /Azlfoil (vacum) - 26.517.5*",
-    "Bag - Transparent/Azlfoil (vacum) - 29.8*22",
-    "Bag - Transparent /Azlfoil (vacum) - 8.513.5*",
-    "Bag - Transparent/Azlfoil (vacum) - 9.8*8",
-    "Bag - White (Not Transparent) - 10*15",
-    "Bag - White (Not Transparent) - 2416*",
-    "Bag - White Zip bag - 13 20 (Bop)",
-    "Bag - White Zip bag - 9*18 (Pekoe 100g)",
-    "Bag - White colour (transparent) - 16*23.5",
-    "Bag - White infront transparent - 10*15",
-    "Bag - White infront transparent - 12*20",
-    "Bag - White infront transparent - 14*20",
-    "Bag-White infront transparent - 16*24",
-    "Bag - White infront transparent - 18*26",
-    "Bag - White infront transparent - 20 30",
-    "Bag - White infront transparent - 22*15",
-    "Bag - Yellow Infront Transparent - 9*13",
-    "Bag-orange (infront transparent) - 9*13",
-    "Bag-white (Transparent on both side) - 14*24",
-    "Bag-white (Transparent on both side) - 16*24",
-    "Bag-white (Transparent on both side) - 18*28",
-    "Sticker - B/T Lemongrass 100g",
-    "Sticker - BOP 200g",
-    "Sticker - BOPF 100g",
-    "Sticker - BOPF 200g",
-    "Sticker - BOPF 400g",
-    "Sticker - BOPF SP 200g",
-    "Sticker - BOPF SP 400g",
-    "Sticker Bop 150g",
-    "Sticker - Ceylon premium 125g",
-    "Sticker - Chakra 25g",
-    "Sticker - Cinnamon 100g",
-    "Sticker - Earl grey 100g",
-    "Sticker - English Afternoon 125g",
-    "Sticker - English Breakfast 125g",
-    "Sticker - FBOP 150g",
-    "Sticker - FF EX SP 150g",
-    "Sticker - FF SP 125g",
-    "Sticker G/T Lemongrass 100g",
-    "Sticker Gift Pack",
-    "Sticker - Golden Tips 40g",
-    "Sticker - Golden Tips 80g",
-    "Sticker Golden tips 20g",
-    "Sticker Green tea 200g",
-    "Sticker - Masala 100g",
-    "Sticker - OP 200g",
-    "Sticker - OP1 200g",
-    "Sticker - OPA 200g",
-    "Sticker - OPA 50g",
-    "Sticker - Pekoe 200g",
-    "Sticker - Premium 200g",
-    "Sticker - Premium 400g",
-    "Sticker - Silver Tips 20g",
-    "Sticker - Silver Tips 40g",
-    "Sticker Vita glow 25g",
-    "Sticker - White tea 25g",
-    "Sticker pekoe 100g",
-    "Stickers - Ginger 100g",
-    "Stickers - Silver tips 80g"
+   "Bag-200g half bag 13*18.5", "Bag - A/T Diamond B/T", "Bag - A/T Diamond G/T", "Bag-BOPF 100G",
+    "Bag - BOPF 200G", "Bag - BOPF 400G", "Bag - Black (not Transparent) - 12*20", "Bag - Black (not Transparent) - 14*20",
+    "Bag - Black (not Transparent) - 16*24", "Bag - Black (not Transparent) - 18*26", "Bag - Black (not Transparent) - 20*30",
+    "Bag - Black (Transparent) - 14*20", "Bag - Black (Transparent) - 15*22", "Bag - Black (Transparent) - 16*24",
+    "Bag - Black (Transparent) - 18*26", "Bag - Black (Transparent) - 20*30", "Bag-Black-10 15", "Bag - Black T/B",
+    "Bag - Black T/B (Welfare)", "Bag - Black colour - 16*24 (BOPF SP 400G)", "Bag - Black colour - 18*28",
+    "Bag - Blue colour - 18*15", "Bag-Cloth Bag 100g - BOP", "Bag-Cloth Bag 100g - OP", "Bag-Cloth Bag 100g - OP1",
+    "Bag-Cloth Bag 100g - OPA", "Bag-Cloth Bag 100g - PEKОЕ", "Bag - G/T 25", "Bag - Golden (light) - 14*20",
+    "Bag Golden (light) - 15*22", "Bag - Golden (light) - 16*24", "Bag - Golden (light) - 2618*", "Bag - Golden (light) - Drinking tea bag",
+    "Bag - Golden (transparent on both side) - 28*18", "Bag - Golden Transparent (Dark) - 15*21", "Bag - Golden Transparent (Dark) - 2416*",
+    "Bag - Golden colour (dark) - 16*24", "Bag - Golden colour (dark) - 19.512*", "Bag - Golden colour - 14*24",
+    "Bag - Golden colour - 15*32.5", "Bag - Golden colour - 16*24", "Bag - Golden tips (fully transparent - 1015*",
+    "Bag - Golden tips (fully transparent - 12*19.5", "Bag - Golden tips (fully transparent - 20.512*", "Bag - Golden zip bag (-13*20 (FF EX sp)",
+    "Bag - Golden zip bag (-9*18 (40)", "Bag - Golden zip bag (transparent on both side) - 18*24", "Bag Golder colour 13 26.5",
+    "Bag - Golder colour - 23*9", "Bag Green (transparent on both side) - 24*14", "Bag - Green (transparent on both side) - 24*15",
+    "Bag - Green (transparent on both side) - 28*18", "Bag - Green T/B (welfare)", "Bag - Green colour infront transparent - 10*15",
+    "Bag - Green colour infront transparent - 12 *19", "Bag - Green colour infront transparent - 15*22", "Bag - Green colour infront transparent - 18* 26",
+    "Bag - Green colour infront transparent - 20\" 14", "Bag - Green colour infront transparent - 30\" 20", "Bag - Green colour infront transparent-913",
+    "Bag-OP (E/L) 200g", "Bag-OP1 (E/L) 200g", "Bag-OPA (E/L) 200g", "Bag-Paper bag - 11*18", "Bag - Paper bag - 12 19.5",
+    "Bag-Paper bag - 13*26", "Bag - Paper bag - 14*20", "Bag - Paper bag - 19.5*12", "Bag - Paper bag - 22*16", "Bag - Paper bag - 23*35",
+    "Bag - Paper bag - 25*18", "Bag - Paper bag - Sample bag", "Bag - PeKoe (E/L) 200g", "Bag-Pink-10*15", "Bag-Pink-10*20",
+    "Bag - Pitigala 200g", "Bag - Pitigala 400g", "Bag - Pitigala T/B 100", "Bag - Pitigala T/B 25", "Bag - Purple Colour (dark) - 1015*",
+    "Bag - Purple Colour (dark) - 12*20", "Bag - Purple Colour (dark) - 13*9", "Bag - Purple Colour (dark) - 14*20",
+    "Bag - Purple Colour (dark) - 22*15", "Bag - Purple Colour (dark) - 2416*", "Bag - Purple Colour (dark) - 26*18",
+    "Bag - Purple Colour (dark) - 30*20", "Bag - Purple Colour (light) - 14.5*9.5", "Bag - Red (infront transparent) - 10*15",
+    "Bag-Red (infront transparent) - 1219.5*", "Bag - Red (infront transparent) - 13*9", "Bag - Red (infront transparent) - 14*20",
+    "Bag - Red (infront transparent) - 15 21.5", "Bag - Red (infront transparent) - 16*24", "Bag-Red (infront transparent) - 18*26",
+    "Bag - Red (infront transparent) - 30*20", "Bag-Red-10*15", "Bag - Silver (fully Transparent) - 14*20", "Bag - Silver (infront Transparent) - 14*20",
+    "Bag - Silver zip bag (silver tips 40g) - 9*18", "Bag - Silver zip bag (Premium 200g) - 13*20", "Bag - Silver zip bag - 15*32.5",
+    "Bag - Transparent/Azlfoil (vacum) - 1015.5*", "Bag - Transparent /Azlfoil (vacum) - 13.5 13.8", "Bag - Transparent /Azifoil (vacum) - 14*21",
+    "Bag - Transparent/Azifoil (vacum) - 14*22.5", "Bag - Transparent /Azlfoil (vacum) - 14.5*20", "Bag - Transparent/Azlfoil (vacum) - 15*22",
+    "Bag - Transparent /Azlfoil (vacum) - 16*24", "Bag - Transparent/Azifoil (vacum) - 16.5*27", "Bag - Transparent/Azifoil (vacum) - 18.513.5*",
+    "Bag - Transparent /Azlfoil (vacum) - 26.517.5*", "Bag - Transparent/Azlfoil (vacum) - 29.8*22", "Bag - Transparent /Azlfoil (vacum) - 8.513.5*",
+    "Bag - Transparent/Azlfoil (vacum) - 9.8*8", "Bag - White (Not Transparent) - 10*15", "Bag - White (Not Transparent) - 2416*",
+    "Bag - White Zip bag - 13 20 (Bop)", "Bag - White Zip bag - 9*18 (Pekoe 100g)", "Bag - White colour (transparent) - 16*23.5",
+    "Bag - White infront transparent - 10*15", "Bag - White infront transparent - 12*20", "Bag - White infront transparent - 14*20",
+    "Bag-White infront transparent - 16*24", "Bag - White infront transparent - 18*26", "Bag - White infront transparent - 20 30",
+    "Bag - White infront transparent - 22*15", "Bag - Yellow Infront Transparent - 9*13", "Bag-orange (infront transparent) - 9*13",
+    "Bag-white (Transparent on both side) - 14*24", "Bag-white (Transparent on both side) - 16*24", "Bag-white (Transparent on both side) - 18*28",
+    "Sticker - B/T Lemongrass 100g", "Sticker - BOP 200g", "Sticker - BOPF 100g", "Sticker - BOPF 200g", "Sticker - BOPF 400g",
+    "Sticker - BOPF SP 200g", "Sticker - BOPF SP 400g", "Sticker Bop 150g", "Sticker - Ceylon premium 125g", "Sticker - Chakra 25g",
+    "Sticker - Cinnamon 100g", "Sticker - Earl grey 100g", "Sticker - English Afternoon 125g", "Sticker - English Breakfast 125g",
+    "Sticker - FBOP 150g", "Sticker - FF EX SP 150g", "Sticker - FF SP 125g", "Sticker G/T Lemongrass 100g", "Sticker Gift Pack",
+    "Sticker - Golden Tips 40g", "Sticker - Golden Tips 80g", "Sticker Golden tips 20g", "Sticker Green tea 200g", "Sticker - Masala 100g",
+    "Sticker - OP 200g", "Sticker - OP1 200g", "Sticker - OPA 200g", "Sticker - OPA 50g", "Sticker - Pekoe 200g", "Sticker - Premium 200g",
+    "Sticker - Premium 400g", "Sticker - Silver Tips 20g", "Sticker - Silver Tips 40g", "Sticker Vita glow 25g", "Sticker - White tea 25g",
+    "Sticker pekoe 100g", "Stickers - Ginger 100g", "Stickers - Silver tips 80g"
 ];
-// Flavors list for Autocomplete
+
 const FLAVOR_NAMES = [
     "Cinnamon", "Chakra", "Ginger", "Masala", "Vanilla", "Mint", 
     "Moringa", "Curry Leaves", "Gotukola", "Heen Bovitiya", "Cardamom", 
@@ -193,7 +77,6 @@ export default function EditRawMaterialIn() {
     const [showSpinner, setShowSpinner] = useState(false);
     const [recordId, setRecordId] = useState(null);
 
-    // Type state (flavor | other)
     const [entryType, setEntryType] = useState('other');
 
     const [formData, setFormData] = useState({
@@ -204,6 +87,10 @@ export default function EditRawMaterialIn() {
     });
 
     const [itemsList, setItemsList] = useState([]);
+    
+    // 💡 File Upload States
+    const [billFile, setBillFile] = useState(null);
+    const [existingImageUrl, setExistingImageUrl] = useState('');
 
     const [openDropdownId, setOpenDropdownId] = useState(null);
     const dropdownRefs = useRef({}); 
@@ -228,6 +115,10 @@ export default function EditRawMaterialIn() {
             remarks: recordData.remarks || ''
         });
 
+        // 💡 Set existing image URL if available
+        if (recordData.billImageUrl) {
+            setExistingImageUrl(recordData.billImageUrl);
+        }
         
         let initialType = 'other';
         if (recordData.itemsArray && recordData.itemsArray.length > 0) {
@@ -267,7 +158,6 @@ export default function EditRawMaterialIn() {
     const handleTypeChange = (e) => {
         const val = e.target.value;
         setEntryType(val);
-        // Ensure units are switched to kg if changed to flavor
         setItemsList(itemsList.map(item => ({
             ...item,
             unit: val === 'flavor' ? 'kg' : item.unit
@@ -302,6 +192,53 @@ export default function EditRawMaterialIn() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    // 💡 File Selection
+    const handleFileChange = (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+            setBillFile(e.target.files[0]);
+        }
+    };
+
+    // 💡 Image Upload Function with Compression
+    const uploadImageToSupabase = async (file) => {
+        if (!file) return null; 
+
+        let fileToUpload = file;
+
+        if (file.type.startsWith('image/')) {
+            const options = {
+                maxSizeMB: 0.5,           
+                maxWidthOrHeight: 1600,   
+                useWebWorker: true,
+                fileType: 'image/jpeg'    
+            };
+            try {
+                fileToUpload = await imageCompression(file, options);
+            } catch (error) {
+                console.error("Compression error:", error);
+            }
+        }
+
+        const fileExt = fileToUpload.type === 'application/pdf' ? 'pdf' : 'jpg';
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `bills/${fileName}`;
+
+        const { error } = await supabase.storage
+            .from('raw-material-bills') 
+            .upload(filePath, fileToUpload);
+
+        if (error) {
+            console.error("Upload error: ", error);
+            throw new Error("Image upload failed");
+        }
+
+        const { data } = supabase.storage
+            .from('raw-material-bills')
+            .getPublicUrl(filePath);
+
+        return data.publicUrl;
+    };
+
     const handleUpdate = async (e) => {
         e.preventDefault();
 
@@ -320,6 +257,20 @@ export default function EditRawMaterialIn() {
         const toastId = toast.loading("Updating record...");
 
         try {
+            // 1. Upload new image if selected
+            let uploadedUrl = undefined;
+            if (billFile) {
+                uploadedUrl = await uploadImageToSupabase(billFile);
+
+                // 💡 අලුත් රූපය සාර්ථකව Upload වූ පසු, පරණ රූපය Supabase එකෙන් මකා දැමීම
+                if (existingImageUrl) {
+                    const oldFilePath = existingImageUrl.split('/raw-material-bills/')[1];
+                    if (oldFilePath) {
+                        await supabase.storage.from('raw-material-bills').remove([oldFilePath]);
+                    }
+                }
+            }
+
             const token = localStorage.getItem('token');
             const editorName = localStorage.getItem('userName') || 
                                 localStorage.getItem('username') || 
@@ -332,11 +283,13 @@ export default function EditRawMaterialIn() {
                 supplierName: formData.supplierName,
                 remarks: formData.remarks,
                 editorName: editorName, 
+                // Include new URL only if a new file was uploaded
+                ...(uploadedUrl && { billImageUrl: uploadedUrl }),
                 items: itemsList.map(item => ({
                     materialName: item.materialName,
                     quantity: Number(item.quantity),
                     unit: entryType === 'flavor' ? 'kg' : item.unit,
-                    category: entryType // Send the correct category back to DB
+                    category: entryType
                 }))
             };
 
@@ -435,6 +388,35 @@ export default function EditRawMaterialIn() {
                     <input type="text" name="remarks" value={formData.remarks} onChange={handleInputChange} placeholder="Any additional notes..." className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors" />
                 </div>
 
+                {/* 💡 BILL IMAGE UPDATE SECTION */}
+                <div className="mb-8">
+                    <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-2">
+                        <ImageIcon size={16} className="text-[#0d9488]"/> Update Bill / Invoice Image
+                    </label>
+                    
+                    {existingImageUrl && !billFile && (
+                        <div className="mb-3">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Currently attached image:</p>
+                            <a href={existingImageUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-[#0f766e] bg-[#f0fdfa] border border-[#99f6e4] px-3 py-1.5 rounded inline-flex items-center gap-1 hover:bg-[#ccfbf1] transition-colors">
+                                <ListChecks size={14}/> View Existing Image
+                            </a>
+                        </div>
+                    )}
+                    
+                    <input 
+                        type="file" 
+                        accept="image/png, image/jpeg, image/jpg, application/pdf"
+                        onChange={handleFileChange}
+                        className="w-full p-2.5 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-gray-50 dark:bg-zinc-900/50 dark:text-gray-300 cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-bold file:bg-[#0f766e] file:text-white hover:file:bg-[#0d9488] transition-colors" 
+                    />
+                    
+                    {billFile && (
+                        <p className="text-xs text-[#0f766e] font-semibold mt-2 flex items-center gap-1">
+                            <ListChecks size={14}/> New file selected: {billFile.name} (This will replace the existing image)
+                        </p>
+                    )}
+                </div>
+
                 <div className="mb-8 bg-[#f0fdfa] dark:bg-teal-950/20 border border-[#99f6e4] dark:border-teal-800/50 rounded-lg p-6 transition-colors duration-300">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-bold text-[#0f766e] dark:text-teal-500 flex items-center gap-2">
@@ -516,7 +498,7 @@ export default function EditRawMaterialIn() {
                         Cancel
                     </button>
                     <button type="submit" disabled={showSpinner} className={`w-2/3 py-4 rounded-xl text-white text-lg font-bold flex justify-center items-center gap-2 shadow-lg transition-all ${showSpinner ? 'bg-gray-400 dark:bg-zinc-700 cursor-not-allowed' : 'bg-gradient-to-r from-[#0f766e] to-[#34d399] hover:shadow-teal-500/40 hover:-translate-y-1'}`}>
-                        <Save size={20} /> {showSpinner ? "Updating..." : "Update Record"}
+                        <Save size={20} /> {showSpinner ? "Uploading & Updating..." : "Update Record"}
                     </button>
                 </div>
             </form>

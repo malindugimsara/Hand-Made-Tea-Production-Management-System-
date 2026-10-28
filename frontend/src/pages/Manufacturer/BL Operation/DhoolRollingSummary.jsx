@@ -15,9 +15,14 @@ import {
   Leaf,
   Edit3,
   Save,
-  RotateCcw
+  RotateCcw,
+  ThermometerSun,
+  FileText
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable'; 
 import PDFDownloader from '@/components/PDFDownloader';
 
 // Helper to normalize date values
@@ -87,6 +92,19 @@ const calculateDurationStr = (start, end) => {
   return `${hrs}h ${String(mins).padStart(2, '0')}m`;
 };
 
+
+// Helper to format time to 12-hour (AM/PM)
+const format12Hour = (timeStr) => {
+  if (!timeStr) return '-';
+  let [hours, minutes] = timeStr.split(':').map(Number);
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12; // 0 පැය 12 ලෙස දැක්වීමට
+  const strHours = hours.toString().padStart(2, '0');
+  const strMins = minutes.toString().padStart(2, '0');
+  return `${strHours}:${strMins} ${ampm}`;
+};
+
 const preventNegativeKeys = (e) => {
   if (e.key === '-' || e.key === 'e' || e.key === 'E' || e.key === '+') {
     e.preventDefault();
@@ -95,9 +113,6 @@ const preventNegativeKeys = (e) => {
 
 const RollingRoomSheetSummary = () => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-
-  const userRole = localStorage.getItem("userRole") || "Admin";
-  const currentUsername = localStorage.getItem("username") || "admin";
 
   const [allRecords, setAllRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -108,6 +123,9 @@ const RollingRoomSheetSummary = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const userRole = localStorage.getItem("userRole") || "Admin";
+  const currentUsername = localStorage.getItem("username") || "admin";
 
   // Dynamic Translations
   const t = useMemo(() => ({
@@ -162,7 +180,15 @@ const RollingRoomSheetSummary = () => {
     pct: "%",
     total: lang === 'SI' ? "එකතුව" : "TOTAL",
     grandTotalWetDhoolTitle: lang === 'SI' ? "මුළු තෙත් ධූල් ප්‍රමාණය:" : "Grand Total Wet Dhool Quantity:",
-    overallCapacityLabel: lang === 'SI' ? "සම්පූර්ණ ධාරිතාව" : "Overall Capacity"
+    overallCapacityLabel: lang === 'SI' ? "සම්පූර්ණ ධාරිතාව" : "Overall Capacity",
+
+    // 💡 NEW: Hydro Meter Chart Translations
+    hydroTitle: lang === 'SI' ? "හයිඩ්‍රෝ මීටර් සටහන" : "HYDRO METERS CHART",
+    hydroTime: lang === 'SI' ? "වේලාව" : "TIME",
+    hydroDryBulb: lang === 'SI' ? "වියළි බල්බය" : "DRY BULB",
+    hydroWetBulb: lang === 'SI' ? "තෙත් බල්බය" : "WET BULB",
+    hydroDiff: lang === 'SI' ? "වෙනස" : "DIFFERENCE"
+
   }), [lang]);
 
   const fetchRecords = async () => {
@@ -231,6 +257,29 @@ const RollingRoomSheetSummary = () => {
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditForm(null);
+  };
+
+  // 💡 NEW: Handle Hydro Meter Cell Edits
+  const handleHydroCellChange = (index, field, value) => {
+    setEditForm(prev => {
+        const updatedReadings = [...(prev.hydroReadings || [])];
+        const row = { ...updatedReadings[index] };
+        row[field] = value;
+
+        // Auto calculate difference
+        if (field === 'dryBulb' || field === 'wetBulb') {
+            const dry = parseFloat(row.dryBulb);
+            const wet = parseFloat(row.wetBulb);
+            if (!isNaN(dry) && !isNaN(wet)) {
+                row.difference = (dry - wet).toString();
+            } else {
+                row.difference = '';
+            }
+        }
+
+        updatedReadings[index] = row;
+        return { ...prev, hydroReadings: updatedReadings };
+    });
   };
 
   // Cell level editing for batches
@@ -395,8 +444,6 @@ const RollingRoomSheetSummary = () => {
   const avgD2Pct = totalCapacityKg > 0 ? ((sumD2Kg / totalCapacityKg) * 100).toFixed(2) : '0.00';
   const grandTotalPct = totalCapacityKg > 0 ? ((grandTotalWetDhool / totalCapacityKg) * 100).toFixed(2) : '0.00';
 
-  const docRefCode = `RRS/${(activeRecord?.mfDate || filterDate || '').replace(/-/g, '')}`;
-
   // Multi-tier PDF table headers
   const pdfHeaders = useMemo(() => [
     [
@@ -459,8 +506,9 @@ const RollingRoomSheetSummary = () => {
   }, [activeRecord, sumD1Kg, avgD1Pct, sumD2Kg, avgD2Pct, t]);
 
   // PDF Autotable Layout
+  // PDF Autotable Layout
   const autoTableOptions = useMemo(() => ({
-    startY: 88,
+    startY: 110, // 💡 Tlosa tafole go ya tlase go phema go patagana (Pele e be e le 92)
     margin: { top: 25, bottom: 25, left: 14, right: 14 },
     theme: 'grid',
     styles: {
@@ -471,9 +519,52 @@ const RollingRoomSheetSummary = () => {
       lineWidth: 0.1
     },
     didDrawPage: (hookData) => {
-      if (hookData.pageNumber !== 1) return;
-
       const { doc } = hookData;
+
+      // 💡 HACK: Intercept doc.save to add a new page and the Hydro Chart before downloading via PDFDownloader
+      if (!doc.__hydroHookAdded) {
+          const originalSave = doc.save.bind(doc);
+          doc.save = function(...args) {
+              if (activeRecord?.hydroReadings && activeRecord.hydroReadings.length > 0) {
+                  doc.addPage();
+                  doc.setFontSize(14);
+                  doc.setFont(undefined, 'bold');
+                  doc.setTextColor(15, 23, 42);
+                  doc.text(t.hydroTitle, 14, 20);
+
+                  const hydroPdfData = activeRecord.hydroReadings.map(r => [
+                      format12Hour(r.time), // 💡 12-hour format
+                      r.dryBulb || '-',
+                      r.wetBulb || '-',
+                      r.difference || '-'
+                  ]);
+
+                  autoTable(doc, {
+                      startY: 28,
+                      head: [[t.hydroTime, t.hydroDryBulb, t.hydroWetBulb, t.hydroDiff]],
+                      body: hydroPdfData,
+                      theme: 'grid',
+                      headStyles: {
+                          fillColor: [255, 237, 213], 
+                          textColor: [154, 52, 18],   
+                          fontStyle: 'bold',
+                          halign: 'center'
+                      },
+                      columnStyles: {
+                          0: { halign: 'center', fontStyle: 'bold' },
+                          1: { halign: 'center' },
+                          2: { halign: 'center' },
+                          3: { halign: 'center', textColor: [234, 88, 12], fontStyle: 'bold' }
+                      },
+                      styles: { fontSize: 9, cellPadding: 3, lineColor: [226, 232, 240], lineWidth: 0.1 }
+                  });
+              }
+              originalSave(...args);
+          };
+          doc.__hydroHookAdded = true;
+      }
+
+      if (hookData.pageNumber !== 1) return;
       const startX = 14;
       const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -488,7 +579,7 @@ const RollingRoomSheetSummary = () => {
         { label: t.otherLeafKg, value: activeRecord?.otherLeafKg ? `${activeRecord.otherLeafKg} kg` : '...........................................' }
       ];
 
-      let currentMetaY = 38;
+      let currentMetaY = 55; // 💡 Thekga dintlha tša methaladi tlase go tloga go 48
       metaItems.forEach((item) => {
         doc.setFont(undefined, 'bold');
         doc.text(item.label, startX, currentMetaY);
@@ -518,18 +609,14 @@ const RollingRoomSheetSummary = () => {
 
       opRows.forEach((r, i) => {
         const currentY = tableY + (i * rowH);
-
         doc.setFillColor(248, 250, 252);
         doc.rect(tableX, currentY, col1W, rowH, 'FD');
-
         doc.setFillColor(255, 255, 255);
         doc.rect(tableX + col1W, currentY, col2W, rowH, 'FD');
-
         doc.setFontSize(8);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(71, 85, 105);
         doc.text(r[0], tableX + 3, currentY + 3.8);
-
         doc.setFont(undefined, 'bold');
         doc.setTextColor(15, 23, 42);
         doc.text(String(r[1] || '-'), tableX + col1W + 3, currentY + 3.8);
@@ -629,6 +716,8 @@ const RollingRoomSheetSummary = () => {
 
   const inlineInput = "w-full bg-white dark:bg-slate-800 border border-emerald-400 dark:border-emerald-500 text-slate-900 dark:text-slate-100 rounded px-1.5 py-1 text-xs text-center font-bold outline-none ring-2 ring-emerald-500/10 focus:ring-emerald-500 transition-all";
   const inlineTimeInput = "w-full bg-white dark:bg-slate-800 border border-emerald-400 dark:border-emerald-500 text-slate-900 dark:text-slate-100 rounded px-1 py-0.5 text-[11px] text-center font-bold outline-none";
+
+  const docRefCode = `RRS/${(activeRecord?.mfDate || filterDate || '').replace(/-/g, '')}`;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-4 md:p-8 font-sans transition-colors duration-200">
@@ -1205,6 +1294,118 @@ const RollingRoomSheetSummary = () => {
                   </tr>
                 </tfoot>
               </table>
+            </div>
+
+            {/* 💡 NEW: Hydro Meters Chart Section (View & Edit Mode) */}
+            <div className="mt-6 w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80">
+                    <div className="flex items-center gap-2">
+                        <ThermometerSun className="w-5 h-5 text-orange-500" />
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                            {t.hydroTitle}
+                        </h3>
+                    </div>
+                    {isEditing && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setEditForm(prev => ({
+                                    ...prev,
+                                    hydroReadings: [...(prev.hydroReadings || []), { time: '', dryBulb: '', wetBulb: '', difference: '' }]
+                                }));
+                            }}
+                            className="text-xs bg-orange-100 text-orange-700 px-3 py-1.5 rounded-lg font-bold hover:bg-orange-200 transition-colors"
+                        >
+                            + Add Reading
+                        </button>
+                    )}
+                </div>
+                
+                <table className="w-full text-center text-xs border-collapse min-w-[500px]">
+                    <thead>
+                        <tr className="bg-orange-50/60 dark:bg-orange-950/20 text-orange-900 dark:text-orange-300 border-b border-slate-200 dark:border-slate-800 text-[11px] font-extrabold uppercase">
+                            <th className="p-2.5 w-1/4">{t.hydroTime}</th>
+                            <th className="p-2.5 w-1/4">{t.hydroDryBulb}</th>
+                            <th className="p-2.5 w-1/4">{t.hydroWetBulb}</th>
+                            <th className="p-2.5 w-1/4">{t.hydroDiff}</th>
+                            {isEditing && <th className="p-2.5 w-10"></th>}
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                        {((isEditing ? editForm?.hydroReadings : activeRecord?.hydroReadings) || []).map((row, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                                <td className="p-2">
+                                    {isEditing ? (
+                                        <input
+                                            type="time"
+                                            value={row.time || ''}
+                                            onChange={(e) => handleHydroCellChange(idx, 'time', e.target.value)}
+                                            className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold"
+                                        />
+                                    ) : (
+                                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                                            {row.time ? format12Hour(row.time) : '-'}
+                                        </span>
+                                    )}
+                                </td>
+                                <td className="p-2">
+                                    {isEditing ? (
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            placeholder="0"
+                                            value={row.dryBulb || ''}
+                                            onKeyDown={preventNegativeKeys}
+                                            onChange={(e) => handleHydroCellChange(idx, 'dryBulb', e.target.value)}
+                                            className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold"
+                                        />
+                                    ) : (
+                                        <span className="font-bold text-slate-700 dark:text-slate-300">{row.dryBulb || '-'}</span>
+                                    )}
+                                </td>
+                                <td className="p-2">
+                                    {isEditing ? (
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            placeholder="0"
+                                            value={row.wetBulb || ''}
+                                            onKeyDown={preventNegativeKeys}
+                                            onChange={(e) => handleHydroCellChange(idx, 'wetBulb', e.target.value)}
+                                            className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold"
+                                        />
+                                    ) : (
+                                        <span className="font-bold text-slate-700 dark:text-slate-300">{row.wetBulb || '-'}</span>
+                                    )}
+                                </td>
+                                <td className="p-2">
+                                    <span className="font-black text-orange-600 dark:text-orange-400">{row.difference || '-'}</span>
+                                </td>
+                                {isEditing && (
+                                    <td className="p-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setEditForm(prev => ({
+                                                    ...prev,
+                                                    hydroReadings: prev.hydroReadings.filter((_, i) => i !== idx)
+                                                }));
+                                            }}
+                                            className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                    </td>
+                                )}
+                            </tr>
+                        ))}
+                        {((isEditing ? editForm?.hydroReadings : activeRecord?.hydroReadings) || []).length === 0 && !isEditing && (
+                            <tr>
+                                <td colSpan="4" className="p-6 text-slate-400 font-semibold text-sm">No Temperature Readings Available</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
             </div>
 
             {/* Total Wet Dhool Card */}

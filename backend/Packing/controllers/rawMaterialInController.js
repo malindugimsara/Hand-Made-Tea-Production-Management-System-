@@ -4,7 +4,8 @@ import RawMaterialStock from '../models/RawMaterialStock.js';
 // CREATE NEW RAW MATERIAL IN RECORD
 export const createRawMaterialIn = async (req, res) => {
     try {
-        const { date, invoiceNo, supplierName, items, receivedBy, remarks } = req.body;
+        // 💡 1. req.body එකෙන් billImageUrl එක ලබා ගැනීම
+        const { date, invoiceNo, supplierName, items, receivedBy, remarks, billImageUrl } = req.body;
 
         if (!items || items.length === 0) {
             return res.status(400).json({ success: false, message: 'No items provided' });
@@ -16,7 +17,8 @@ export const createRawMaterialIn = async (req, res) => {
             supplierName,
             items,
             receivedBy,
-            remarks
+            remarks,
+            billImageUrl 
         });
 
         // AUTOMATED INVENTORY ADDITION LOGIC
@@ -57,7 +59,7 @@ export const createRawMaterialIn = async (req, res) => {
 export const updateRawMaterialInRecord = async (req, res) => {
     try {
         const { id } = req.params;
-        const { date, invoiceNo, supplierName, remarks, editorName, items } = req.body;
+        const { date, invoiceNo, supplierName, remarks, editorName, items, billImageUrl } = req.body;
 
         // 1. Check if the record exists
         const existingRecord = await RawMaterialIn.findById(id);
@@ -102,15 +104,17 @@ export const updateRawMaterialInRecord = async (req, res) => {
             }
         }
 
-        // 3. Record එක Update කිරීම
         existingRecord.date = date;
         existingRecord.invoiceNo = invoiceNo;
         existingRecord.supplierName = supplierName;
         existingRecord.remarks = remarks;
         existingRecord.items = items;
 
+        if (billImageUrl !== undefined) {
+            existingRecord.billImageUrl = billImageUrl;
+        }
+
         if (req.body.updatedBy) existingRecord.updatedBy = req.body.updatedBy;
-        
         if (req.body.editorName) existingRecord.editorName = req.body.editorName;
         
         const updatedRecord = await existingRecord.save();

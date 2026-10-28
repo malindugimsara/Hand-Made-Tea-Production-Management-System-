@@ -23,6 +23,14 @@ const batchItemSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
+// 💡 Navin Hydro Meter Readings sathi schema
+const hydroReadingSchema = new mongoose.Schema({
+  time: { type: String, default: '' },
+  dryBulb: { type: String, default: '' },
+  wetBulb: { type: String, default: '' },
+  difference: { type: String, default: '' }
+}, { _id: false });
+
 const rollingRoomSheetSchema = new mongoose.Schema({
   factory: {
     type: String,
@@ -71,6 +79,10 @@ const rollingRoomSheetSchema = new mongoose.Schema({
     default: 560
   },
   batches: [batchItemSchema],
+  
+  // 💡 Frontend madhun yenara hydroReadings array save karnyashati navin field
+  hydroReadings: [hydroReadingSchema],
+
   enteredBy: {
     type: String,
     default: 'Admin'

@@ -12,7 +12,9 @@ import {
   Layers,
   Settings2,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  ThermometerSun, // New icon for Hydro Meter
+  LineChart // New icon for Chart
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -75,6 +77,14 @@ const initialBatchRow = (batchNum = 1) => ({
   }
 });
 
+// Initial state for Hydro Meter Chart row
+const initialHydroRow = () => ({
+    time: '',
+    dryBulb: '',
+    wetBulb: '',
+    difference: ''
+});
+
 const RollingRoomSheetForm = () => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -101,6 +111,29 @@ const RollingRoomSheetForm = () => {
   const [batches, setBatches] = useState([
     initialBatchRow(1)
   ]);
+
+  // NEW: State for Hydro Meters Chart
+  const [hydroChart, setHydroChart] = useState([]);
+
+  const [showNightSlots, setShowNightSlots] = useState(false);
+
+  // 6 PM සිට 6 AM දක්වා කාල සටහන
+  const nightTimeSlots = [
+      { label: '6:00 PM', val: '18:00' }, { label: '7:00 PM', val: '19:00' },
+      { label: '8:00 PM', val: '20:00' }, { label: '9:00 PM', val: '21:00' },
+      { label: '10:00 PM', val: '22:00' }, { label: '11:00 PM', val: '23:00' },
+      { label: '12:00 AM', val: '00:00' }, { label: '1:00 AM', val: '01:00' },
+      { label: '2:00 AM', val: '02:00' }, { label: '3:00 AM', val: '03:00' },
+      { label: '4:00 AM', val: '04:00' }, { label: '5:00 AM', val: '05:00' },
+      { label: '6:00 AM', val: '06:00' }
+  ];
+
+  // අදාළ වේලාව ක්ලික් කළ විට අලුත් පේළියක් (row) එකතු කරන Function එක
+  const handleAddSpecificTimeRow = (timeVal) => {
+      setHydroChart(prev => [...prev, { time: timeVal, dryBulb: '', wetBulb: '', difference: '' }]);
+  };
+
+  
 
   // Translations
   const t = useMemo(() => ({
@@ -135,6 +168,14 @@ const RollingRoomSheetForm = () => {
     kg: "KG",
     pct: "%",
     total: lang === 'SI' ? "එකතුව" : "TOTAL",
+    
+    // NEW: Hydro Meter Chart Translations
+    hydroTitle: lang === 'SI' ? "හයිඩ්‍රෝ මීටර් සටහන" : "HYDRO METERS CHART",
+    time: lang === 'SI' ? "වේලාව" : "TIME",
+    dryBulb: lang === 'SI' ? "වියළි බල්බය" : "DRY BULB",
+    wetBulb: lang === 'SI' ? "තෙත් බල්බය" : "WET BULB",
+    difference: lang === 'SI' ? "වෙනස" : "DIFFERENCE",
+    addReading: lang === 'SI' ? "කියවීමක් එක් කරන්න" : "Add Reading",
 
     // Actions
     addBatch: lang === 'SI' ? "කාණ්ඩයක් එක් කරන්න" : "Add Batch",
@@ -220,6 +261,46 @@ const RollingRoomSheetForm = () => {
     const reIndexed = filtered.map((b, idx) => ({ ...b, batchNo: idx + 1 }));
     setBatches(reIndexed);
   };
+  
+  // NEW: Handlers for Hydro Meter Chart
+  const handleHydroChange = (index, field, value) => {
+      setHydroChart(prev => {
+          const updated = [...prev];
+          updated[index][field] = value;
+          
+          // Auto calculate difference if Dry and Wet are entered
+          if (field === 'dryBulb' || field === 'wetBulb') {
+              const dry = parseFloat(updated[index].dryBulb);
+              const wet = parseFloat(updated[index].wetBulb);
+              if (!isNaN(dry) && !isNaN(wet)) {
+                  // Difference is usually Dry Bulb - Wet Bulb
+                  updated[index].difference = (dry - wet).toString();
+              } else {
+                  updated[index].difference = '';
+              }
+          }
+          return updated;
+      });
+  };
+
+  const handleAddHydroRow = () => {
+      setHydroChart(prev => [...prev, initialHydroRow()]);
+  };
+
+  // අලුත් 6 P.M - 6 A.M බොත්තම සඳහා function එක
+  const handleAddNightReading = () => {
+      // මෙහි time එක 18:00 (6 PM) ලෙස default වැටෙන සේ සකසා ඇත.
+      setHydroChart(prev => [...prev, { time: '18:00', dryBulb: '', wetBulb: '', difference: '' }]);
+  };
+
+  const handleRemoveHydroRow = (index) => {
+      if (hydroChart.length <= 1) {
+          toast.error("At least 1 reading is required.");
+          return;
+      }
+      setHydroChart(prev => prev.filter((_, i) => i !== index));
+  };
+
 
   const handleClear = () => {
     setMeta({
@@ -235,6 +316,9 @@ const RollingRoomSheetForm = () => {
     });
     setStandardBatchKg(560);
     setBatches([initialBatchRow(1)]);
+    
+    setHydroChart([]); 
+    
     toast.success("Form reset to initial state.");
   };
 
@@ -247,7 +331,8 @@ const RollingRoomSheetForm = () => {
       const payload = {
         ...meta,
         standardBatchKg: parseFloat(standardBatchKg) || 560,
-        batches
+        batches,
+        hydroReadings: hydroChart // NEW: Added to payload
       };
 
       const response = await fetch(`${BACKEND_URL}/api/rolling-room-sheet`, {
@@ -286,6 +371,12 @@ const RollingRoomSheetForm = () => {
   const timeInput = "w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-md py-1 px-1 text-[11px] text-center outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all";
   const tableInput = "w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-md py-1 px-1.5 text-xs text-center outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all";
   const tableReadOnly = "w-full bg-slate-100/70 dark:bg-slate-800/50 border border-transparent text-slate-700 dark:text-slate-300 rounded-md py-1 px-1 text-xs text-center font-bold select-none";
+  
+  // Styles specific for Hydro Chart
+  const hydroTableInput = "w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-md py-1.5 px-2 text-sm text-center outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all";
+  const hydroTimeInput = "w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-md py-1.5 px-2 text-sm text-center outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all";
+  const hydroReadOnly = "w-full bg-slate-100/70 dark:bg-slate-800/50 border border-transparent text-slate-700 dark:text-slate-300 rounded-md py-1.5 px-2 text-sm text-center font-bold select-none";
+
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-4 md:p-8 font-sans transition-colors duration-200">
@@ -933,6 +1024,145 @@ const RollingRoomSheetForm = () => {
             </div>
           </div>
 
+        </div>
+
+
+        {/* --- NEW SECTION: HYDRO METERS CHART --- */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-6 overflow-hidden">
+            
+            {/* Header Section */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+                <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-xl shadow-xs border border-orange-200 dark:border-orange-800/50">
+                        <ThermometerSun className="w-4 h-4" />
+                    </div>
+                    <div>
+                        <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">{t.hydroTitle}</h2>
+                        <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                            Dry Bulb & Wet Bulb Temperature Readings
+                        </span>
+                    </div>
+                </div>
+
+                <div className="flex items-center w-full sm:w-auto">
+                    <button
+                        type="button"
+                        onClick={handleAddHydroRow}
+                        className="flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/40 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer w-full sm:w-auto justify-center"
+                    >
+                        <Plus size={14} /> Custom Time
+                    </button>
+                </div>
+            </div>
+
+            {/* 💡 අලංකාරව සකසන ලද Time Slots කොටස */}
+            <div className="mb-6 bg-gradient-to-r from-indigo-50/50 to-blue-50/50 dark:from-indigo-950/20 dark:to-blue-950/20 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl p-4">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <Clock size={16} className="text-indigo-600 dark:text-indigo-400" />
+                    <h3 className="text-sm font-bold text-indigo-900 dark:text-indigo-300">Quick Add Time Slots</h3>
+                    <span className="text-xs font-semibold text-indigo-600/80 dark:text-indigo-400/80 ml-1 bg-indigo-100 dark:bg-indigo-900/50 px-2 py-0.5 rounded-md">
+                        👉 Click a time slot below to add a new reading row
+                    </span>
+                </div>
+                
+                <div className="w-full flex overflow-x-auto gap-3 pb-2 scrollbar-thin scrollbar-thumb-indigo-200 dark:scrollbar-thumb-indigo-800 scrollbar-track-transparent">
+                    {nightTimeSlots.map((slot, idx) => (
+                        <button
+                            key={idx}
+                            type="button"
+                            onClick={() => handleAddSpecificTimeRow(slot.val)}
+                            className="flex-shrink-0 px-4 py-2.5 bg-white dark:bg-slate-800 hover:bg-indigo-500 hover:text-white dark:hover:bg-indigo-600 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs flex items-center gap-2 transition-all border border-slate-200 dark:border-slate-700 hover:border-transparent cursor-pointer shadow-sm hover:shadow-md group"
+                        >
+                            <CheckCircle2 size={14} className="text-emerald-500 group-hover:text-white transition-colors" />
+                            {slot.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* 💡 Data Grid Section */}
+            {hydroChart.length > 0 ? (
+                <div className="w-full overflow-x-auto pb-2">
+                    {/* 💡 දකුණු පසට Delete බොත්තම දැමීම සඳහා Grid එක වෙනස් කර ඇත */}
+                    <div className="min-w-[650px] grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4 p-1 items-center">
+                        {/* Headers */}
+                        <div className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 text-center">{t.time}</div>
+                        <div className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 text-center">{t.dryBulb}</div>
+                        <div className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 text-center">{t.wetBulb}</div>
+                        <div className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 text-center">{t.difference}</div>
+                        <div className="w-10"></div> {/* 💡 හිස් Header එක (Delete බොත්තම සඳහා) */}
+
+                        {/* Rows */}
+                        {hydroChart.map((row, index) => (
+                            <React.Fragment key={index}>
+                                {/* 1. Time */}
+                                <div>
+                                    <input
+                                        type="time"
+                                        value={row.time}
+                                        onChange={(e) => handleHydroChange(index, 'time', e.target.value)}
+                                        className={hydroTimeInput}
+                                    />
+                                </div>
+                                {/* 2. Dry Bulb */}
+                                <div>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        placeholder="0"
+                                        value={row.dryBulb}
+                                        onKeyDown={preventNegativeKeys}
+                                        onChange={(e) => handleHydroChange(index, 'dryBulb', e.target.value)}
+                                        className={hydroTableInput}
+                                    />
+                                </div>
+                                {/* 3. Wet Bulb */}
+                                <div>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        placeholder="0"
+                                        value={row.wetBulb}
+                                        onKeyDown={preventNegativeKeys}
+                                        onChange={(e) => handleHydroChange(index, 'wetBulb', e.target.value)}
+                                        className={hydroTableInput}
+                                    />
+                                </div>
+                                {/* 4. Difference */}
+                                <div>
+                                    <input
+                                        type="text"
+                                        readOnly
+                                        placeholder="-"
+                                        value={row.difference}
+                                        className={`${hydroReadOnly} text-orange-600 dark:text-orange-400`}
+                                    />
+                                </div>
+                                {/* 5. Delete Button (දකුණු පසින් අලංකාරව) */}
+                                <div className="flex justify-center">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRemoveHydroRow(index)}
+                                        className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200 dark:border-slate-700 rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-md hover:-translate-y-0.5 group"
+                                        title="Remove Row"
+                                    >
+                                        <Trash2 size={16} className="group-hover:scale-110 transition-transform" />
+                                    </button>
+                                </div>
+                            </React.Fragment>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                // 💡 Readings නැති විට පෙන්වන ලස්සන හිස් පණිවිඩය
+                <div className="py-10 text-center bg-slate-50 dark:bg-slate-800/30 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center">
+                    <ThermometerSun size={36} className="text-slate-300 dark:text-slate-600 mb-3" />
+                    <h3 className="text-sm font-extrabold text-slate-500 dark:text-slate-400">No Temperature Readings Added</h3>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 font-medium max-w-sm mx-auto">
+                        Please select a time slot from the Quick Add section above or click "Custom Time" to get started.
+                    </p>
+                </div>
+            )}
         </div>
 
         {/* --- Action Buttons --- */}
