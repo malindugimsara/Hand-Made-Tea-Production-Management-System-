@@ -17,13 +17,25 @@ import {
   Save,
   RotateCcw,
   ThermometerSun,
-  FileText
+  FileText,
+  Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import autoTable from 'jspdf-autotable'; 
 import PDFDownloader from '@/components/PDFDownloader';
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Helper to normalize date values
 const normalizeDate = (dateVal) => {
@@ -123,6 +135,9 @@ const RollingRoomSheetSummary = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const [rowToDelete, setRowToDelete] = useState(null);
+  const [isMainDeleteAlertOpen, setIsMainDeleteAlertOpen] = useState(false);
 
   const userRole = localStorage.getItem("userRole") || "Admin";
   const currentUsername = localStorage.getItem("username") || "admin";
@@ -365,6 +380,55 @@ const RollingRoomSheetSummary = () => {
     }
   };
 
+  // 💡 NEW: Record එක මකා දැමීම සඳහා Function එක
+  // 💡 NEW: Record එක මකා දැමීම සඳහා Function එක (window.confirm ඉවත් කර ඇත)
+  const handleDeleteRecord = async () => {
+    if (!currentRecord || !currentRecord._id) return;
+    
+    setIsMainDeleteAlertOpen(false); // Alert එක වැසීම
+    const toastId = toast.loading("Deleting record...");
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${BACKEND_URL}/api/rolling-room-sheet/${currentRecord._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const resData = await response.json();
+      if (response.ok && resData.success) {
+        toast.success("Rolling room record deleted successfully!", { id: toastId });
+        
+        const updatedRecords = allRecords.filter(r => r._id !== currentRecord._id);
+        setAllRecords(updatedRecords);
+        
+        if (updatedRecords.length > 0) {
+          setFilterDate(normalizeDate(updatedRecords[0].mfDate));
+        } else {
+          setFilterDate(getTodayDate());
+        }
+      } else {
+        toast.error(resData.message || "Failed to delete record.", { id: toastId });
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      toast.error("Error communicating with server.", { id: toastId });
+    }
+  };
+
+  const confirmRowDelete = () => {
+    if (rowToDelete) {
+        setEditForm(prev => ({
+            ...prev,
+            hydroReadings: prev.hydroReadings.filter((_, i) => i !== rowToDelete.index)
+        }));
+        setRowToDelete(null);
+    }
+  };
+
+  
   // Active record based on mode
   const activeRecord = isEditing ? editForm : currentRecord;
 
@@ -754,14 +818,28 @@ const RollingRoomSheetSummary = () => {
             {/* In-Place Edit / Save / Cancel Controls */}
             {currentRecord && (
               !isEditing ? (
-                <button
-                  type="button"
-                  onClick={handleStartEdit}
-                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
-                >
-                  <Edit3 size={15} />
-                  {t.editRecord}
-                </button>
+                // 💡 Edit සහ Delete බොත්තම් දෙකම පෙන්වීම
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleStartEdit}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
+                  >
+                    <Edit3 size={15} />
+                    {t.editRecord}
+                  </button>
+                  
+                  {/* 💡 අලුත් Delete බොත්තම */}
+                  {/* 💡 Animation සහිත අලුත් Delete බොත්තම */}
+                  <button
+                    type="button"
+                    onClick={() => setIsMainDeleteAlertOpen(true)} // 💡 මෙතන වෙනස් කළා
+                    className="px-4 py-2.5 bg-rose-50 dark:bg-slate-800 hover:bg-rose-600 hover:text-white text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 font-bold text-xs rounded-xl transition-all duration-300 flex items-center gap-2 shadow-xs hover:shadow-md hover:-translate-y-0.5 cursor-pointer active:scale-95 group"
+                  >
+                    <Trash2 size={15} className="group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300" />
+                    Delete
+                  </button>
+                </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <button
@@ -1382,21 +1460,17 @@ const RollingRoomSheetSummary = () => {
                                     <span className="font-black text-orange-600 dark:text-orange-400">{row.difference || '-'}</span>
                                 </td>
                                 {isEditing && (
-                                    <td className="p-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setEditForm(prev => ({
-                                                    ...prev,
-                                                    hydroReadings: prev.hydroReadings.filter((_, i) => i !== idx)
-                                                }));
-                                            }}
-                                            className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors"
-                                        >
-                                            <X size={14} />
-                                        </button>
-                                    </td>
-                                )}
+                                        <td className="p-2">
+                                            {/* 💡 කෙලින්ම මකනවා වෙනුවට AlertDialog එක Open කිරීම */}
+                                            <button
+                                                type="button"
+                                                onClick={() => setRowToDelete({ index: idx, time: row.time || 'Unknown' })}
+                                                className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors cursor-pointer"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </td>
+                                    )}
                             </tr>
                         ))}
                         {((isEditing ? editForm?.hydroReadings : activeRecord?.hydroReadings) || []).length === 0 && !isEditing && (
@@ -1432,6 +1506,79 @@ const RollingRoomSheetSummary = () => {
         )}
 
       </div>
+
+      {/* --- AlertDialog Component --- */}
+        <AlertDialog
+          open={!!rowToDelete}
+          onOpenChange={() => setRowToDelete(null)}
+        >
+          <AlertDialogContent className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xl max-w-[420px]">
+            <AlertDialogHeader className="text-left space-y-2">
+              <AlertDialogTitle className="text-red-600 dark:text-red-500 flex items-center gap-2 text-base font-bold">
+                <Trash2 size={18} strokeWidth={2.5} />
+                Delete Row Data
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-slate-600 dark:text-slate-300 text-sm font-medium pt-1">
+                Are you sure you want to permanently delete data for the{" "}
+                <strong className="text-slate-900 dark:text-white font-black">
+                  {rowToDelete?.time ? format12Hour(rowToDelete.time) : ''}
+                </strong>{" "}
+                time slot?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            
+            <AlertDialogFooter className="mt-6 flex justify-end gap-2 sm:gap-3">
+              <AlertDialogCancel
+                onClick={() => setRowToDelete(null)}
+                className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg px-4 py-2 cursor-pointer font-bold transition-colors m-0"
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmRowDelete}
+                className="bg-red-600 hover:bg-red-700 text-white border border-transparent rounded-lg px-4 py-2 cursor-pointer font-bold shadow-sm transition-colors m-0"
+              >
+                Delete Row
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+
+        <AlertDialog
+          open={isMainDeleteAlertOpen}
+          onOpenChange={setIsMainDeleteAlertOpen}
+        >
+          <AlertDialogContent className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xl max-w-[420px]">
+            <AlertDialogHeader className="text-left space-y-2">
+              <AlertDialogTitle className="text-red-600 dark:text-red-500 flex items-center gap-2 text-base font-bold">
+                <Trash2 size={18} strokeWidth={2.5} />
+                Delete Rolling Sheet
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-slate-600 dark:text-slate-300 text-sm font-medium pt-1">
+                Are you sure you want to permanently delete this entire rolling sheet for{" "}
+                <strong className="text-slate-900 dark:text-white font-black">
+                  {currentRecord?.mfDate}
+                </strong>? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            
+            <AlertDialogFooter className="mt-6 flex justify-end gap-2 sm:gap-3">
+              <AlertDialogCancel
+                onClick={() => setIsMainDeleteAlertOpen(false)}
+                className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg px-4 py-2 cursor-pointer font-bold transition-colors m-0"
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteRecord}
+                className="bg-red-600 hover:bg-red-700 text-white border border-transparent rounded-lg px-4 py-2 cursor-pointer font-bold shadow-sm transition-colors m-0"
+              >
+                Delete Sheet
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 };
