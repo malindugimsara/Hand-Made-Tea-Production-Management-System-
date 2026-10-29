@@ -214,6 +214,77 @@ const RollingRoomSheetForm = () => {
     })));
   }, [standardBatchKg]);
 
+  // 4. Recalculate percentages when standardBatchKg changes
+  useEffect(() => {
+    setBatches(prev => prev.map(b => ({
+      ...b,
+      dhool1: { ...b.dhool1, percentage: computePercentage(b.dhool1.wetDhoolKg, standardBatchKg) },
+      dhool2: { ...b.dhool2, percentage: computePercentage(b.dhool2.wetDhoolKg, standardBatchKg) }
+    })));
+  }, [standardBatchKg]);
+
+  // 💡 NEW: 5. Date එක වෙනස් වනවිට කලින් Save කර ඇති දත්ත Form එකට Load කරගැනීම
+  useEffect(() => {
+    const fetchExistingData = async () => {
+      if (!meta.cropDate) return;
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(`${BACKEND_URL}/api/rolling-room-sheet?cropDate=${meta.cropDate}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        
+        if (response.ok && result.success && result.data && result.data.length > 0) {
+          const record = result.data[0];
+          
+          // Database එකේ ඇති පරණ දත්ත State එකට ඇතුළත් කිරීම
+          setMeta({
+            cropDate: record.cropDate || meta.cropDate,
+            mfDate: record.mfDate || '',
+            cropKg: record.cropKg || '',
+            otherLeafKg: record.otherLeafKg || '',
+            rollingStartTime: record.rollingStartTime || '',
+            rollingEndTime: record.rollingEndTime || '',
+            totalRollingHours: record.totalRollingHours || '',
+            dayType: record.dayType || 'Same Day',
+            noOfBatches: record.noOfBatches || 1
+          });
+          setStandardBatchKg(record.standardBatchKg || 560);
+          
+          if (record.batches && record.batches.length > 0) {
+              setBatches(record.batches);
+          }
+          
+          if (record.hydroReadings) {
+              setHydroChart(record.hydroReadings);
+          }
+          
+          toast.success("Existing data loaded. You can now add hydro readings.");
+        } else {
+           // එම දිනයට අදාළව දත්ත නොමැති නම් Form එක හිස් කිරීම
+           setMeta(prev => ({
+              ...prev,
+              mfDate: '',
+              cropKg: '',
+              otherLeafKg: '',
+              rollingStartTime: '',
+              rollingEndTime: '',
+              totalRollingHours: '',
+              dayType: 'Same Day',
+              noOfBatches: 1
+           }));
+           setStandardBatchKg(560);
+           setBatches([initialBatchRow(1)]);
+           setHydroChart([]);
+        }
+      } catch (error) {
+        console.error("Fetch existing data error:", error);
+      }
+    };
+    
+    fetchExistingData();
+  }, [meta.cropDate, BACKEND_URL]);
+
   const handleMetaChange = (e) => {
     const { name, value } = e.target;
     if (['cropKg', 'otherLeafKg'].includes(name) && value !== '') {
