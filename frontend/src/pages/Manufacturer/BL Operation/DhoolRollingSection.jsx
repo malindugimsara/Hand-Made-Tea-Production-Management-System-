@@ -112,12 +112,12 @@ const RollingRoomSheetForm = () => {
     initialBatchRow(1)
   ]);
 
-  // NEW: State for Hydro Meters Chart
-  const [hydroChart, setHydroChart] = useState([]);
+  // 💡 NEW: States for TWO Hydro Meter Charts
+  const [rollingHydroChart, setRollingHydroChart] = useState([]);
+  const [fermentationHydroChart, setFermentationHydroChart] = useState([]);
 
   const [showNightSlots, setShowNightSlots] = useState(false);
 
-  // 6 PM සිට 6 AM දක්වා කාල සටහන
   const nightTimeSlots = [
       { label: '6:00 PM', val: '18:00' }, { label: '7:00 PM', val: '19:00' },
       { label: '8:00 PM', val: '20:00' }, { label: '9:00 PM', val: '21:00' },
@@ -128,9 +128,10 @@ const RollingRoomSheetForm = () => {
       { label: '6:00 AM', val: '06:00' }
   ];
 
-  // අදාළ වේලාව ක්ලික් කළ විට අලුත් පේළියක් (row) එකතු කරන Function එක
-  const handleAddSpecificTimeRow = (timeVal) => {
-      setHydroChart(prev => [...prev, { time: timeVal, dryBulb: '', wetBulb: '', difference: '' }]);
+  // 💡 Updated to accept 'type' (rolling or fermentation)
+  const handleAddSpecificTimeRow = (type, timeVal) => {
+      const setChart = type === 'rolling' ? setRollingHydroChart : setFermentationHydroChart;
+      setChart(prev => [...prev, { time: timeVal, dryBulb: '', wetBulb: '', difference: '' }]);
   };
 
   
@@ -224,6 +225,7 @@ const RollingRoomSheetForm = () => {
   }, [standardBatchKg]);
 
   // 💡 NEW: 5. Date එක වෙනස් වනවිට කලින් Save කර ඇති දත්ත Form එකට Load කරගැනීම
+  // 💡 NEW: 5. Date eka wenas wanawita kalin Save kara athi datta Form ekata Load karaganeema
   useEffect(() => {
     const fetchExistingData = async () => {
       if (!meta.cropDate) return;
@@ -237,7 +239,6 @@ const RollingRoomSheetForm = () => {
         if (response.ok && result.success && result.data && result.data.length > 0) {
           const record = result.data[0];
           
-          // Database එකේ ඇති පරණ දත්ත State එකට ඇතුළත් කිරීම
           setMeta({
             cropDate: record.cropDate || meta.cropDate,
             mfDate: record.mfDate || '',
@@ -254,17 +255,19 @@ const RollingRoomSheetForm = () => {
           if (record.batches && record.batches.length > 0) {
               setBatches(record.batches);
           }
-          
-          if (record.hydroReadings) {
-              setHydroChart(record.hydroReadings);
-          }
+          if (record.rollingHydroReadings) setRollingHydroChart(record.rollingHydroReadings); // Updated here
+          if (record.fermentationHydroReadings) setFermentationHydroChart(record.fermentationHydroReadings); // Updated here
           
           toast.success("Existing data loaded. You can now add hydro readings.");
         } else {
-           // එම දිනයට අදාළව දත්ත නොමැති නම් Form එක හිස් කිරීම
+           // 💡 FIX: Ekhane mfDate blank korar bodole calculate kore set korano holo
+           const crop = new Date(meta.cropDate);
+           crop.setDate(crop.getDate() + 1);
+           const calculatedMfDate = crop.toISOString().split('T')[0];
+
            setMeta(prev => ({
               ...prev,
-              mfDate: '',
+              mfDate: calculatedMfDate, 
               cropKg: '',
               otherLeafKg: '',
               rollingStartTime: '',
@@ -275,7 +278,8 @@ const RollingRoomSheetForm = () => {
            }));
            setStandardBatchKg(560);
            setBatches([initialBatchRow(1)]);
-           setHydroChart([]);
+           setRollingHydroChart([]);
+           setFermentationHydroChart([]);
         }
       } catch (error) {
         console.error("Fetch existing data error:", error);
@@ -334,17 +338,16 @@ const RollingRoomSheetForm = () => {
   };
   
   // NEW: Handlers for Hydro Meter Chart
-  const handleHydroChange = (index, field, value) => {
-      setHydroChart(prev => {
+  const handleHydroChange = (type, index, field, value) => {
+      const setChart = type === 'rolling' ? setRollingHydroChart : setFermentationHydroChart;
+      setChart(prev => {
           const updated = [...prev];
           updated[index][field] = value;
           
-          // Auto calculate difference if Dry and Wet are entered
           if (field === 'dryBulb' || field === 'wetBulb') {
               const dry = parseFloat(updated[index].dryBulb);
               const wet = parseFloat(updated[index].wetBulb);
               if (!isNaN(dry) && !isNaN(wet)) {
-                  // Difference is usually Dry Bulb - Wet Bulb
                   updated[index].difference = (dry - wet).toString();
               } else {
                   updated[index].difference = '';
@@ -354,41 +357,33 @@ const RollingRoomSheetForm = () => {
       });
   };
 
-  const handleAddHydroRow = () => {
-      setHydroChart(prev => [...prev, initialHydroRow()]);
+  const handleAddHydroRow = (type) => {
+      const setChart = type === 'rolling' ? setRollingHydroChart : setFermentationHydroChart;
+      setChart(prev => [...prev, initialHydroRow()]);
   };
 
-  // අලුත් 6 P.M - 6 A.M බොත්තම සඳහා function එක
-  const handleAddNightReading = () => {
-      // මෙහි time එක 18:00 (6 PM) ලෙස default වැටෙන සේ සකසා ඇත.
-      setHydroChart(prev => [...prev, { time: '18:00', dryBulb: '', wetBulb: '', difference: '' }]);
-  };
-
-  const handleRemoveHydroRow = (index) => {
-      if (hydroChart.length <= 1) {
-          toast.error("At least 1 reading is required.");
-          return;
-      }
-      setHydroChart(prev => prev.filter((_, i) => i !== index));
+  const handleRemoveHydroRow = (type, index) => {
+      const setChart = type === 'rolling' ? setRollingHydroChart : setFermentationHydroChart;
+      setChart(prev => {
+          if (prev.length <= 1) {
+              toast.error("At least 1 reading is required.");
+              return prev;
+          }
+          return prev.filter((_, i) => i !== index);
+      });
   };
 
 
   const handleClear = () => {
     setMeta({
-      cropDate: getYesterdayDate(),
-      mfDate: '',
-      cropKg: '',
-      otherLeafKg: '',
-      rollingStartTime: '',
-      rollingEndTime: '',
-      totalRollingHours: '',
-      dayType: 'Same Day',
-      noOfBatches: 1
+      // ... (meta reset codes)
     });
     setStandardBatchKg(560);
     setBatches([initialBatchRow(1)]);
     
-    setHydroChart([]); 
+    // 💡 Reset both charts
+    setRollingHydroChart([]); 
+    setFermentationHydroChart([]); 
     
     toast.success("Form reset to initial state.");
   };
@@ -403,7 +398,9 @@ const RollingRoomSheetForm = () => {
         ...meta,
         standardBatchKg: parseFloat(standardBatchKg) || 560,
         batches,
-        hydroReadings: hydroChart // NEW: Added to payload
+        // 💡 Save both charts separately
+        rollingHydroReadings: rollingHydroChart, 
+        fermentationHydroReadings: fermentationHydroChart 
       };
 
       const response = await fetch(`${BACKEND_URL}/api/rolling-room-sheet`, {
@@ -1099,124 +1096,55 @@ const RollingRoomSheetForm = () => {
 
 
         {/* --- NEW SECTION: HYDRO METERS CHART --- */}
+        {/* --- SECTION: HYDRO METERS CHART - ROLLING ROOM --- */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-6 overflow-hidden">
-            
-            {/* Header Section */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                 <div className="flex items-center gap-2.5">
                     <div className="p-2 bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-xl shadow-xs border border-orange-200 dark:border-orange-800/50">
                         <ThermometerSun className="w-4 h-4" />
                     </div>
                     <div>
-                        <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">{t.hydroTitle}</h2>
-                        <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                            Dry Bulb & Wet Bulb Temperature Readings
-                        </span>
+                        <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">{t.hydroTitle} - Rolling Room Data</h2>
+                        <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Dry Bulb & Wet Bulb Temperature Readings</span>
                     </div>
                 </div>
-
                 <div className="flex items-center w-full sm:w-auto">
-                    <button
-                        type="button"
-                        onClick={handleAddHydroRow}
-                        className="flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/40 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer w-full sm:w-auto justify-center"
-                    >
+                    <button type="button" onClick={() => handleAddHydroRow('rolling')} className="flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/40 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer w-full sm:w-auto justify-center">
                         <Plus size={14} /> Custom Time
                     </button>
                 </div>
             </div>
 
-            {/* 💡 අලංකාරව සකසන ලද Time Slots කොටස */}
             <div className="mb-6 bg-gradient-to-r from-indigo-50/50 to-blue-50/50 dark:from-indigo-950/20 dark:to-blue-950/20 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl p-4">
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                     <Clock size={16} className="text-indigo-600 dark:text-indigo-400" />
                     <h3 className="text-sm font-bold text-indigo-900 dark:text-indigo-300">Quick Add Time Slots</h3>
-                    <span className="text-xs font-semibold text-indigo-600/80 dark:text-indigo-400/80 ml-1 bg-indigo-100 dark:bg-indigo-900/50 px-2 py-0.5 rounded-md">
-                        👉 Click a time slot below to add a new reading row
-                    </span>
                 </div>
-                
                 <div className="w-full flex overflow-x-auto gap-3 pb-2 scrollbar-thin scrollbar-thumb-indigo-200 dark:scrollbar-thumb-indigo-800 scrollbar-track-transparent">
                     {nightTimeSlots.map((slot, idx) => (
-                        <button
-                            key={idx}
-                            type="button"
-                            onClick={() => handleAddSpecificTimeRow(slot.val)}
-                            className="flex-shrink-0 px-4 py-2.5 bg-white dark:bg-slate-800 hover:bg-indigo-500 hover:text-white dark:hover:bg-indigo-600 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs flex items-center gap-2 transition-all border border-slate-200 dark:border-slate-700 hover:border-transparent cursor-pointer shadow-sm hover:shadow-md group"
-                        >
-                            <CheckCircle2 size={14} className="text-emerald-500 group-hover:text-white transition-colors" />
-                            {slot.label}
+                        <button key={idx} type="button" onClick={() => handleAddSpecificTimeRow('rolling', slot.val)} className="flex-shrink-0 px-4 py-2.5 bg-white dark:bg-slate-800 hover:bg-indigo-500 hover:text-white dark:hover:bg-indigo-600 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs flex items-center gap-2 transition-all border border-slate-200 dark:border-slate-700 hover:border-transparent cursor-pointer shadow-sm hover:shadow-md group">
+                            <CheckCircle2 size={14} className="text-emerald-500 group-hover:text-white transition-colors" /> {slot.label}
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* 💡 Data Grid Section */}
-            {hydroChart.length > 0 ? (
+            {rollingHydroChart.length > 0 ? (
                 <div className="w-full overflow-x-auto pb-2">
-                    {/* 💡 දකුණු පසට Delete බොත්තම දැමීම සඳහා Grid එක වෙනස් කර ඇත */}
                     <div className="min-w-[650px] grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4 p-1 items-center">
-                        {/* Headers */}
                         <div className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 text-center">{t.time}</div>
                         <div className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 text-center">{t.dryBulb}</div>
                         <div className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 text-center">{t.wetBulb}</div>
                         <div className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 text-center">{t.difference}</div>
-                        <div className="w-10"></div> {/* 💡 හිස් Header එක (Delete බොත්තම සඳහා) */}
-
-                        {/* Rows */}
-                        {hydroChart.map((row, index) => (
+                        <div className="w-10"></div>
+                        {rollingHydroChart.map((row, index) => (
                             <React.Fragment key={index}>
-                                {/* 1. Time */}
-                                <div>
-                                    <input
-                                        type="time"
-                                        value={row.time}
-                                        onChange={(e) => handleHydroChange(index, 'time', e.target.value)}
-                                        className={hydroTimeInput}
-                                    />
-                                </div>
-                                {/* 2. Dry Bulb */}
-                                <div>
-                                    <input
-                                        type="number"
-                                        step="any"
-                                        placeholder="0"
-                                        value={row.dryBulb}
-                                        onKeyDown={preventNegativeKeys}
-                                        onChange={(e) => handleHydroChange(index, 'dryBulb', e.target.value)}
-                                        className={hydroTableInput}
-                                    />
-                                </div>
-                                {/* 3. Wet Bulb */}
-                                <div>
-                                    <input
-                                        type="number"
-                                        step="any"
-                                        placeholder="0"
-                                        value={row.wetBulb}
-                                        onKeyDown={preventNegativeKeys}
-                                        onChange={(e) => handleHydroChange(index, 'wetBulb', e.target.value)}
-                                        className={hydroTableInput}
-                                    />
-                                </div>
-                                {/* 4. Difference */}
-                                <div>
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        placeholder="-"
-                                        value={row.difference}
-                                        className={`${hydroReadOnly} text-orange-600 dark:text-orange-400`}
-                                    />
-                                </div>
-                                {/* 5. Delete Button (දකුණු පසින් අලංකාරව) */}
+                                <div><input type="time" value={row.time} onChange={(e) => handleHydroChange('rolling', index, 'time', e.target.value)} className={hydroTimeInput} /></div>
+                                <div><input type="number" step="any" placeholder="0" value={row.dryBulb} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroChange('rolling', index, 'dryBulb', e.target.value)} className={hydroTableInput} /></div>
+                                <div><input type="number" step="any" placeholder="0" value={row.wetBulb} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroChange('rolling', index, 'wetBulb', e.target.value)} className={hydroTableInput} /></div>
+                                <div><input type="text" readOnly placeholder="-" value={row.difference} className={`${hydroReadOnly} text-orange-600 dark:text-orange-400`} /></div>
                                 <div className="flex justify-center">
-                                    <button
-                                        type="button"
-                                        onClick={() => handleRemoveHydroRow(index)}
-                                        className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200 dark:border-slate-700 rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-md hover:-translate-y-0.5 group"
-                                        title="Remove Row"
-                                    >
+                                    <button type="button" onClick={() => handleRemoveHydroRow('rolling', index)} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200 dark:border-slate-700 rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-md hover:-translate-y-0.5 group">
                                         <Trash2 size={16} className="group-hover:scale-110 transition-transform" />
                                     </button>
                                 </div>
@@ -1225,13 +1153,73 @@ const RollingRoomSheetForm = () => {
                     </div>
                 </div>
             ) : (
-                // 💡 Readings නැති විට පෙන්වන ලස්සන හිස් පණිවිඩය
                 <div className="py-10 text-center bg-slate-50 dark:bg-slate-800/30 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center">
                     <ThermometerSun size={36} className="text-slate-300 dark:text-slate-600 mb-3" />
                     <h3 className="text-sm font-extrabold text-slate-500 dark:text-slate-400">No Temperature Readings Added</h3>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 font-medium max-w-sm mx-auto">
-                        Please select a time slot from the Quick Add section above or click "Custom Time" to get started.
-                    </p>
+                </div>
+            )}
+        </div>
+
+        {/* --- SECTION: HYDRO METERS CHART - FERMENTATION ROOM --- */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-6 overflow-hidden">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+                <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl shadow-xs border border-blue-200 dark:border-blue-800/50">
+                        <ThermometerSun className="w-4 h-4" />
+                    </div>
+                    <div>
+                        <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">{t.hydroTitle} - Fermentation Room Data</h2>
+                        <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Dry Bulb & Wet Bulb Temperature Readings</span>
+                    </div>
+                </div>
+                <div className="flex items-center w-full sm:w-auto">
+                    <button type="button" onClick={() => handleAddHydroRow('fermentation')} className="flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer w-full sm:w-auto justify-center">
+                        <Plus size={14} /> Custom Time
+                    </button>
+                </div>
+            </div>
+
+            <div className="mb-6 bg-gradient-to-r from-indigo-50/50 to-blue-50/50 dark:from-indigo-950/20 dark:to-blue-950/20 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl p-4">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <Clock size={16} className="text-indigo-600 dark:text-indigo-400" />
+                    <h3 className="text-sm font-bold text-indigo-900 dark:text-indigo-300">Quick Add Time Slots</h3>
+                </div>
+                <div className="w-full flex overflow-x-auto gap-3 pb-2 scrollbar-thin scrollbar-thumb-indigo-200 dark:scrollbar-thumb-indigo-800 scrollbar-track-transparent">
+                    {nightTimeSlots.map((slot, idx) => (
+                        <button key={idx} type="button" onClick={() => handleAddSpecificTimeRow('fermentation', slot.val)} className="flex-shrink-0 px-4 py-2.5 bg-white dark:bg-slate-800 hover:bg-indigo-500 hover:text-white dark:hover:bg-indigo-600 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs flex items-center gap-2 transition-all border border-slate-200 dark:border-slate-700 hover:border-transparent cursor-pointer shadow-sm hover:shadow-md group">
+                            <CheckCircle2 size={14} className="text-emerald-500 group-hover:text-white transition-colors" /> {slot.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {fermentationHydroChart.length > 0 ? (
+                <div className="w-full overflow-x-auto pb-2">
+                    <div className="min-w-[650px] grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4 p-1 items-center">
+                        <div className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 text-center">{t.time}</div>
+                        <div className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 text-center">{t.dryBulb}</div>
+                        <div className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 text-center">{t.wetBulb}</div>
+                        <div className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 text-center">{t.difference}</div>
+                        <div className="w-10"></div>
+                        {fermentationHydroChart.map((row, index) => (
+                            <React.Fragment key={index}>
+                                <div><input type="time" value={row.time} onChange={(e) => handleHydroChange('fermentation', index, 'time', e.target.value)} className={hydroTimeInput} /></div>
+                                <div><input type="number" step="any" placeholder="0" value={row.dryBulb} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroChange('fermentation', index, 'dryBulb', e.target.value)} className={hydroTableInput} /></div>
+                                <div><input type="number" step="any" placeholder="0" value={row.wetBulb} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroChange('fermentation', index, 'wetBulb', e.target.value)} className={hydroTableInput} /></div>
+                                <div><input type="text" readOnly placeholder="-" value={row.difference} className={`${hydroReadOnly} text-orange-600 dark:text-orange-400`} /></div>
+                                <div className="flex justify-center">
+                                    <button type="button" onClick={() => handleRemoveHydroRow('fermentation', index)} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200 dark:border-slate-700 rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-md hover:-translate-y-0.5 group">
+                                        <Trash2 size={16} className="group-hover:scale-110 transition-transform" />
+                                    </button>
+                                </div>
+                            </React.Fragment>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <div className="py-10 text-center bg-slate-50 dark:bg-slate-800/30 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center">
+                    <ThermometerSun size={36} className="text-slate-300 dark:text-slate-600 mb-3" />
+                    <h3 className="text-sm font-extrabold text-slate-500 dark:text-slate-400">No Temperature Readings Added</h3>
                 </div>
             )}
         </div>

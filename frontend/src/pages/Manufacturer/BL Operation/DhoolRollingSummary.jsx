@@ -274,10 +274,11 @@ const RollingRoomSheetSummary = () => {
     setEditForm(null);
   };
 
-  // 💡 NEW: Handle Hydro Meter Cell Edits
-  const handleHydroCellChange = (index, field, value) => {
+ 
+  const handleHydroCellChange = (type, index, field, value) => {
     setEditForm(prev => {
-        const updatedReadings = [...(prev.hydroReadings || [])];
+        const targetArray = type === 'rolling' ? 'rollingHydroReadings' : 'fermentationHydroReadings';
+        const updatedReadings = [...(prev[targetArray] || [])];
         const row = { ...updatedReadings[index] };
         row[field] = value;
 
@@ -293,7 +294,7 @@ const RollingRoomSheetSummary = () => {
         }
 
         updatedReadings[index] = row;
-        return { ...prev, hydroReadings: updatedReadings };
+        return { ...prev, [targetArray]: updatedReadings };
     });
   };
 
@@ -303,32 +304,21 @@ const RollingRoomSheetSummary = () => {
       const updatedBatches = [...(prev.batches || [])];
       const batch = { ...updatedBatches[batchIndex] };
       const section = { ...(batch[sectionKey] || {}) };
-
       section[field] = value;
-
-      // Recalculate percentage if wetDhoolKg changes
       if (field === 'wetDhoolKg') {
         const stdKg = parseFloat(prev.standardBatchKg) || 560;
         const enteredKg = parseFloat(value) || 0;
         section.percentage = stdKg > 0 ? parseFloat(((enteredKg / stdKg) * 100).toFixed(2)) : 0;
       }
-
       batch[sectionKey] = section;
       updatedBatches[batchIndex] = batch;
-
-      return {
-        ...prev,
-        batches: updatedBatches
-      };
+      return { ...prev, batches: updatedBatches };
     });
   };
 
-  // Top-level metadata editing
   const handleMetaFieldChange = (field, value) => {
     setEditForm(prev => {
       const updated = { ...prev, [field]: value };
-
-      // Update totalRollingHours dynamically if start/end times change
       if (field === 'rollingStartTime' || field === 'rollingEndTime') {
         const start = field === 'rollingStartTime' ? value : prev.rollingStartTime;
         const end = field === 'rollingEndTime' ? value : prev.rollingEndTime;
@@ -336,37 +326,34 @@ const RollingRoomSheetSummary = () => {
           updated.totalRollingHours = calculateDurationStr(start, end);
         }
       }
-
       return updated;
     });
   };
 
-  // Save changes inline
   const handleSaveInline = async () => {
     if (!editForm || !editForm._id) {
       toast.error("Invalid record identifier.");
       return;
     }
-
     const toastId = toast.loading("Saving changes...");
     setIsSaving(true);
-
     try {
       const token = localStorage.getItem("token");
-
       const response = await fetch(`${BACKEND_URL}/api/rolling-room-sheet/${editForm._id}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(editForm)
       });
-
       const resData = await response.json();
       if (response.ok && resData.success) {
         toast.success("Rolling room record updated successfully!", { id: toastId });
-        setAllRecords(prev => prev.map(rec => rec._id === editForm._id ? (resData.data || editForm) : rec));
+        // 💡 FIX: බලහත්කාරයෙන් අලුත් අගයන් දෙකම UI එකට යාවත්කාලීන කිරීම
+        const finalUpdatedRecord = {
+            ...(resData.data || editForm),
+            rollingHydroReadings: editForm.rollingHydroReadings,
+            fermentationHydroReadings: editForm.fermentationHydroReadings
+        };
+        setAllRecords(prev => prev.map(rec => rec._id === editForm._id ? finalUpdatedRecord : rec));
         setIsEditing(false);
         setEditForm(null);
       } else {
@@ -380,30 +367,21 @@ const RollingRoomSheetSummary = () => {
     }
   };
 
-  // 💡 NEW: Record එක මකා දැමීම සඳහා Function එක
-  // 💡 NEW: Record එක මකා දැමීම සඳහා Function එක (window.confirm ඉවත් කර ඇත)
   const handleDeleteRecord = async () => {
     if (!currentRecord || !currentRecord._id) return;
-    
-    setIsMainDeleteAlertOpen(false); // Alert එක වැසීම
+    setIsMainDeleteAlertOpen(false);
     const toastId = toast.loading("Deleting record...");
-
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(`${BACKEND_URL}/api/rolling-room-sheet/${currentRecord._id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-
       const resData = await response.json();
       if (response.ok && resData.success) {
         toast.success("Rolling room record deleted successfully!", { id: toastId });
-        
         const updatedRecords = allRecords.filter(r => r._id !== currentRecord._id);
         setAllRecords(updatedRecords);
-        
         if (updatedRecords.length > 0) {
           setFilterDate(normalizeDate(updatedRecords[0].mfDate));
         } else {
@@ -418,12 +396,16 @@ const RollingRoomSheetSummary = () => {
     }
   };
 
+  // 💡 NEW: අදාළ Chart එකට අනුව Row එක Delete කිරීම
   const confirmRowDelete = () => {
     if (rowToDelete) {
-        setEditForm(prev => ({
-            ...prev,
-            hydroReadings: prev.hydroReadings.filter((_, i) => i !== rowToDelete.index)
-        }));
+        setEditForm(prev => {
+            const targetArray = rowToDelete.type === 'rolling' ? 'rollingHydroReadings' : 'fermentationHydroReadings';
+            return {
+                ...prev,
+                [targetArray]: (prev[targetArray] || []).filter((_, i) => i !== rowToDelete.index)
+            };
+        });
         setRowToDelete(null);
     }
   };
@@ -569,10 +551,11 @@ const RollingRoomSheetSummary = () => {
     return rows;
   }, [activeRecord, sumD1Kg, avgD1Pct, sumD2Kg, avgD2Pct, t]);
 
+
   // PDF Autotable Layout
   // PDF Autotable Layout
   const autoTableOptions = useMemo(() => ({
-    startY: 110, // 💡 Tlosa tafole go ya tlase go phema go patagana (Pele e be e le 92)
+    startY: 115, // 💡 Start slightly lower to accommodate the new beautiful header cards
     margin: { top: 25, bottom: 25, left: 14, right: 14 },
     theme: 'grid',
     styles: {
@@ -585,80 +568,145 @@ const RollingRoomSheetSummary = () => {
     didDrawPage: (hookData) => {
       const { doc } = hookData;
 
-      // 💡 HACK: Intercept doc.save to add a new page and the Hydro Chart before downloading via PDFDownloader
+      // 💡 HACK: Intercept doc.save and output to add a new page with TWO Hydro Charts Side-by-Side
       if (!doc.__hydroHookAdded) {
-          const originalSave = doc.save.bind(doc);
-          doc.save = function(...args) {
-              if (activeRecord?.hydroReadings && activeRecord.hydroReadings.length > 0) {
+          const addHydroPage = () => {
+              if (doc.__hydroPageAdded) return;
+              doc.__hydroPageAdded = true;
+
+              const hasRolling = activeRecord?.rollingHydroReadings && activeRecord.rollingHydroReadings.length > 0;
+              const hasFermentation = activeRecord?.fermentationHydroReadings && activeRecord.fermentationHydroReadings.length > 0;
+
+              if (hasRolling || hasFermentation) {
                   doc.addPage();
-                  doc.setFontSize(14);
+                  const pageWidth = doc.internal.pageSize.getWidth();
+                  const halfWidth = pageWidth / 2;
+                  
+                  // Page Title
+                  doc.setFontSize(16);
                   doc.setFont(undefined, 'bold');
                   doc.setTextColor(15, 23, 42);
-                  doc.text(t.hydroTitle, 14, 20);
+                  doc.text(t.hydroTitle, 14, 22);
 
-                  const hydroPdfData = activeRecord.hydroReadings.map(r => [
-                      format12Hour(r.time), // 💡 12-hour format
-                      r.dryBulb || '-',
-                      r.wetBulb || '-',
-                      r.difference || '-'
-                  ]);
+                  // Decorative Line below title
+                  doc.setDrawColor(226, 232, 240);
+                  doc.setLineWidth(0.5);
+                  doc.line(14, 26, pageWidth - 14, 26);
+
+                  const currentY = 35; 
+
+                  // Table 1: Rolling Room Data (LEFT SIDE)
+                  doc.setFontSize(11);
+                  doc.setTextColor(234, 88, 12); 
+                  doc.text("Rolling Room Data", 14, currentY);
+
+                  let rollingPdfData = [['-', 'No Data Available', '-', '-']];
+                  if (hasRolling) {
+                      rollingPdfData = activeRecord.rollingHydroReadings.map(r => [
+                          r.time ? format12Hour(r.time) : '-', r.dryBulb || '-', r.wetBulb || '-', r.difference || '-'
+                      ]);
+                  }
 
                   autoTable(doc, {
-                      startY: 28,
+                      startY: currentY + 4,
+                      margin: { left: 14, right: halfWidth + 5 }, 
                       head: [[t.hydroTime, t.hydroDryBulb, t.hydroWetBulb, t.hydroDiff]],
-                      body: hydroPdfData,
+                      body: rollingPdfData,
                       theme: 'grid',
-                      headStyles: {
-                          fillColor: [255, 237, 213], 
-                          textColor: [154, 52, 18],   
-                          fontStyle: 'bold',
-                          halign: 'center'
-                      },
-                      columnStyles: {
-                          0: { halign: 'center', fontStyle: 'bold' },
-                          1: { halign: 'center' },
-                          2: { halign: 'center' },
-                          3: { halign: 'center', textColor: [234, 88, 12], fontStyle: 'bold' }
-                      },
-                      styles: { fontSize: 9, cellPadding: 3, lineColor: [226, 232, 240], lineWidth: 0.1 }
+                      headStyles: { fillColor: [255, 237, 213], textColor: [154, 52, 18], fontStyle: 'bold', halign: 'center' },
+                      columnStyles: { 0: { halign: 'center', fontStyle: 'bold' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center', textColor: [234, 88, 12], fontStyle: 'bold' } },
+                      styles: { fontSize: 9, cellPadding: 3.5, lineColor: [226, 232, 240], lineWidth: 0.1 }
+                  });
+
+                  // Table 2: Fermentation Room Data (RIGHT SIDE)
+                  doc.setFontSize(11);
+                  doc.setTextColor(37, 99, 235); 
+                  doc.text("Fermentation Room Data", halfWidth + 5, currentY);
+
+                  let fermPdfData = [['-', 'No Data Available', '-', '-']];
+                  if (hasFermentation) {
+                      fermPdfData = activeRecord.fermentationHydroReadings.map(r => [
+                          r.time ? format12Hour(r.time) : '-', r.dryBulb || '-', r.wetBulb || '-', r.difference || '-'
+                      ]);
+                  }
+
+                  autoTable(doc, {
+                      startY: currentY + 4,
+                      margin: { left: halfWidth + 5, right: 14 }, 
+                      head: [[t.hydroTime, t.hydroDryBulb, t.hydroWetBulb, t.hydroDiff]],
+                      body: fermPdfData,
+                      theme: 'grid',
+                      headStyles: { fillColor: [219, 234, 254], textColor: [30, 64, 175], fontStyle: 'bold', halign: 'center' },
+                      columnStyles: { 0: { halign: 'center', fontStyle: 'bold' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center', textColor: [37, 99, 235], fontStyle: 'bold' } },
+                      styles: { fontSize: 9, cellPadding: 3.5, lineColor: [226, 232, 240], lineWidth: 0.1 }
                   });
               }
-              originalSave(...args);
           };
+
+          const originalSave = doc.save.bind(doc);
+          doc.save = function(...args) {
+              addHydroPage();
+              return originalSave(...args);
+          };
+          if (doc.output) {
+              const originalOutput = doc.output.bind(doc);
+              doc.output = function(...args) {
+                  addHydroPage();
+                  return originalOutput(...args);
+              };
+          }
           doc.__hydroHookAdded = true;
       }
 
+      // 💡 --- BEAUTIFUL PAGE 1 HEADER LAYOUT ---
       if (hookData.pageNumber !== 1) return;
       const startX = 14;
       const pageWidth = doc.internal.pageSize.getWidth();
 
-      // 1. Metadata Lines
-      doc.setFontSize(9);
+      // 1. Decorative Separator Line Below Header
+      doc.setDrawColor(203, 213, 225); // slate-300
+      doc.setLineWidth(0.5);
+      doc.line(14, 38, pageWidth - 14, 38);
+
+      // 2. Metadata Grid Card (Beautiful 2-Column Box)
+      const metaY = 44;
+      const metaH = 18;
+      doc.setFillColor(248, 250, 252); // slate-50
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.setLineWidth(0.2);
+      doc.roundedRect(14, metaY, pageWidth - 28, metaH, 2, 2, 'FD');
+
+      doc.setFontSize(9.5);
+      doc.setTextColor(71, 85, 105); // slate-600
+      
+      // Col 1
+      doc.setFont(undefined, 'bold');
+      doc.text(t.cropDate, 20, metaY + 7);
+      doc.text(t.cropKg, 20, metaY + 13.5);
+      
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.text(`:   ${activeRecord?.cropDate || '-'}`, 55, metaY + 7);
+      doc.text(`:   ${activeRecord?.cropKg ? `${activeRecord.cropKg} kg` : '-'}`, 55, metaY + 13.5);
+
+      // Col 2
+      const col2X = pageWidth / 2 + 10;
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(71, 85, 105);
+      doc.text(t.mfDate, col2X, metaY + 7);
+      doc.text(t.otherLeafKg, col2X, metaY + 13.5);
+      
+      doc.setFont(undefined, 'normal');
       doc.setTextColor(15, 23, 42);
+      doc.text(`:   ${activeRecord?.mfDate || '-'}`, col2X + 35, metaY + 7);
+      doc.text(`:   ${activeRecord?.otherLeafKg ? `${activeRecord.otherLeafKg} kg` : '-'}`, col2X + 35, metaY + 13.5);
 
-      const metaItems = [
-        { label: t.cropDate, value: activeRecord?.cropDate || '...........................................' },
-        { label: t.cropKg, value: activeRecord?.cropKg ? `${activeRecord.cropKg} kg` : '...........................................' },
-        { label: t.mfDate, value: activeRecord?.mfDate || '...........................................' },
-        { label: t.otherLeafKg, value: activeRecord?.otherLeafKg ? `${activeRecord.otherLeafKg} kg` : '...........................................' }
-      ];
-
-      let currentMetaY = 55; // 💡 Thekga dintlha tša methaladi tlase go tloga go 48
-      metaItems.forEach((item) => {
-        doc.setFont(undefined, 'bold');
-        doc.text(item.label, startX, currentMetaY);
-        const labelWidth = doc.getTextWidth(item.label);
-        doc.setFont(undefined, 'normal');
-        doc.text(`-   ${item.value}`, startX + Math.max(labelWidth + 2, 28), currentMetaY);
-        currentMetaY += 4.8;
-      });
-
-      // 2. Operations Table (Left Side)
+      // 3. Operations Table (Left Side) - Enclosed in a styled box
       const tableX = startX;
-      const tableY = currentMetaY;
-      const col1W = 68;
-      const col2W = 68;
-      const rowH = 5.5;
+      const tableY = metaY + metaH + 6;
+      const col1W = 70;
+      const col2W = 60;
+      const rowH = 6;
 
       const opRows = [
         [t.rollingStartTime, activeRecord?.rollingStartTime || '-'],
@@ -669,111 +717,99 @@ const RollingRoomSheetSummary = () => {
       ];
 
       doc.setDrawColor(226, 232, 240);
-      doc.setLineWidth(0.1);
+      doc.setLineWidth(0.2);
+      doc.roundedRect(tableX, tableY, col1W + col2W, opRows.length * rowH, 2, 2, 'S');
 
       opRows.forEach((r, i) => {
         const currentY = tableY + (i * rowH);
-        doc.setFillColor(248, 250, 252);
-        doc.rect(tableX, currentY, col1W, rowH, 'FD');
-        doc.setFillColor(255, 255, 255);
-        doc.rect(tableX + col1W, currentY, col2W, rowH, 'FD');
-        doc.setFontSize(8);
+        
+        // Zebra striping
+        if (i % 2 === 0) {
+          doc.setFillColor(248, 250, 252);
+          doc.rect(tableX, currentY, col1W + col2W, rowH, 'F');
+        }
+        
+        // Vertical divider
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.1);
+        doc.line(tableX + col1W, currentY, tableX + col1W, currentY + rowH);
+        
+        doc.setFontSize(8.5);
         doc.setFont(undefined, 'bold');
-        doc.setTextColor(71, 85, 105);
-        doc.text(r[0], tableX + 3, currentY + 3.8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(r[0], tableX + 4, currentY + 4.2);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(15, 23, 42);
-        doc.text(String(r[1] || '-'), tableX + col1W + 3, currentY + 3.8);
+        doc.text(String(r[1] || '-'), tableX + col1W + 4, currentY + 4.2);
       });
 
-      // 3. Right Side Top Box (Wet Dhool Summary)
-      const rightCardX = 156;
+      // 4. Right Side Top Box (Grand Total Purple Card)
+      const rightCardX = tableX + col1W + col2W + 8;
       const rightCardW = pageWidth - 14 - rightCardX;
+      const fullCardH = opRows.length * rowH;
 
       if (analysis.isOverdue) {
-        const alertH = 15;
-        doc.setDrawColor(254, 202, 202);
-        doc.setFillColor(254, 242, 242);
-        doc.setLineWidth(0.1);
-        doc.roundedRect(rightCardX, tableY, rightCardW, alertH, 1.5, 1.5, 'FD');
+        // Red Alert Styling
+        doc.setDrawColor(252, 165, 165); // red-300
+        doc.setFillColor(254, 242, 242); // red-50
+        doc.setLineWidth(0.2);
+        doc.roundedRect(rightCardX, tableY, rightCardW, fullCardH, 3, 3, 'FD');
 
-        doc.setFillColor(239, 68, 68);
-        doc.roundedRect(rightCardX, tableY, rightCardW, 5.0, 1.5, 1.5, 'F');
+        doc.setFillColor(239, 68, 68); // red-500 Header strip
+        doc.roundedRect(rightCardX, tableY, rightCardW, 8, 3, 3, 'F');
 
-        doc.setFontSize(6.8);
+        doc.setFontSize(7.5);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(255, 255, 255);
-        doc.text("! ATTENTION: ROLLING TOOK LONGER THAN USUAL", rightCardX + 3, tableY + 3.6);
+        doc.text("! OVERDUE: ACTUAL " + analysis.actualHoursFormatted + " | EXPECTED " + analysis.expectedHoursFormatted, rightCardX + 4, tableY + 5.5);
 
-        doc.setFontSize(6.2);
+        doc.setFontSize(9);
         doc.setTextColor(153, 27, 27);
-        doc.text(`ACTUAL: ${analysis.actualHoursFormatted}   |   EXPECTED: ${analysis.expectedHoursFormatted}`, rightCardX + 3, tableY + 9.2);
-        doc.setTextColor(185, 28, 28);
-        doc.text(`DELAY: ${analysis.diffHoursFormatted} (+${analysis.diffPercentage}%)   |   RATE: ${analysis.ratePer1000Kg}h/1k kg`, rightCardX + 3, tableY + 13.0);
+        doc.text(t.grandTotalWetDhoolTitle, rightCardX + 5, tableY + 14);
 
-        const summaryCardY = tableY + alertH + 2;
-        const summaryCardH = (opRows.length * rowH) - alertH - 2;
-
-        doc.setDrawColor(233, 213, 255);
-        doc.setFillColor(250, 245, 255);
-        doc.roundedRect(rightCardX, summaryCardY, rightCardW, summaryCardH, 1.5, 1.5, 'FD');
-
-        doc.setFontSize(7.5);
+        doc.setFontSize(16);
         doc.setFont(undefined, 'bold');
-        doc.setTextColor(107, 33, 168);
-        doc.text(t.grandTotalWetDhoolTitle, rightCardX + 3.5, summaryCardY + 4.2);
-
-        doc.setFontSize(10);
-        doc.setTextColor(88, 28, 135);
-        doc.text(`${grandTotalWetDhool.toFixed(2)} kg`, rightCardX + 3.5, summaryCardY + 8.8);
-
-        const badgeText = `${grandTotalPct}% ${t.overallCapacityLabel}`;
-        const badgeW = doc.getTextWidth(badgeText) + 6;
-        const badgeX = rightCardX + rightCardW - badgeW - 3;
-
-        doc.setFillColor(243, 232, 255);
-        doc.setDrawColor(216, 180, 254);
-        doc.roundedRect(badgeX, summaryCardY + 3.5, badgeW, 5.0, 1, 1, 'FD');
-
-        doc.setFontSize(6.8);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(126, 34, 206);
-        doc.text(badgeText, badgeX + 3, summaryCardY + 7.0);
-
-      } else {
-        const fullCardH = opRows.length * rowH;
-
-        doc.setDrawColor(233, 213, 255);
-        doc.setFillColor(250, 245, 255);
-        doc.setLineWidth(0.1);
-        doc.roundedRect(rightCardX, tableY, rightCardW, fullCardH, 2, 2, 'FD');
-
-        doc.setFillColor(243, 232, 255);
-        doc.roundedRect(rightCardX, tableY, rightCardW, 7, 2, 2, 'F');
-
-        doc.setFontSize(8);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(107, 33, 168);
-        doc.text(t.grandTotalWetDhoolTitle, rightCardX + 4, tableY + 4.8);
-
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(88, 28, 135);
-        doc.text(`${grandTotalWetDhool.toFixed(2)} kg`, rightCardX + 4, tableY + 16.5);
-
+        doc.setTextColor(153, 27, 27);
+        doc.text(`${grandTotalWetDhool.toFixed(2)} kg`, rightCardX + 5, tableY + 21);
+        
         const badgeText = `${grandTotalPct}% ${t.overallCapacityLabel}`;
         const badgeW = doc.getTextWidth(badgeText) + 8;
-        const badgeX = rightCardX + 4;
-        const badgeY = tableY + 19.5;
+        doc.setFillColor(254, 226, 226);
+        doc.setDrawColor(248, 113, 113);
+        doc.roundedRect(rightCardX + 5, tableY + 23.5, badgeW, 4.5, 1, 1, 'FD');
+        doc.setFontSize(7);
+        doc.setTextColor(185, 28, 28);
+        doc.text(badgeText, rightCardX + 9, tableY + 26.7);
 
+      } else {
+        // Beautiful Purple Styling matching your image
+        doc.setDrawColor(233, 213, 255); // purple-200
+        doc.setFillColor(250, 245, 255); // purple-50
+        doc.setLineWidth(0.2);
+        doc.roundedRect(rightCardX, tableY, rightCardW, fullCardH, 3, 3, 'FD');
+
+        doc.setFillColor(243, 232, 255); // purple-100 Header strip
+        doc.roundedRect(rightCardX, tableY, rightCardW, 8, 3, 3, 'F');
+
+        doc.setFontSize(8.5);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(126, 34, 206); // purple-700
+        doc.text(t.grandTotalWetDhoolTitle, rightCardX + 5, tableY + 5.5);
+
+        doc.setFontSize(18);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(88, 28, 135); // purple-900
+        doc.text(`${grandTotalWetDhool.toFixed(2)} kg`, rightCardX + 5, tableY + 18);
+
+        const badgeText = `${grandTotalPct}% ${t.overallCapacityLabel}`;
+        const badgeW = doc.getTextWidth(badgeText) + 10;
         doc.setFillColor(243, 232, 255);
         doc.setDrawColor(216, 180, 254);
-        doc.roundedRect(badgeX, badgeY, badgeW, 5.5, 1, 1, 'FD');
-
+        doc.roundedRect(rightCardX + 5, tableY + 22, badgeW, 5.5, 1.5, 1.5, 'FD');
+        
         doc.setFontSize(7.5);
-        doc.setFont(undefined, 'bold');
         doc.setTextColor(126, 34, 206);
-        doc.text(badgeText, badgeX + 4, badgeY + 4.0);
+        doc.text(badgeText, rightCardX + 10, tableY + 26);
       }
     }
   }), [activeRecord, batches.length, analysis, grandTotalWetDhool, grandTotalPct, t]);
@@ -1375,112 +1411,165 @@ const RollingRoomSheetSummary = () => {
             </div>
 
             {/* 💡 NEW: Hydro Meters Chart Section (View & Edit Mode) */}
-            <div className="mt-6 w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80">
-                    <div className="flex items-center gap-2">
-                        <ThermometerSun className="w-5 h-5 text-orange-500" />
-                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
-                            {t.hydroTitle}
-                        </h3>
+            {/* --- SECTION: HYDRO METERS CHART - ROLLING ROOM --- */}
+            {(activeRecord?.rollingHydroReadings?.length > 0 || isEditing) && (
+                <div className="mt-6 w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80">
+                        <div className="flex items-center gap-2">
+                            <ThermometerSun className="w-5 h-5 text-orange-500" />
+                            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                                {t.hydroTitle} - Rolling Room Data
+                            </h3>
+                        </div>
+                        {isEditing && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setEditForm(prev => ({
+                                        ...prev,
+                                        rollingHydroReadings: [...(prev.rollingHydroReadings || []), { time: '', dryBulb: '', wetBulb: '', difference: '' }]
+                                    }));
+                                }}
+                                className="text-xs bg-orange-100 text-orange-700 px-3 py-1.5 rounded-lg font-bold hover:bg-orange-200 transition-colors"
+                            >
+                                + Add Reading
+                            </button>
+                        )}
                     </div>
-                    {isEditing && (
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setEditForm(prev => ({
-                                    ...prev,
-                                    hydroReadings: [...(prev.hydroReadings || []), { time: '', dryBulb: '', wetBulb: '', difference: '' }]
-                                }));
-                            }}
-                            className="text-xs bg-orange-100 text-orange-700 px-3 py-1.5 rounded-lg font-bold hover:bg-orange-200 transition-colors"
-                        >
-                            + Add Reading
-                        </button>
-                    )}
-                </div>
-                
-                <table className="w-full text-center text-xs border-collapse min-w-[500px]">
-                    <thead>
-                        <tr className="bg-orange-50/60 dark:bg-orange-950/20 text-orange-900 dark:text-orange-300 border-b border-slate-200 dark:border-slate-800 text-[11px] font-extrabold uppercase">
-                            <th className="p-2.5 w-1/4">{t.hydroTime}</th>
-                            <th className="p-2.5 w-1/4">{t.hydroDryBulb}</th>
-                            <th className="p-2.5 w-1/4">{t.hydroWetBulb}</th>
-                            <th className="p-2.5 w-1/4">{t.hydroDiff}</th>
-                            {isEditing && <th className="p-2.5 w-10"></th>}
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                        {((isEditing ? editForm?.hydroReadings : activeRecord?.hydroReadings) || []).map((row, idx) => (
-                            <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                                <td className="p-2">
-                                    {isEditing ? (
-                                        <input
-                                            type="time"
-                                            value={row.time || ''}
-                                            onChange={(e) => handleHydroCellChange(idx, 'time', e.target.value)}
-                                            className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold"
-                                        />
-                                    ) : (
-                                        <span className="font-bold text-slate-700 dark:text-slate-300">
-                                            {row.time ? format12Hour(row.time) : '-'}
-                                        </span>
-                                    )}
-                                </td>
-                                <td className="p-2">
-                                    {isEditing ? (
-                                        <input
-                                            type="number"
-                                            step="any"
-                                            placeholder="0"
-                                            value={row.dryBulb || ''}
-                                            onKeyDown={preventNegativeKeys}
-                                            onChange={(e) => handleHydroCellChange(idx, 'dryBulb', e.target.value)}
-                                            className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold"
-                                        />
-                                    ) : (
-                                        <span className="font-bold text-slate-700 dark:text-slate-300">{row.dryBulb || '-'}</span>
-                                    )}
-                                </td>
-                                <td className="p-2">
-                                    {isEditing ? (
-                                        <input
-                                            type="number"
-                                            step="any"
-                                            placeholder="0"
-                                            value={row.wetBulb || ''}
-                                            onKeyDown={preventNegativeKeys}
-                                            onChange={(e) => handleHydroCellChange(idx, 'wetBulb', e.target.value)}
-                                            className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold"
-                                        />
-                                    ) : (
-                                        <span className="font-bold text-slate-700 dark:text-slate-300">{row.wetBulb || '-'}</span>
-                                    )}
-                                </td>
-                                <td className="p-2">
-                                    <span className="font-black text-orange-600 dark:text-orange-400">{row.difference || '-'}</span>
-                                </td>
-                                {isEditing && (
+                    
+                    <table className="w-full text-center text-xs border-collapse min-w-[500px]">
+                        <thead>
+                            <tr className="bg-orange-50/60 dark:bg-orange-950/20 text-orange-900 dark:text-orange-300 border-b border-slate-200 dark:border-slate-800 text-[11px] font-extrabold uppercase">
+                                <th className="p-2.5 w-1/4">{t.hydroTime}</th>
+                                <th className="p-2.5 w-1/4">{t.hydroDryBulb}</th>
+                                <th className="p-2.5 w-1/4">{t.hydroWetBulb}</th>
+                                <th className="p-2.5 w-1/4">{t.hydroDiff}</th>
+                                {isEditing && <th className="p-2.5 w-10"></th>}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                            {((isEditing ? editForm?.rollingHydroReadings : activeRecord?.rollingHydroReadings) || []).map((row, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                                    <td className="p-2">
+                                        {isEditing ? (
+                                            <input type="time" value={row.time || ''} onChange={(e) => handleHydroCellChange('rolling', idx, 'time', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold" />
+                                        ) : (
+                                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.time ? format12Hour(row.time) : '-'}</span>
+                                        )}
+                                    </td>
+                                    <td className="p-2">
+                                        {isEditing ? (
+                                            <input type="number" step="any" placeholder="0" value={row.dryBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('rolling', idx, 'dryBulb', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold" />
+                                        ) : (
+                                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.dryBulb || '-'}</span>
+                                        )}
+                                    </td>
+                                    <td className="p-2">
+                                        {isEditing ? (
+                                            <input type="number" step="any" placeholder="0" value={row.wetBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('rolling', idx, 'wetBulb', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold" />
+                                        ) : (
+                                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.wetBulb || '-'}</span>
+                                        )}
+                                    </td>
+                                    <td className="p-2">
+                                        <span className="font-black text-orange-600 dark:text-orange-400">{row.difference || '-'}</span>
+                                    </td>
+                                    {isEditing && (
                                         <td className="p-2">
-                                            {/* 💡 කෙලින්ම මකනවා වෙනුවට AlertDialog එක Open කිරීම */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setRowToDelete({ index: idx, time: row.time || 'Unknown' })}
-                                                className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors cursor-pointer"
-                                            >
+                                            <button type="button" onClick={() => setRowToDelete({ type: 'rolling', index: idx, time: row.time || 'Unknown' })} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors cursor-pointer">
                                                 <X size={14} />
                                             </button>
                                         </td>
                                     )}
-                            </tr>
-                        ))}
-                        {((isEditing ? editForm?.hydroReadings : activeRecord?.hydroReadings) || []).length === 0 && !isEditing && (
-                            <tr>
-                                <td colSpan="4" className="p-6 text-slate-400 font-semibold text-sm">No Temperature Readings Available</td>
-                            </tr>
+                                </tr>
+                            ))}
+                            {((isEditing ? editForm?.rollingHydroReadings : activeRecord?.rollingHydroReadings) || []).length === 0 && !isEditing && (
+                                <tr><td colSpan="4" className="p-6 text-slate-400 font-semibold text-sm">No Temperature Readings Available</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {/* --- SECTION: HYDRO METERS CHART - FERMENTATION ROOM --- */}
+            {(activeRecord?.fermentationHydroReadings?.length > 0 || isEditing) && (
+                <div className="mt-6 w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80">
+                        <div className="flex items-center gap-2">
+                            <ThermometerSun className="w-5 h-5 text-blue-500" />
+                            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                                {t.hydroTitle} - Fermentation Room Data
+                            </h3>
+                        </div>
+                        {isEditing && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setEditForm(prev => ({
+                                        ...prev,
+                                        fermentationHydroReadings: [...(prev.fermentationHydroReadings || []), { time: '', dryBulb: '', wetBulb: '', difference: '' }]
+                                    }));
+                                }}
+                                className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-200 transition-colors"
+                            >
+                                + Add Reading
+                            </button>
                         )}
-                    </tbody>
-                </table>
-            </div>
+                    </div>
+                    
+                    <table className="w-full text-center text-xs border-collapse min-w-[500px]">
+                        <thead>
+                            <tr className="bg-blue-50/60 dark:bg-blue-950/20 text-blue-900 dark:text-blue-300 border-b border-slate-200 dark:border-slate-800 text-[11px] font-extrabold uppercase">
+                                <th className="p-2.5 w-1/4">{t.hydroTime}</th>
+                                <th className="p-2.5 w-1/4">{t.hydroDryBulb}</th>
+                                <th className="p-2.5 w-1/4">{t.hydroWetBulb}</th>
+                                <th className="p-2.5 w-1/4">{t.hydroDiff}</th>
+                                {isEditing && <th className="p-2.5 w-10"></th>}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                            {((isEditing ? editForm?.fermentationHydroReadings : activeRecord?.fermentationHydroReadings) || []).map((row, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                                    <td className="p-2">
+                                        {isEditing ? (
+                                            <input type="time" value={row.time || ''} onChange={(e) => handleHydroCellChange('fermentation', idx, 'time', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-blue-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-blue-500 font-bold" />
+                                        ) : (
+                                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.time ? format12Hour(row.time) : '-'}</span>
+                                        )}
+                                    </td>
+                                    <td className="p-2">
+                                        {isEditing ? (
+                                            <input type="number" step="any" placeholder="0" value={row.dryBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('fermentation', idx, 'dryBulb', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-blue-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-blue-500 font-bold" />
+                                        ) : (
+                                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.dryBulb || '-'}</span>
+                                        )}
+                                    </td>
+                                    <td className="p-2">
+                                        {isEditing ? (
+                                            <input type="number" step="any" placeholder="0" value={row.wetBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('fermentation', idx, 'wetBulb', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-blue-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-blue-500 font-bold" />
+                                        ) : (
+                                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.wetBulb || '-'}</span>
+                                        )}
+                                    </td>
+                                    <td className="p-2">
+                                        <span className="font-black text-blue-600 dark:text-blue-400">{row.difference || '-'}</span>
+                                    </td>
+                                    {isEditing && (
+                                        <td className="p-2">
+                                            <button type="button" onClick={() => setRowToDelete({ type: 'fermentation', index: idx, time: row.time || 'Unknown' })} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors cursor-pointer">
+                                                <X size={14} />
+                                            </button>
+                                        </td>
+                                    )}
+                                </tr>
+                            ))}
+                            {((isEditing ? editForm?.fermentationHydroReadings : activeRecord?.fermentationHydroReadings) || []).length === 0 && !isEditing && (
+                                <tr><td colSpan="4" className="p-6 text-slate-400 font-semibold text-sm">No Temperature Readings Available</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            )}
 
             {/* Total Wet Dhool Card */}
             <div className="mt-6 p-4 bg-gradient-to-r from-emerald-50 via-teal-50/40 to-slate-50 dark:from-emerald-950/40 dark:via-teal-950/20 dark:to-slate-900 border border-emerald-200/80 dark:border-emerald-800/60 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3">
