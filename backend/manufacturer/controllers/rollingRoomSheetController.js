@@ -30,7 +30,7 @@ const sanitizeBatches = (batches = [], standardBatchKg = 560) => {
   });
 };
 
-// 💡 Helper to sanitize Hydro Meter readings
+// 💡 Helper to sanitize Hydro Meter readings (Reusable for both arrays)
 const sanitizeHydroReadings = (readings = []) => {
   if (!Array.isArray(readings)) return [];
   return readings.map(r => ({
@@ -57,7 +57,8 @@ export const saveRollingRoomSheet = async (req, res) => {
       dayType,
       standardBatchKg,
       batches,
-      hydroReadings, // 💡 Extract hydroReadings from req.body
+      rollingHydroReadings,     // 💡 Extract NEW arrays
+      fermentationHydroReadings, // 💡 Extract NEW arrays
       factory
     } = req.body;
 
@@ -71,7 +72,6 @@ export const saveRollingRoomSheet = async (req, res) => {
     const enteredBy = req.user ? (req.user.username || req.user.name) : (req.body.username || 'Admin');
     const stdBatchKg = Number(standardBatchKg) > 0 ? Number(standardBatchKg) : 560;
     const cleanBatches = sanitizeBatches(batches, stdBatchKg);
-    const cleanHydroReadings = sanitizeHydroReadings(hydroReadings); // 💡 Sanitize hydroReadings
 
     const updateData = {
       mfDate,
@@ -84,12 +84,19 @@ export const saveRollingRoomSheet = async (req, res) => {
       standardBatchKg: stdBatchKg,
       noOfBatches: cleanBatches.length,
       batches: cleanBatches,
-      hydroReadings: cleanHydroReadings, // 💡 Add to update data
       enteredBy: enteredBy,
       createdBy: enteredBy,
       editedBy: enteredBy,
       ...(factory && { factory })
     };
+
+    // 💡 FIX: Prevent overwriting existing arrays if they are undefined in the request
+    if (rollingHydroReadings !== undefined) {
+      updateData.rollingHydroReadings = sanitizeHydroReadings(rollingHydroReadings);
+    }
+    if (fermentationHydroReadings !== undefined) {
+      updateData.fermentationHydroReadings = sanitizeHydroReadings(fermentationHydroReadings);
+    }
 
     const savedSheet = await RollingRoomSheet.findOneAndUpdate(
       { cropDate: cropDate },
@@ -134,9 +141,22 @@ export const updateRollingRoomSheetById = async (req, res) => {
       updatePayload.noOfBatches = updatePayload.batches.length;
     }
 
-    // 💡 Sanitize hydroReadings if they are updated
-    if (Array.isArray(updatePayload.hydroReadings)) {
-      updatePayload.hydroReadings = sanitizeHydroReadings(updatePayload.hydroReadings);
+    // 💡 FIX: Sanitize hydro arrays independently and protect against overwriting
+    if (updatePayload.rollingHydroReadings === undefined) {
+        delete updatePayload.rollingHydroReadings;
+    } else if (Array.isArray(updatePayload.rollingHydroReadings)) {
+        updatePayload.rollingHydroReadings = sanitizeHydroReadings(updatePayload.rollingHydroReadings);
+    }
+
+    if (updatePayload.fermentationHydroReadings === undefined) {
+        delete updatePayload.fermentationHydroReadings;
+    } else if (Array.isArray(updatePayload.fermentationHydroReadings)) {
+        updatePayload.fermentationHydroReadings = sanitizeHydroReadings(updatePayload.fermentationHydroReadings);
+    }
+
+    // Clean up old single array if it somehow gets passed
+    if (updatePayload.hydroReadings !== undefined) {
+        delete updatePayload.hydroReadings; 
     }
 
     if (updatePayload.cropKg !== undefined) {
