@@ -62,7 +62,7 @@ export default function WeeklyLoftLeafSummary() {
         supplier: lang === 'SI' ? "සැපයුම්කරුගේ නම" : "Supplier Name",
         weeklyAvg: lang === 'SI' ? "සාමාන්‍ය අගය" : "Weekly Average",
         rank: lang === 'SI' ? "ස්ථානය" : "Rank",
-        diff: "DIFF",
+        diff: "DIF",
         legendRed: lang === 'SI' ? "ගුණාත්මය 55% ට අඩු" : "Quality < 55%",
         legendGreen: lang === 'SI' ? "තැළුනු දළු 5% ට වැඩි" : "Damaged > 5%",
         legendYellow: lang === 'SI' ? "මෝරපු දළු 45% ට වැඩි" : "Mature > 45%",
@@ -398,9 +398,9 @@ export default function WeeklyLoftLeafSummary() {
                         <button
                             onClick={generatePDF}
                             disabled={loading || processedTable.length === 0}
-                            className="p-2.5 px-3 sm:px-4 flex-1 sm:flex-none justify-center bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg transition-colors font-bold text-sm disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                            className="p-2.5 px-3 sm:px-4 flex-1 sm:flex-none justify-center bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-blue-500 text-white rounded-lg transition-colors font-bold text-sm disabled:opacity-50 flex items-center gap-2 shadow-sm"
                         >
-                            <FileDown size={18} /> <span className="font-bold text-xs sm:text-sm hidden sm:inline">PDF</span>
+                            <FileDown size={18} /> <span className="font-bold text-xs sm:text-sm hidden sm:inline">Download PDF</span>
                         </button>
 
                         <button
@@ -723,15 +723,15 @@ export default function WeeklyLoftLeafSummary() {
                 style={{ display: 'none' }}
             >
                 {/* 📄 PAGE 1: MAIN REPORT */}
-                <div id="pdf-page-1" className="bg-[#ffffff] p-8 font-sans text-[#000000] flex flex-col justify-between" style={{ width: '1600px', minHeight: '1130px' }}>
+                <div id="pdf-page-1" className="bg-[#ffffff] p-2 font-sans text-[#000000] flex flex-col justify-between" style={{ width: '1800px', minHeight: '1130px' }}>
 
                     <div>
                         {/* Header */}
                         <div className="flex justify-between items-start mb-6 border-b border-[#d1d5db] pb-4">
                             <div className="flex items-center gap-4">
-                                <img src="/logo.png" alt="Logo" className="w-20 h-20 object-contain" onError={(e) => e.target.style.display = 'none'} />
+                                <img src="/logo.png" alt="Logo" className="w-30 h-30 object-contain" onError={(e) => e.target.style.display = 'none'} />
                                 <div>
-                                    <h1 className="text-3xl font-bold text-[#1B6A31] uppercase" style={{ fontFamily: 'sans-serif' }}>
+                                    <h1 className="text-4xl font-bold text-[#1B6A31] uppercase" style={{ fontFamily: 'sans-serif' }}>
                                         Athukorala Group (Pvt) Ltd
                                     </h1>
                                     <h2 className="text-2xl font-bold mt-2" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
@@ -768,21 +768,21 @@ export default function WeeklyLoftLeafSummary() {
                         </div>
 
                         {/* Main Table (Enlarged) */}
-                        <table className="w-full table-fixed border-collapse border border-[#cbd5e1] text-center text-[15px]" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
+                        <table className="w-full table-fixed border-collapse border border-[#cbd5e1] text-center text-[20px]" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
                             <thead>
                                 <tr>
                                     <th rowSpan={2} className="text-center border border-[#cbd5e1] p-2.5 font-extrabold bg-[#f3f4f6] text-[#000000] w-[15%]">
                                         {t.supplier}
                                     </th>
                                     {weekDates.map(date => (
-                                        <th key={date} colSpan={3} className="border border-[#cbd5e1] p-2.5 font-extrabold bg-[#eff6ff] text-[#000000]">
+                                        <th key={date} colSpan={3} className="border border-[#cbd5e1] p-2 font-extrabold bg-[#eff6ff] text-[#000000]">
                                             {date.split('-').slice(1).join('/')}
                                         </th>
                                     ))}
-                                    <th colSpan={3} className="border border-[#cbd5e1] p-2.5 font-extrabold bg-[#f0fdf4] text-[#000000] whitespace-nowrap">
+                                    <th colSpan={3} className="border border-[#cbd5e1] p-2 font-extrabold bg-[#f0fdf4] text-[#000000] whitespace-nowrap">
                                         {t.weeklyAvg}
                                     </th>
-                                    <th rowSpan={2} className="border border-[#cbd5e1] p-2.5 font-extrabold bg-[#f3f4f6] text-[#dc2626] w-[6%]">
+                                    <th rowSpan={2} className="border border-[#cbd5e1] p-2 font-extrabold bg-[#f3f4f6] text-[#dc2626] w-[6%]">
                                         {t.rank}
                                     </th>
                                 </tr>
@@ -848,7 +848,7 @@ export default function WeeklyLoftLeafSummary() {
                                         <td className="border border-[#cbd5e1] p-1.5 font-black text-[#1f2937]">{route.avg.bb || "-"}</td>
                                         <td className="border border-[#cbd5e1] p-1.5 font-black text-[#1f2937]">{route.avg.p || "-"}</td>
 
-                                        <td className="border border-[#cbd5e1] border-l-0 p-1.5 font-black text-[#dc2626] text-[15px] bg-[#ffffff]">
+                                        <td className="border border-[#cbd5e1] border-l-0 p-1.5 font-black text-[#dc2626] text-[20px] bg-[#ffffff]">
                                             {route.rank !== "-" ? route.rank : ""}
                                         </td>
                                     </tr>
@@ -871,17 +871,17 @@ export default function WeeklyLoftLeafSummary() {
 
                         {/* 💡 TABLE 2: COLLECTOR QUALITY & DIFFERENCE (PDF VERSION) */}
                         <div className="mt-8">
-                            <h3 className="text-[18px] font-bold text-[#1B6A31] mb-3 flex items-center gap-2" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
+                            <h3 className="text-[22px] font-bold text-[#1B6A31] mb-3 flex items-center gap-2" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
                                 <FileSpreadsheet size={20} className="text-[#1B6A31]" /> {t.collectorDiffTitle}
                             </h3>
-                            <table className="w-full table-fixed border-collapse border border-[#cbd5e1] text-center text-[15px]" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
+                            <table className="w-full table-fixed border-collapse border border-[#cbd5e1] text-center text-[20px]" style={{ fontFamily: 'Iskoola Pota, sans-serif' }}>
                                 <thead>
                                     <tr>
-                                        <th rowSpan={2} className="text-center border border-[#cbd5e1] p-2.5 font-extrabold bg-[#D8FDE4] text-[#000000] w-[14%]">
+                                        <th rowSpan={2} className="text-center border border-[#cbd5e1] p-1.5 text-[20px] font-extrabold bg-[#D8FDE4] text-[#000000] w-[14%]">
                                             {t.supplier}
                                         </th>
                                         {weekDates.map((date) => (
-                                            <th key={date} colSpan={4} className="border border-[#cbd5e1] p-2.5 font-extrabold bg-[#D8FDE4] text-[#000000]">
+                                            <th key={date} colSpan={4} className="border border-[#cbd5e1] p-2 font-extrabold bg-[#D8FDE4] text-[#000000]">
                                                 {date.split("-").slice(1).join("/")}
                                             </th>
                                         ))}
@@ -962,7 +962,7 @@ export default function WeeklyLoftLeafSummary() {
                     <div className="mt-auto pt-16 pb-12 w-full flex flex-row justify-between px-16 items-end text-[16px] font-bold font-sans text-[#374151]">
                         <div className="text-center">
                             <p className="text-[#4b5563] font-sans mb-2">{t.signGen}</p>
-                            <p className="text-[#2C3A3A] font-sans">{currentUsername} ({userRole})</p>
+                            <p className="text-[#2C3A3A] font-sans">{currentUsername}</p>
                         </div>
                         <div className="text-center">
                             <p className="text-[#4b5563] mb-2">.............................................................</p>
@@ -1082,7 +1082,7 @@ export default function WeeklyLoftLeafSummary() {
                     <div className="mt-auto pt-16 pb-12 w-full flex flex-row justify-between px-16 items-end text-[16px] font-bold font-sans text-[#374151]">
                         <div className="text-center">
                             <p className="text-[#4b5563] font-sans mb-2">{t.signGen}</p>
-                            <p className="text-[#2C3A3A] font-sans">{currentUsername} ({userRole})</p>
+                            <p className="text-[#2C3A3A] font-sans">{currentUsername}</p>
                         </div>
                         <div className="text-center">
                             <p className="text-[#4b5563] mb-2">.............................................................</p>
