@@ -4,7 +4,6 @@ import { Calendar, RefreshCw, FileText, Download, Save } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-
 const generateKey = (catId, catTitle, size) => {
     let cleanId = (catId || '').toLowerCase().trim();
     let cleanTitle = (catTitle || '').toLowerCase().trim();
@@ -51,7 +50,6 @@ const normalizeTeaType = (type) => {
     return type.toUpperCase().replace(/\s+/g, "");
 };
 
-// Initial empty 17 rows to prevent undefined errors before fetch
 const initialSec8 = Array.from({ length: 19 }, () => ({
     grade: '', auction: 0, private: 0, forward: 0, exFactory: 0, direct: 0, gifts: 0, other: 0, total: 0
 }));
@@ -68,8 +66,8 @@ export default function TC5Report() {
     const [loading, setLoading] = useState(true);
     const [generatingPdf, setGeneratingPdf] = useState(false);
     const [savingDb, setSavingDb] = useState(false);
+    const [isDirty, setIsDirty] = useState(false); // Tracks unsaved changes
 
-    // Editable fields state for manual adjustment
     const [refuseTea, setRefuseTea] = useState({ bf: "", manufactured: "", sold: "", manure: "", other: "" });
 
     const [reportData, setReportData] = useState({
@@ -78,23 +76,35 @@ export default function TC5Report() {
         sec8: initialSec8
     });
 
+    // Warn before leaving if changes are unsaved
+    useEffect(() => {
+        const handleBeforeUnload = (e) => {
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = "You have unsaved data. Are you sure you want to leave?";
+            }
+        };
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    }, [isDirty]);
+
     useEffect(() => {
         fetchTC5Data();
     }, [selectedMonth]);
 
     const fetchTC5Data = async () => {
         setLoading(true);
+        let hasNewData = false;
         try {
             const token = localStorage.getItem("token");
             const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
-            // 💡 1. Summary API එකත් (Balance Report data) මෙතනදි Fetch කරනවා
             const [logsRes, loftRes, pdfRes, tc5SavedRes, summaryRes] = await Promise.all([
                 fetch(`${BACKEND_URL}/api/factory-logs?month=${selectedMonth}`, { headers }),
                 fetch(`${BACKEND_URL}/api/factory-loft-leaf/report?month=${selectedMonth}`, { headers }),
                 fetch(`${BACKEND_URL}/api/pdf-totals/get?month=${selectedMonth}`, { headers }),
                 fetch(`${BACKEND_URL}/api/tc5report?month=${selectedMonth}`, { headers }),
-                fetch(`${BACKEND_URL}/api/summary?month=${selectedMonth}`, { headers }) // <--- අලුතින් එකතු කළා
+                fetch(`${BACKEND_URL}/api/summary?month=${selectedMonth}`, { headers })
             ]);
 
             const logsData = logsRes.ok ? await logsRes.json() : { records: [] };
@@ -150,9 +160,6 @@ export default function TC5Report() {
                 });
             });
 
-            // ==============================================================================
-            // 💡 2. Balance Report එකේ "Total Black Tea Out" ගණනය කිරීම
-            // ==============================================================================
             let calculatedBlackTeaSoldKg = 0;
             const summaries = summaryData?.data || summaryData || [];
 
@@ -168,7 +175,6 @@ export default function TC5Report() {
                             const nameLower = (id === 'others' ? size : `${title} ${size}`).toLowerCase();
                             const idLower = id.toLowerCase();
 
-                            // හරිත තේ (Green Tea) ඉවත් කිරීම
                             if (idLower.startsWith('gt') || nameLower.includes('green tea') || nameLower.includes('g/t')) return;
 
                             let multiplier = 0;
@@ -191,17 +197,12 @@ export default function TC5Report() {
             }
 
             calculatedBlackTeaSoldKg = Number(calculatedBlackTeaSoldKg.toFixed(1));
-
-            // 💡 3. ගණනය කළ අගය BOPF වල Gifts තීරුවට map කිරීම
             dispMap['BOPF'].gifts += calculatedBlackTeaSoldKg;
-            // ==============================================================================
 
-            // Filter out grades that have NO tea at all (BOPF අනිවාර්යයෙන් පෙන්වයි)
             let activeSec8 = Object.keys(dispMap).map(grade => {
                 const row = dispMap[grade];
                 row.total = row.auction + row.private + row.forward + row.exFactory + row.direct + row.gifts + row.other;
 
-                // 💡 Format specific grades with spaces
                 let displayGrade = grade;
                 if (grade === 'FFEXSP1') displayGrade = 'FF EX SP 1';
                 if (grade === 'BOPSP') displayGrade = 'BOP SP';
@@ -209,47 +210,72 @@ export default function TC5Report() {
                 return { grade: displayGrade, ...row };
             }).filter(row => row.total > 0 || row.grade === 'BOPF');
 
-            // Database එකේ කලින් Save කරපු Data තියෙනවා නම් ඒක මුල්තැන ගන්නවා
+            // 💡 INTELLIGENT MERGE STRATEGY
             if (savedReport && savedReport.section8_disposals && savedReport.section8_disposals.length > 0) {
-                // හිස් පේළි අයින් කරලා කලින් Save කරපු ටික ගන්නවා
-                activeSec8 = savedReport.section8_disposals.filter(r => r.grade && r.grade.trim() !== '');
+                const savedRows = savedReport.section8_disposals.filter(r => r.grade && r.grade.trim() !== '');
 
-                // 💡 කලින් සේව් කරපු දත්ත වල නම්වලටත් ස්වයංක්‍රීයව හිස්තැන් එකතු කිරීම
-                activeSec8.forEach(r => {
-                    let cleanG = r.grade.toUpperCase().replace(/\s+/g, "");
-                    if (cleanG === 'FFEXSP1') r.grade = 'FF EX SP 1';
-                    if (cleanG === 'BOPSP') r.grade = 'BOP SP';
+                activeSec8.forEach(apiRow => {
+                    let cleanApi = apiRow.grade.toUpperCase().replace(/\s+/g, "");
+                    let savedRow = savedRows.find(r => r.grade.toUpperCase().replace(/\s+/g, "") === cleanApi);
+
+                    if (savedRow) {
+                        // Check if API has accumulated new data since last DB save
+                        if (apiRow.auction > savedRow.auction || apiRow.gifts > savedRow.gifts) {
+                            hasNewData = true;
+                        }
+
+                        // Max prioritizes whichever is higher (new API data or custom manual save)
+                        apiRow.auction = Math.max(apiRow.auction, savedRow.auction || 0);
+                        apiRow.private = savedRow.private || 0;
+                        apiRow.forward = savedRow.forward || 0;
+                        apiRow.exFactory = savedRow.exFactory || 0;
+                        apiRow.direct = savedRow.direct || 0;
+                        apiRow.gifts = Math.max(apiRow.gifts, savedRow.gifts || 0);
+                        apiRow.other = savedRow.other || 0;
+                        apiRow.total = apiRow.auction + apiRow.private + apiRow.forward + apiRow.exFactory + apiRow.direct + apiRow.gifts + apiRow.other;
+                    } else {
+                        // Entirely new API grade surfaced
+                        hasNewData = true;
+                    }
                 });
 
-                // BOPF පේළිය Save කරපු දත්ත වල තියෙනවද කියලා හොයනවා
-                let bopfRow = activeSec8.find(r => r.grade === 'BOPF');
+                // Attach purely manual rows from DB that don't exist in API
+                savedRows.forEach(savedRow => {
+                    let cleanSaved = savedRow.grade.toUpperCase().replace(/\s+/g, "");
+                    let exists = activeSec8.find(r => r.grade.toUpperCase().replace(/\s+/g, "") === cleanSaved);
 
-                // කලින් Save කරපු Data වල BOPF පේළිය නැත්නම් අලුතින් එකතු කරනවා
-                if (!bopfRow) {
-                    bopfRow = { grade: 'BOPF', auction: 0, private: 0, forward: 0, exFactory: 0, direct: 0, gifts: 0, other: 0, total: 0 };
-                    activeSec8.push(bopfRow);
-                }
+                    if (!exists) {
+                        let displayGrade = savedRow.grade;
+                        if (cleanSaved === 'FFEXSP1') displayGrade = 'FF EX SP 1';
+                        if (cleanSaved === 'BOPSP') displayGrade = 'BOP SP';
 
-                // 💡 කලින් Direct Sales වලට සේව් වෙච්ච එක අයින් කරලා, අලුත් අගය Gifts වලට දානවා
-                if (bopfRow.direct === calculatedBlackTeaSoldKg) {
-                    bopfRow.direct = 0;
-                }
-                bopfRow.gifts = calculatedBlackTeaSoldKg;
-
-                bopfRow.total = (Number(bopfRow.auction) || 0) + (Number(bopfRow.private) || 0) + (Number(bopfRow.forward) || 0) + (Number(bopfRow.exFactory) || 0) + (Number(bopfRow.direct) || 0) + (Number(bopfRow.gifts) || 0) + (Number(bopfRow.other) || 0);
+                        activeSec8.push({
+                            ...savedRow,
+                            grade: displayGrade,
+                            total: (Number(savedRow.auction) || 0) + (Number(savedRow.private) || 0) + (Number(savedRow.forward) || 0) + (Number(savedRow.exFactory) || 0) + (Number(savedRow.direct) || 0) + (Number(savedRow.gifts) || 0) + (Number(savedRow.other) || 0)
+                        });
+                    }
+                });
+            } else {
+                if (activeSec8.length > 0) hasNewData = true;
             }
 
-            // Pad remaining empty rows up to 17 total data rows
+            let bopfRow = activeSec8.find(r => r.grade === 'BOPF');
+            if (!bopfRow) {
+                bopfRow = { grade: 'BOPF', auction: 0, private: 0, forward: 0, exFactory: 0, direct: 0, gifts: 0, other: 0, total: 0 };
+                activeSec8.push(bopfRow);
+            }
+            if (bopfRow.direct === calculatedBlackTeaSoldKg) bopfRow.direct = 0;
+            bopfRow.gifts = Math.max(bopfRow.gifts, calculatedBlackTeaSoldKg);
+            bopfRow.total = (Number(bopfRow.auction) || 0) + (Number(bopfRow.private) || 0) + (Number(bopfRow.forward) || 0) + (Number(bopfRow.exFactory) || 0) + (Number(bopfRow.direct) || 0) + (Number(bopfRow.gifts) || 0) + (Number(bopfRow.other) || 0);
+
             while (activeSec8.length < 19) {
                 activeSec8.push({ grade: '', auction: 0, private: 0, forward: 0, exFactory: 0, direct: 0, gifts: 0, other: 0, total: 0 });
             }
-            activeSec8 = activeSec8.slice(0, 19); // Ensure strictly 19 rows
+            activeSec8 = activeSec8.slice(0, 19);
 
-            // Calculate the total from Section 8 dynamically
             const currentSec8Total = activeSec8.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
-
             const sec2 = { bf, ownLeaf, boughtLeaf, otherEstate: 0, otherFactory: 0, disposals: currentSec8Total };
-
             sec2.total = sec2.bf + sec2.ownLeaf + sec2.boughtLeaf + sec2.otherEstate + sec2.otherFactory;
             sec2.closing = sec2.total - sec2.disposals;
 
@@ -259,7 +285,7 @@ export default function TC5Report() {
                 sec2.boughtLeaf = savedReport.section2_manufacture.boughtLeaf ?? sec2.boughtLeaf;
                 sec2.otherEstate = savedReport.section2_manufacture.otherEstate ?? sec2.otherEstate;
                 sec2.otherFactory = savedReport.section2_manufacture.otherFactory ?? sec2.otherFactory;
-                sec2.disposals = currentSec8Total; // Force disposals to ALWAYS match Section 8 Total
+                sec2.disposals = currentSec8Total;
                 sec2.total = sec2.bf + sec2.ownLeaf + sec2.boughtLeaf + sec2.otherEstate + sec2.otherFactory;
                 sec2.closing = sec2.total - sec2.disposals;
             }
@@ -324,6 +350,13 @@ export default function TC5Report() {
 
             setReportData({ sec2, sec3, sec8: activeSec8 });
 
+            if (hasNewData) {
+                setIsDirty(true);
+                toast('New production data loaded! Please Save to DB.', { icon: '⚠️', duration: 4000 });
+            } else {
+                setIsDirty(false);
+            }
+
         } catch (error) {
             console.error("TC5 Fetch Error:", error);
             toast.error("Failed to load TC5 Report data.");
@@ -333,10 +366,12 @@ export default function TC5Report() {
     };
 
     const handleRefuseChange = (e) => {
+        setIsDirty(true);
         setRefuseTea({ ...refuseTea, [e.target.name]: e.target.value });
     };
 
     const handleSec2Change = (field, val) => {
+        setIsDirty(true);
         const num = Number(val) || 0;
         const updatedSec2 = { ...reportData.sec2, [field]: num };
         updatedSec2.total = updatedSec2.bf + updatedSec2.ownLeaf + updatedSec2.boughtLeaf + updatedSec2.otherEstate + updatedSec2.otherFactory;
@@ -345,6 +380,7 @@ export default function TC5Report() {
     };
 
     const handleSec3Change = (field, val) => {
+        setIsDirty(true);
         const num = Number(val) || 0;
         setReportData({
             ...reportData,
@@ -353,9 +389,9 @@ export default function TC5Report() {
     };
 
     const handleSec8Change = (index, field, val) => {
+        setIsDirty(true);
         const updatedSec8 = [...reportData.sec8];
         if (field === 'grade') {
-            // 💡 ටයිප් කරන අතරතුරේදී ස්වයංක්‍රීයව හිස්තැන් හැදීම
             let cleanVal = val.toUpperCase().replace(/\s+/g, "");
             if (cleanVal === 'FFEXSP1') {
                 updatedSec8[index][field] = 'FF EX SP 1';
@@ -370,9 +406,7 @@ export default function TC5Report() {
             updatedSec8[index].total = (updatedSec8[index].auction || 0) + (updatedSec8[index].private || 0) + (updatedSec8[index].forward || 0) + (updatedSec8[index].exFactory || 0) + (updatedSec8[index].direct || 0) + (updatedSec8[index].gifts || 0) + (updatedSec8[index].other || 0);
         }
 
-        // Section 8 Total ගණනය කර Section 2 හි 'Disposals' වෙත සජීවීව යෙදීම
         const newSec8Total = updatedSec8.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
-
         const updatedSec2 = { ...reportData.sec2 };
         updatedSec2.disposals = newSec8Total;
         updatedSec2.closing = updatedSec2.total - updatedSec2.disposals;
@@ -411,6 +445,7 @@ export default function TC5Report() {
             }
 
             toast.success("Report Saved Successfully!", { id: toastId });
+            setIsDirty(false);
             return true;
         } catch (err) {
             console.error("Save Error: ", err);
@@ -506,7 +541,6 @@ export default function TC5Report() {
     const reportMonthText = new Date(`${selectedMonth}-01`).toLocaleString('en-US', { month: 'long' }).toUpperCase();
     const reportYearText = selectedMonth.substring(2, 4);
 
-    // Calculate totals for section 8
     const sec8Totals = reportData.sec8.reduce((acc, row) => {
         acc.auction += Number(row.auction) || 0;
         acc.private += Number(row.private) || 0;
@@ -519,14 +553,13 @@ export default function TC5Report() {
         return acc;
     }, { auction: 0, private: 0, forward: 0, exFactory: 0, direct: 0, gifts: 0, other: 0, total: 0 });
 
-    // Identify the last populated index dynamically for the TOTAL row placement
     let lastDataRowIndex = -1;
     reportData.sec8.forEach((row, idx) => {
         if (row.grade && row.grade.trim() !== '') {
             lastDataRowIndex = idx;
         }
     });
-    if (lastDataRowIndex === -1) lastDataRowIndex = 0; // Default to after first row if empty
+    if (lastDataRowIndex === -1) lastDataRowIndex = 0;
 
     return (
         <div className="w-full min-h-screen bg-slate-100 p-3 md:p-6 font-sans overflow-x-auto">
@@ -564,10 +597,16 @@ export default function TC5Report() {
                         <button
                             onClick={saveToDB}
                             disabled={loading || savingDb || generatingPdf}
-                            className="p-2.5 px-3 sm:px-4 flex-1 sm:flex-none justify-center bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg transition-colors font-bold text-sm disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                            className="p-2.5 px-3 sm:px-4 flex-1 sm:flex-none justify-center bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg transition-colors font-bold text-sm disabled:opacity-50 flex items-center gap-2 shadow-sm relative"
                         >
                             <Save size={18} />
                             <span className="font-bold text-xs sm:text-sm hidden sm:inline">{savingDb ? "Saving..." : "Save to DB"}</span>
+                            {isDirty && (
+                                <span className="absolute -top-1.5 -right-1.5 flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                </span>
+                            )}
                         </button>
 
                         <button
@@ -598,7 +637,6 @@ export default function TC5Report() {
                     <p className="text-slate-500 font-bold">Compiling T.C.5 Document...</p>
                 </div>
             ) : (
-                /* ZOOM WRAPPER ADDED HERE -> style={{ zoom: 1.15 }} */
                 <div className="w-full flex flex-col gap-10 pb-12 items-center tc5-container" style={{ zoom: 1 }}>
 
                     <style>{`
@@ -671,24 +709,21 @@ export default function TC5Report() {
               padding: 1px 0; 
             }
             
-            /* Helper classes */
             .border-left-fix { border-left: 1px solid #000000 !important; }
 
-            /* ======== SPECIFIC TO PAGE 1 TO INCREASE TABLE HEIGHTS AND INPUT FONT ======== */
             #tc5-page-1 table.tc5-table td.tc5-td, 
             #tc5-page-1 table.tc5-table td.tc5-td-c, 
             #tc5-page-1 table.tc5-table th.tc5-th {
-              padding: 3px 5px !important; /* increased padding for extra table height */
+              padding: 3px 5px !important; 
             }
             #tc5-page-1 .tc5-input {
-              font-size: 15px !important; /* +1px */
+              font-size: 15px !important; 
             }
           `}</style>
 
                     {/* ============================== PAGE 1 ============================== */}
                     <div className="bg-white shadow-2xl border border-gray-300 overflow-hidden" style={{ width: '794px', height: '1123px' }}>
                         <div id="tc5-page-1" className="tc5-paper h-full flex flex-col relative">
-
                             {/* TABLE 1: TOP HEADER */}
                             <table className="tc5-table">
                                 <tbody>
@@ -815,7 +850,7 @@ export default function TC5Report() {
                                 </tbody>
                             </table>
 
-                            {/* TABLE 3: STOCK & MANUFACTURE (Fully Editable Section 2 Inputs) */}
+                            {/* TABLE 3: STOCK & MANUFACTURE */}
                             <table className="tc5-table no-top" style={{ textAlign: 'left' }}>
                                 <thead>
                                     <tr>
@@ -908,7 +943,7 @@ export default function TC5Report() {
                                 </tbody>
                             </table>
 
-                            {/* TABLE 4: AVERAGE GREEN LEAF (Fully Editable Section 3 Percentages) */}
+                            {/* TABLE 4: AVERAGE GREEN LEAF */}
                             <table className="tc5-table no-top">
                                 <tbody>
                                     <tr>
@@ -954,7 +989,7 @@ export default function TC5Report() {
                                 </tbody>
                             </table>
 
-                            {/* TABLE 5: DETAILS OF PRIVATE SALES (With border-left-fix on rows adjacent to rowspan 4) */}
+                            {/* TABLE 5: DETAILS OF PRIVATE SALES */}
                             <table className="tc5-table no-top" style={{ textAlign: 'center' }}>
                                 <tbody>
                                     <tr>
@@ -1004,7 +1039,6 @@ export default function TC5Report() {
                                         </td>
                                     </tr>
 
-                                    {/* Row 1: Top Blank Row (Reduced Height) */}
                                     <tr style={{ height: '10px' }}>
                                         <td className="tc5-td border-left-fix" style={{ padding: 0 }}></td>
                                         <td className="tc5-td" style={{ padding: 0 }}></td>
@@ -1021,7 +1055,6 @@ export default function TC5Report() {
                                         <td className="tc5-td" style={{ padding: 0 }}></td>
                                     </tr>
 
-                                    {/* Row 2: Centered static NIL */}
                                     <tr style={{ height: '24px' }}>
                                         <td className="tc5-td border-left-fix" style={{ padding: 0 }}></td>
                                         <td className="tc5-td" style={{ padding: 0 }}></td>
@@ -1040,7 +1073,6 @@ export default function TC5Report() {
                                         <td className="tc5-td" style={{ padding: 0 }}></td>
                                     </tr>
 
-                                    {/* Row 3: Bottom Blank Row (Reduced Height) */}
                                     <tr style={{ height: '10px' }}>
                                         <td className="tc5-td border-left-fix" style={{ padding: 0 }}></td>
                                         <td className="tc5-td" style={{ padding: 0 }}></td>
@@ -1057,7 +1089,6 @@ export default function TC5Report() {
                                         <td className="tc5-td" style={{ padding: 0 }}></td>
                                     </tr>
 
-                                    {/* Row 4: Totals */}
                                     <tr style={{ height: '20px' }}>
                                         <td className="tc5-td border-left-fix" colSpan="4" style={{ padding: 0 }}></td>
                                         <td className="tc5-td-c" colSpan="2" style={{ fontWeight: 'bold', textAlign: 'right', paddingRight: '8px', fontSize: '14px', verticalAlign: 'middle', padding: '2px' }}>Total / එකතුව</td>
@@ -1072,7 +1103,6 @@ export default function TC5Report() {
                                 </tbody>
                             </table>
 
-                            {/* TABLE 6: REFUSE TEA (With border-left-fix on rows adjacent to rowspan 5) */}
                             {/* TABLE 6: REFUSE TEA */}
                             <table className="tc5-table no-top" style={{ textAlign: 'center' }}>
                                 <colgroup>
@@ -1209,7 +1239,7 @@ export default function TC5Report() {
                                 <span style={{ fontSize: '14px', fontWeight: 'normal' }}>සකස් කළ තේ අපහරණය කිරීම පිළිබඳ විස්තරය</span>
                             </div>
 
-                            {/* TABLE 8: DISPOSALS OF MADE TEA (Fully Editable Section 8 Table Inputs) */}
+                            {/* TABLE 8: DISPOSALS OF MADE TEA */}
                             <table className="tc5-table tc5-table-first" style={{ textAlign: 'center', fontSize: '13px', marginBottom: '8px' }}>
                                 <thead className="bg-shade">
                                     <tr>
@@ -1357,7 +1387,7 @@ export default function TC5Report() {
                                                 <td className="tc5-td-c bg-shade" style={{ fontWeight: 'bold', fontSize: '14px' }}>{row.total > 0 ? row.total.toFixed(1) : '-'}</td>
                                             </tr>
 
-                                            {/* DYNAMIC TOTAL ROW (Appears exactly after the last filled grade) */}
+                                            {/* DYNAMIC TOTAL ROW */}
                                             {idx === lastDataRowIndex && (
                                                 <tr style={{ height: '20px' }} className="bg-shade">
                                                     <td className="tc5-td">&nbsp;</td>
