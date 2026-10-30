@@ -648,8 +648,16 @@ export default function DailyExtendedStockView() {
                     <div className="flex items-start gap-4">
                         <img src="/logo.png" alt="Logo" className="w-[85px] h-[85px] object-contain mt-1" onError={(e) => e.target.style.display = 'none'} />
                         <div className="mt-2">
-                            <h1 className="text-[22px] text-[#1B6A31]">Daily IN/OUT & Balance Report - {selectedDate}</h1>
-                            <h2 className="text-[14px] text-[#646464] mt-1">Opening Balance as of 1st {getMonthName()}</h2>
+                            {/* 💡 Hosa Company Name Header Add Maadide */}
+                            <h1 className="text-[26px] text-[#1B6A31] font-bold uppercase tracking-wider mb-1">
+                                ATHUKORALA GROUP (PVT) LTD
+                            </h1>
+                            <h2 className="text-[18px] text-[#333333] font-bold uppercase tracking-wider mb-1">
+                                Daily IN/OUT & Balance Report - {selectedDate}
+                            </h2>
+                            <h3 className="text-[14px] text-[#646464] mt-1 font-semibold">
+                                Opening Balance as of 1st {getMonthName()}
+                            </h3>
                         </div>
                     </div>
                     <div className="text-right text-[12px] text-[#969696] mt-2 font-semibold">
