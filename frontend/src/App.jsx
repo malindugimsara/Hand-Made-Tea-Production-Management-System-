@@ -9,6 +9,7 @@ import FactoryRouter from './pages/FactoryRouter';
 import LocalSaleRouter from './pages/LocalSaleRouter';
 import ManufacturerRouter from './pages/ManufacturerRouter';
 import AdminSettings from './pages/Admin/AdminSettings';
+import SystemUpdates from './pages/systerm update/SystemUpdates';
 
 const PUBLIC_VAPID_KEY = import.meta.env.VITE_PUBLIC_VAPID_KEY;
 
@@ -99,7 +100,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<Login />} />
         <Route path="/admin/settings" element={<AdminSettings />} />
-
+        <Route path="/system-updates" element={<SystemUpdates />} />
         {/* Protected */}
         <Route element={<ProtectedRoute />}>
           {HandmadeRoutes()}
