@@ -4,6 +4,48 @@ import { Calendar, RefreshCw, FileText, Download, Save } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
+// --- CUSTOM DECIMAL INPUT COMPONENT ---
+// This forces 1 decimal place on blur to ensure whole numbers show as e.g. "607.0",
+// while preserving normal typing flow so the cursor doesn't jump.
+const DecimalInput = ({ value, onChange, className, placeholder }) => {
+    const [localVal, setLocalVal] = useState(Number(value) > 0 ? Number(value).toFixed(1) : "");
+
+    useEffect(() => {
+        if (Number(value) !== Number(localVal)) {
+            setLocalVal(Number(value) > 0 ? Number(value).toFixed(1) : "");
+        }
+    }, [value, localVal]);
+
+    const handleChange = (e) => {
+        setLocalVal(e.target.value);
+        onChange(e.target.value);
+    };
+
+    const handleBlur = () => {
+        const num = Number(localVal);
+        if (!isNaN(num) && num > 0) {
+            const fmt = num.toFixed(1);
+            setLocalVal(fmt);
+            onChange(fmt);
+        } else if (localVal !== "") {
+            setLocalVal("");
+            onChange("");
+        }
+    };
+
+    return (
+        <input
+            type="text"
+            inputMode="decimal"
+            className={className}
+            value={localVal}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            placeholder={placeholder}
+        />
+    );
+};
+
 const generateKey = (catId, catTitle, size) => {
     let cleanId = (catId || '').toLowerCase().trim();
     let cleanTitle = (catTitle || '').toLowerCase().trim();
@@ -66,7 +108,7 @@ export default function TC5Report() {
     const [loading, setLoading] = useState(true);
     const [generatingPdf, setGeneratingPdf] = useState(false);
     const [savingDb, setSavingDb] = useState(false);
-    const [isDirty, setIsDirty] = useState(false); // Tracks unsaved changes
+    const [isDirty, setIsDirty] = useState(false);
 
     const [refuseTea, setRefuseTea] = useState({ bf: "", manufactured: "", sold: "", manure: "", other: "" });
 
@@ -76,7 +118,6 @@ export default function TC5Report() {
         sec8: initialSec8
     });
 
-    // Warn before leaving if changes are unsaved
     useEffect(() => {
         const handleBeforeUnload = (e) => {
             if (isDirty) {
@@ -210,7 +251,6 @@ export default function TC5Report() {
                 return { grade: displayGrade, ...row };
             }).filter(row => row.total > 0 || row.grade === 'BOPF');
 
-            // 💡 INTELLIGENT MERGE STRATEGY
             if (savedReport && savedReport.section8_disposals && savedReport.section8_disposals.length > 0) {
                 const savedRows = savedReport.section8_disposals.filter(r => r.grade && r.grade.trim() !== '');
 
@@ -219,12 +259,10 @@ export default function TC5Report() {
                     let savedRow = savedRows.find(r => r.grade.toUpperCase().replace(/\s+/g, "") === cleanApi);
 
                     if (savedRow) {
-                        // Check if API has accumulated new data since last DB save
                         if (apiRow.auction > savedRow.auction || apiRow.gifts > savedRow.gifts) {
                             hasNewData = true;
                         }
 
-                        // Max prioritizes whichever is higher (new API data or custom manual save)
                         apiRow.auction = Math.max(apiRow.auction, savedRow.auction || 0);
                         apiRow.private = savedRow.private || 0;
                         apiRow.forward = savedRow.forward || 0;
@@ -234,12 +272,10 @@ export default function TC5Report() {
                         apiRow.other = savedRow.other || 0;
                         apiRow.total = apiRow.auction + apiRow.private + apiRow.forward + apiRow.exFactory + apiRow.direct + apiRow.gifts + apiRow.other;
                     } else {
-                        // Entirely new API grade surfaced
                         hasNewData = true;
                     }
                 });
 
-                // Attach purely manual rows from DB that don't exist in API
                 savedRows.forEach(savedRow => {
                     let cleanSaved = savedRow.grade.toUpperCase().replace(/\s+/g, "");
                     let exists = activeSec8.find(r => r.grade.toUpperCase().replace(/\s+/g, "") === cleanSaved);
@@ -403,7 +439,7 @@ export default function TC5Report() {
         } else {
             const num = Number(val) || 0;
             updatedSec8[index][field] = num;
-            updatedSec8[index].total = (updatedSec8[index].auction || 0) + (updatedSec8[index].private || 0) + (updatedSec8[index].forward || 0) + (updatedSec8[index].exFactory || 0) + (updatedSec8[index].direct || 0) + (updatedSec8[index].gifts || 0) + (updatedSec8[index].other || 0);
+            updatedSec8[index].total = (Number(updatedSec8[index].auction) || 0) + (Number(updatedSec8[index].private) || 0) + (Number(updatedSec8[index].forward) || 0) + (Number(updatedSec8[index].exFactory) || 0) + (Number(updatedSec8[index].direct) || 0) + (Number(updatedSec8[index].gifts) || 0) + (Number(updatedSec8[index].other) || 0);
         }
 
         const newSec8Total = updatedSec8.reduce((sum, r) => sum + (Number(r.total) || 0), 0);
@@ -922,19 +958,19 @@ export default function TC5Report() {
                                     <tr className="bg-shade" style={{ fontWeight: 'bold', fontSize: '15px', textAlign: 'center' }}>
                                         <td className="tc5-td-c" style={{ padding: '4px 2px', fontSize: '11px' }}>&nbsp;</td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{reportData.sec2.bf > 0 ? reportData.sec2.bf.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.bf || ""} onChange={(e) => handleSec2Change('bf', e.target.value)} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{reportData.sec2.bf > 0 ? reportData.sec2.bf.toFixed(1) : '-'}</span> : <DecimalInput value={reportData.sec2.bf} onChange={(val) => handleSec2Change('bf', val)} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{reportData.sec2.ownLeaf > 0 ? reportData.sec2.ownLeaf.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.ownLeaf || ""} onChange={(e) => handleSec2Change('ownLeaf', e.target.value)} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{reportData.sec2.ownLeaf > 0 ? reportData.sec2.ownLeaf.toFixed(1) : '-'}</span> : <DecimalInput value={reportData.sec2.ownLeaf} onChange={(val) => handleSec2Change('ownLeaf', val)} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{reportData.sec2.otherEstate > 0 ? reportData.sec2.otherEstate.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.otherEstate || ""} onChange={(e) => handleSec2Change('otherEstate', e.target.value)} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{reportData.sec2.otherEstate > 0 ? reportData.sec2.otherEstate.toFixed(1) : '-'}</span> : <DecimalInput value={reportData.sec2.otherEstate} onChange={(val) => handleSec2Change('otherEstate', val)} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{reportData.sec2.boughtLeaf > 0 ? reportData.sec2.boughtLeaf.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.boughtLeaf || ""} onChange={(e) => handleSec2Change('boughtLeaf', e.target.value)} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{reportData.sec2.boughtLeaf > 0 ? reportData.sec2.boughtLeaf.toFixed(1) : '-'}</span> : <DecimalInput value={reportData.sec2.boughtLeaf} onChange={(val) => handleSec2Change('boughtLeaf', val)} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{reportData.sec2.otherFactory > 0 ? reportData.sec2.otherFactory.toFixed(1) : '-'}</span> : <input type="number" value={reportData.sec2.otherFactory || ""} onChange={(e) => handleSec2Change('otherFactory', e.target.value)} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{reportData.sec2.otherFactory > 0 ? reportData.sec2.otherFactory.toFixed(1) : '-'}</span> : <DecimalInput value={reportData.sec2.otherFactory} onChange={(val) => handleSec2Change('otherFactory', val)} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '4px' }}>{reportData.sec2.total > 0 ? reportData.sec2.total.toFixed(1) : '-'}</td>
                                         <td className="tc5-td-c" style={{ padding: '4px' }}>{reportData.sec2.disposals > 0 ? reportData.sec2.disposals.toFixed(1) : '-'}</td>
@@ -1131,19 +1167,19 @@ export default function TC5Report() {
                                     </tr>
                                     <tr>
                                         <td className="tc5-td-c border-left-fix" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{Number(refuseTea.bf) > 0 ? refuseTea.bf : "-"}</span> : <input type="number" name="bf" value={refuseTea.bf || ""} onChange={handleRefuseChange} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{Number(refuseTea.bf) > 0 ? Number(refuseTea.bf).toFixed(1) : "-"}</span> : <DecimalInput value={refuseTea.bf} onChange={(val) => handleRefuseChange({ target: { name: 'bf', value: val } })} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{Number(refuseTea.manufactured) > 0 ? refuseTea.manufactured : "-"}</span> : <input type="number" name="manufactured" value={refuseTea.manufactured || ""} onChange={handleRefuseChange} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{Number(refuseTea.manufactured) > 0 ? Number(refuseTea.manufactured).toFixed(1) : "-"}</span> : <DecimalInput value={refuseTea.manufactured} onChange={(val) => handleRefuseChange({ target: { name: 'manufactured', value: val } })} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{Number(refuseTea.sold) > 0 ? refuseTea.sold : "-"}</span> : <input type="number" name="sold" value={refuseTea.sold || ""} onChange={handleRefuseChange} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{Number(refuseTea.sold) > 0 ? Number(refuseTea.sold).toFixed(1) : "-"}</span> : <DecimalInput value={refuseTea.sold} onChange={(val) => handleRefuseChange({ target: { name: 'sold', value: val } })} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{Number(refuseTea.manure) > 0 ? refuseTea.manure : "-"}</span> : <input type="number" name="manure" value={refuseTea.manure || ""} onChange={handleRefuseChange} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{Number(refuseTea.manure) > 0 ? Number(refuseTea.manure).toFixed(1) : "-"}</span> : <DecimalInput value={refuseTea.manure} onChange={(val) => handleRefuseChange({ target: { name: 'manure', value: val } })} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c" style={{ padding: '0' }}>
-                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{Number(refuseTea.other) > 0 ? refuseTea.other : "-"}</span> : <input type="number" name="other" value={refuseTea.other || ""} onChange={handleRefuseChange} className="tc5-input py-1" placeholder="-" />}
+                                            {generatingPdf ? <span style={{ fontWeight: 'bold', display: 'block', padding: '4px 0', fontSize: '15px' }}>{Number(refuseTea.other) > 0 ? Number(refuseTea.other).toFixed(1) : "-"}</span> : <DecimalInput value={refuseTea.other} onChange={(val) => handleRefuseChange({ target: { name: 'other', value: val } })} className="tc5-input py-1" placeholder="-" />}
                                         </td>
                                         <td className="tc5-td-c bg-shade" style={{ fontWeight: 'bold', fontSize: '15px' }}>{refBalance > 0 ? refBalance.toFixed(2) : '-'}</td>
                                     </tr>
@@ -1338,49 +1374,49 @@ export default function TC5Report() {
                                                     {generatingPdf ? (
                                                         <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.auction > 0 ? row.auction.toFixed(1) : '-'}</span>
                                                     ) : (
-                                                        <input type="number" value={row.auction || ""} onChange={(e) => handleSec8Change(idx, 'auction', e.target.value)} className="tc5-input" placeholder="-" />
+                                                        <DecimalInput value={row.auction} onChange={(val) => handleSec8Change(idx, 'auction', val)} className="tc5-input" placeholder="-" />
                                                     )}
                                                 </td>
                                                 <td className="tc5-td-c" style={{ padding: 0 }}>
                                                     {generatingPdf ? (
                                                         <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.private > 0 ? row.private.toFixed(1) : '-'}</span>
                                                     ) : (
-                                                        <input type="number" value={row.private || ""} onChange={(e) => handleSec8Change(idx, 'private', e.target.value)} className="tc5-input" placeholder="-" />
+                                                        <DecimalInput value={row.private} onChange={(val) => handleSec8Change(idx, 'private', val)} className="tc5-input" placeholder="-" />
                                                     )}
                                                 </td>
                                                 <td className="tc5-td-c" style={{ padding: 0 }}>
                                                     {generatingPdf ? (
                                                         <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.forward > 0 ? row.forward.toFixed(1) : '-'}</span>
                                                     ) : (
-                                                        <input type="number" value={row.forward || ""} onChange={(e) => handleSec8Change(idx, 'forward', e.target.value)} className="tc5-input" placeholder="-" />
+                                                        <DecimalInput value={row.forward} onChange={(val) => handleSec8Change(idx, 'forward', val)} className="tc5-input" placeholder="-" />
                                                     )}
                                                 </td>
                                                 <td className="tc5-td-c" style={{ padding: 0 }}>
                                                     {generatingPdf ? (
                                                         <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.exFactory > 0 ? row.exFactory.toFixed(1) : '-'}</span>
                                                     ) : (
-                                                        <input type="number" value={row.exFactory || ""} onChange={(e) => handleSec8Change(idx, 'exFactory', e.target.value)} className="tc5-input" placeholder="-" />
+                                                        <DecimalInput value={row.exFactory} onChange={(val) => handleSec8Change(idx, 'exFactory', val)} className="tc5-input" placeholder="-" />
                                                     )}
                                                 </td>
                                                 <td className="tc5-td-c" style={{ padding: 0 }}>
                                                     {generatingPdf ? (
                                                         <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.direct > 0 ? row.direct.toFixed(1) : '-'}</span>
                                                     ) : (
-                                                        <input type="number" value={row.direct || ""} onChange={(e) => handleSec8Change(idx, 'direct', e.target.value)} className="tc5-input" placeholder="-" />
+                                                        <DecimalInput value={row.direct} onChange={(val) => handleSec8Change(idx, 'direct', val)} className="tc5-input" placeholder="-" />
                                                     )}
                                                 </td>
                                                 <td className="tc5-td-c" style={{ padding: 0 }}>
                                                     {generatingPdf ? (
                                                         <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.gifts > 0 ? row.gifts.toFixed(1) : '-'}</span>
                                                     ) : (
-                                                        <input type="number" value={row.gifts || ""} onChange={(e) => handleSec8Change(idx, 'gifts', e.target.value)} className="tc5-input" placeholder="-" />
+                                                        <DecimalInput value={row.gifts} onChange={(val) => handleSec8Change(idx, 'gifts', val)} className="tc5-input" placeholder="-" />
                                                     )}
                                                 </td>
                                                 <td className="tc5-td-c" style={{ padding: 0 }}>
                                                     {generatingPdf ? (
                                                         <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.other > 0 ? row.other.toFixed(1) : '-'}</span>
                                                     ) : (
-                                                        <input type="number" value={row.other || ""} onChange={(e) => handleSec8Change(idx, 'other', e.target.value)} className="tc5-input" placeholder="-" />
+                                                        <DecimalInput value={row.other} onChange={(val) => handleSec8Change(idx, 'other', val)} className="tc5-input" placeholder="-" />
                                                     )}
                                                 </td>
                                                 <td className="tc5-td-c">&nbsp;</td>
