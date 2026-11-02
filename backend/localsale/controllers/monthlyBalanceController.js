@@ -81,7 +81,6 @@ export const getBalance = async (req, res) => {
 
         // 3. මේ මාසයට අදාල IN සහ OUT පමණක් ලබා ගැනීම (Total සහ Balance හැදීම සඳහා)
         const currentSummaries = await DailySummary.find({ date: { $regex: `^${month}` } });
-        const currentIssues = await IssueSummary.find({ date: { $regex: `^${month}` } });
         const dynamicMap = {};
 
         currentSummaries.forEach(day => {
@@ -96,16 +95,6 @@ export const getBalance = async (req, res) => {
             });
         });
 
-        currentIssues.forEach(issue => {
-            issue.items?.forEach(item => {
-                const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
-                if (!allCategoriesMap[key]) {
-                    allCategoriesMap[key] = { categoryId: item.categoryId, categoryTitle: item.categoryTitle || item.categoryId, size: item.size };
-                }
-                if (!dynamicMap[key]) dynamicMap[key] = { in: 0, out: 0 };
-                dynamicMap[key].out += (Number(item.out) || 0);
-            });
-        });
 
         // 4. UI එකට දත්ත යැවීම
         const items = Object.keys(allCategoriesMap).map(key => {
@@ -160,7 +149,6 @@ export const updateBMStockLogic = async (currentMonthStr) => {
     }
 
     const summaries = await DailySummary.find({ date: { $regex: `^${currentMonthStr}` } });
-    const issues = await IssueSummary.find({ date: { $regex: `^${currentMonthStr}` } });
 
     summaries.forEach(day => {
         day.items?.forEach(item => {
@@ -169,16 +157,6 @@ export const updateBMStockLogic = async (currentMonthStr) => {
                 allItemsMap[key] = { categoryId: item.categoryId, categoryTitle: item.categoryTitle || item.categoryId, size: item.size, bmStock: 0, inQty: 0, outQty: 0 };
             }
             allItemsMap[key].inQty += (Number(item.in) || 0);
-            allItemsMap[key].outQty += (Number(item.out) || 0);
-        });
-    });
-
-    issues.forEach(issue => {
-        issue.items?.forEach(item => {
-            const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
-            if (!allItemsMap[key]) {
-                allItemsMap[key] = { categoryId: item.categoryId, categoryTitle: item.categoryTitle || item.categoryId, size: item.size, bmStock: 0, inQty: 0, outQty: 0 };
-            }
             allItemsMap[key].outQty += (Number(item.out) || 0);
         });
     });
