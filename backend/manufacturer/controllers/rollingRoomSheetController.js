@@ -56,6 +56,7 @@ export const saveRollingRoomSheet = async (req, res) => {
       totalRollingHours,
       dayType,
       standardBatchKg,
+      noOfBatches, // 💡 Extracted noOfBatches from request
       batches,
       rollingHydroReadings,     // 💡 Extract NEW arrays
       fermentationHydroReadings, // 💡 Extract NEW arrays
@@ -73,6 +74,11 @@ export const saveRollingRoomSheet = async (req, res) => {
     const stdBatchKg = Number(standardBatchKg) > 0 ? Number(standardBatchKg) : 560;
     const cleanBatches = sanitizeBatches(batches, stdBatchKg);
 
+    // 💡 FIX: Keep the exact decimal if provided, else fall back to array length
+    const exactBatchCount = (noOfBatches !== undefined && noOfBatches !== '') 
+      ? Number(noOfBatches) 
+      : cleanBatches.length;
+
     const updateData = {
       mfDate,
       cropKg: Number(cropKg) || 0,
@@ -82,7 +88,7 @@ export const saveRollingRoomSheet = async (req, res) => {
       totalRollingHours: totalRollingHours || '',
       dayType: dayType || 'Same Day',
       standardBatchKg: stdBatchKg,
-      noOfBatches: cleanBatches.length,
+      noOfBatches: exactBatchCount, // 💡 Changed to use exact decimal
       batches: cleanBatches,
       enteredBy: enteredBy,
       createdBy: enteredBy,
@@ -138,7 +144,13 @@ export const updateRollingRoomSheetById = async (req, res) => {
     // Sanitize batches and recompute percentages if batches are passed
     if (Array.isArray(updatePayload.batches)) {
       updatePayload.batches = sanitizeBatches(updatePayload.batches, stdBatchKg);
-      updatePayload.noOfBatches = updatePayload.batches.length;
+      
+      // 💡 FIX: Only update noOfBatches to array length if the frontend didn't explicitly send a decimal
+      if (req.body.noOfBatches !== undefined && req.body.noOfBatches !== '') {
+        updatePayload.noOfBatches = Number(req.body.noOfBatches);
+      } else {
+        updatePayload.noOfBatches = updatePayload.batches.length;
+      }
     }
 
     // 💡 FIX: Sanitize hydro arrays independently and protect against overwriting

@@ -23,7 +23,7 @@ import {
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import autoTable from 'jspdf-autotable'; 
+import autoTable from 'jspdf-autotable';
 import PDFDownloader from '@/components/PDFDownloader';
 
 import {
@@ -104,7 +104,6 @@ const calculateDurationStr = (start, end) => {
   return `${hrs}h ${String(mins).padStart(2, '0')}m`;
 };
 
-
 // Helper to format time to 12-hour (AM/PM)
 const format12Hour = (timeStr) => {
   if (!timeStr) return '-';
@@ -137,6 +136,7 @@ const RollingRoomSheetSummary = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const [rowToDelete, setRowToDelete] = useState(null);
+  const [batchRowToDelete, setBatchRowToDelete] = useState(null);
   const [isMainDeleteAlertOpen, setIsMainDeleteAlertOpen] = useState(false);
 
   const userRole = localStorage.getItem("userRole") || "Admin";
@@ -197,7 +197,7 @@ const RollingRoomSheetSummary = () => {
     grandTotalWetDhoolTitle: lang === 'SI' ? "මුළු තෙත් ධූල් ප්‍රමාණය:" : "Grand Total Wet Dhool Quantity:",
     overallCapacityLabel: lang === 'SI' ? "සම්පූර්ණ ධාරිතාව" : "Overall Capacity",
 
-    // 💡 NEW: Hydro Meter Chart Translations
+    // HYDRO METERS CHART
     hydroTitle: lang === 'SI' ? "හයිඩ්‍රෝ මීටර් සටහන" : "HYDRO METERS CHART",
     hydroTime: lang === 'SI' ? "වේලාව" : "TIME",
     hydroDryBulb: lang === 'SI' ? "වියළි බල්බය" : "DRY BULB",
@@ -274,27 +274,60 @@ const RollingRoomSheetSummary = () => {
     setEditForm(null);
   };
 
- 
+  // Dynamically change batch count smoothly
+  const handleBatchCountChange = (e) => {
+    const val = e.target.value;
+
+    setEditForm(prev => {
+      // Allow the input to be empty while typing
+      if (val === '') {
+        return { ...prev, noOfBatches: '' }; // Use real DB field
+      }
+
+      const newCount = parseFloat(val);
+      if (isNaN(newCount) || newCount <= 0) {
+        return { ...prev, noOfBatches: val };
+      }
+
+      const currentBatches = prev.batches || [];
+      let updatedBatches = [...currentBatches];
+      const requiredRows = Math.ceil(newCount);
+
+      if (requiredRows > currentBatches.length) {
+        const diff = requiredRows - currentBatches.length;
+        for (let i = 0; i < diff; i++) {
+          updatedBatches.push({
+            batchNo: currentBatches.length + i + 1,
+            dhool1: { roll01Start: '', roll01End: '', roll02Start: '', roll02End: '', wetDhoolKg: '', percentage: 0 },
+            dhool2: { roll03Start: '', roll03End: '', roll04Start: '', roll04End: '', wetDhoolKg: '', percentage: 0 }
+          });
+        }
+      }
+
+      return { ...prev, batches: updatedBatches, noOfBatches: val };
+    });
+  };
+
   const handleHydroCellChange = (type, index, field, value) => {
     setEditForm(prev => {
-        const targetArray = type === 'rolling' ? 'rollingHydroReadings' : 'fermentationHydroReadings';
-        const updatedReadings = [...(prev[targetArray] || [])];
-        const row = { ...updatedReadings[index] };
-        row[field] = value;
+      const targetArray = type === 'rolling' ? 'rollingHydroReadings' : 'fermentationHydroReadings';
+      const updatedReadings = [...(prev[targetArray] || [])];
+      const row = { ...updatedReadings[index] };
+      row[field] = value;
 
-        // Auto calculate difference
-        if (field === 'dryBulb' || field === 'wetBulb') {
-            const dry = parseFloat(row.dryBulb);
-            const wet = parseFloat(row.wetBulb);
-            if (!isNaN(dry) && !isNaN(wet)) {
-                row.difference = (dry - wet).toString();
-            } else {
-                row.difference = '';
-            }
+      // Auto calculate difference
+      if (field === 'dryBulb' || field === 'wetBulb') {
+        const dry = parseFloat(row.dryBulb);
+        const wet = parseFloat(row.wetBulb);
+        if (!isNaN(dry) && !isNaN(wet)) {
+          row.difference = (dry - wet).toString();
+        } else {
+          row.difference = '';
         }
+      }
 
-        updatedReadings[index] = row;
-        return { ...prev, [targetArray]: updatedReadings };
+      updatedReadings[index] = row;
+      return { ...prev, [targetArray]: updatedReadings };
     });
   };
 
@@ -337,23 +370,25 @@ const RollingRoomSheetSummary = () => {
     }
     const toastId = toast.loading("Saving changes...");
     setIsSaving(true);
+
+    const payload = { ...editForm };
+
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`${BACKEND_URL}/api/rolling-room-sheet/${editForm._id}`, {
+      const response = await fetch(`${BACKEND_URL}/api/rolling-room-sheet/${payload._id}`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm)
+        body: JSON.stringify(payload)
       });
       const resData = await response.json();
       if (response.ok && resData.success) {
         toast.success("Rolling room record updated successfully!", { id: toastId });
-        // 💡 FIX: බලහත්කාරයෙන් අලුත් අගයන් දෙකම UI එකට යාවත්කාලීන කිරීම
         const finalUpdatedRecord = {
-            ...(resData.data || editForm),
-            rollingHydroReadings: editForm.rollingHydroReadings,
-            fermentationHydroReadings: editForm.fermentationHydroReadings
+          ...(resData.data || payload),
+          rollingHydroReadings: payload.rollingHydroReadings,
+          fermentationHydroReadings: payload.fermentationHydroReadings
         };
-        setAllRecords(prev => prev.map(rec => rec._id === editForm._id ? finalUpdatedRecord : rec));
+        setAllRecords(prev => prev.map(rec => rec._id === payload._id ? finalUpdatedRecord : rec));
         setIsEditing(false);
         setEditForm(null);
       } else {
@@ -396,22 +431,40 @@ const RollingRoomSheetSummary = () => {
     }
   };
 
-  // 💡 NEW: අදාළ Chart එකට අනුව Row එක Delete කිරීම
   const confirmRowDelete = () => {
     if (rowToDelete) {
-        setEditForm(prev => {
-            const targetArray = rowToDelete.type === 'rolling' ? 'rollingHydroReadings' : 'fermentationHydroReadings';
-            return {
-                ...prev,
-                [targetArray]: (prev[targetArray] || []).filter((_, i) => i !== rowToDelete.index)
-            };
-        });
-        setRowToDelete(null);
+      setEditForm(prev => {
+        const targetArray = rowToDelete.type === 'rolling' ? 'rollingHydroReadings' : 'fermentationHydroReadings';
+        return {
+          ...prev,
+          [targetArray]: (prev[targetArray] || []).filter((_, i) => i !== rowToDelete.index)
+        };
+      });
+      setRowToDelete(null);
     }
   };
 
-  
-  // Active record based on mode
+  const confirmBatchRowDelete = () => {
+    if (batchRowToDelete) {
+      setEditForm(prev => {
+        const updatedBatches = (prev.batches || []).filter((_, i) => i !== batchRowToDelete.index);
+        // Optional: Re-index remaining batches so they are sequential again
+        const reindexedBatches = updatedBatches.map((b, i) => ({ ...b, batchNo: i + 1 }));
+
+        // Adjust noOfBatches field if it exists to match the new length
+        const newCount = reindexedBatches.length;
+
+        return {
+          ...prev,
+          batches: reindexedBatches,
+          noOfBatches: prev.noOfBatches && parseFloat(prev.noOfBatches) > newCount ? newCount.toString() : prev.noOfBatches
+        };
+      });
+      setBatchRowToDelete(null);
+    }
+  };
+
+
   const activeRecord = isEditing ? editForm : currentRecord;
 
   // 30-Day Rolling Benchmark Calculation
@@ -485,7 +538,9 @@ const RollingRoomSheetSummary = () => {
   const sumD2Kg = batches.reduce((sum, b) => sum + (parseFloat(b.dhool2?.wetDhoolKg) || 0), 0);
   const grandTotalWetDhool = sumD1Kg + sumD2Kg;
 
-  const totalCapacityKg = (batches.length || 1) * standardBatchWeight;
+  const exactBatchCount = parseFloat(activeRecord?.noOfBatches) || batches.length || 1;
+  const totalCapacityKg = exactBatchCount * standardBatchWeight;
+
   const avgD1Pct = totalCapacityKg > 0 ? ((sumD1Kg / totalCapacityKg) * 100).toFixed(2) : '0.00';
   const avgD2Pct = totalCapacityKg > 0 ? ((sumD2Kg / totalCapacityKg) * 100).toFixed(2) : '0.00';
   const grandTotalPct = totalCapacityKg > 0 ? ((grandTotalWetDhool / totalCapacityKg) * 100).toFixed(2) : '0.00';
@@ -551,11 +606,9 @@ const RollingRoomSheetSummary = () => {
     return rows;
   }, [activeRecord, sumD1Kg, avgD1Pct, sumD2Kg, avgD2Pct, t]);
 
-
-  // PDF Autotable Layout
   // PDF Autotable Layout
   const autoTableOptions = useMemo(() => ({
-    startY: 115, // 💡 Start slightly lower to accommodate the new beautiful header cards
+    startY: 115,
     margin: { top: 25, bottom: 25, left: 14, right: 14 },
     theme: 'grid',
     styles: {
@@ -568,124 +621,122 @@ const RollingRoomSheetSummary = () => {
     didDrawPage: (hookData) => {
       const { doc } = hookData;
 
-      // 💡 HACK: Intercept doc.save and output to add a new page with TWO Hydro Charts Side-by-Side
       if (!doc.__hydroHookAdded) {
-          const addHydroPage = () => {
-              if (doc.__hydroPageAdded) return;
-              doc.__hydroPageAdded = true;
+        const addHydroPage = () => {
+          if (doc.__hydroPageAdded) return;
+          doc.__hydroPageAdded = true;
 
-              const hasRolling = activeRecord?.rollingHydroReadings && activeRecord.rollingHydroReadings.length > 0;
-              const hasFermentation = activeRecord?.fermentationHydroReadings && activeRecord.fermentationHydroReadings.length > 0;
+          const hasRolling = activeRecord?.rollingHydroReadings && activeRecord.rollingHydroReadings.length > 0;
+          const hasFermentation = activeRecord?.fermentationHydroReadings && activeRecord.fermentationHydroReadings.length > 0;
 
-              if (hasRolling || hasFermentation) {
-                  doc.addPage();
-                  const pageWidth = doc.internal.pageSize.getWidth();
-                  const halfWidth = pageWidth / 2;
-                  
-                  // Page Title
-                  doc.setFontSize(16);
-                  doc.setFont(undefined, 'bold');
-                  doc.setTextColor(15, 23, 42);
-                  doc.text(t.hydroTitle, 14, 22);
+          if (hasRolling || hasFermentation) {
+            doc.addPage();
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const halfWidth = pageWidth / 2;
 
-                  // Decorative Line below title
-                  doc.setDrawColor(226, 232, 240);
-                  doc.setLineWidth(0.5);
-                  doc.line(14, 26, pageWidth - 14, 26);
+            // Page Title
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(15, 23, 42);
+            doc.text(t.hydroTitle, 14, 22);
 
-                  const currentY = 35; 
+            // Decorative Line below title
+            doc.setDrawColor(226, 232, 240);
+            doc.setLineWidth(0.5);
+            doc.line(14, 26, pageWidth - 14, 26);
 
-                  // Table 1: Rolling Room Data (LEFT SIDE)
-                  doc.setFontSize(11);
-                  doc.setTextColor(234, 88, 12); 
-                  doc.text("Rolling Room Data", 14, currentY);
+            const currentY = 35;
 
-                  let rollingPdfData = [['-', 'No Data Available', '-', '-']];
-                  if (hasRolling) {
-                      rollingPdfData = activeRecord.rollingHydroReadings.map(r => [
-                          r.time ? format12Hour(r.time) : '-', r.dryBulb || '-', r.wetBulb || '-', r.difference || '-'
-                      ]);
-                  }
+            // Table 1: Rolling Room Data (LEFT SIDE)
+            doc.setFontSize(11);
+            doc.setTextColor(234, 88, 12);
+            doc.text("Rolling Room Data", 14, currentY);
 
-                  autoTable(doc, {
-                      startY: currentY + 4,
-                      margin: { left: 14, right: halfWidth + 5 }, 
-                      head: [[t.hydroTime, t.hydroDryBulb, t.hydroWetBulb, t.hydroDiff]],
-                      body: rollingPdfData,
-                      theme: 'grid',
-                      headStyles: { fillColor: [255, 237, 213], textColor: [154, 52, 18], fontStyle: 'bold', halign: 'center' },
-                      columnStyles: { 0: { halign: 'center', fontStyle: 'bold' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center', textColor: [234, 88, 12], fontStyle: 'bold' } },
-                      styles: { fontSize: 9, cellPadding: 3.5, lineColor: [226, 232, 240], lineWidth: 0.1 }
-                  });
+            let rollingPdfData = [['-', 'No Data Available', '-', '-']];
+            if (hasRolling) {
+              rollingPdfData = activeRecord.rollingHydroReadings.map(r => [
+                r.time ? format12Hour(r.time) : '-', r.dryBulb || '-', r.wetBulb || '-', r.difference || '-'
+              ]);
+            }
 
-                  // Table 2: Fermentation Room Data (RIGHT SIDE)
-                  doc.setFontSize(11);
-                  doc.setTextColor(37, 99, 235); 
-                  doc.text("Fermentation Room Data", halfWidth + 5, currentY);
+            autoTable(doc, {
+              startY: currentY + 4,
+              margin: { left: 14, right: halfWidth + 5 },
+              head: [[t.hydroTime, t.hydroDryBulb, t.hydroWetBulb, t.hydroDiff]],
+              body: rollingPdfData,
+              theme: 'grid',
+              headStyles: { fillColor: [255, 237, 213], textColor: [154, 52, 18], fontStyle: 'bold', halign: 'center' },
+              columnStyles: { 0: { halign: 'center', fontStyle: 'bold' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center', textColor: [234, 88, 12], fontStyle: 'bold' } },
+              styles: { fontSize: 9, cellPadding: 3.5, lineColor: [226, 232, 240], lineWidth: 0.1 }
+            });
 
-                  let fermPdfData = [['-', 'No Data Available', '-', '-']];
-                  if (hasFermentation) {
-                      fermPdfData = activeRecord.fermentationHydroReadings.map(r => [
-                          r.time ? format12Hour(r.time) : '-', r.dryBulb || '-', r.wetBulb || '-', r.difference || '-'
-                      ]);
-                  }
+            // Table 2: Fermentation Room Data (RIGHT SIDE)
+            doc.setFontSize(11);
+            doc.setTextColor(37, 99, 235);
+            doc.text("Fermentation Room Data", halfWidth + 5, currentY);
 
-                  autoTable(doc, {
-                      startY: currentY + 4,
-                      margin: { left: halfWidth + 5, right: 14 }, 
-                      head: [[t.hydroTime, t.hydroDryBulb, t.hydroWetBulb, t.hydroDiff]],
-                      body: fermPdfData,
-                      theme: 'grid',
-                      headStyles: { fillColor: [219, 234, 254], textColor: [30, 64, 175], fontStyle: 'bold', halign: 'center' },
-                      columnStyles: { 0: { halign: 'center', fontStyle: 'bold' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center', textColor: [37, 99, 235], fontStyle: 'bold' } },
-                      styles: { fontSize: 9, cellPadding: 3.5, lineColor: [226, 232, 240], lineWidth: 0.1 }
-                  });
-              }
-          };
+            let fermPdfData = [['-', 'No Data Available', '-', '-']];
+            if (hasFermentation) {
+              fermPdfData = activeRecord.fermentationHydroReadings.map(r => [
+                r.time ? format12Hour(r.time) : '-', r.dryBulb || '-', r.wetBulb || '-', r.difference || '-'
+              ]);
+            }
 
-          const originalSave = doc.save.bind(doc);
-          doc.save = function(...args) {
-              addHydroPage();
-              return originalSave(...args);
-          };
-          if (doc.output) {
-              const originalOutput = doc.output.bind(doc);
-              doc.output = function(...args) {
-                  addHydroPage();
-                  return originalOutput(...args);
-              };
+            autoTable(doc, {
+              startY: currentY + 4,
+              margin: { left: halfWidth + 5, right: 14 },
+              head: [[t.hydroTime, t.hydroDryBulb, t.hydroWetBulb, t.hydroDiff]],
+              body: fermPdfData,
+              theme: 'grid',
+              headStyles: { fillColor: [219, 234, 254], textColor: [30, 64, 175], fontStyle: 'bold', halign: 'center' },
+              columnStyles: { 0: { halign: 'center', fontStyle: 'bold' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center', textColor: [37, 99, 235], fontStyle: 'bold' } },
+              styles: { fontSize: 9, cellPadding: 3.5, lineColor: [226, 232, 240], lineWidth: 0.1 }
+            });
           }
-          doc.__hydroHookAdded = true;
+        };
+
+        const originalSave = doc.save.bind(doc);
+        doc.save = function (...args) {
+          addHydroPage();
+          return originalSave(...args);
+        };
+        if (doc.output) {
+          const originalOutput = doc.output.bind(doc);
+          doc.output = function (...args) {
+            addHydroPage();
+            return originalOutput(...args);
+          };
+        }
+        doc.__hydroHookAdded = true;
       }
 
-      // 💡 --- BEAUTIFUL PAGE 1 HEADER LAYOUT ---
       if (hookData.pageNumber !== 1) return;
       const startX = 14;
       const pageWidth = doc.internal.pageSize.getWidth();
 
       // 1. Decorative Separator Line Below Header
-      doc.setDrawColor(203, 213, 225); // slate-300
+      doc.setDrawColor(203, 213, 225);
       doc.setLineWidth(0.5);
       doc.line(14, 38, pageWidth - 14, 38);
 
-      // 2. Metadata Grid Card (Beautiful 2-Column Box)
+      // 2. Metadata Grid Card
       const metaY = 44;
       const metaH = 18;
-      doc.setFillColor(248, 250, 252); // slate-50
-      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
       doc.setLineWidth(0.2);
       doc.roundedRect(14, metaY, pageWidth - 28, metaH, 2, 2, 'FD');
 
       doc.setFontSize(9.5);
-      doc.setTextColor(71, 85, 105); // slate-600
-      
+      doc.setTextColor(71, 85, 105);
+
       // Col 1
       doc.setFont(undefined, 'bold');
       doc.text(t.cropDate, 20, metaY + 7);
       doc.text(t.cropKg, 20, metaY + 13.5);
-      
+
       doc.setFont(undefined, 'normal');
-      doc.setTextColor(15, 23, 42); // slate-900
+      doc.setTextColor(15, 23, 42);
       doc.text(`:   ${activeRecord?.cropDate || '-'}`, 55, metaY + 7);
       doc.text(`:   ${activeRecord?.cropKg ? `${activeRecord.cropKg} kg` : '-'}`, 55, metaY + 13.5);
 
@@ -695,13 +746,13 @@ const RollingRoomSheetSummary = () => {
       doc.setTextColor(71, 85, 105);
       doc.text(t.mfDate, col2X, metaY + 7);
       doc.text(t.otherLeafKg, col2X, metaY + 13.5);
-      
+
       doc.setFont(undefined, 'normal');
       doc.setTextColor(15, 23, 42);
       doc.text(`:   ${activeRecord?.mfDate || '-'}`, col2X + 35, metaY + 7);
       doc.text(`:   ${activeRecord?.otherLeafKg ? `${activeRecord.otherLeafKg} kg` : '-'}`, col2X + 35, metaY + 13.5);
 
-      // 3. Operations Table (Left Side) - Enclosed in a styled box
+      // 3. Operations Table (Left Side)
       const tableX = startX;
       const tableY = metaY + metaH + 6;
       const col1W = 70;
@@ -713,7 +764,7 @@ const RollingRoomSheetSummary = () => {
         [t.rollingEndTime, activeRecord?.rollingEndTime || '-'],
         [t.totalRollingHours, activeRecord?.totalRollingHours || '-'],
         [t.sameOrNext, activeRecord?.dayType === 'Next Day' ? t.nextDay : t.sameDay],
-        [t.noOfBatches, String(batches.length || 1)]
+        [t.noOfBatches, String(activeRecord?.noOfBatches || batches.length || 1)]
       ];
 
       doc.setDrawColor(226, 232, 240);
@@ -722,18 +773,16 @@ const RollingRoomSheetSummary = () => {
 
       opRows.forEach((r, i) => {
         const currentY = tableY + (i * rowH);
-        
-        // Zebra striping
+
         if (i % 2 === 0) {
           doc.setFillColor(248, 250, 252);
           doc.rect(tableX, currentY, col1W + col2W, rowH, 'F');
         }
-        
-        // Vertical divider
+
         doc.setDrawColor(226, 232, 240);
         doc.setLineWidth(0.1);
         doc.line(tableX + col1W, currentY, tableX + col1W, currentY + rowH);
-        
+
         doc.setFontSize(8.5);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(100, 116, 139);
@@ -743,19 +792,18 @@ const RollingRoomSheetSummary = () => {
         doc.text(String(r[1] || '-'), tableX + col1W + 4, currentY + 4.2);
       });
 
-      // 4. Right Side Top Box (Grand Total Purple Card)
+      // 4. Right Side Top Box
       const rightCardX = tableX + col1W + col2W + 8;
       const rightCardW = pageWidth - 14 - rightCardX;
       const fullCardH = opRows.length * rowH;
 
       if (analysis.isOverdue) {
-        // Red Alert Styling
-        doc.setDrawColor(252, 165, 165); // red-300
-        doc.setFillColor(254, 242, 242); // red-50
+        doc.setDrawColor(252, 165, 165);
+        doc.setFillColor(254, 242, 242);
         doc.setLineWidth(0.2);
         doc.roundedRect(rightCardX, tableY, rightCardW, fullCardH, 3, 3, 'FD');
 
-        doc.setFillColor(239, 68, 68); // red-500 Header strip
+        doc.setFillColor(239, 68, 68);
         doc.roundedRect(rightCardX, tableY, rightCardW, 8, 3, 3, 'F');
 
         doc.setFontSize(7.5);
@@ -771,7 +819,7 @@ const RollingRoomSheetSummary = () => {
         doc.setFont(undefined, 'bold');
         doc.setTextColor(153, 27, 27);
         doc.text(`${grandTotalWetDhool.toFixed(2)} kg`, rightCardX + 5, tableY + 21);
-        
+
         const badgeText = `${grandTotalPct}% ${t.overallCapacityLabel}`;
         const badgeW = doc.getTextWidth(badgeText) + 8;
         doc.setFillColor(254, 226, 226);
@@ -782,23 +830,22 @@ const RollingRoomSheetSummary = () => {
         doc.text(badgeText, rightCardX + 9, tableY + 26.7);
 
       } else {
-        // Beautiful Purple Styling matching your image
-        doc.setDrawColor(233, 213, 255); // purple-200
-        doc.setFillColor(250, 245, 255); // purple-50
+        doc.setDrawColor(233, 213, 255);
+        doc.setFillColor(250, 245, 255);
         doc.setLineWidth(0.2);
         doc.roundedRect(rightCardX, tableY, rightCardW, fullCardH, 3, 3, 'FD');
 
-        doc.setFillColor(243, 232, 255); // purple-100 Header strip
+        doc.setFillColor(243, 232, 255);
         doc.roundedRect(rightCardX, tableY, rightCardW, 8, 3, 3, 'F');
 
         doc.setFontSize(8.5);
         doc.setFont(undefined, 'bold');
-        doc.setTextColor(126, 34, 206); // purple-700
+        doc.setTextColor(126, 34, 206);
         doc.text(t.grandTotalWetDhoolTitle, rightCardX + 5, tableY + 5.5);
 
         doc.setFontSize(18);
         doc.setFont(undefined, 'bold');
-        doc.setTextColor(88, 28, 135); // purple-900
+        doc.setTextColor(88, 28, 135);
         doc.text(`${grandTotalWetDhool.toFixed(2)} kg`, rightCardX + 5, tableY + 18);
 
         const badgeText = `${grandTotalPct}% ${t.overallCapacityLabel}`;
@@ -806,7 +853,7 @@ const RollingRoomSheetSummary = () => {
         doc.setFillColor(243, 232, 255);
         doc.setDrawColor(216, 180, 254);
         doc.roundedRect(rightCardX + 5, tableY + 22, badgeW, 5.5, 1.5, 1.5, 'FD');
-        
+
         doc.setFontSize(7.5);
         doc.setTextColor(126, 34, 206);
         doc.text(badgeText, rightCardX + 10, tableY + 26);
@@ -854,7 +901,6 @@ const RollingRoomSheetSummary = () => {
             {/* In-Place Edit / Save / Cancel Controls */}
             {currentRecord && (
               !isEditing ? (
-                // 💡 Edit සහ Delete බොත්තම් දෙකම පෙන්වීම
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -864,12 +910,10 @@ const RollingRoomSheetSummary = () => {
                     <Edit3 size={15} />
                     {t.editRecord}
                   </button>
-                  
-                  {/* 💡 අලුත් Delete බොත්තම */}
-                  {/* 💡 Animation සහිත අලුත් Delete බොත්තම */}
+
                   <button
                     type="button"
-                    onClick={() => setIsMainDeleteAlertOpen(true)} // 💡 මෙතන වෙනස් කළා
+                    onClick={() => setIsMainDeleteAlertOpen(true)}
                     className="px-4 py-2.5 bg-rose-50 dark:bg-slate-800 hover:bg-rose-600 hover:text-white text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 font-bold text-xs rounded-xl transition-all duration-300 flex items-center gap-2 shadow-xs hover:shadow-md hover:-translate-y-0.5 cursor-pointer active:scale-95 group"
                   >
                     <Trash2 size={15} className="group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300" />
@@ -1177,8 +1221,24 @@ const RollingRoomSheetSummary = () => {
                   </tr>
                   <tr className="bg-white dark:bg-slate-900">
                     <td className="p-3 font-bold bg-slate-50/80 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800">{t.noOfBatches}</td>
-                    <td className="p-3 font-bold text-slate-900 dark:text-slate-100">
-                      {batches.length} {activeRecord.standardBatchKg ? `(${t.standardBatch}: ${activeRecord.standardBatchKg} kg)` : ''}
+                    <td className="p-2 font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          min="0.1"
+                          step="any"
+                          value={editForm.noOfBatches !== undefined ? editForm.noOfBatches : (editForm.batches?.length || 1)}
+                          onChange={handleBatchCountChange}
+                          className="w-16 bg-emerald-50 dark:bg-slate-800 border border-emerald-400 rounded px-2 py-1 text-xs font-bold outline-none text-center"
+                        />
+                      ) : (
+                        <span className="ml-1">{activeRecord?.noOfBatches !== undefined && activeRecord?.noOfBatches !== '' ? activeRecord.noOfBatches : batches.length}</span>
+                      )}
+                      {activeRecord.standardBatchKg && (
+                        <span className="text-xs text-slate-500 font-bold ml-2">
+                          ({t.standardBatch}: {activeRecord.standardBatchKg} kg)
+                        </span>
+                      )}
                     </td>
                   </tr>
                 </tbody>
@@ -1200,6 +1260,9 @@ const RollingRoomSheetSummary = () => {
                     <th colSpan={4} className="p-2.5 bg-emerald-50/60 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-200 font-black tracking-wider text-sm">
                       {t.dhool2}
                     </th>
+                    {isEditing && (
+                      <th rowSpan={3} className="p-2.5 w-10"></th>
+                    )}
                   </tr>
 
                   {/* Tier 2: Roll Numbers & WET DHOOL */}
@@ -1377,6 +1440,17 @@ const RollingRoomSheetSummary = () => {
                       <td className="p-2 font-bold text-slate-600 dark:text-slate-400">
                         {b.dhool2?.percentage ? `${b.dhool2.percentage}%` : '-'}
                       </td>
+                      {isEditing && (
+                        <td className="p-2">
+                          <button
+                            type="button"
+                            onClick={() => setBatchRowToDelete({ index: idx, batchNo: b.batchNo })}
+                            className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <X size={14} />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -1405,170 +1479,172 @@ const RollingRoomSheetSummary = () => {
                     <td className="p-2 text-emerald-700 dark:text-emerald-300 font-bold">
                       {avgD2Pct}%
                     </td>
+                    {isEditing && (
+                      <td className="p-2"></td>
+                    )}
                   </tr>
                 </tfoot>
               </table>
             </div>
 
-            {/* 💡 NEW: Hydro Meters Chart Section (View & Edit Mode) */}
             {/* --- SECTION: HYDRO METERS CHART - ROLLING ROOM --- */}
             {(activeRecord?.rollingHydroReadings?.length > 0 || isEditing) && (
-                <div className="mt-6 w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80">
-                        <div className="flex items-center gap-2">
-                            <ThermometerSun className="w-5 h-5 text-orange-500" />
-                            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
-                                {t.hydroTitle} - Rolling Room Data
-                            </h3>
-                        </div>
-                        {isEditing && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setEditForm(prev => ({
-                                        ...prev,
-                                        rollingHydroReadings: [...(prev.rollingHydroReadings || []), { time: '', dryBulb: '', wetBulb: '', difference: '' }]
-                                    }));
-                                }}
-                                className="text-xs bg-orange-100 text-orange-700 px-3 py-1.5 rounded-lg font-bold hover:bg-orange-200 transition-colors"
-                            >
-                                + Add Reading
-                            </button>
-                        )}
-                    </div>
-                    
-                    <table className="w-full text-center text-xs border-collapse min-w-[500px]">
-                        <thead>
-                            <tr className="bg-orange-50/60 dark:bg-orange-950/20 text-orange-900 dark:text-orange-300 border-b border-slate-200 dark:border-slate-800 text-[11px] font-extrabold uppercase">
-                                <th className="p-2.5 w-1/4">{t.hydroTime}</th>
-                                <th className="p-2.5 w-1/4">{t.hydroDryBulb}</th>
-                                <th className="p-2.5 w-1/4">{t.hydroWetBulb}</th>
-                                <th className="p-2.5 w-1/4">{t.hydroDiff}</th>
-                                {isEditing && <th className="p-2.5 w-10"></th>}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                            {((isEditing ? editForm?.rollingHydroReadings : activeRecord?.rollingHydroReadings) || []).map((row, idx) => (
-                                <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                                    <td className="p-2">
-                                        {isEditing ? (
-                                            <input type="time" value={row.time || ''} onChange={(e) => handleHydroCellChange('rolling', idx, 'time', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold" />
-                                        ) : (
-                                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.time ? format12Hour(row.time) : '-'}</span>
-                                        )}
-                                    </td>
-                                    <td className="p-2">
-                                        {isEditing ? (
-                                            <input type="number" step="any" placeholder="0" value={row.dryBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('rolling', idx, 'dryBulb', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold" />
-                                        ) : (
-                                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.dryBulb || '-'}</span>
-                                        )}
-                                    </td>
-                                    <td className="p-2">
-                                        {isEditing ? (
-                                            <input type="number" step="any" placeholder="0" value={row.wetBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('rolling', idx, 'wetBulb', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold" />
-                                        ) : (
-                                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.wetBulb || '-'}</span>
-                                        )}
-                                    </td>
-                                    <td className="p-2">
-                                        <span className="font-black text-orange-600 dark:text-orange-400">{row.difference || '-'}</span>
-                                    </td>
-                                    {isEditing && (
-                                        <td className="p-2">
-                                            <button type="button" onClick={() => setRowToDelete({ type: 'rolling', index: idx, time: row.time || 'Unknown' })} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors cursor-pointer">
-                                                <X size={14} />
-                                            </button>
-                                        </td>
-                                    )}
-                                </tr>
-                            ))}
-                            {((isEditing ? editForm?.rollingHydroReadings : activeRecord?.rollingHydroReadings) || []).length === 0 && !isEditing && (
-                                <tr><td colSpan="4" className="p-6 text-slate-400 font-semibold text-sm">No Temperature Readings Available</td></tr>
-                            )}
-                        </tbody>
-                    </table>
+              <div className="mt-6 w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80">
+                  <div className="flex items-center gap-2">
+                    <ThermometerSun className="w-5 h-5 text-orange-500" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                      {t.hydroTitle} - Rolling Room Data
+                    </h3>
+                  </div>
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditForm(prev => ({
+                          ...prev,
+                          rollingHydroReadings: [...(prev.rollingHydroReadings || []), { time: '', dryBulb: '', wetBulb: '', difference: '' }]
+                        }));
+                      }}
+                      className="text-xs bg-orange-100 text-orange-700 px-3 py-1.5 rounded-lg font-bold hover:bg-orange-200 transition-colors"
+                    >
+                      + Add Reading
+                    </button>
+                  )}
                 </div>
+
+                <table className="w-full text-center text-xs border-collapse min-w-[500px]">
+                  <thead>
+                    <tr className="bg-orange-50/60 dark:bg-orange-950/20 text-orange-900 dark:text-orange-300 border-b border-slate-200 dark:border-slate-800 text-[11px] font-extrabold uppercase">
+                      <th className="p-2.5 w-1/4">{t.hydroTime}</th>
+                      <th className="p-2.5 w-1/4">{t.hydroDryBulb}</th>
+                      <th className="p-2.5 w-1/4">{t.hydroWetBulb}</th>
+                      <th className="p-2.5 w-1/4">{t.hydroDiff}</th>
+                      {isEditing && <th className="p-2.5 w-10"></th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                    {((isEditing ? editForm?.rollingHydroReadings : activeRecord?.rollingHydroReadings) || []).map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                        <td className="p-2">
+                          {isEditing ? (
+                            <input type="time" value={row.time || ''} onChange={(e) => handleHydroCellChange('rolling', idx, 'time', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold" />
+                          ) : (
+                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.time ? format12Hour(row.time) : '-'}</span>
+                          )}
+                        </td>
+                        <td className="p-2">
+                          {isEditing ? (
+                            <input type="number" step="any" placeholder="0" value={row.dryBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('rolling', idx, 'dryBulb', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold" />
+                          ) : (
+                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.dryBulb || '-'}</span>
+                          )}
+                        </td>
+                        <td className="p-2">
+                          {isEditing ? (
+                            <input type="number" step="any" placeholder="0" value={row.wetBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('rolling', idx, 'wetBulb', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold" />
+                          ) : (
+                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.wetBulb || '-'}</span>
+                          )}
+                        </td>
+                        <td className="p-2">
+                          <span className="font-black text-orange-600 dark:text-orange-400">{row.difference || '-'}</span>
+                        </td>
+                        {isEditing && (
+                          <td className="p-2">
+                            <button type="button" onClick={() => setRowToDelete({ type: 'rolling', index: idx, time: row.time || 'Unknown' })} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors cursor-pointer">
+                              <X size={14} />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                    {((isEditing ? editForm?.rollingHydroReadings : activeRecord?.rollingHydroReadings) || []).length === 0 && !isEditing && (
+                      <tr><td colSpan="4" className="p-6 text-slate-400 font-semibold text-sm">No Temperature Readings Available</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             {/* --- SECTION: HYDRO METERS CHART - FERMENTATION ROOM --- */}
             {(activeRecord?.fermentationHydroReadings?.length > 0 || isEditing) && (
-                <div className="mt-6 w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80">
-                        <div className="flex items-center gap-2">
-                            <ThermometerSun className="w-5 h-5 text-blue-500" />
-                            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
-                                {t.hydroTitle} - Fermentation Room Data
-                            </h3>
-                        </div>
-                        {isEditing && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setEditForm(prev => ({
-                                        ...prev,
-                                        fermentationHydroReadings: [...(prev.fermentationHydroReadings || []), { time: '', dryBulb: '', wetBulb: '', difference: '' }]
-                                    }));
-                                }}
-                                className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-200 transition-colors"
-                            >
-                                + Add Reading
-                            </button>
-                        )}
-                    </div>
-                    
-                    <table className="w-full text-center text-xs border-collapse min-w-[500px]">
-                        <thead>
-                            <tr className="bg-blue-50/60 dark:bg-blue-950/20 text-blue-900 dark:text-blue-300 border-b border-slate-200 dark:border-slate-800 text-[11px] font-extrabold uppercase">
-                                <th className="p-2.5 w-1/4">{t.hydroTime}</th>
-                                <th className="p-2.5 w-1/4">{t.hydroDryBulb}</th>
-                                <th className="p-2.5 w-1/4">{t.hydroWetBulb}</th>
-                                <th className="p-2.5 w-1/4">{t.hydroDiff}</th>
-                                {isEditing && <th className="p-2.5 w-10"></th>}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                            {((isEditing ? editForm?.fermentationHydroReadings : activeRecord?.fermentationHydroReadings) || []).map((row, idx) => (
-                                <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                                    <td className="p-2">
-                                        {isEditing ? (
-                                            <input type="time" value={row.time || ''} onChange={(e) => handleHydroCellChange('fermentation', idx, 'time', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-blue-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-blue-500 font-bold" />
-                                        ) : (
-                                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.time ? format12Hour(row.time) : '-'}</span>
-                                        )}
-                                    </td>
-                                    <td className="p-2">
-                                        {isEditing ? (
-                                            <input type="number" step="any" placeholder="0" value={row.dryBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('fermentation', idx, 'dryBulb', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-blue-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-blue-500 font-bold" />
-                                        ) : (
-                                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.dryBulb || '-'}</span>
-                                        )}
-                                    </td>
-                                    <td className="p-2">
-                                        {isEditing ? (
-                                            <input type="number" step="any" placeholder="0" value={row.wetBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('fermentation', idx, 'wetBulb', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-blue-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-blue-500 font-bold" />
-                                        ) : (
-                                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.wetBulb || '-'}</span>
-                                        )}
-                                    </td>
-                                    <td className="p-2">
-                                        <span className="font-black text-blue-600 dark:text-blue-400">{row.difference || '-'}</span>
-                                    </td>
-                                    {isEditing && (
-                                        <td className="p-2">
-                                            <button type="button" onClick={() => setRowToDelete({ type: 'fermentation', index: idx, time: row.time || 'Unknown' })} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors cursor-pointer">
-                                                <X size={14} />
-                                            </button>
-                                        </td>
-                                    )}
-                                </tr>
-                            ))}
-                            {((isEditing ? editForm?.fermentationHydroReadings : activeRecord?.fermentationHydroReadings) || []).length === 0 && !isEditing && (
-                                <tr><td colSpan="4" className="p-6 text-slate-400 font-semibold text-sm">No Temperature Readings Available</td></tr>
-                            )}
-                        </tbody>
-                    </table>
+              <div className="mt-6 w-full overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80">
+                  <div className="flex items-center gap-2">
+                    <ThermometerSun className="w-5 h-5 text-blue-500" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                      {t.hydroTitle} - Fermentation Room Data
+                    </h3>
+                  </div>
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditForm(prev => ({
+                          ...prev,
+                          fermentationHydroReadings: [...(prev.fermentationHydroReadings || []), { time: '', dryBulb: '', wetBulb: '', difference: '' }]
+                        }));
+                      }}
+                      className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-200 transition-colors"
+                    >
+                      + Add Reading
+                    </button>
+                  )}
                 </div>
+
+                <table className="w-full text-center text-xs border-collapse min-w-[500px]">
+                  <thead>
+                    <tr className="bg-blue-50/60 dark:bg-blue-950/20 text-blue-900 dark:text-blue-300 border-b border-slate-200 dark:border-slate-800 text-[11px] font-extrabold uppercase">
+                      <th className="p-2.5 w-1/4">{t.hydroTime}</th>
+                      <th className="p-2.5 w-1/4">{t.hydroDryBulb}</th>
+                      <th className="p-2.5 w-1/4">{t.hydroWetBulb}</th>
+                      <th className="p-2.5 w-1/4">{t.hydroDiff}</th>
+                      {isEditing && <th className="p-2.5 w-10"></th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                    {((isEditing ? editForm?.fermentationHydroReadings : activeRecord?.fermentationHydroReadings) || []).map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                        <td className="p-2">
+                          {isEditing ? (
+                            <input type="time" value={row.time || ''} onChange={(e) => handleHydroCellChange('fermentation', idx, 'time', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-blue-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-blue-500 font-bold" />
+                          ) : (
+                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.time ? format12Hour(row.time) : '-'}</span>
+                          )}
+                        </td>
+                        <td className="p-2">
+                          {isEditing ? (
+                            <input type="number" step="any" placeholder="0" value={row.dryBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('fermentation', idx, 'dryBulb', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-blue-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-blue-500 font-bold" />
+                          ) : (
+                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.dryBulb || '-'}</span>
+                          )}
+                        </td>
+                        <td className="p-2">
+                          {isEditing ? (
+                            <input type="number" step="any" placeholder="0" value={row.wetBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('fermentation', idx, 'wetBulb', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-blue-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-blue-500 font-bold" />
+                          ) : (
+                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.wetBulb || '-'}</span>
+                          )}
+                        </td>
+                        <td className="p-2">
+                          <span className="font-black text-blue-600 dark:text-blue-400">{row.difference || '-'}</span>
+                        </td>
+                        {isEditing && (
+                          <td className="p-2">
+                            <button type="button" onClick={() => setRowToDelete({ type: 'fermentation', index: idx, time: row.time || 'Unknown' })} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors cursor-pointer">
+                              <X size={14} />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                    {((isEditing ? editForm?.fermentationHydroReadings : activeRecord?.fermentationHydroReadings) || []).length === 0 && !isEditing && (
+                      <tr><td colSpan="4" className="p-6 text-slate-400 font-semibold text-sm">No Temperature Readings Available</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             {/* Total Wet Dhool Card */}
@@ -1597,77 +1673,113 @@ const RollingRoomSheetSummary = () => {
       </div>
 
       {/* --- AlertDialog Component --- */}
-        <AlertDialog
-          open={!!rowToDelete}
-          onOpenChange={() => setRowToDelete(null)}
-        >
-          <AlertDialogContent className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xl max-w-[420px]">
-            <AlertDialogHeader className="text-left space-y-2">
-              <AlertDialogTitle className="text-red-600 dark:text-red-500 flex items-center gap-2 text-base font-bold">
-                <Trash2 size={18} strokeWidth={2.5} />
-                Delete Row Data
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-slate-600 dark:text-slate-300 text-sm font-medium pt-1">
-                Are you sure you want to permanently delete data for the{" "}
-                <strong className="text-slate-900 dark:text-white font-black">
-                  {rowToDelete?.time ? format12Hour(rowToDelete.time) : ''}
-                </strong>{" "}
-                time slot?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            
-            <AlertDialogFooter className="mt-6 flex justify-end gap-2 sm:gap-3">
-              <AlertDialogCancel
-                onClick={() => setRowToDelete(null)}
-                className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg px-4 py-2 cursor-pointer font-bold transition-colors m-0"
-              >
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={confirmRowDelete}
-                className="bg-red-600 hover:bg-red-700 text-white border border-transparent rounded-lg px-4 py-2 cursor-pointer font-bold shadow-sm transition-colors m-0"
-              >
-                Delete Row
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+      <AlertDialog
+        open={!!rowToDelete}
+        onOpenChange={() => setRowToDelete(null)}
+      >
+        <AlertDialogContent className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xl max-w-[420px]">
+          <AlertDialogHeader className="text-left space-y-2">
+            <AlertDialogTitle className="text-red-600 dark:text-red-500 flex items-center gap-2 text-base font-bold">
+              <Trash2 size={18} strokeWidth={2.5} />
+              Delete Row Data
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600 dark:text-slate-300 text-sm font-medium pt-1">
+              Are you sure you want to permanently delete data for the{" "}
+              <strong className="text-slate-900 dark:text-white font-black">
+                {rowToDelete?.time ? format12Hour(rowToDelete.time) : ''}
+              </strong>{" "}
+              time slot?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter className="mt-6 flex justify-end gap-2 sm:gap-3">
+            <AlertDialogCancel
+              onClick={() => setRowToDelete(null)}
+              className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg px-4 py-2 cursor-pointer font-bold transition-colors m-0"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRowDelete}
+              className="bg-red-600 hover:bg-red-700 text-white border border-transparent rounded-lg px-4 py-2 cursor-pointer font-bold shadow-sm transition-colors m-0"
+            >
+              Delete Row
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* --- Batch Delete Alert Dialog --- */}
+      <AlertDialog
+        open={!!batchRowToDelete}
+        onOpenChange={() => setBatchRowToDelete(null)}
+      >
+        <AlertDialogContent className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xl max-w-[420px]">
+          <AlertDialogHeader className="text-left space-y-2">
+            <AlertDialogTitle className="text-red-600 dark:text-red-500 flex items-center gap-2 text-base font-bold">
+              <Trash2 size={18} strokeWidth={2.5} />
+              Delete Batch Row
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600 dark:text-slate-300 text-sm font-medium pt-1">
+              Are you sure you want to permanently delete Batch NO:{" "}
+              <strong className="text-slate-900 dark:text-white font-black">
+                {String(batchRowToDelete?.batchNo).padStart(2, '0')}
+              </strong>? The remaining batches will be automatically renumbered.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter className="mt-6 flex justify-end gap-2 sm:gap-3">
+            <AlertDialogCancel
+              onClick={() => setBatchRowToDelete(null)}
+              className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg px-4 py-2 cursor-pointer font-bold transition-colors m-0"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmBatchRowDelete}
+              className="bg-red-600 hover:bg-red-700 text-white border border-transparent rounded-lg px-4 py-2 cursor-pointer font-bold shadow-sm transition-colors m-0"
+            >
+              Delete Batch
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
 
-        <AlertDialog
-          open={isMainDeleteAlertOpen}
-          onOpenChange={setIsMainDeleteAlertOpen}
-        >
-          <AlertDialogContent className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xl max-w-[420px]">
-            <AlertDialogHeader className="text-left space-y-2">
-              <AlertDialogTitle className="text-red-600 dark:text-red-500 flex items-center gap-2 text-base font-bold">
-                <Trash2 size={18} strokeWidth={2.5} />
-                Delete Rolling Sheet
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-slate-600 dark:text-slate-300 text-sm font-medium pt-1">
-                Are you sure you want to permanently delete this entire rolling sheet for{" "}
-                <strong className="text-slate-900 dark:text-white font-black">
-                  {currentRecord?.mfDate}
-                </strong>? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            
-            <AlertDialogFooter className="mt-6 flex justify-end gap-2 sm:gap-3">
-              <AlertDialogCancel
-                onClick={() => setIsMainDeleteAlertOpen(false)}
-                className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg px-4 py-2 cursor-pointer font-bold transition-colors m-0"
-              >
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteRecord}
-                className="bg-red-600 hover:bg-red-700 text-white border border-transparent rounded-lg px-4 py-2 cursor-pointer font-bold shadow-sm transition-colors m-0"
-              >
-                Delete Sheet
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+      <AlertDialog
+        open={isMainDeleteAlertOpen}
+        onOpenChange={setIsMainDeleteAlertOpen}
+      >
+        <AlertDialogContent className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xl max-w-[420px]">
+          <AlertDialogHeader className="text-left space-y-2">
+            <AlertDialogTitle className="text-red-600 dark:text-red-500 flex items-center gap-2 text-base font-bold">
+              <Trash2 size={18} strokeWidth={2.5} />
+              Delete Rolling Sheet
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600 dark:text-slate-300 text-sm font-medium pt-1">
+              Are you sure you want to permanently delete this entire rolling sheet for{" "}
+              <strong className="text-slate-900 dark:text-white font-black">
+                {currentRecord?.mfDate}
+              </strong>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter className="mt-6 flex justify-end gap-2 sm:gap-3">
+            <AlertDialogCancel
+              onClick={() => setIsMainDeleteAlertOpen(false)}
+              className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg px-4 py-2 cursor-pointer font-bold transition-colors m-0"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteRecord}
+              className="bg-red-600 hover:bg-red-700 text-white border border-transparent rounded-lg px-4 py-2 cursor-pointer font-bold shadow-sm transition-colors m-0"
+            >
+              Delete Sheet
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
