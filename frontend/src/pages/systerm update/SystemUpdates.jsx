@@ -413,12 +413,10 @@ const SystemUpdates = () => {
         let totalNewFeaturesCost = 0;
         const tableBody = [];
         
-        // Fixed Maintenance Row
+        // Fixed Maintenance Row (Qty සහ Unit Price ඉවත් කර ඇත)
         tableBody.push([
             '1', 
             `System Maintenance & Bug Fixes (${monthName})`, 
-            '1', 
-            MAINTENANCE_FEE.toFixed(2), 
             MAINTENANCE_FEE.toFixed(2)
         ]);
 
@@ -430,8 +428,6 @@ const SystemUpdates = () => {
                 tableBody.push([
                     `${tableBody.length + 1}`, 
                     `New Feature: ${feature.title}`, 
-                    '1', 
-                    cost.toFixed(2), 
                     cost.toFixed(2)
                 ]);
             }
@@ -439,31 +435,30 @@ const SystemUpdates = () => {
 
         const grandTotal = MAINTENANCE_FEE + totalNewFeaturesCost;
 
-
-        // --- Render Table ---
+        // --- 6. Render Table ---
         autoTable(doc, {
             startY: currentY,
-            head: [['No', 'Description', 'Qty', 'Unit Price (Rs)', 'Amount (Rs)']],
+            // 💡 Headings 3කට අඩු කර ඇත
+            head: [['No', 'Description', 'Amount (Rs)']],
             body: tableBody,
             theme: 'grid',
             headStyles: { 
                 fillColor: [255, 255, 255], 
                 textColor: [31, 41, 55], 
                 fontStyle: 'bold',
-                lineWidth: 0.1, // 💡 Heading එකේ ඉරි වල ඝනකම
-                lineColor: [210, 210, 210] // 💡 Heading එකේ ඉරි වල පැහැය
+                lineWidth: 0.1, 
+                lineColor: [210, 210, 210] 
             },
+            // 💡 Columns 3ක් පමණක් ඇති නිසා පළල (width) අලුතින් සකස් කර ඇත
             columnStyles: { 
-                0: { halign: 'center', cellWidth: 15 }, 
-                1: { cellWidth: 'auto' }, 
-                2: { halign: 'center', cellWidth: 20 }, 
-                3: { halign: 'right', cellWidth: 35 }, 
-                4: { halign: 'right', cellWidth: 35 } 
+                0: { halign: 'center', cellWidth: 15 }, // No
+                1: { cellWidth: 'auto' },               // Description
+                2: { halign: 'right', cellWidth: 45 }   // Amount (පළල වැඩි කර ඇත)
             },
             styles: { 
                 fontSize: 10, 
                 cellPadding: 5,
-                lineWidth: 0.1, // 💡 සම්පූර්ණ වගුවටම ඉරි යෙදීම
+                lineWidth: 0.1, 
                 lineColor: [210, 210, 210]
             },
             alternateRowStyles: { fillColor: [249, 250, 251] }
@@ -471,11 +466,11 @@ const SystemUpdates = () => {
 
         currentY = doc.lastAutoTable.finalY + 10;
 
-        // --- Total Section ---
+        // --- 7. Total Section ---
         doc.setFontSize(12);
         doc.setFont(undefined, 'bold');
         doc.setTextColor(31, 41, 55);
-        doc.text("Grand Total:", pageWidth - 50, currentY, { align: 'right' });
+        doc.text("Grand Total:", pageWidth - 60, currentY, { align: 'right' }); // 💡 Grand total එකේ පිහිටීම ගැලපුවා
         doc.setTextColor(22, 101, 52); 
         doc.text(`Rs. ${grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`, pageWidth - 14, currentY, { align: 'right' });
 
