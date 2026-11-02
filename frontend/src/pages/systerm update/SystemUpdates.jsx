@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Calendar, Plus, FileDown, Edit3, Trash2, 
-    Bug, Wrench, Sparkles, LayoutDashboard, X, FileText, CheckCircle2
+    Bug, Wrench, Sparkles, LayoutDashboard, X, FileText, CheckCircle2,
+    Receipt
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
@@ -36,6 +37,10 @@ const SystemUpdates = () => {
     });
 
     const updateTypes = ['Bug Fix', 'New Feature', 'System Optimization', 'Maintenance'];
+
+    // 💡 Invoice Modal States
+    const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+    const [invoiceFeatures, setInvoiceFeatures] = useState([]);
 
     useEffect(() => {
         fetchUpdates();
@@ -301,6 +306,183 @@ const SystemUpdates = () => {
         doc.save(`System_Maintenance_Report_${filterMonth}.pdf`);
     };
 
+
+    // 💡 1. Open Invoice Pre-generation Modal
+    const handleOpenInvoiceModal = () => {
+        if (updates.length === 0) {
+            toast.error("No records found for the selected month to generate an invoice.");
+            return;
+        }
+        
+        // මේ මාසෙට අදාල New Features ටික වෙන් කරගන්නවා
+        const featureUpdates = updates.filter(u => u.type === 'New Feature');
+        
+        // තාවකාලිකව Cost එක 0 විදිහට සකසනවා
+        setInvoiceFeatures(featureUpdates.map(f => ({ ...f, tempCost: '' })));
+        setIsInvoiceModalOpen(true);
+    };
+
+    const handleInvoiceCostChange = (index, value) => {
+        const updated = [...invoiceFeatures];
+        updated[index].tempCost = value;
+        setInvoiceFeatures(updated);
+    };
+
+    // 💡 Generate Final Invoice PDF
+    const generateInvoice = () => {
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const monthName = new Date(`${filterMonth}-01`).toLocaleString('default', { month: 'long', year: 'numeric' });
+
+        // --- 2. Header & Logos ---
+        try {
+            doc.addImage('/codecraftlogo.png', 'PNG', 14, 12, 26, 26, '', 'FAST'); 
+        } catch (e) {
+            console.warn("CodeCraft logo not found");
+        }
+
+        // --- 3. Invoice Title & Meta ---
+        doc.setFontSize(28);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(15, 23, 42); // Slate-900 (තද කළු-නිල් පැහැය)
+        doc.text("INVOICE", pageWidth - 14, 22, { align: 'right' });
+
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(100, 116, 139); // Slate-500
+        doc.text(`Invoice No:`, pageWidth - 42, 29, { align: 'right' });
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(15, 23, 42); 
+        doc.text(`INV-${filterMonth.replace('-', '')}`, pageWidth - 14, 29, { align: 'right' });
+
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Date:`, pageWidth - 42, 35, { align: 'right' });
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(15, 23, 42);
+        doc.text(`${new Date().toLocaleDateString()}`, pageWidth - 14, 35, { align: 'right' });
+
+        // Divider Line (සිහින් බෙදුම් රේඛාව)
+        doc.setDrawColor(226, 232, 240); // Slate-200
+        doc.setLineWidth(0.5);
+        doc.line(14, 45, pageWidth - 14, 45);
+
+        // --- 4. Billing Details (From & To) ---
+        let currentY = 55;
+        
+        // FROM Section
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(148, 163, 184); // Slate-400
+        doc.text("FROM:", 14, currentY);
+        
+        doc.setFontSize(11);
+        doc.setTextColor(15, 23, 42); // Slate-900
+        doc.text("CodeCraft", 14, currentY + 6);
+        
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(71, 85, 105); // Slate-500
+        doc.text("Software Development & IT Consultancy", 14, currentY + 12);
+        doc.text("Sri Lanka", 14, currentY + 17);
+
+        // BILL TO Section (පසුබිම් කොටුවක් සහිතව)
+        doc.setFillColor(248, 250, 252); // Slate-50 background
+        doc.setDrawColor(226, 232, 240); // Slate-200 border
+        doc.roundedRect(pageWidth / 2 - 5, currentY - 6, (pageWidth / 2) - 9, 30, 2, 2, 'FD');
+
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(148, 163, 184); 
+        doc.text("BILL TO:", pageWidth / 2, currentY);
+        
+        doc.setFontSize(11);
+        doc.setTextColor(15, 23, 42);
+        doc.text("Athukorala Group (Pvt) Ltd", pageWidth / 2, currentY + 6);
+        
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(71, 85, 105);
+        doc.text("Manufacturing & Tea Exports", pageWidth / 2, currentY + 12);
+        doc.text("No.1, Pitigala, Sri Lanka", pageWidth / 2, currentY + 17);
+
+        currentY += 36; // මේකෙන් පස්සේ තමයි Table එක පටන් ගන්නේ
+
+        // --- 5. Invoice Data Preparation ---
+        const MAINTENANCE_FEE = 10000;
+        let totalNewFeaturesCost = 0;
+        const tableBody = [];
+        
+        // Fixed Maintenance Row
+        tableBody.push([
+            '1', 
+            `System Maintenance & Bug Fixes (${monthName})`, 
+            '1', 
+            MAINTENANCE_FEE.toFixed(2), 
+            MAINTENANCE_FEE.toFixed(2)
+        ]);
+
+        // User Modal එකේ ගහපු ගණන් ටික (tempCost) එකතු කිරීම
+        invoiceFeatures.forEach((feature, index) => {
+            const cost = Number(feature.tempCost) || 0;
+            if (cost > 0) { 
+                totalNewFeaturesCost += cost;
+                tableBody.push([
+                    `${tableBody.length + 1}`, 
+                    `New Feature: ${feature.title}`, 
+                    '1', 
+                    cost.toFixed(2), 
+                    cost.toFixed(2)
+                ]);
+            }
+        });
+
+        const grandTotal = MAINTENANCE_FEE + totalNewFeaturesCost;
+
+
+        // --- Render Table ---
+        autoTable(doc, {
+            startY: currentY,
+            head: [['No', 'Description', 'Qty', 'Unit Price (Rs)', 'Amount (Rs)']],
+            body: tableBody,
+            theme: 'grid',
+            headStyles: { 
+                fillColor: [255, 255, 255], 
+                textColor: [31, 41, 55], 
+                fontStyle: 'bold',
+                lineWidth: 0.1, // 💡 Heading එකේ ඉරි වල ඝනකම
+                lineColor: [210, 210, 210] // 💡 Heading එකේ ඉරි වල පැහැය
+            },
+            columnStyles: { 
+                0: { halign: 'center', cellWidth: 15 }, 
+                1: { cellWidth: 'auto' }, 
+                2: { halign: 'center', cellWidth: 20 }, 
+                3: { halign: 'right', cellWidth: 35 }, 
+                4: { halign: 'right', cellWidth: 35 } 
+            },
+            styles: { 
+                fontSize: 10, 
+                cellPadding: 5,
+                lineWidth: 0.1, // 💡 සම්පූර්ණ වගුවටම ඉරි යෙදීම
+                lineColor: [210, 210, 210]
+            },
+            alternateRowStyles: { fillColor: [249, 250, 251] }
+        });
+
+        currentY = doc.lastAutoTable.finalY + 10;
+
+        // --- Total Section ---
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(31, 41, 55);
+        doc.text("Grand Total:", pageWidth - 50, currentY, { align: 'right' });
+        doc.setTextColor(22, 101, 52); 
+        doc.text(`Rs. ${grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`, pageWidth - 14, currentY, { align: 'right' });
+
+        doc.save(`System_Invoice_${filterMonth}.pdf`);
+        setIsInvoiceModalOpen(false); // Modal එක වහනවා
+    };
+
     const getTypeIcon = (type) => {
         switch (type) {
             case 'Bug Fix': return <Bug size={16} className="text-rose-500" />;
@@ -363,6 +545,13 @@ const SystemUpdates = () => {
                         className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm"
                     >
                         <Plus size={16} /> Add Record
+                    </button>
+
+                    <button 
+                        onClick={handleOpenInvoiceModal}
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 shadow-md transition-colors"
+                    >
+                        <Receipt size={18} /> Generate Invoice
                     </button>
                 </div>
             </div>
@@ -553,6 +742,63 @@ const SystemUpdates = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* 💡 INVOICE PRE-GENERATION MODAL */}
+            {isInvoiceModalOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800">
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+                            <h2 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
+                                <Receipt className="text-blue-600" /> Enter Invoice Details
+                            </h2>
+                            <button onClick={() => setIsInvoiceModalOpen(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-200 p-2 rounded-full">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                            <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl text-sm">
+                                <p className="font-bold text-amber-800 mb-1">Fixed Monthly Maintenance Fee</p>
+                                <p className="text-amber-600">Rs. 10,000.00 will be added automatically.</p>
+                            </div>
+
+                            {invoiceFeatures.length > 0 ? (
+                                <div>
+                                    <h3 className="font-bold text-slate-700 dark:text-slate-300 mb-3 text-sm">Enter costs for this month's New Features:</h3>
+                                    <div className="space-y-3">
+                                        {invoiceFeatures.map((feature, idx) => (
+                                            <div key={feature._id} className="flex flex-col gap-1">
+                                                <label className="text-xs font-semibold text-slate-500 line-clamp-1">{idx + 1}. {feature.title}</label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2 text-slate-400 font-bold">Rs.</span>
+                                                    <input 
+                                                        type="number"
+                                                        placeholder="Leave empty if free"
+                                                        value={feature.tempCost}
+                                                        onChange={(e) => handleInvoiceCostChange(idx, e.target.value)}
+                                                        className="w-full pl-9 pr-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm font-bold"
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-slate-500 italic">No new features recorded for this month. Only the maintenance fee will be billed.</p>
+                            )}
+                        </div>
+
+                        <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-slate-50 dark:bg-slate-800/50">
+                            <button onClick={() => setIsInvoiceModalOpen(false)} className="px-5 py-2.5 font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition-colors text-sm">
+                                Cancel
+                            </button>
+                            <button onClick={generateInvoice} className="px-5 py-2.5 font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors shadow-sm flex items-center gap-2 text-sm">
+                                <Receipt size={16} /> Download Invoice PDF
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
