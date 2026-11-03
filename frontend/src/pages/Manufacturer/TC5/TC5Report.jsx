@@ -731,6 +731,28 @@ export default function TC5Report() {
               vertical-align: top; 
               font-weight: normal; 
             }
+
+            td.tc5-td-right { 
+                border-right: 1px solid #000000 !important; 
+                border-bottom: 1px solid #000000 !important; 
+                border-top: none !important; 
+                border-left: none !important; 
+                padding: 3px 16px 3px 3px !important; 
+                vertical-align: middle; 
+                text-align: right; 
+            }
+            .tc5-input-right { 
+                width: 100%; 
+                text-align: right; 
+                border: none; 
+                outline: none; 
+                background: transparent; 
+                font-weight: bold; 
+                font-family: inherit; 
+                font-size: 14px; 
+                color: #000000; 
+                padding: 1px 0; 
+            }
             
             .tc5-input { 
               width: 100%; 
@@ -1370,57 +1392,57 @@ export default function TC5Report() {
                                                         <input type="text" value={row.grade || ""} onChange={(e) => handleSec8Change(idx, 'grade', e.target.value)} className="tc5-input" style={{ textTransform: 'uppercase' }} placeholder="" />
                                                     )}
                                                 </td>
-                                                <td className="tc5-td-c" style={{ padding: 0 }}>
+                                                <td className="tc5-td-right">
                                                     {generatingPdf ? (
                                                         <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.auction > 0 ? row.auction.toFixed(1) : '-'}</span>
                                                     ) : (
-                                                        <DecimalInput value={row.auction} onChange={(val) => handleSec8Change(idx, 'auction', val)} className="tc5-input" placeholder="-" />
+                                                        <DecimalInput value={row.auction} onChange={(val) => handleSec8Change(idx, 'auction', val)} className="tc5-input-right" placeholder="-" />
                                                     )}
                                                 </td>
-                                                <td className="tc5-td-c" style={{ padding: 0 }}>
+                                                <td className="tc5-td-right">
                                                     {generatingPdf ? (
                                                         <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.private > 0 ? row.private.toFixed(1) : '-'}</span>
                                                     ) : (
-                                                        <DecimalInput value={row.private} onChange={(val) => handleSec8Change(idx, 'private', val)} className="tc5-input" placeholder="-" />
+                                                        <DecimalInput value={row.private} onChange={(val) => handleSec8Change(idx, 'private', val)} className="tc5-input-right" placeholder="-" />
                                                     )}
                                                 </td>
-                                                <td className="tc5-td-c" style={{ padding: 0 }}>
+                                                <td className="tc5-td-right">
                                                     {generatingPdf ? (
                                                         <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.forward > 0 ? row.forward.toFixed(1) : '-'}</span>
                                                     ) : (
-                                                        <DecimalInput value={row.forward} onChange={(val) => handleSec8Change(idx, 'forward', val)} className="tc5-input" placeholder="-" />
+                                                        <DecimalInput value={row.forward} onChange={(val) => handleSec8Change(idx, 'forward', val)} className="tc5-input-right" placeholder="-" />
                                                     )}
                                                 </td>
-                                                <td className="tc5-td-c" style={{ padding: 0 }}>
+                                                <td className="tc5-td-right">
                                                     {generatingPdf ? (
                                                         <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.exFactory > 0 ? row.exFactory.toFixed(1) : '-'}</span>
                                                     ) : (
-                                                        <DecimalInput value={row.exFactory} onChange={(val) => handleSec8Change(idx, 'exFactory', val)} className="tc5-input" placeholder="-" />
+                                                        <DecimalInput value={row.exFactory} onChange={(val) => handleSec8Change(idx, 'exFactory', val)} className="tc5-input-right" placeholder="-" />
                                                     )}
                                                 </td>
-                                                <td className="tc5-td-c" style={{ padding: 0 }}>
+                                                <td className="tc5-td-right">
                                                     {generatingPdf ? (
                                                         <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.direct > 0 ? row.direct.toFixed(1) : '-'}</span>
                                                     ) : (
-                                                        <DecimalInput value={row.direct} onChange={(val) => handleSec8Change(idx, 'direct', val)} className="tc5-input" placeholder="-" />
+                                                        <DecimalInput value={row.direct} onChange={(val) => handleSec8Change(idx, 'direct', val)} className="tc5-input-right" placeholder="-" />
                                                     )}
                                                 </td>
-                                                <td className="tc5-td-c" style={{ padding: 0 }}>
+                                                <td className="tc5-td-right">
                                                     {generatingPdf ? (
                                                         <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.gifts > 0 ? row.gifts.toFixed(1) : '-'}</span>
                                                     ) : (
-                                                        <DecimalInput value={row.gifts} onChange={(val) => handleSec8Change(idx, 'gifts', val)} className="tc5-input" placeholder="-" />
+                                                        <DecimalInput value={row.gifts} onChange={(val) => handleSec8Change(idx, 'gifts', val)} className="tc5-input-right" placeholder="-" />
                                                     )}
                                                 </td>
-                                                <td className="tc5-td-c" style={{ padding: 0 }}>
+                                                <td className="tc5-td-right">
                                                     {generatingPdf ? (
                                                         <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{row.other > 0 ? row.other.toFixed(1) : '-'}</span>
                                                     ) : (
-                                                        <DecimalInput value={row.other} onChange={(val) => handleSec8Change(idx, 'other', val)} className="tc5-input" placeholder="-" />
+                                                        <DecimalInput value={row.other} onChange={(val) => handleSec8Change(idx, 'other', val)} className="tc5-input-right" placeholder="-" />
                                                     )}
                                                 </td>
                                                 <td className="tc5-td-c">&nbsp;</td>
-                                                <td className="tc5-td-c bg-shade" style={{ fontWeight: 'bold', fontSize: '14px' }}>{row.total > 0 ? row.total.toFixed(1) : '-'}</td>
+                                                <td className="tc5-td-right" style={{ fontWeight: 'bold', fontSize: '14px' }}>{row.total > 0 ? row.total.toFixed(1) : '-'}</td>
                                             </tr>
 
                                             {/* DYNAMIC TOTAL ROW */}
@@ -1428,15 +1450,15 @@ export default function TC5Report() {
                                                 <tr style={{ height: '20px' }} className="bg-shade">
                                                     <td className="tc5-td">&nbsp;</td>
                                                     <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>TOTAL</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.auction > 0 ? sec8Totals.auction.toFixed(1) : '-'}</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.private > 0 ? sec8Totals.private.toFixed(1) : '-'}</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.forward > 0 ? sec8Totals.forward.toFixed(1) : '-'}</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.exFactory > 0 ? sec8Totals.exFactory.toFixed(1) : '-'}</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.direct > 0 ? sec8Totals.direct.toFixed(1) : '-'}</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.gifts > 0 ? sec8Totals.gifts.toFixed(1) : '-'}</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.other > 0 ? sec8Totals.other.toFixed(1) : '-'}</td>
+                                                    <td className="tc5-td-right" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.auction > 0 ? sec8Totals.auction.toFixed(1) : '-'}</td>
+                                                    <td className="tc5-td-right" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.private > 0 ? sec8Totals.private.toFixed(1) : '-'}</td>
+                                                    <td className="tc5-td-right" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.forward > 0 ? sec8Totals.forward.toFixed(1) : '-'}</td>
+                                                    <td className="tc5-td-right" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.exFactory > 0 ? sec8Totals.exFactory.toFixed(1) : '-'}</td>
+                                                    <td className="tc5-td-right" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.direct > 0 ? sec8Totals.direct.toFixed(1) : '-'}</td>
+                                                    <td className="tc5-td-right" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.gifts > 0 ? sec8Totals.gifts.toFixed(1) : '-'}</td>
+                                                    <td className="tc5-td-right" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.other > 0 ? sec8Totals.other.toFixed(1) : '-'}</td>
                                                     <td className="tc5-td-c">&nbsp;</td>
-                                                    <td className="tc5-td-c" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.total > 0 ? sec8Totals.total.toFixed(1) : '-'}</td>
+                                                    <td className="tc5-td-right" style={{ fontWeight: 'bold', fontSize: '14px' }}>{sec8Totals.total > 0 ? sec8Totals.total.toFixed(1) : '-'}</td>
                                                 </tr>
                                             )}
                                         </React.Fragment>
