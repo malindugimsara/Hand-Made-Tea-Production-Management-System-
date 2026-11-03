@@ -828,7 +828,7 @@ export default function TC5Report() {
                                                 <div>
                                                     <span style={{ fontSize: '14px' }}>Registered No</span><br />
                                                     <span style={{ fontSize: '14px' }}>ලියාපදිංචි අංකය</span>
-                                                    <strong style={{ display: 'block', marginTop: '1px', letterSpacing: '1px', fontSize: '14px' }}>MF1498 </strong>
+                                                    <strong style={{ display: 'block', marginTop: '1px', letterSpacing: '1px', fontSize: '14px' }}>MF1398 </strong>
                                                 </div>
                                             </div>
                                         </td>
