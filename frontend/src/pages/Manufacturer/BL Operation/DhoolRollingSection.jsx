@@ -139,7 +139,7 @@ const RollingRoomSheetForm = () => {
     cropDate: lang === 'SI' ? "අස්වැන්න දිනය (Crop Date)" : "Crop Date",
     mfDate: lang === 'SI' ? "නිෂ්පාදිත දිනය (M/F Date)" : "M/F Date",
     cropKg: lang === 'SI' ? "අස්වැන්න (Crop Kg)" : "Crop (Kg)",
-    otherLeafKg: lang === 'SI' ? "වෙනත් දළු (Other Leaf Kg)" : "Other Leaf (Kg)",
+    otherLeafKg: lang === 'SI' ? " වියළී ගිය කොළ (Withered leaf Kg)" : "Withered leaf (Kg)",
 
     rollingStartTime: lang === 'SI' ? "රෝලිං ආරම්භක වේලාව" : "Rolling Start Time",
     rollingEndTime: lang === 'SI' ? "රෝලිං අවසන් වේලාව" : "Rolling End Time",
@@ -1129,19 +1129,37 @@ const RollingRoomSheetForm = () => {
                 <div className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 text-center">{t.wetBulb}</div>
                 <div className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 text-center">{t.difference}</div>
                 <div className="w-10"></div>
-                {rollingHydroChart.map((row, index) => (
-                  <React.Fragment key={index}>
-                    <div><input type="time" value={row.time} onChange={(e) => handleHydroChange('rolling', index, 'time', e.target.value)} className={hydroTimeInput} /></div>
-                    <div><input type="number" step="any" placeholder="0" value={row.dryBulb} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroChange('rolling', index, 'dryBulb', e.target.value)} className={hydroTableInput} /></div>
-                    <div><input type="number" step="any" placeholder="0" value={row.wetBulb} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroChange('rolling', index, 'wetBulb', e.target.value)} className={hydroTableInput} /></div>
-                    <div><input type="text" readOnly placeholder="-" value={row.difference} className={`${hydroReadOnly} text-orange-600 dark:text-orange-400`} /></div>
-                    <div className="flex justify-center">
-                      <button type="button" onClick={() => handleRemoveHydroRow('rolling', index)} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200 dark:border-slate-700 rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-md hover:-translate-y-0.5 group">
-                        <Trash2 size={16} className="group-hover:scale-110 transition-transform" />
-                      </button>
-                    </div>
-                  </React.Fragment>
-                ))}
+                {rollingHydroChart.map((row, index) => {
+                  // Check if the difference is valid (strictly 1 or 2)
+                  const diffVal = Number(row.difference);
+                  const isInvalidDiff = row.difference !== '' && diffVal !== 1 && diffVal !== 2;
+
+                  return (
+                    <React.Fragment key={index}>
+                      <div><input type="time" value={row.time} onChange={(e) => handleHydroChange('rolling', index, 'time', e.target.value)} className={hydroTimeInput} /></div>
+                      <div><input type="number" step="any" placeholder="0" value={row.dryBulb} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroChange('rolling', index, 'dryBulb', e.target.value)} className={hydroTableInput} /></div>
+                      <div><input type="number" step="any" placeholder="0" value={row.wetBulb} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroChange('rolling', index, 'wetBulb', e.target.value)} className={hydroTableInput} /></div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          readOnly
+                          placeholder="-"
+                          value={row.difference}
+                          // Removed hydroReadOnly to prevent CSS conflicts. Using explicit conditional classes instead.
+                          className={`w-full rounded-md py-1.5 px-2 text-sm text-center select-none outline-none transition-all duration-300 border border-transparent ${isInvalidDiff
+                            ? 'bg-rose-600 dark:bg-rose-600 text-white dark:text-white font-black ring-4 ring-rose-500/50 shadow-lg animate-pulse z-10 relative'
+                            : 'bg-slate-100/70 dark:bg-slate-800/50 text-orange-600 dark:text-orange-400 font-bold'
+                            }`}
+                        />
+                      </div>
+                      <div className="flex justify-center">
+                        <button type="button" onClick={() => handleRemoveHydroRow('rolling', index)} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200 dark:border-slate-700 rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-md hover:-translate-y-0.5 group">
+                          <Trash2 size={16} className="group-hover:scale-110 transition-transform" />
+                        </button>
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
               </div>
             </div>
           ) : (
@@ -1193,19 +1211,36 @@ const RollingRoomSheetForm = () => {
                 <div className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 text-center">{t.wetBulb}</div>
                 <div className="text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 text-center">{t.difference}</div>
                 <div className="w-10"></div>
-                {fermentationHydroChart.map((row, index) => (
-                  <React.Fragment key={index}>
-                    <div><input type="time" value={row.time} onChange={(e) => handleHydroChange('fermentation', index, 'time', e.target.value)} className={hydroTimeInput} /></div>
-                    <div><input type="number" step="any" placeholder="0" value={row.dryBulb} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroChange('fermentation', index, 'dryBulb', e.target.value)} className={hydroTableInput} /></div>
-                    <div><input type="number" step="any" placeholder="0" value={row.wetBulb} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroChange('fermentation', index, 'wetBulb', e.target.value)} className={hydroTableInput} /></div>
-                    <div><input type="text" readOnly placeholder="-" value={row.difference} className={`${hydroReadOnly} text-orange-600 dark:text-orange-400`} /></div>
-                    <div className="flex justify-center">
-                      <button type="button" onClick={() => handleRemoveHydroRow('fermentation', index)} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200 dark:border-slate-700 rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-md hover:-translate-y-0.5 group">
-                        <Trash2 size={16} className="group-hover:scale-110 transition-transform" />
-                      </button>
-                    </div>
-                  </React.Fragment>
-                ))}
+                {fermentationHydroChart.map((row, index) => {
+                  // Check if the difference is valid (strictly 1 or 2)
+                  const diffVal = Number(row.difference);
+                  const isInvalidDiff = row.difference !== '' && diffVal !== 1 && diffVal !== 2;
+
+                  return (
+                    <React.Fragment key={index}>
+                      <div><input type="time" value={row.time} onChange={(e) => handleHydroChange('fermentation', index, 'time', e.target.value)} className={hydroTimeInput} /></div>
+                      <div><input type="number" step="any" placeholder="0" value={row.dryBulb} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroChange('fermentation', index, 'dryBulb', e.target.value)} className={hydroTableInput} /></div>
+                      <div><input type="number" step="any" placeholder="0" value={row.wetBulb} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroChange('fermentation', index, 'wetBulb', e.target.value)} className={hydroTableInput} /></div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          readOnly
+                          placeholder="-"
+                          value={row.difference}
+                          className={`w-full rounded-md py-1.5 px-2 text-sm text-center select-none outline-none transition-all duration-300 border border-transparent ${isInvalidDiff
+                              ? 'bg-rose-600 dark:bg-rose-600 text-white dark:text-white font-black ring-4 ring-rose-500/50 shadow-lg animate-pulse z-10 relative'
+                              : 'bg-slate-100/70 dark:bg-slate-800/50 text-orange-600 dark:text-orange-400 font-bold'
+                            }`}
+                        />
+                      </div>
+                      <div className="flex justify-center">
+                        <button type="button" onClick={() => handleRemoveHydroRow('fermentation', index)} className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200 dark:border-slate-700 rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-md hover:-translate-y-0.5 group">
+                          <Trash2 size={16} className="group-hover:scale-110 transition-transform" />
+                        </button>
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
               </div>
             </div>
           ) : (

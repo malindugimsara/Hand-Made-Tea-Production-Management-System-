@@ -28,25 +28,11 @@ import { useNavigate } from "react-router-dom";
 
 // 💡 Time slots from 8:00 PM to 2:00 PM
 const TIME_SLOTS = [
-  "8:00 PM",
-  "9:00 PM",
-  "10:00 PM",
-  "11:00 PM",
-  "12:00 AM",
-  "1:00 AM",
-  "2:00 AM",
-  "3:00 AM",
-  "4:00 AM",
-  "5:00 AM",
-  "6:00 AM",
-  "7:00 AM",
-  "8:00 AM",
-  "9:00 AM",
-  "10:00 AM",
-  "11:00 AM",
-  "12:00 PM",
-  "1:00 PM",
-  "2:00 PM",
+  "8:00 PM", "9:00 PM", "10:00 PM", "11:00 PM",
+  "12:00 AM", "1:00 AM", "2:00 AM", "3:00 AM",
+  "4:00 AM", "5:00 AM", "6:00 AM", "7:00 AM",
+  "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM",
+  "12:00 PM", "1:00 PM", "2:00 PM",
 ];
 
 const TROUGHS = [1, 2, 3, 4, 5, 6];
@@ -257,7 +243,7 @@ export default function HydroMetersView() {
       const updatedFormData = { ...formData };
       const clearedRow = {};
       TROUGHS.forEach((t) => {
-        clearedRow[t] = { dry: "", wet: "" };
+        clearedRow[t] = { dry: "", wet: "", heatOn: false };
       });
 
       updatedFormData[rowToDelete] = {
@@ -292,13 +278,10 @@ export default function HydroMetersView() {
   // ==========================================
   // 💡 Prepare PDF Data
   // ==========================================
-
-  // Helper function to get active troughs for the day
   const getActiveTroughsForDay = () => {
     const activeTroughs = new Set();
     activeTimeSlots.forEach((time) => {
       TROUGHS.forEach((t) => {
-        // Include troughs where heatOn is true
         if (
           formData[time]?.[t]?.dry !== "" ||
           formData[time]?.[t]?.wet !== "" ||
@@ -351,7 +334,6 @@ export default function HydroMetersView() {
 
     const row2 = [];
     activeTroughs.forEach(() => {
-      // 💡 WET BULB First, DRY BULB Second
       row2.push({
         content: "DRY BULB",
         styles: {
@@ -419,7 +401,6 @@ export default function HydroMetersView() {
         const diff = calculateDifference(dry, wet) || "-";
 
         if (heatOn) {
-          // Combine 3 columns into 1 for Heat On status
           row.push({
             content: "HEAT ON",
             colSpan: 3,
@@ -435,7 +416,7 @@ export default function HydroMetersView() {
           });
         } else {
           const diffTextColor =
-            diff !== "-" && parseFloat(diff) < 0
+            (diff !== "-" && parseFloat(diff) < 0) || parseFloat(diff) > 7
               ? [220, 38, 38]
               : [21, 128, 61];
           const normalStyle = {
@@ -451,7 +432,6 @@ export default function HydroMetersView() {
             lineWidth: 0.5,
           };
 
-          // 💡 WET BULB First, DRY BULB Second
           row.push(
             { content: dry, styles: normalStyle },
             { content: wet, styles: normalStyle },
@@ -462,6 +442,16 @@ export default function HydroMetersView() {
       return row;
     });
   };
+
+  // Check if current modal data has any invalid differences (> 7)
+  const hasInvalidModalData = TROUGHS.some((t) => {
+    const trough = modalData[t];
+    // Skip if trough data doesn't exist yet or if heat is on
+    if (!trough || trough.heatOn) return false;
+
+    const diff = calculateDifference(trough.dry, trough.wet);
+    return diff !== "" && parseFloat(diff) > 7;
+  });
 
   return (
     <div className="p-4 sm:p-8 max-w-[1800px] mx-auto font-sans min-h-screen flex flex-col bg-[#f8fafc] dark:bg-zinc-950 transition-colors duration-300 relative">
@@ -680,11 +670,12 @@ export default function HydroMetersView() {
                       {TROUGHS.map((trough) => {
                         const dryVal = formData[time]?.[trough]?.dry || "";
                         const wetVal = formData[time]?.[trough]?.wet || "";
-                        const heatOn =
-                          formData[time]?.[trough]?.heatOn || false;
+                        const heatOn = formData[time]?.[trough]?.heatOn || false;
+
                         const diffVal = calculateDifference(dryVal, wetVal);
-                        const isNegative =
-                          diffVal !== "" && parseFloat(diffVal) < 0;
+                        const numericDiff = parseFloat(diffVal);
+                        const isNegative = diffVal !== "" && numericDiff < 0;
+                        const isGreaterThanSeven = diffVal !== "" && numericDiff > 7;
 
                         return (
                           <React.Fragment key={`${time}-${trough}`}>
@@ -697,16 +688,19 @@ export default function HydroMetersView() {
                               </td>
                             ) : (
                               <>
-                                <td className="p-2 border border-green-200 dark:border-zinc-700 text-center font-bold text-gray-800 dark:text-gray-200">
+                                <td className={`p-2 border border-green-200 dark:border-zinc-700 text-center font-bold ${isGreaterThanSeven ? 'text-rose-600 dark:text-rose-400' : 'text-gray-800 dark:text-gray-200'}`}>
                                   {dryVal || "-"}
                                 </td>
-                                <td className="p-2 border border-green-200 dark:border-zinc-700 text-center font-bold text-gray-800 dark:text-gray-200">
+                                <td className={`p-2 border border-green-200 dark:border-zinc-700 text-center font-bold ${isGreaterThanSeven ? 'text-rose-600 dark:text-rose-400' : 'text-gray-800 dark:text-gray-200'}`}>
                                   {wetVal || "-"}
                                 </td>
                                 <td
-                                  className={`p-2 border border-green-200 dark:border-zinc-700 text-center font-black bg-green-50/50 dark:bg-green-900/10
-                                                                    ${isNegative ? "text-yellow-600 dark:text-yellow-500" : "text-green-700 dark:text-green-400"}
-                                                                `}
+                                  className={`p-2 border border-green-200 dark:border-zinc-700 text-center font-black bg-green-50/50 dark:bg-green-900/10 transition-all ${isGreaterThanSeven
+                                    ? "text-rose-600 dark:text-rose-500 animate-pulse bg-rose-50 dark:bg-rose-900/20"
+                                    : isNegative
+                                      ? "text-yellow-600 dark:text-yellow-500"
+                                      : "text-green-700 dark:text-green-400"
+                                    }`}
                                 >
                                   {diffVal || "-"}
                                 </td>
@@ -791,20 +785,35 @@ export default function HydroMetersView() {
                   const dryVal = modalData[trough]?.dry || "";
                   const wetVal = modalData[trough]?.wet || "";
                   const heatOn = modalData[trough]?.heatOn || false;
+
                   const diffVal = calculateDifference(dryVal, wetVal);
-                  const isNegative = diffVal !== "" && parseFloat(diffVal) < 0;
+                  const numericDiff = parseFloat(diffVal);
+                  const isNegative = diffVal !== "" && numericDiff < 0;
+                  const isGreaterThanSeven = diffVal !== "" && numericDiff > 7;
 
                   return (
                     <div
                       key={trough}
-                      className={`bg-white dark:bg-zinc-950 p-5 rounded-2xl border ${heatOn ? "border-orange-200 dark:border-orange-900/50" : "border-gray-200 dark:border-zinc-800"} flex flex-col gap-4 shadow-sm hover:border-green-300 dark:hover:border-green-800 transition-colors`}
+                      className={`bg-white dark:bg-zinc-950 p-5 rounded-2xl border transition-all duration-300 ${heatOn
+                        ? "border-orange-200 dark:border-orange-900/50"
+                        : isGreaterThanSeven
+                          ? "border-rose-500 shadow-rose-500/20 shadow-lg"
+                          : "border-gray-200 dark:border-zinc-800 hover:border-green-300 dark:hover:border-green-800"
+                        } flex flex-col gap-4 shadow-sm`}
                     >
                       <div className="flex justify-between items-center border-b border-gray-100 dark:border-zinc-800 pb-2">
                         <h4 className="font-bold text-gray-700 dark:text-gray-300">
                           Trough {String(trough).padStart(2, "0")}
                         </h4>
                         <span
-                          className={`px-2 py-0.5 rounded text-xs font-bold ${diffVal === "" ? "text-gray-400" : isNegative ? "bg-red-100 text-red-600 dark:bg-red-900/30" : "bg-green-100 text-green-700 dark:bg-green-900/30"}`}
+                          className={`px-2 py-0.5 rounded text-xs font-bold transition-all duration-300 ${diffVal === ""
+                            ? "text-gray-400"
+                            : isGreaterThanSeven
+                              ? "bg-rose-600 text-white animate-pulse ring-2 ring-rose-500/50 shadow-md"
+                              : isNegative
+                                ? "bg-red-100 text-red-600 dark:bg-red-900/30"
+                                : "bg-green-100 text-green-700 dark:bg-green-900/30"
+                            }`}
                         >
                           Diff: {diffVal || "-"}
                         </span>
@@ -856,7 +865,10 @@ export default function HydroMetersView() {
                                   ?.focus();
                             }}
                             disabled={heatOn}
-                            className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg p-2.5 text-center font-bold text-gray-800 dark:text-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-500 outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+                            className={`w-full bg-gray-50 dark:bg-zinc-900 border rounded-lg p-2.5 text-center font-bold text-gray-800 dark:text-gray-200 outline-none disabled:opacity-40 disabled:cursor-not-allowed transition-all ${isGreaterThanSeven && !heatOn
+                              ? "border-rose-500 text-rose-600 focus:border-rose-500 focus:ring-rose-500"
+                              : "border-gray-200 dark:border-zinc-700 focus:border-green-500 focus:ring-2 focus:ring-green-500"
+                              }`}
                             placeholder="-"
                           />
                         </div>
@@ -882,7 +894,10 @@ export default function HydroMetersView() {
                                   ?.focus();
                             }}
                             disabled={heatOn}
-                            className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg p-2.5 text-center font-bold text-gray-800 dark:text-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-500 outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+                            className={`w-full bg-gray-50 dark:bg-zinc-900 border rounded-lg p-2.5 text-center font-bold text-gray-800 dark:text-gray-200 outline-none disabled:opacity-40 disabled:cursor-not-allowed transition-all ${isGreaterThanSeven && !heatOn
+                              ? "border-rose-500 text-rose-600 focus:border-rose-500 focus:ring-rose-500"
+                              : "border-gray-200 dark:border-zinc-700 focus:border-green-500 focus:ring-2 focus:ring-green-500"
+                              }`}
                             placeholder="-"
                           />
                         </div>
@@ -901,9 +916,15 @@ export default function HydroMetersView() {
                 Cancel
               </button>
               <button
-                onClick={handleModalSave}
-                disabled={isSaving}
-                className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                onClick={() => {
+                  if (hasInvalidModalData) {
+                    toast.error("Cannot save: One or more differences exceed 7.");
+                    return;
+                  }
+                  handleModalSave();
+                }}
+                disabled={isSaving || hasInvalidModalData}
+                className="px-6 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 dark:disabled:bg-zinc-700 text-white font-bold rounded-xl shadow-md flex items-center gap-2 transition-all active:scale-95"
               >
                 {isSaving ? (
                   <RefreshCw size={18} className="animate-spin" />

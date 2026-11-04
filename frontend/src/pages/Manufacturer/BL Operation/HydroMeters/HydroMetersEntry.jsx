@@ -26,7 +26,7 @@ const TROUGHS = [1, 2, 3, 4, 5, 6];
 
 export default function HydroMetersEntry() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-    const currentUsername = localStorage.getItem("username") || "Unknown User"; 
+    const currentUsername = localStorage.getItem("username") || "Unknown User";
 
     // URL එකේ '?date=YYYY-MM-DD' ලෙස ආවොත් එය ගනී, නැත්නම් අද දිනය ගනී.
     const [selectedDate, setSelectedDate] = useState(() => {
@@ -34,15 +34,15 @@ export default function HydroMetersEntry() {
         return queryParams.get('date') || new Date().toISOString().split('T')[0];
     });
 
-    const [activeTimeIndex, setActiveTimeIndex] = useState(null); 
+    const [activeTimeIndex, setActiveTimeIndex] = useState(null);
     const activeTime = activeTimeIndex !== null ? TIME_SLOTS[activeTimeIndex] : null;
-    
+
     const timeScrollRef = useRef(null); // Auto-scroll සඳහා Ref එක
 
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isClearing, setIsClearing] = useState(false);
-    
+
     const [isDirty, setIsDirty] = useState(false);
 
     const initializeData = () => {
@@ -52,7 +52,7 @@ export default function HydroMetersEntry() {
             TROUGHS.forEach(trough => {
                 initial[time][trough] = { dry: '', wet: '', heatOn: false };
             });
-            initial[time].meta = null; 
+            initial[time].meta = null;
         });
         return initial;
     };
@@ -81,9 +81,9 @@ export default function HydroMetersEntry() {
                 const response = await fetch(`${BACKEND_URL}/api/hydro-meters/get?date=${selectedDate}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (response.ok && result.data) {
                     setFormData(result.data);
                     setOriginalData(result.data);
@@ -92,7 +92,7 @@ export default function HydroMetersEntry() {
                     setFormData(emptyInit);
                     setOriginalData(emptyInit);
                 }
-                setIsDirty(false); 
+                setIsDirty(false);
             } catch (error) {
                 console.error("Fetch error:", error);
                 toast.error("Failed to load existing data.");
@@ -143,7 +143,7 @@ export default function HydroMetersEntry() {
                 }
             };
         });
-        setIsDirty(true); 
+        setIsDirty(true);
     };
 
     // Enter / Arrow Key Navigation
@@ -199,7 +199,7 @@ export default function HydroMetersEntry() {
         return TROUGHS.some(t => formData[time]?.[t]?.dry !== '' || formData[time]?.[t]?.wet !== '');
     };
 
-   const handleNextTime = () => {
+    const handleNextTime = () => {
         if (activeTimeIndex !== null && activeTimeIndex < TIME_SLOTS.length - 1) {
             setActiveTimeIndex(prev => prev + 1);
         }
@@ -214,23 +214,23 @@ export default function HydroMetersEntry() {
     const handleSave = async () => {
         setIsSaving(true);
         const toastId = toast.loading("Saving Hydro Meter Data...");
-        
+
         try {
             const token = localStorage.getItem("token");
             const response = await fetch(`${BACKEND_URL}/api/hydro-meters/save`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ date: selectedDate, formData: formData })
             });
 
             const result = await response.json();
             if (!response.ok) throw new Error(result.message);
-            
-            setOriginalData(formData); 
-            setIsDirty(false); 
+
+            setOriginalData(formData);
+            setIsDirty(false);
             toast.success("Data saved successfully!", { id: toastId });
             navigate("/manufacturer/bl-production/hydroMeterview")
         } catch (error) {
@@ -246,14 +246,14 @@ export default function HydroMetersEntry() {
         try {
             const emptyData = initializeData();
             setFormData(emptyData);
-            setOriginalData(emptyData); 
+            setOriginalData(emptyData);
 
             const token = localStorage.getItem("token");
             const response = await fetch(`${BACKEND_URL}/api/hydro-meters/save`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ date: selectedDate, formData: emptyData })
             });
@@ -270,7 +270,7 @@ export default function HydroMetersEntry() {
 
     return (
         <div className="p-4 sm:p-8 max-w-[1200px] mx-auto font-sans min-h-screen flex flex-col bg-[#f8fafc] dark:bg-zinc-950 transition-colors duration-300">
-            
+
             {/* UNSAVED CHANGES WARNING */}
             {isDirty && (
                 <div className="mb-4 flex items-center justify-between gap-4 bg-red-100 dark:bg-red-900/40 border-2 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)] p-4 rounded-2xl animate-pulse transition-all">
@@ -281,8 +281,8 @@ export default function HydroMetersEntry() {
                             <p className="text-red-600 dark:text-red-400 text-xs sm:text-sm font-semibold">Please save your data to prevent data loss before changing dates.</p>
                         </div>
                     </div>
-                    <button 
-                        onClick={handleSave} 
+                    <button
+                        onClick={handleSave}
                         disabled={isSaving}
                         className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg active:scale-95 transition-all flex items-center gap-2 whitespace-nowrap"
                     >
@@ -293,11 +293,11 @@ export default function HydroMetersEntry() {
 
             {/* --- HEADER SECTION --- */}
             <div className="mb-6 flex flex-col gap-5 bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-green-100 dark:border-zinc-800">
-                
+
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h2 className="text-2xl font-bold text-green-800 dark:text-green-500 flex items-center gap-2 uppercase tracking-wide">
-                            <Droplets size={26} className="text-green-600 dark:text-green-400" /> 
+                            <Droplets size={26} className="text-green-600 dark:text-green-400" />
                             Enter Hydro Meters Data
                         </h2>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -308,9 +308,9 @@ export default function HydroMetersEntry() {
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="relative">
                             <Calendar size={18} className="absolute left-3 top-3 text-green-600 dark:text-green-500" />
-                            <input 
-                                type="date" 
-                                value={selectedDate} 
+                            <input
+                                type="date"
+                                value={selectedDate}
                                 onChange={(e) => setSelectedDate(e.target.value)}
                                 className="pl-10 pr-4 py-2.5 border border-green-200 dark:border-zinc-700 rounded-lg text-sm font-bold outline-none bg-green-50/50 dark:bg-zinc-800 text-green-800 dark:text-green-400 focus:ring-2 focus:ring-green-500 cursor-pointer transition-colors"
                             />
@@ -319,7 +319,7 @@ export default function HydroMetersEntry() {
                         {/* Global Clear Dialog */}
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <button 
+                                <button
                                     disabled={isClearing || isLoading}
                                     className="p-2.5 px-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/50 rounded-lg font-bold text-sm flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
                                 >
@@ -343,12 +343,12 @@ export default function HydroMetersEntry() {
 
                         {/* Standard Save Button */}
                         {!isDirty && (
-                            <button 
-                                onClick={handleSave} 
-                                disabled={isSaving || isLoading} 
+                            <button
+                                onClick={handleSave}
+                                disabled={isSaving || isLoading}
                                 className="p-2.5 px-6 bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-500 text-white rounded-lg font-bold text-sm disabled:opacity-50 flex items-center gap-2 shadow-md shadow-green-500/20 transition-all active:scale-95"
                             >
-                                {isSaving ? <RefreshCw size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} 
+                                {isSaving ? <RefreshCw size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
                                 Saved
                             </button>
                         )}
@@ -362,8 +362,8 @@ export default function HydroMetersEntry() {
                             key={time}
                             onClick={() => setActiveTimeIndex(idx)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm whitespace-nowrap transition-all flex-shrink-0
-                                ${activeTimeIndex === idx 
-                                    ? 'bg-green-600 text-white shadow-md shadow-green-600/30' 
+                                ${activeTimeIndex === idx
+                                    ? 'bg-green-600 text-white shadow-md shadow-green-600/30'
                                     : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 hover:bg-green-100 dark:hover:bg-green-900/30 hover:text-green-700'
                                 }
                             `}
@@ -381,7 +381,7 @@ export default function HydroMetersEntry() {
                     <RefreshCw className="w-10 h-10 text-green-600 animate-spin" />
                 </div>
             ) : activeTimeIndex === null ? (
-                
+
                 <div className="flex-1 flex flex-col items-center justify-center p-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-green-100 dark:border-zinc-800 text-center">
                     <Calendar className="w-16 h-16 text-green-100 dark:text-green-900/40 mb-4" />
                     <h3 className="text-2xl font-bold text-gray-500 dark:text-gray-400">No Time Slot Selected</h3>
@@ -389,21 +389,21 @@ export default function HydroMetersEntry() {
                 </div>
             ) : (
                 <div className="flex flex-col gap-6 relative">
-                    
+
                     {/* Active Time Header */}
                     <div className="flex justify-between items-center bg-white dark:bg-zinc-900 p-4 rounded-xl border border-green-100 dark:border-zinc-800 shadow-sm">
-                        <button 
+                        <button
                             onClick={handlePrevTime} disabled={activeTimeIndex === 0}
                             className="p-2 bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         >
                             <ChevronLeft size={20} />
                         </button>
-                        
+
                         <h3 className="text-xl font-bold text-green-800 dark:text-green-400 text-center">
                             Time: <span className="bg-green-100 dark:bg-green-900/40 px-4 py-1 rounded-lg ml-2">{activeTime}</span>
                         </h3>
-                        
-                        <button 
+
+                        <button
                             onClick={handleNextTime} disabled={activeTimeIndex === TIME_SLOTS.length - 1}
                             className="p-2 bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         >
@@ -413,22 +413,31 @@ export default function HydroMetersEntry() {
 
                     {/* Cards Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    
+
                         {TROUGHS.map((trough, idx) => {
                             const wetVal = formData[activeTime]?.[trough]?.wet || '';
                             const dryVal = formData[activeTime]?.[trough]?.dry || '';
                             const heatOn = formData[activeTime]?.[trough]?.heatOn || false;
+
                             const diffVal = calculateDifference(dryVal, wetVal);
-                            const isNegative = diffVal !== '' && parseFloat(diffVal) < 0;
+                            const numericDiff = parseFloat(diffVal);
+                            const isNegative = diffVal !== '' && numericDiff < 0;
+                            // Check if the difference is strictly greater than 7
+                            const isGreaterThanSeven = diffVal !== '' && numericDiff > 7;
 
                             return (
-                                <div key={`trough-${trough}`} className={`bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border ${heatOn ? 'border-orange-200 dark:border-orange-900/50' : 'border-gray-200 dark:border-zinc-800'} flex flex-col gap-5 hover:border-green-300 dark:hover:border-green-700 transition-colors`}>
-                                    
+                                <div key={`trough-${trough}`} className={`bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border transition-all duration-300 ${heatOn ? 'border-orange-200 dark:border-orange-900/50' : isGreaterThanSeven ? 'border-rose-500 shadow-rose-500/20 shadow-lg' : 'border-gray-200 dark:border-zinc-800'} flex flex-col gap-5 hover:border-green-300 dark:hover:border-green-700`}>
+
                                     <div className="flex justify-between items-center border-b border-gray-100 dark:border-zinc-800 pb-3">
                                         <h4 className="text-lg font-black text-gray-800 dark:text-gray-200 uppercase">Trough {String(trough).padStart(2, '0')}</h4>
-                                        <div className={`px-3 py-1 rounded-lg font-bold text-sm
-                                            ${diffVal === '' ? 'bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-gray-400' :
-                                              isNegative ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}
+                                        <div className={`px-3 py-1 rounded-lg font-bold text-sm transition-all duration-300
+                                            ${diffVal === ''
+                                                ? 'bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-gray-400'
+                                                : isGreaterThanSeven
+                                                    ? 'bg-rose-600 dark:bg-rose-600 text-white font-black ring-4 ring-rose-500/50 shadow-lg animate-pulse'
+                                                    : isNegative
+                                                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                        : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}
                                         `}>
                                             Diff: {diffVal || '-'}
                                         </div>
@@ -436,8 +445,8 @@ export default function HydroMetersEntry() {
 
                                     {/* HEAT ON CHECKBOX */}
                                     <div className="flex items-center gap-2 mb-[-10px]">
-                                        <input 
-                                            type="checkbox" 
+                                        <input
+                                            type="checkbox"
                                             id={`heatOn-${idx}`}
                                             checked={heatOn}
                                             onChange={(e) => handleInputChange(trough, 'heatOn', e.target.checked)}
@@ -449,18 +458,18 @@ export default function HydroMetersEntry() {
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
-                                        
+
                                         {/* DRY BULB */}
                                         <div className="flex flex-col gap-2">
                                             <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 tracking-wider">DRY BULB</label>
-                                            <input 
+                                            <input
                                                 id={`input-dry-${idx}`}
-                                                type="text" 
+                                                type="text"
                                                 value={dryVal}
                                                 onChange={(e) => handleInputChange(trough, 'dry', e.target.value)}
                                                 onKeyDown={(e) => handleKeyDown(e, idx, 'dry')}
                                                 disabled={heatOn}
-                                                className="w-full bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-700 rounded-xl p-3 text-center font-bold text-lg text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all placeholder-gray-300 dark:placeholder-zinc-700 disabled:opacity-40 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
+                                                className={`w-full bg-gray-50 dark:bg-zinc-950 border rounded-xl p-3 text-center font-bold text-lg text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all placeholder-gray-300 dark:placeholder-zinc-700 disabled:opacity-40 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed ${isGreaterThanSeven && !heatOn ? 'border-rose-500 text-rose-600 dark:text-rose-400' : 'border-gray-200 dark:border-zinc-700'}`}
                                                 placeholder="-"
                                             />
                                         </div>
@@ -468,18 +477,18 @@ export default function HydroMetersEntry() {
                                         {/* WET BULB */}
                                         <div className="flex flex-col gap-2">
                                             <label className="text-[11px] font-bold text-gray-500 dark:text-gray-400 tracking-wider">WET BULB</label>
-                                            <input 
+                                            <input
                                                 id={`input-wet-${idx}`}
-                                                type="text" 
+                                                type="text"
                                                 value={wetVal}
                                                 onChange={(e) => handleInputChange(trough, 'wet', e.target.value)}
                                                 onKeyDown={(e) => handleKeyDown(e, idx, 'wet')}
                                                 disabled={heatOn}
-                                                className="w-full bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-700 rounded-xl p-3 text-center font-bold text-lg text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all placeholder-gray-300 dark:placeholder-zinc-700 disabled:opacity-40 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
+                                                className={`w-full bg-gray-50 dark:bg-zinc-950 border rounded-xl p-3 text-center font-bold text-lg text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all placeholder-gray-300 dark:placeholder-zinc-700 disabled:opacity-40 disabled:bg-gray-100 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed ${isGreaterThanSeven && !heatOn ? 'border-rose-500 text-rose-600 dark:text-rose-400' : 'border-gray-200 dark:border-zinc-700'}`}
                                                 placeholder="-"
                                             />
                                         </div>
-                                        
+
                                     </div>
 
                                 </div>
