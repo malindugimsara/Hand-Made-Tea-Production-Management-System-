@@ -363,7 +363,28 @@ const RollingRoomSheetSummary = () => {
     });
   };
 
+  // Validate difference in memory before saving
+  // Validate difference in memory before saving
+  const hasInvalidHydroData = useMemo(() => {
+    if (!isEditing || !editForm) return false;
+    const checkInvalid = (readings) => {
+      if (!readings) return false;
+      return readings.some(r => {
+        if (!r.difference || r.difference === '') return false;
+        const diff = parseFloat(r.difference);
+        // Flags as invalid if difference is NOT 1 and NOT 2
+        return isNaN(diff) || (diff !== 1 && diff !== 2);
+      });
+    };
+    return checkInvalid(editForm.rollingHydroReadings) || checkInvalid(editForm.fermentationHydroReadings);
+  }, [isEditing, editForm]);
+
   const handleSaveInline = async () => {
+    if (hasInvalidHydroData) {
+      toast.error("Cannot save: Hydrometer difference must be exactly 1 or 2.");
+      return;
+    }
+
     if (!editForm || !editForm._id) {
       toast.error("Invalid record identifier.");
       return;
@@ -934,8 +955,8 @@ const RollingRoomSheetSummary = () => {
                   <button
                     type="button"
                     onClick={handleSaveInline}
-                    disabled={isSaving}
-                    className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
+                    disabled={isSaving || hasInvalidHydroData}
+                    className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 disabled:from-slate-400 disabled:to-slate-500 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
                   >
                     <Save size={14} />
                     {t.saveChanges}
@@ -1524,41 +1545,52 @@ const RollingRoomSheetSummary = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                    {((isEditing ? editForm?.rollingHydroReadings : activeRecord?.rollingHydroReadings) || []).map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                        <td className="p-2">
-                          {isEditing ? (
-                            <input type="time" value={row.time || ''} onChange={(e) => handleHydroCellChange('rolling', idx, 'time', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold" />
-                          ) : (
-                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.time ? format12Hour(row.time) : '-'}</span>
-                          )}
-                        </td>
-                        <td className="p-2">
-                          {isEditing ? (
-                            <input type="number" step="any" placeholder="0" value={row.dryBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('rolling', idx, 'dryBulb', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold" />
-                          ) : (
-                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.dryBulb || '-'}</span>
-                          )}
-                        </td>
-                        <td className="p-2">
-                          {isEditing ? (
-                            <input type="number" step="any" placeholder="0" value={row.wetBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('rolling', idx, 'wetBulb', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold" />
-                          ) : (
-                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.wetBulb || '-'}</span>
-                          )}
-                        </td>
-                        <td className="p-2">
-                          <span className="font-black text-orange-600 dark:text-orange-400">{row.difference || '-'}</span>
-                        </td>
-                        {isEditing && (
+                    {((isEditing ? editForm?.rollingHydroReadings : activeRecord?.rollingHydroReadings) || []).map((row, idx) => {
+                      const diffVal = parseFloat(row.difference);
+                      // STRICT CHECK: Invalid if it's not 1 and not 2
+                      const isInvalidDiff = row.difference !== '' && !isNaN(diffVal) && diffVal !== 1 && diffVal !== 2;
+
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                           <td className="p-2">
-                            <button type="button" onClick={() => setRowToDelete({ type: 'rolling', index: idx, time: row.time || 'Unknown' })} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors cursor-pointer">
-                              <X size={14} />
-                            </button>
+                            {isEditing ? (
+                              <input type="time" value={row.time || ''} onChange={(e) => handleHydroCellChange('rolling', idx, 'time', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-orange-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-orange-500 font-bold" />
+                            ) : (
+                              <span className="font-bold text-slate-700 dark:text-slate-300">{row.time ? format12Hour(row.time) : '-'}</span>
+                            )}
                           </td>
-                        )}
-                      </tr>
-                    ))}
+                          <td className="p-2">
+                            {isEditing ? (
+                              <input type="number" step="any" placeholder="0" value={row.dryBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('rolling', idx, 'dryBulb', e.target.value)} className={`w-full bg-white dark:bg-slate-800 border ${isInvalidDiff ? 'border-rose-500 text-rose-600 focus:ring-rose-500' : 'border-orange-200 focus:ring-orange-500'} rounded px-2 py-1 text-center outline-none focus:ring-1 font-bold`} />
+                            ) : (
+                              <span className={`font-bold ${isInvalidDiff ? 'text-rose-600' : 'text-slate-700 dark:text-slate-300'}`}>{row.dryBulb || '-'}</span>
+                            )}
+                          </td>
+                          <td className="p-2">
+                            {isEditing ? (
+                              <input type="number" step="any" placeholder="0" value={row.wetBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('rolling', idx, 'wetBulb', e.target.value)} className={`w-full bg-white dark:bg-slate-800 border ${isInvalidDiff ? 'border-rose-500 text-rose-600 focus:ring-rose-500' : 'border-orange-200 focus:ring-orange-500'} rounded px-2 py-1 text-center outline-none focus:ring-1 font-bold`} />
+                            ) : (
+                              <span className={`font-bold ${isInvalidDiff ? 'text-rose-600' : 'text-slate-700 dark:text-slate-300'}`}>{row.wetBulb || '-'}</span>
+                            )}
+                          </td>
+                          <td className="p-2">
+                            <div className={`px-2 py-1 rounded-lg font-black inline-block transition-all duration-300 ${isInvalidDiff
+                              ? 'bg-rose-600 text-white animate-pulse ring-2 ring-rose-500/50 shadow-md'
+                              : 'text-orange-600 dark:text-orange-400'
+                              }`}>
+                              {row.difference || '-'}
+                            </div>
+                          </td>
+                          {isEditing && (
+                            <td className="p-2">
+                              <button type="button" onClick={() => setRowToDelete({ type: 'rolling', index: idx, time: row.time || 'Unknown' })} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors cursor-pointer">
+                                <X size={14} />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
                     {((isEditing ? editForm?.rollingHydroReadings : activeRecord?.rollingHydroReadings) || []).length === 0 && !isEditing && (
                       <tr><td colSpan="4" className="p-6 text-slate-400 font-semibold text-sm">No Temperature Readings Available</td></tr>
                     )}
@@ -1604,41 +1636,52 @@ const RollingRoomSheetSummary = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                    {((isEditing ? editForm?.fermentationHydroReadings : activeRecord?.fermentationHydroReadings) || []).map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                        <td className="p-2">
-                          {isEditing ? (
-                            <input type="time" value={row.time || ''} onChange={(e) => handleHydroCellChange('fermentation', idx, 'time', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-blue-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-blue-500 font-bold" />
-                          ) : (
-                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.time ? format12Hour(row.time) : '-'}</span>
-                          )}
-                        </td>
-                        <td className="p-2">
-                          {isEditing ? (
-                            <input type="number" step="any" placeholder="0" value={row.dryBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('fermentation', idx, 'dryBulb', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-blue-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-blue-500 font-bold" />
-                          ) : (
-                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.dryBulb || '-'}</span>
-                          )}
-                        </td>
-                        <td className="p-2">
-                          {isEditing ? (
-                            <input type="number" step="any" placeholder="0" value={row.wetBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('fermentation', idx, 'wetBulb', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-blue-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-blue-500 font-bold" />
-                          ) : (
-                            <span className="font-bold text-slate-700 dark:text-slate-300">{row.wetBulb || '-'}</span>
-                          )}
-                        </td>
-                        <td className="p-2">
-                          <span className="font-black text-blue-600 dark:text-blue-400">{row.difference || '-'}</span>
-                        </td>
-                        {isEditing && (
+                    {((isEditing ? editForm?.fermentationHydroReadings : activeRecord?.fermentationHydroReadings) || []).map((row, idx) => {
+                      const diffVal = parseFloat(row.difference);
+                      // STRICT CHECK: Invalid if it's not 1 and not 2
+                      const isInvalidDiff = row.difference !== '' && !isNaN(diffVal) && diffVal !== 1 && diffVal !== 2;
+
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                           <td className="p-2">
-                            <button type="button" onClick={() => setRowToDelete({ type: 'fermentation', index: idx, time: row.time || 'Unknown' })} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors cursor-pointer">
-                              <X size={14} />
-                            </button>
+                            {isEditing ? (
+                              <input type="time" value={row.time || ''} onChange={(e) => handleHydroCellChange('fermentation', idx, 'time', e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-blue-200 rounded px-2 py-1 text-center outline-none focus:ring-1 focus:ring-blue-500 font-bold" />
+                            ) : (
+                              <span className="font-bold text-slate-700 dark:text-slate-300">{row.time ? format12Hour(row.time) : '-'}</span>
+                            )}
                           </td>
-                        )}
-                      </tr>
-                    ))}
+                          <td className="p-2">
+                            {isEditing ? (
+                              <input type="number" step="any" placeholder="0" value={row.dryBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('fermentation', idx, 'dryBulb', e.target.value)} className={`w-full bg-white dark:bg-slate-800 border ${isInvalidDiff ? 'border-rose-500 text-rose-600 focus:ring-rose-500' : 'border-blue-200 focus:ring-blue-500'} rounded px-2 py-1 text-center outline-none focus:ring-1 font-bold`} />
+                            ) : (
+                              <span className={`font-bold ${isInvalidDiff ? 'text-rose-600' : 'text-slate-700 dark:text-slate-300'}`}>{row.dryBulb || '-'}</span>
+                            )}
+                          </td>
+                          <td className="p-2">
+                            {isEditing ? (
+                              <input type="number" step="any" placeholder="0" value={row.wetBulb || ''} onKeyDown={preventNegativeKeys} onChange={(e) => handleHydroCellChange('fermentation', idx, 'wetBulb', e.target.value)} className={`w-full bg-white dark:bg-slate-800 border ${isInvalidDiff ? 'border-rose-500 text-rose-600 focus:ring-rose-500' : 'border-blue-200 focus:ring-blue-500'} rounded px-2 py-1 text-center outline-none focus:ring-1 font-bold`} />
+                            ) : (
+                              <span className={`font-bold ${isInvalidDiff ? 'text-rose-600' : 'text-slate-700 dark:text-slate-300'}`}>{row.wetBulb || '-'}</span>
+                            )}
+                          </td>
+                          <td className="p-2">
+                            <div className={`px-2 py-1 rounded-lg font-black inline-block transition-all duration-300 ${isInvalidDiff
+                                ? 'bg-rose-600 text-white animate-pulse ring-2 ring-rose-500/50 shadow-md'
+                                : 'text-blue-600 dark:text-blue-400'
+                              }`}>
+                              {row.difference || '-'}
+                            </div>
+                          </td>
+                          {isEditing && (
+                            <td className="p-2">
+                              <button type="button" onClick={() => setRowToDelete({ type: 'fermentation', index: idx, time: row.time || 'Unknown' })} className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors cursor-pointer">
+                                <X size={14} />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
                     {((isEditing ? editForm?.fermentationHydroReadings : activeRecord?.fermentationHydroReadings) || []).length === 0 && !isEditing && (
                       <tr><td colSpan="4" className="p-6 text-slate-400 font-semibold text-sm">No Temperature Readings Available</td></tr>
                     )}
