@@ -30,7 +30,7 @@ import {
 
 import { useNavigate } from "react-router-dom";
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 // 💡 SUPABASE CONFIGURATION
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -197,7 +197,9 @@ export default function ViewRawMaterialInRecords() {
 
         const itemsArray = (rec.items || []).map((item) => ({
           ...item,
-          category: getCategory(item.materialName),
+          category: item.category
+            ? item.category
+            : getCategory(item.materialName),
         }));
 
         const searchString = `${rec.invoiceNo || ""} ${rec.supplierName || ""} ${itemsArray.map((item) => item.materialName).join(" ")}`;
@@ -314,43 +316,50 @@ export default function ViewRawMaterialInRecords() {
   };
 
   const handleConfirmDelete = async () => {
-        if (!recordToDelete) return;
-        const toastId = toast.loading('Deleting record...');
-        try {
-            if (recordToDelete.billImageUrl) {
-                const rawPath = recordToDelete.billImageUrl.split('/raw-material-bills/')[1];
-                if (rawPath) {
-                    const cleanPath = decodeURIComponent(rawPath.split('?')[0]); 
-                    
-                    const { data, error } = await supabase.storage.from('raw-material-bills').remove([cleanPath]);
-                    
-                    if (error) {
-                        console.error("Failed to delete image from Supabase:", error);
-                    } else {
-                        console.log("Image deleted successfully from Supabase:", data);
-                    }
-                }
-            }
+    if (!recordToDelete) return;
+    const toastId = toast.loading("Deleting record...");
+    try {
+      if (recordToDelete.billImageUrl) {
+        const rawPath = recordToDelete.billImageUrl.split(
+          "/raw-material-bills/",
+        )[1];
+        if (rawPath) {
+          const cleanPath = decodeURIComponent(rawPath.split("?")[0]);
 
-            const token = localStorage.getItem('token');
-            // 💡 2. ඉන්පසු Backend එකෙන් Record එක මකා දැමීම
-            const response = await fetch(`${BACKEND_URL}/api/raw-materials-in/${recordToDelete._id}`, { 
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
-            if (response.ok) {
-                toast.success("Record deleted successfully!", { id: toastId });
-                fetchRecords(); 
-            } else {
-                toast.error("Failed to delete record.", { id: toastId });
-            }
-        } catch (error) {
-            toast.error("Network error while deleting.", { id: toastId });
-        } finally {
-            setRecordToDelete(null);
+          const { data, error } = await supabase.storage
+            .from("raw-material-bills")
+            .remove([cleanPath]);
+
+          if (error) {
+            console.error("Failed to delete image from Supabase:", error);
+          } else {
+            console.log("Image deleted successfully from Supabase:", data);
+          }
         }
-    };
+      }
+
+      const token = localStorage.getItem("token");
+      // 💡 2. ඉන්පසු Backend එකෙන් Record එක මකා දැමීම
+      const response = await fetch(
+        `${BACKEND_URL}/api/raw-materials-in/${recordToDelete._id}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      if (response.ok) {
+        toast.success("Record deleted successfully!", { id: toastId });
+        fetchRecords();
+      } else {
+        toast.error("Failed to delete record.", { id: toastId });
+      }
+    } catch (error) {
+      toast.error("Network error while deleting.", { id: toastId });
+    } finally {
+      setRecordToDelete(null);
+    }
+  };
 
   const clearFilters = () => {
     setFilterCategory("all");
@@ -709,10 +718,19 @@ export default function ViewRawMaterialInRecords() {
                                   key={i}
                                   className="flex-1 flex items-center justify-center px-3 py-3 font-medium border-b border-gray-200 dark:border-zinc-700 last:border-b-0"
                                 >
+                                  {/* 💡 Updated rendering logic to show SPICY and OTHER */}
                                   <span
-                                    className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded tracking-wider ${t.category === "spicy" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"}`}
+                                    className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded tracking-wider ${
+                                      t.category === "flavor" ||
+                                      t.category === "spicy"
+                                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
+                                        : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
+                                    }`}
                                   >
-                                    {t.category}
+                                    {t.category === "flavor" ||
+                                    t.category === "spicy"
+                                      ? "SPICY"
+                                      : "OTHER"}
                                   </span>
                                 </div>
                               ))}
@@ -819,29 +837,28 @@ export default function ViewRawMaterialInRecords() {
         </div>
       </div>
       {/* 💡 IMAGE VIEW MODAL */}
-            {viewImage && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 transition-all duration-300">
-                    <div className="relative bg-white dark:bg-zinc-900 p-3 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
-                        
-                        {/* 💡 Klos botin dɔn kam insay now (top-3 right-3) */}
-                        <button 
-                            onClick={() => setViewImage(null)}
-                            className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-lg transition-transform hover:scale-110 z-[60] cursor-pointer"
-                        >
-                            <X size={20} />
-                        </button>
+      {viewImage && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 transition-all duration-300">
+          <div className="relative bg-white dark:bg-zinc-900 p-3 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
+            {/* 💡 Klos botin dɔn kam insay now (top-3 right-3) */}
+            <button
+              onClick={() => setViewImage(null)}
+              className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-lg transition-transform hover:scale-110 z-[60] cursor-pointer"
+            >
+              <X size={20} />
+            </button>
 
-                        {/* Image Container */}
-                        <div className="overflow-auto rounded-xl flex justify-center items-center h-full bg-gray-50 dark:bg-zinc-950/50 p-2 mt-4 border border-gray-200 dark:border-zinc-800">
-                            <img 
-                                src={viewImage} 
-                                alt="Bill/Invoice" 
-                                className="max-w-full max-h-[80vh] object-contain rounded-lg" 
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Image Container */}
+            <div className="overflow-auto rounded-xl flex justify-center items-center h-full bg-gray-50 dark:bg-zinc-950/50 p-2 mt-4 border border-gray-200 dark:border-zinc-800">
+              <img
+                src={viewImage}
+                alt="Bill/Invoice"
+                className="max-w-full max-h-[80vh] object-contain rounded-lg"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
