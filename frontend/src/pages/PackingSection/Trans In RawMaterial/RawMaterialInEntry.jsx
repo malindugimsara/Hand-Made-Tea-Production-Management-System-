@@ -615,8 +615,12 @@ export default function RawMaterialInEntry() {
                                                     {item.materialName}
                                                 </td>
                                                 <td className="px-3 py-2 border-r border-gray-300 dark:border-zinc-700 text-right">
-                                                    <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded tracking-widest ${item.category === 'flavor' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'}`}>
-                                                        {item.category}
+                                                    <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded tracking-widest ${
+                                                        item.category === 'flavor' 
+                                                            ? 'bg-emerald-100 text-emerald-700' 
+                                                            : 'bg-blue-100 text-blue-700'
+                                                    }`}>
+                                                        {item.category === 'flavor' ? 'SPICY' : 'OTHER'}
                                                     </span>
                                                 </td>
                                                 <td className="px-3 py-2 text-right font-bold text-[#0f766e] dark:text-teal-400">{item.qty} {item.unit}</td>
