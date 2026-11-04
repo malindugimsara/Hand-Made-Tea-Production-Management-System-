@@ -10,6 +10,7 @@ import LocalSaleRouter from './pages/LocalSaleRouter';
 import ManufacturerRouter from './pages/ManufacturerRouter';
 import AdminSettings from './pages/Admin/AdminSettings';
 import SystemUpdates from './pages/systerm update/SystemUpdates';
+import DeveloperSection from './pages/systerm update/DeveloperSection';
 
 const PUBLIC_VAPID_KEY = import.meta.env.VITE_PUBLIC_VAPID_KEY;
 
@@ -99,10 +100,12 @@ export default function App() {
         {/* Public */}
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<Login />} />
-        <Route path="/admin/settings" element={<AdminSettings />} />
-        <Route path="/system-updates" element={<SystemUpdates />} />
         {/* Protected */}
         <Route element={<ProtectedRoute />}>
+          <Route path="/admin/settings" element={<AdminSettings />} />
+          <Route path="/system-updates" element={<SystemUpdates />} />
+          <Route path="/developer-section" element={<DeveloperSection />} />
+          
           {HandmadeRoutes()}
           {PackingRoutes()}
           {FactoryRouter()}

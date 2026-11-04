@@ -122,6 +122,26 @@ const THEMES = {
     badgeText: '#15803d',
     particleColor: '#eab308', // කහ පැහැති floating අංශු
     particleType: 'gear', // Admin සඳහා Gear අයිකනය එලෙසම තබා ඇත
+  },
+
+  developer: {
+    pageBg: '#f8fafc',
+    orb1: 'rgba(59, 130, 246, 0.22)',
+    orb2: 'rgba(99, 102, 241, 0.18)',
+    orb3: 'rgba(139, 92, 246, 0.15)',
+    gridStroke: '#3b82f6',
+    textPrimary: '#1e3a8a',
+    textSecondary: '#4338ca',
+    accent: '#3b82f6',
+    btnGradient: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+    wipeGradient: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 40%, #60a5fa 100%)',
+    shimmer: 'rgba(59, 130, 246, 0.12)',
+    ringFocus: 'focus:ring-blue-500/25',
+    badgeBorder: '#bfdbfe',
+    badgeBg: '#eff6ff',
+    badgeText: '#1d4ed8',
+    particleColor: '#60a5fa',
+    particleType: 'gear',
   }
 };
 
@@ -265,7 +285,8 @@ export default function Login() {
     factory:   '/factory',
     localSale: '/localsale',
     manufacturer:  '/manufacturer', 
-    admin: '/admin/settings'
+    admin: '/admin/settings',
+    developer: '/developer-section'
   };
 
   const triggerThemeChange = (tab) => {
@@ -300,12 +321,15 @@ export default function Login() {
         if (userRole === 'Admin') {
             // Admins get access to all sections
             allowed = ['handmade', 'packing', 'factory', 'localSale', 'manufacturer','admin'];
+        } else if (userRole.toLowerCase() === 'developer') {
+            // 💡 Developer සඳහා පමණක් ලබා දෙන access එක
+            allowed = ['developer'];
         } else {
             // For standard users, map the IDs saved in DB to UI theme keys
             const paths = data.allowedPaths || [];
             allowed = paths.map(path => {
                 if (path === 'localsale') return 'localSale';
-                if (path === 'manufacturer') return 'manufacturer'; // 💡 Database එකෙන් එන නම map කිරීම
+                if (path === 'manufacturer') return 'manufacturer'; 
                 return path;
             });
         }
@@ -577,6 +601,16 @@ export default function Login() {
                       <Settings className="text-gray-600 group-hover:text-white" size={24} />
                     </div>
                     <span className="font-bold text-gray-800 text-lg">Admin Settings</span>
+                  </button>
+                )}
+
+                {/* ── Developer Option Button (Only Developer) ── */}
+                {allowedSystems.includes('developer') && (
+                  <button onClick={() => handleSystemSelection('developer')} className="p-4 bg-white hover:bg-blue-50 border-2 border-gray-100 hover:border-blue-500 rounded-2xl flex items-center gap-4 transition-all duration-300 shadow-sm group">
+                    <div className="p-3 bg-blue-100 rounded-xl group-hover:bg-blue-600 transition-colors">
+                      <LayoutDashboard className="text-blue-600 group-hover:text-white" size={24} />
+                    </div>
+                    <span className="font-bold text-gray-800 text-lg">Developer Section</span>
                   </button>
                 )}
               </div>
