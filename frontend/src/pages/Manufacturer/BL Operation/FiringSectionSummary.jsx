@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Save,
   RotateCcw,
+  Trash2
 } from "lucide-react";
 import toast from "react-hot-toast";
 import PDFDownloader from "@/components/PDFDownloader";
@@ -175,6 +176,9 @@ const FiringSectionSummary = () => {
       saveBtn: "Save Changes",
       editedBy: "LAST EDITED BY",
       editedAt: "LAST EDITED AT",
+
+      deleteRecord: lang === "SI" ? "වාර්තාව මකන්න" : "Delete Record",
+      deleteConfirm: lang === "SI" ? "මෙම දිනය සඳහා වූ සම්පූර්ණ වාර්තාව මකා දැමීමට ඔබට විශ්වාසද? මෙය නැවත ලබා ගත නොහැක." : "Are you sure you want to delete the entire record for this date? This cannot be undone.",
     }),
     [lang],
   );
@@ -312,6 +316,47 @@ const FiringSectionSummary = () => {
     setIsEditing(false);
     setEditForm(null);
     setIsDirty(false);
+  };
+
+  const handleDeleteRecord = async () => {
+    if (!currentRecord || !currentRecord._id) return;
+
+    const confirmMsg = lang === "SI"
+      ? "මෙම දිනය සඳහා වූ සම්පූර්ණ වාර්තාව මකා දැමීමට ඔබට විශ්වාසද? මෙය නැවත ලබා ගත නොහැක."
+      : "Are you sure you want to delete the entire record for this date? This cannot be undone.";
+
+    if (!window.confirm(confirmMsg)) return;
+
+    const toastId = toast.loading("Deleting record...");
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${BACKEND_URL}/api/firing-section/${currentRecord._id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        toast.success("Record deleted successfully!", { id: toastId });
+
+        // Remove from UI and jump to the next available date
+        const updatedRecords = allRecords.filter((rec) => rec._id !== currentRecord._id);
+        setAllRecords(updatedRecords);
+
+        if (updatedRecords.length > 0) {
+          setFilterDate(normalizeDate(updatedRecords[0].dateOfManufacture));
+        } else {
+          setFilterDate("");
+        }
+      } else {
+        toast.error(result.message || "Failed to delete record.", { id: toastId });
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      toast.error("Error communicating with server.", { id: toastId });
+    }
   };
 
   const handleNestedChange = (section, subSection, field, val) => {
@@ -1448,14 +1493,24 @@ const FiringSectionSummary = () => {
           <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto justify-start xl:justify-end z-10">
             {currentRecord &&
               (!isEditing ? (
-                <button
-                  type="button"
-                  onClick={handleStartEdit}
-                  className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
-                >
-                  <Edit3 size={15} />
-                  {t.editRecord}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleDeleteRecord}
+                    className="px-4 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold text-xs rounded-xl transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
+                  >
+                    <Trash2 size={15} />
+                    {lang === "SI" ? "මකන්න" : "Delete Record"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartEdit}
+                    className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
+                  >
+                    <Edit3 size={15} />
+                    {t.editRecord}
+                  </button>
+                </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <button

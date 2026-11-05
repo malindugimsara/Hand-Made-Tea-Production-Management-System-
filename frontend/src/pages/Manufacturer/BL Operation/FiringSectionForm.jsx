@@ -268,21 +268,21 @@ const FiringSectionForm = () => {
 
     const o1 = {
       withoutWithering: parseFloat(form.firewoodOutput.drier1.withoutWithering) || 0,
-      withering: parseFloat(form.firewoodOutput.drier1.withering) || 0,
+      withWithering: parseFloat(form.firewoodOutput.drier1.withWithering) || 0, // Fixed property name
       rf: parseFloat(form.firewoodOutput.drier1.rf) || 0
     };
-    o1.total = o1.withoutWithering + o1.withering + o1.rf;
+    o1.total = o1.withoutWithering + o1.withWithering + o1.rf; // Fixed property name
 
     const o2 = {
       withoutWithering: parseFloat(form.firewoodOutput.drier2.withoutWithering) || 0,
-      withering: parseFloat(form.firewoodOutput.drier2.withering) || 0,
+      withWithering: parseFloat(form.firewoodOutput.drier2.withWithering) || 0, // Fixed property name
       rf: parseFloat(form.firewoodOutput.drier2.rf) || 0
     };
-    o2.total = o2.withoutWithering + o2.withering + o2.rf;
+    o2.total = o2.withoutWithering + o2.withWithering + o2.rf; // Fixed property name
 
     const oTotal = {
       withoutWithering: o1.withoutWithering + o2.withoutWithering,
-      withering: o1.withering + o2.withering,
+      withWithering: o1.withWithering + o2.withWithering, // Fixed property name
       rf: o1.rf + o2.rf,
       total: o1.total + o2.total
     };
@@ -711,7 +711,7 @@ const FiringSectionForm = () => {
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900 font-medium">
                   {[
                     { label: t.withoutWithering, k: 'withoutWithering' },
-                    { label: t.withering, k: 'withering' },
+                    { label: t.withering, k: 'withWithering' }, // Fixed key here
                     { label: t.rf, k: 'rf' }
                   ].map(({ label, k }) => (
                     <tr key={k}>
