@@ -442,21 +442,21 @@ const FiringSectionSummary = () => {
 
     const out1 = {
       withoutWithering: Number(fo1.withoutWithering) || 0,
-      withering: Number(fo1.withWithering) || 0,
+      withWithering: Number(fo1.withWithering) || 0,
       rf: Number(fo1.rf) || 0,
     };
-    out1.total = out1.withoutWithering + out1.withering + out1.rf;
+    out1.total = out1.withoutWithering + out1.withWithering + out1.rf;
 
     const out2 = {
       withoutWithering: Number(fo2.withoutWithering) || 0,
-      withering: Number(fo2.withWithering) || 0,
+      withWithering: Number(fo2.withWithering) || 0,
       rf: Number(fo2.rf) || 0,
     };
-    out2.total = out2.withoutWithering + out2.withering + out2.rf;
+    out2.total = out2.withoutWithering + out2.withWithering + out2.rf;
 
     const outTotal = {
       withoutWithering: out1.withoutWithering + out2.withoutWithering,
-      withering: out1.withering + out2.withering,
+      withWithering: out1.withWithering + out2.withWithering,
       rf: out1.rf + out2.rf,
       total: out1.total + out2.total,
     };
@@ -929,11 +929,11 @@ const FiringSectionSummary = () => {
       ],
       [
         "WITH WITHERING",
-        `${calcData.out1.withering.toFixed(2)} kg`,
+        `${calcData.out1.withWithering.toFixed(2)} kg`,
         "WITH WITHERING",
-        `${calcData.out2.withering.toFixed(2)} kg`,
+        `${calcData.out2.withWithering.toFixed(2)} kg`,
         "WITH WITHERING",
-        `${calcData.outTotal.withering.toFixed(2)} kg`,
+        `${calcData.outTotal.withWithering.toFixed(2)} kg`,
       ],
       [
         "R/F",
@@ -2197,7 +2197,7 @@ const FiringSectionSummary = () => {
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900 font-medium">
                     {[
                       { label: t.withoutWithering, k: "withoutWithering" },
-                      { label: t.withering, k: "withering" },
+                      { label: t.withering, k: "withWithering" },
                       { label: t.rf, k: "rf" },
                     ].map(({ label, k }) => (
                       <tr key={k}>
