@@ -171,7 +171,7 @@ const RollingRoomSheetSummary = () => {
     cropDate: lang === 'SI' ? "අස්වැන්න දිනය" : "Crop Date",
     mfDate: lang === 'SI' ? "නිෂ්පාදිත දිනය" : "M/F Date",
     cropKg: lang === 'SI' ? "අස්වැන්න (Kg)" : "Crop (Kg)",
-    otherLeafKg: lang === 'SI' ? "වෙනත් දළු (Kg)" : "Other Leaf (Kg)",
+    otherLeafKg: lang === 'SI' ? "වියළී ගිය කොළ (Kg)" : "Withered Leaf (Kg)",
     rollingStartTime: lang === 'SI' ? "රෝලිං ආරම්භක වේලාව" : "Rolling Start Time",
     rollingEndTime: lang === 'SI' ? "රෝලිං අවසන් වේලාව" : "Rolling End Time",
     totalRollingHours: lang === 'SI' ? "මුළු රෝලිං පැය ගණන" : "Total Rolling Hours",
@@ -1666,8 +1666,8 @@ const RollingRoomSheetSummary = () => {
                           </td>
                           <td className="p-2">
                             <div className={`px-2 py-1 rounded-lg font-black inline-block transition-all duration-300 ${isInvalidDiff
-                                ? 'bg-rose-600 text-white animate-pulse ring-2 ring-rose-500/50 shadow-md'
-                                : 'text-blue-600 dark:text-blue-400'
+                              ? 'bg-rose-600 text-white animate-pulse ring-2 ring-rose-500/50 shadow-md'
+                              : 'text-blue-600 dark:text-blue-400'
                               }`}>
                               {row.difference || '-'}
                             </div>
