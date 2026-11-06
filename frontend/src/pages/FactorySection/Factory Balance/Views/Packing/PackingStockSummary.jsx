@@ -34,7 +34,7 @@ export default function PackingStockView() {
   // --- ROLE BASED ACCESS ---
   const userRole = localStorage.getItem("userRole") || localStorage.getItem("role") || "";
   const isViewer = userRole.toLowerCase() === "viewer" || userRole.toLowerCase() === "view";
-  const isAdmin = userRole === "Admin";
+  const isAdmin = userRole === "Admin" || userRole === "Developer";
 
   const currentMonthStr = new Date().toISOString().slice(0, 7);
 

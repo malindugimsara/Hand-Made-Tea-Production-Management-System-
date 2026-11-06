@@ -269,7 +269,7 @@ const [searchQuery, setSearchQuery] = React.useState('');
   
     // 💡 NEW: check access to a specific URL based on allowedPages
     const hasAccess = React.useCallback((url) => {
-      if (currentUserRole === 'Admin') return true; // Admin has access to everything
+      if (currentUserRole === 'Admin' || currentUserRole === 'Developer') return true; // Admin and Developer have access to everything
       if (!url) return false;
       return allowedPages.includes(url);
     }, [currentUserRole, allowedPages]);

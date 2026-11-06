@@ -31,7 +31,7 @@ export default function ViewLoftLeafCount() {
   const navigate = useNavigate();
   const userRole = localStorage.getItem("userRole") || "";
   const isViewer = userRole.toLowerCase() === "viewer" || userRole.toLowerCase() === "view";
-  const isAdmin = userRole === "Admin"; 
+  const isAdmin = userRole === "Admin" || userRole === "Developer"; 
   const currentUsername = localStorage.getItem("username") || "Unknown User";
 
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);

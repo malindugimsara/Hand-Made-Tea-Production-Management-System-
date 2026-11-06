@@ -10,6 +10,7 @@ import LocalSaleRouter from './pages/LocalSaleRouter';
 import ManufacturerRouter from './pages/ManufacturerRouter';
 import AdminSettings from './pages/Admin/AdminSettings';
 import SystemUpdates from './pages/systerm update/SystemUpdates';
+import DeveloperSection from './pages/systerm update/DeveloperSection';
 
 const PUBLIC_VAPID_KEY = import.meta.env.VITE_PUBLIC_VAPID_KEY;
 
@@ -27,6 +28,17 @@ function urlBase64ToUint8Array(base64String) {
 const ProtectedRoute = () => {
   const token = localStorage.getItem('token');
   return token ? <Outlet /> : <Navigate to="/login" replace />;
+};
+
+const DeveloperRoute = () => {
+  const token = localStorage.getItem('token');
+  const role = localStorage.getItem('userRole') || localStorage.getItem('role');
+  if (!token) return <Navigate to="/login" replace />;
+  if (role !== 'Developer') {
+    toast.error("Access Denied. Restricted to Developers only.");
+    return <Navigate to="/" replace />;
+  }
+  return <Outlet />;
 };
 
 export default function App() {
@@ -99,10 +111,16 @@ export default function App() {
         {/* Public */}
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<Login />} />
-        <Route path="/admin/settings" element={<AdminSettings />} />
-        <Route path="/system-updates" element={<SystemUpdates />} />
         {/* Protected */}
         <Route element={<ProtectedRoute />}>
+          <Route path="/admin/settings" element={<AdminSettings />} />
+          
+          {/* Developer Only Routes */}
+          <Route element={<DeveloperRoute />}>
+            <Route path="/developer-section" element={<DeveloperSection />} />
+            <Route path="/system-updates" element={<SystemUpdates />} />
+          </Route>
+          
           {HandmadeRoutes()}
           {PackingRoutes()}
           {FactoryRouter()}

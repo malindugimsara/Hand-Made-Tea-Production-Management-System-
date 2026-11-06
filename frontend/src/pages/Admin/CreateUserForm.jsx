@@ -240,13 +240,14 @@ export default function CreateUserForm({ onSuccess }) {
                         name="role" value={formData.role} 
                         onChange={(e) => {
                             handleInputChange(e);
-                            if (e.target.value === 'Admin') setFormData(prev => ({ ...prev, allowedPaths: [], allowedPages: [] }));
+                            if (e.target.value === 'Admin' || e.target.value === 'Developer') setFormData(prev => ({ ...prev, allowedPaths: [], allowedPages: [] }));
                         }} 
                         className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-[#8CC63F] outline-none"
                     >
                         <option value="User">Standard User (Specific Sections Only)</option>
                         <option value="Viewer">Viewer (Read-Only Access)</option>
                         <option value="Admin">Admin (Full System Access)</option>
+                        <option value="Developer">Developer (Full Access & Dev Section)</option>
                     </select>
                 </div>
 

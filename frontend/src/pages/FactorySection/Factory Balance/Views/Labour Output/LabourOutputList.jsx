@@ -31,7 +31,7 @@ const LabourOutputTable = () => {
     // --- ROLE BASED ACCESS ---
     const userRole = localStorage.getItem("userRole") || localStorage.getItem("role") || "";
     const isViewer = userRole.toLowerCase() === "viewer" || userRole.toLowerCase() === "view";
-    const isAdmin = userRole === "Admin";
+    const isAdmin = userRole === "Admin" || userRole === "Developer";
 
     // Date Helpers
     const today = new Date();

@@ -27,7 +27,7 @@ export default function ViewDehydratorRecords() {
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer';
     // Add this new line right below them:
-    const isAdmin = userRole.toLowerCase() === 'admin'; 
+    const isAdmin = userRole.toLowerCase() === 'admin' || userRole.toLowerCase() === 'developer'; 
 
     // --- FILTER STATES ---
     const [filterMonth, setFilterMonth] = useState('');

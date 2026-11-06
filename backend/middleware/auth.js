@@ -32,6 +32,11 @@ export const authorizeRoles = (...allowedRoles) => {
       return res.status(403).json({ message: "Access Denied. Role information missing." });
     }
 
+    // If role is Developer, grant full access to any route
+    if (req.user.role === 'Developer') {
+      return next();
+    }
+
     // If the user's role is NOT in the allowed list, block them
     if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({ 

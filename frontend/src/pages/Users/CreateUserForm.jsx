@@ -177,7 +177,7 @@ export default function CreateUserForm() {
                             value={formData.role} 
                             onChange={(e) => {
                                 handleInputChange(e);
-                                if (e.target.value === 'Admin') {
+                                if (e.target.value === 'Admin' || e.target.value === 'Developer') {
                                     setFormData(prev => ({ ...prev, allowedPaths: [] }));
                                 }
                             }} 
@@ -187,6 +187,7 @@ export default function CreateUserForm() {
                             <option value="User" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Standard User (Specific Sections Only)</option>
                             <option value="Viewer">Viewer (Read-Only Access)</option>
                             <option value="Admin" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Admin (Full System Access)</option>
+                            <option value="Developer" className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100">Developer (Full Access & Dev Section)</option>
                         </select>
                         
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2.5 italic">

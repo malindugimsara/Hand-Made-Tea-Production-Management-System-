@@ -26,7 +26,7 @@ export default function ViewLoftLeafCount() {
   // --- ROLE BASED ACCESS ---
   const userRole = localStorage.getItem("userRole") || "";
   const isViewer = userRole.toLowerCase() === "viewer" || userRole.toLowerCase() === "view";
-  const isAdmin = userRole === "Admin"; // 👈 Admin ද යන්න පරීක්ෂා කිරීම
+  const isAdmin = userRole === "Admin" || userRole === "Developer"; // 👈 Admin හෝ Developer ද යන්න පරීක්ෂා කිරීම
   const currentUsername = localStorage.getItem("username") || "System Admin";
 
   // --- STATES ---

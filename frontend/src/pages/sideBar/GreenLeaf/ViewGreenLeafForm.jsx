@@ -87,7 +87,7 @@ export default function GreenLeafForm() {
   const userRole = localStorage.getItem("userRole") || "";
   const isViewer =
     userRole.toLowerCase() === "viewer" || userRole.toLowerCase() === "view";
-  const isAdmin = userRole.toLowerCase() === "admin";
+  const isAdmin = userRole.toLowerCase() === "admin" || userRole.toLowerCase() === "developer";
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");

@@ -111,7 +111,7 @@ export default function ViewTeaCenterRecords() {
 
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer';
-    const isAdmin = userRole.toLowerCase() === 'admin';
+    const isAdmin = userRole.toLowerCase() === 'admin' || userRole.toLowerCase() === 'developer';
 
     // --- FILTER STATES ---
     const [filterMonth, setFilterMonth] = useState('');
