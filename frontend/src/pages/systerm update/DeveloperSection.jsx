@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { 
     LogOut, Code2, Wrench, Receipt, LayoutDashboard, ChevronRight, Sparkles,
-    Server, CheckCircle2, Clock, Zap, ArrowRight, Activity // 💡 අලුතින් එකතු කළ Icons
+    Server, Clock, Zap, ArrowRight, Activity, 
+    FileWarning,
+    CheckCircle2
 } from 'lucide-react';
 
 import SystemUpdates from './SystemUpdates'; 
 import SystemInvoice from './SystemInvoice';
+import MissingRecords from './MissingRecords';
 
 export default function DeveloperSection() {
     const navigate = useNavigate();
@@ -32,6 +35,7 @@ export default function DeveloperSection() {
         { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'updates', label: 'System Updates', icon: Wrench },
         { id: 'invoice', label: 'Generate Invoice', icon: Receipt },
+        { id: 'audit', label: 'Data Audit (Missing)', icon: FileWarning },
     ];
 
     return (
@@ -96,7 +100,6 @@ export default function DeveloperSection() {
                 {/* --- Right Content Area --- */}
                 <div className="flex-1 w-full bg-white dark:bg-slate-900 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden min-h-[600px]">
 
-                    {/* 1. Overview Screen */}
                     {/* 1. Overview Screen (Modern Developer Dashboard) */}
                     {activeTab === 'overview' && (
                         <div className="h-full w-full p-4 sm:p-8 animate-in fade-in zoom-in-95 duration-300 overflow-y-auto custom-scrollbar">
@@ -230,6 +233,12 @@ export default function DeveloperSection() {
                     {activeTab === 'invoice' && (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 h-full w-full">
                             <SystemInvoice />
+                        </div>
+                    )}
+
+                    {activeTab === 'audit' && (
+                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 h-full w-full">
+                            <MissingRecords />
                         </div>
                     )}
 
