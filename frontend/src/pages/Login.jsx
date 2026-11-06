@@ -320,10 +320,10 @@ export default function Login() {
         // 1. Identify Allowed Paths dynamically based on Role
         if (userRole === 'Admin') {
             // Admins get access to all sections
-            allowed = ['handmade', 'packing', 'factory', 'localSale', 'manufacturer','admin'];
+            allowed = ['handmade', 'packing', 'factory', 'localSale', 'manufacturer', 'admin'];
         } else if (userRole.toLowerCase() === 'developer') {
-            // 💡 Developer සඳහා පමණක් ලබා දෙන access එක
-            allowed = ['developer'];
+            // Developer has all access to all sections including Developer Section
+            allowed = ['handmade', 'packing', 'factory', 'localSale', 'manufacturer', 'admin', 'developer'];
         } else {
             // For standard users, map the IDs saved in DB to UI theme keys
             const paths = data.allowedPaths || [];
@@ -384,6 +384,8 @@ export default function Login() {
     if (activeTab === 'packing') return 'Packing Section';
     if (activeTab === 'localSale') return 'Local Sale';
     if (activeTab === 'manufacturer') return 'Manufacturer Section';
+    if (activeTab === 'admin') return 'Admin Settings';
+    if (activeTab === 'developer') return 'Developer Section';
     return 'Factory Section';
   };
 

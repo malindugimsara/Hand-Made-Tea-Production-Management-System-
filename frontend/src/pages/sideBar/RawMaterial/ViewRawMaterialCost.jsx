@@ -26,7 +26,7 @@ export default function ViewRawMaterialCost() {
     const userRole = localStorage.getItem('userRole') || ''; 
     const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
     // Add this new line right below them:
-    const isAdmin = userRole.toLowerCase() === 'admin';
+    const isAdmin = userRole.toLowerCase() === 'admin' || userRole.toLowerCase() === 'developer';
 
     const [loading, setLoading] = useState(false);
     const [records, setRecords] = useState([]);

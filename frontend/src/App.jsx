@@ -30,6 +30,17 @@ const ProtectedRoute = () => {
   return token ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
+const DeveloperRoute = () => {
+  const token = localStorage.getItem('token');
+  const role = localStorage.getItem('userRole') || localStorage.getItem('role');
+  if (!token) return <Navigate to="/login" replace />;
+  if (role !== 'Developer') {
+    toast.error("Access Denied. Restricted to Developers only.");
+    return <Navigate to="/" replace />;
+  }
+  return <Outlet />;
+};
+
 export default function App() {
   const [showNotificationBtn, setShowNotificationBtn] = useState(false);
 
@@ -103,8 +114,12 @@ export default function App() {
         {/* Protected */}
         <Route element={<ProtectedRoute />}>
           <Route path="/admin/settings" element={<AdminSettings />} />
-          <Route path="/system-updates" element={<SystemUpdates />} />
-          <Route path="/developer-section" element={<DeveloperSection />} />
+          
+          {/* Developer Only Routes */}
+          <Route element={<DeveloperRoute />}>
+            <Route path="/developer-section" element={<DeveloperSection />} />
+            <Route path="/system-updates" element={<SystemUpdates />} />
+          </Route>
           
           {HandmadeRoutes()}
           {PackingRoutes()}

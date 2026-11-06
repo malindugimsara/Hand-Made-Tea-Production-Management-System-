@@ -279,7 +279,7 @@ export default function ManufacturerDashboardLayout() {
 
   // 💡 NEW: Check if the user has access to a specific URL
   const hasAccess = React.useCallback((url) => {
-    if (currentUserRole === 'Admin') return true; // Admin ට සියල්ල පෙන්වයි
+    if (currentUserRole === 'Admin' || currentUserRole === 'Developer') return true; // Admin සහ Developer ට සියල්ල පෙන්වයි
     if (!url) return false;
     return allowedPages.includes(url);
   }, [currentUserRole, allowedPages]);

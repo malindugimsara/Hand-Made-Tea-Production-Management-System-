@@ -206,14 +206,15 @@ export default function ManageUsers() {
                                         <div className="flex flex-col gap-2">
                                             <span className={`px-3 py-1 rounded-full text-xs font-bold border flex w-fit items-center gap-1 transition-colors
                                                 ${user.role === 'Admin' ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800/50' : 
+                                                user.role === 'Developer' ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800/50' :
                                                 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/50'}`}
                                             >
-                                                {user.role === 'Admin' ? <Shield size={12}/> : <UserIcon size={12}/>}
-                                                {user.role === 'Admin' || user.role === 'User' ? user.role : `Legacy: ${user.role}`}
+                                                {user.role === 'Admin' || user.role === 'Developer' ? <Shield size={12}/> : <UserIcon size={12}/>}
+                                                {user.role === 'Admin' || user.role === 'Developer' || user.role === 'User' ? user.role : `Legacy: ${user.role}`}
                                             </span>
 
                                             {/* Sections Badge for Users */}
-                                            {(user.role === 'User' || (user.role !== 'Admin' && user.allowedPaths)) && user.allowedPaths && user.allowedPaths.length > 0 && (
+                                            {(user.role === 'User' || (user.role !== 'Admin' && user.role !== 'Developer' && user.allowedPaths)) && user.allowedPaths && user.allowedPaths.length > 0 && (
                                                 <div className="flex flex-wrap gap-1.5 mt-1">
                                                     {user.allowedPaths.map(pathId => {
                                                         const sectionLabel = SYSTEM_SECTIONS.find(s => s.id === pathId)?.label || pathId;
@@ -225,7 +226,7 @@ export default function ManageUsers() {
                                                     })}
                                                 </div>
                                             )}
-                                            {user.role === 'Admin' && (
+                                            {(user.role === 'Admin' || user.role === 'Developer') && (
                                                 <span className="text-[10px] text-gray-400 dark:text-gray-500 italic mt-1">Full System Access</span>
                                             )}
                                         </div>
@@ -317,7 +318,7 @@ export default function ManageUsers() {
                                         setEditFormData({
                                             ...editFormData, 
                                             role: newRole,
-                                            allowedPaths: newRole === 'Admin' ? [] : editFormData.allowedPaths
+                                            allowedPaths: (newRole === 'Admin' || newRole === 'Developer') ? [] : editFormData.allowedPaths
                                         });
                                     }}
                                     className="w-full p-3 border border-gray-300 dark:border-zinc-700 rounded-md focus:ring-2 focus:ring-[#8CC63F] dark:focus:ring-green-600 outline-none bg-gray-50 dark:bg-zinc-950 dark:text-gray-100 transition-colors cursor-pointer"
@@ -325,6 +326,7 @@ export default function ManageUsers() {
                                     <option value="User">Standard User</option>
                                     <option value="Viewer">Viewer (Read-Only)</option>
                                     <option value="Admin">Admin</option>
+                                    <option value="Developer">Developer (All Access)</option>
                                 </select>
                             </div>
 

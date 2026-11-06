@@ -18,8 +18,8 @@ export default function AdminSettings() {
 
     useEffect(() => {
         const currentRole = localStorage.getItem('userRole') || localStorage.getItem('role');
-        if (currentRole !== 'Admin') {
-            toast.error("Access Denied. Admins only.");
+        if (currentRole !== 'Admin' && currentRole !== 'Developer') {
+            toast.error("Access Denied. Admins and Developers only.");
             navigate('/');
         }
     }, [navigate]);

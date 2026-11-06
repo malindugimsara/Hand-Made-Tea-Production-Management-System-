@@ -1,7 +1,10 @@
 import express from 'express';
 import { createInvoice, getInvoices, updateInvoice, deleteInvoice } from '../controllers/systemInvoiceController.js';
+import { verifyToken, authorizeRoles } from '../../middleware/auth.js';
 
 const systemInvoiceRoute = express.Router();
+
+systemInvoiceRoute.use(verifyToken, authorizeRoles('Developer'));
 
 systemInvoiceRoute.post('/', createInvoice);
 systemInvoiceRoute.get('/', getInvoices);
