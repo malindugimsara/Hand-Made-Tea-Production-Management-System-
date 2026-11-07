@@ -11,6 +11,7 @@ import ManufacturerRouter from './pages/ManufacturerRouter';
 import AdminSettings from './pages/Admin/AdminSettings';
 import SystemUpdates from './pages/systerm update/SystemUpdates';
 import DeveloperSection from './pages/systerm update/DeveloperSection';
+import SystemBackup from './pages/systerm update/SystemBackup';
 
 const PUBLIC_VAPID_KEY = import.meta.env.VITE_PUBLIC_VAPID_KEY;
 
@@ -119,6 +120,7 @@ export default function App() {
           <Route element={<DeveloperRoute />}>
             <Route path="/developer-section" element={<DeveloperSection />} />
             <Route path="/system-updates" element={<SystemUpdates />} />
+            <Route path="/system-backup" element={<SystemBackup />} />
           </Route>
           
           {HandmadeRoutes()}

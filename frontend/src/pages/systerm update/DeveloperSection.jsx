@@ -11,6 +11,7 @@ import {
 import SystemUpdates from './SystemUpdates'; 
 import SystemInvoice from './SystemInvoice';
 import MissingRecords from './MissingRecords';
+import SystemBackup from './SystemBackup';
 
 export default function DeveloperSection() {
     const navigate = useNavigate();
@@ -36,6 +37,7 @@ export default function DeveloperSection() {
         { id: 'updates', label: 'System Updates', icon: Wrench },
         { id: 'invoice', label: 'Generate Invoice', icon: Receipt },
         { id: 'audit', label: 'Data Audit (Missing)', icon: FileWarning },
+        { id: 'backup', label: 'System Backup', icon: Server },
     ];
 
     return (
@@ -239,6 +241,12 @@ export default function DeveloperSection() {
                     {activeTab === 'audit' && (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 h-full w-full">
                             <MissingRecords />
+                        </div>
+                    )}
+
+                    {activeTab === 'backup' && (
+                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 h-full w-full">
+                            <SystemBackup />        
                         </div>
                     )}
 
