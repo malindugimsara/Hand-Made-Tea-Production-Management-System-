@@ -56,9 +56,11 @@ import pdfTotalRouter from './manufacturer/routes/pdfTotalRoutes.js';
 import tc5router from './manufacturer/routes/tc5ReportRoutes.js';
 import teaCenterIssueRouter from './Packing/Routes/teaCenterIssueRouter.js';
 import tc5ManualReportRouter from './manufacturer/routes/tc5ManualReportRoutes.js';
+
 import systemReportRouter from './system-report/routes/systemUpdateRoutes.js';
 import systemInvoiceRoute from './system-report/routes/systemInvoiceRoutes.js';
 import auditRoutes from './system-report/routes/auditRoutes.js';
+import systemBackupRouter from './system-report/routes/backup.routes.js';
 
 dotenv.config();
 const app = express();
@@ -220,6 +222,7 @@ app.use('/api/tc5manualreport', tc5ManualReportRouter);
 app.use('/api/system-updates', systemReportRouter);
 app.use('/api/system-invoices', systemInvoiceRoute);
 app.use('/api/system-audit', auditRoutes);
+app.use('/api/backup', systemBackupRouter);
 
 app.listen(3000, () => {
   console.log('Server is running on port 3000');
