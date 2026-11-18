@@ -4,7 +4,7 @@ import {
     saveLabourOutput,
     deleteLabourLogsByDate, 
     updateLabourOutputByDate
-}  from '../controller/labourOutputController.js';
+}  from '../controllers/labourOutputController.js';
 
 import { verifyToken, authorizeRoles } from '../../middleware/auth.js'; 
 

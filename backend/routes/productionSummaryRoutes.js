@@ -3,7 +3,7 @@ import {
     saveProductionSummary, 
     getAllProductionSummaries,
     deleteProductionSummary 
-} from '../controller/productionSummaryController.js';
+} from '../controllers/productionSummaryController.js';
 import { verifyToken, authorizeRoles } from '../middleware/auth.js';
 
 const productionSummaryRouter = express.Router();

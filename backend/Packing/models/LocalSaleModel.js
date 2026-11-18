@@ -92,6 +92,8 @@ const localSaleSchema = new mongoose.Schema({
     timestamps: true 
 });
 
+localSaleSchema.index({ date: -1, createdAt: -1 });
+
 const LocalSale = mongoose.model('LocalSale', localSaleSchema);
 
 export default LocalSale;

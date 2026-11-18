@@ -4,7 +4,7 @@ import {
     deleteProduction, 
     getProductionSummary, 
     updateProduction 
-} from '../controller/productionController.js';
+} from '../controllers/productionController.js';
 
 import { verifyToken, authorizeRoles } from '../middleware/auth.js'; 
 

@@ -37,4 +37,6 @@ const systemUpdateSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+systemUpdateSchema.index({ assignDate: -1 });
+
 export default mongoose.model('SystemUpdate', systemUpdateSchema);

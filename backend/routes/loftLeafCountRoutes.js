@@ -5,7 +5,7 @@ import {
     updateLoftLeafCount,
     deleteLoftLeafCount,
     getMonthlyRouteSummary
-} from '../controller/loftLeafCountController.js';
+} from '../controllers/loftLeafCountController.js';
 import { verifyToken, authorizeRoles } from '../middleware/auth.js';
 
 const loftLeafrouter = express.Router();

@@ -1,5 +1,5 @@
 import express from 'express';
-import { deleteFactoryLog, getFactoryLogsByMonth, saveDailyFactoryLog } from '../controller/factoryController.js';
+import { deleteFactoryLog, getFactoryLogsByMonth, saveDailyFactoryLog } from '../controllers/factoryController.js';
 
 // Authentication සහ Role-based Authorization Middlewares Import කිරීම
 import { verifyToken, authorizeRoles } from '../../middleware/auth.js'; 

@@ -31,6 +31,8 @@ const labourOutputSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+labourOutputSchema.index({ date: -1 });
+labourOutputSchema.index({ date: 1, section: 1 });
 
 // Replace the bottom of your model file with this:
 const LabourOutput = mongoose.models.LabourOutput || mongoose.model('LabourOutput', labourOutputSchema);

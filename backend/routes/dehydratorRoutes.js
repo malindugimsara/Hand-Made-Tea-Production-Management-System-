@@ -1,5 +1,5 @@
 import express from 'express';
-import { createDehydrator, deleteDehydrator, getAllDehydrator, updateDehydrator } from '../controller/dehydratorController.js';
+import { createDehydrator, deleteDehydrator, getAllDehydrator, updateDehydrator } from '../controllers/dehydratorController.js';
 
 import { verifyToken, authorizeRoles } from '../middleware/auth.js'; 
 

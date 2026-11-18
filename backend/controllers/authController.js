@@ -8,22 +8,24 @@ export const loginUser = async (req, res) => {
 
     // 1. Find user
     const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
     // 2. Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return res.status(401).json({ message: "Invalid credentials" });
 
-    // 3. Generate JWT containing the user ID, Role, and allowedPaths
+    // 3. Generate JWT containing the user ID, Role, allowedPaths, allowedPages, and tokenVersion
     const token = jwt.sign(
       { 
           id: user._id, 
           role: user.role, 
           name: user.username,
-          allowedPaths: user.allowedPaths 
+          allowedPaths: user.allowedPaths,
+          allowedPages: user.allowedPages || [],
+          tokenVersion: user.tokenVersion || 0
       }, 
       process.env.JWT_KEY, 
-      { expiresIn: '12h' } // Token expires in 12 hours
+      { expiresIn: '8h' } // Token expires in 8 hours (revocable anytime via tokenVersion)
     );
 
     res.status(200).json({ 
@@ -58,5 +60,18 @@ export const registerUser = async (req, res) => {
   } catch (error) {
     console.error("Registration Error:", error);
     res.status(500).json({ error: "Error creating user. Username might exist." });
+  }
+};
+
+// Logout User (Revoke token by incrementing tokenVersion on server)
+export const logoutUser = async (req, res) => {
+  try {
+    if (req.user && req.user.id) {
+      await User.findByIdAndUpdate(req.user.id, { $inc: { tokenVersion: 1 } });
+    }
+    res.status(200).json({ success: true, message: "Logged out successfully. Token invalidated." });
+  } catch (error) {
+    console.error("Logout Error:", error);
+    res.status(500).json({ error: "Server error during logout." });
   }
 };

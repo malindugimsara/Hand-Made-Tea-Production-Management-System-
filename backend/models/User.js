@@ -21,6 +21,11 @@ const UserSchema = new mongoose.Schema({
   allowedPages: {
     type: [String],
     default: []
+  },
+
+  tokenVersion: {
+    type: Number,
+    default: 0
   }
 }, { timestamps: true }); 
 

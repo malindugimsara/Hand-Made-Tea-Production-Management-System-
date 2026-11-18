@@ -12,4 +12,7 @@ const SystemInvoiceSchema = new mongoose.Schema({
     grandTotal: { type: Number, required: true }
 }, { timestamps: true });
 
+SystemInvoiceSchema.index({ month: 1 });
+SystemInvoiceSchema.index({ createdAt: -1 });
+
 export default mongoose.model('SystemInvoice', SystemInvoiceSchema);

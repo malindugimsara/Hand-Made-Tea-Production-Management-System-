@@ -22,4 +22,6 @@ const labourSchema = new mongoose.Schema({
     updatedBy: { type: String, default: '' }
 }, { timestamps: true });
 
+labourSchema.index({ date: -1 });
+
 export const Labour = mongoose.model('Labour', labourSchema);

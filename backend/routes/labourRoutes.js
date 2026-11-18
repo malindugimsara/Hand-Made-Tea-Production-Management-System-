@@ -4,7 +4,7 @@ import {
     deleteLabour, 
     getAllLabour, 
     updateLabour 
-} from '../controller/labourController.js';
+} from '../controllers/labourController.js';
 
 import { verifyToken, authorizeRoles } from '../middleware/auth.js'; 
 

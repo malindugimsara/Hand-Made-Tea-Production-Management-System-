@@ -1,13 +1,16 @@
+import mongoose from 'mongoose';
 import PackingStock from '../models/PackingStock.js';
 import RawMaterialStock from '../models/RawMaterialStock.js';
 import StockAdjustmentLog from '../models/StockAdjustmentLog.js';
+import { paginate } from '../../utils/paginate.js';
 
-
-// GET All Stock Adjustment Logs
+// GET All Stock Adjustment Logs (supports ?page=&limit= or bounded list)
 export const getStockAdjustmentLogs = async (req, res) => {
     try {
-        const logs = await StockAdjustmentLog.find().sort({ createdAt: -1 });
-        res.status(200).json(logs);
+        await paginate(StockAdjustmentLog, req, res, { 
+            dateField: 'createdAt',
+            sort: { createdAt: -1 }
+        });
     } catch (error) {
         console.error("Error fetching logs:", error);
         res.status(500).json({ message: "Server error while fetching logs" });
@@ -27,11 +30,21 @@ export const getSingleStockAdjustment = async (req, res) => {
 
 // --- 1. ADJUST STOCK (POST) ---
 export const adjustStock = async (req, res) => {
+    let session = null;
     try {
+        session = await mongoose.startSession();
+        session.startTransaction();
+    } catch {
+        session = null;
+    }
+
+    try {
+        const sessionOptions = session ? { session } : {};
         const { date, itemType, itemName, action, amount, reason } = req.body;
         const adjustedBy = req.user?.name || 'System User';   
 
         if (!itemType || !itemName || !action || !amount) {
+            if (session) await session.abortTransaction();
             return res.status(400).json({ message: "Missing required fields" });
         }
 
@@ -39,61 +52,111 @@ export const adjustStock = async (req, res) => {
 
         // Update Tea Stock
         if (itemType === 'tea') {
-            const stock = await PackingStock.findOne({ productName: itemName });
-            if (!stock) return res.status(404).json({ message: "Tea product not found" });
+            const stockQuery = PackingStock.findOne({ productName: itemName });
+            if (session) stockQuery.session(session);
+            const stock = await stockQuery;
+            if (!stock) {
+                if (session) await session.abortTransaction();
+                return res.status(404).json({ message: "Tea product not found" });
+            }
             if (action === 'add') stock.totalBulkStockKg += adjustmentAmount;
             else {
-                if (stock.totalBulkStockKg < adjustmentAmount) return res.status(400).json({ message: "Insufficient stock!" });
+                if (stock.totalBulkStockKg < adjustmentAmount) {
+                    if (session) await session.abortTransaction();
+                    return res.status(400).json({ message: "Insufficient stock!" });
+                }
                 stock.totalBulkStockKg -= adjustmentAmount;
             }
-            await stock.save();
+            await stock.save(sessionOptions);
 
         // Update Raw Materials OR Spicy Stock (Both are in RawMaterialStock collection)
         } else if (itemType === 'raw' || itemType === 'spicy') {
-            const rawStock = await RawMaterialStock.findOne({ materialName: itemName });
-            if (!rawStock) return res.status(404).json({ message: "Material/Spice not found" });
+            const rawStockQuery = RawMaterialStock.findOne({ materialName: itemName });
+            if (session) rawStockQuery.session(session);
+            const rawStock = await rawStockQuery;
+            if (!rawStock) {
+                if (session) await session.abortTransaction();
+                return res.status(404).json({ message: "Material/Spice not found" });
+            }
 
             if (action === 'add') {
                 rawStock.totalQuantity += adjustmentAmount;
                 rawStock.transInAmount = (rawStock.transInAmount || 0) + adjustmentAmount;
             } else {
-                if (rawStock.totalQuantity < adjustmentAmount) return res.status(400).json({ message: "Insufficient stock!" });
+                if (rawStock.totalQuantity < adjustmentAmount) {
+                    if (session) await session.abortTransaction();
+                    return res.status(400).json({ message: "Insufficient stock!" });
+                }
                 rawStock.totalQuantity -= adjustmentAmount;
                 rawStock.issueAmount = (rawStock.issueAmount || 0) + adjustmentAmount;
             }
-            await rawStock.save();
+            await rawStock.save(sessionOptions);
             
         } else {
+            if (session) await session.abortTransaction();
             return res.status(400).json({ message: "Invalid item type" });
         }
 
         // Save Log
         const log = new StockAdjustmentLog({ itemType, itemName, action, amount: adjustmentAmount, reason, adjustedBy, createdAt: date ? new Date(date) : new Date() });
-        await log.save();
+        await log.save(sessionOptions);
+
+        if (session) {
+            await session.commitTransaction();
+        }
 
         res.status(200).json({ message: "Stock adjusted successfully" });
     } catch (error) {
+        if (session) {
+            try {
+                await session.abortTransaction();
+            } catch (abortErr) {
+                console.error("Error aborting transaction:", abortErr);
+            }
+        }
         res.status(500).json({ message: "Server error", error: error.message });
+    } finally {
+        if (session) {
+            session.endSession();
+        }
     }
 };
 
 // --- 2. DELETE ADJUSTMENT (Reverse Logic) ---
 export const deleteStockAdjustment = async (req, res) => {
+    let session = null;
     try {
+        session = await mongoose.startSession();
+        session.startTransaction();
+    } catch {
+        session = null;
+    }
+
+    try {
+        const sessionOptions = session ? { session } : {};
         const { id } = req.params;
-        const log = await StockAdjustmentLog.findById(id);
-        if (!log) return res.status(404).json({ message: 'Log not found' });
+        const logQuery = StockAdjustmentLog.findById(id);
+        if (session) logQuery.session(session);
+        const log = await logQuery;
+        if (!log) {
+            if (session) await session.abortTransaction();
+            return res.status(404).json({ message: 'Log not found' });
+        }
 
         const { itemType, itemName, action, amount } = log;
 
         if (itemType === 'tea') {
-            const stock = await PackingStock.findOne({ productName: itemName });
+            const stockQuery = PackingStock.findOne({ productName: itemName });
+            if (session) stockQuery.session(session);
+            const stock = await stockQuery;
             if (stock) {
                 action === 'add' ? stock.totalBulkStockKg -= amount : stock.totalBulkStockKg += amount;
-                await stock.save();
+                await stock.save(sessionOptions);
             }
         } else if (itemType === 'raw' || itemType === 'spicy') {
-            const rawStock = await RawMaterialStock.findOne({ materialName: itemName });
+            const rawStockQuery = RawMaterialStock.findOne({ materialName: itemName });
+            if (session) rawStockQuery.session(session);
+            const rawStock = await rawStockQuery;
             if (rawStock) {
                 if (action === 'add') {
                     rawStock.totalQuantity -= amount;
@@ -102,27 +165,58 @@ export const deleteStockAdjustment = async (req, res) => {
                     rawStock.totalQuantity += amount;
                     rawStock.issueAmount = Math.max(0, rawStock.issueAmount - amount);
                 }
-                await rawStock.save();
+                await rawStock.save(sessionOptions);
             }
         }
-        await log.deleteOne();
+        await log.deleteOne(sessionOptions);
+
+        if (session) {
+            await session.commitTransaction();
+        }
+
         res.status(200).json({ message: 'Deleted and reversed successfully' });
     } catch (error) {
+        if (session) {
+            try {
+                await session.abortTransaction();
+            } catch (abortErr) {
+                console.error("Error aborting transaction:", abortErr);
+            }
+        }
         res.status(500).json({ message: 'Server error' });
+    } finally {
+        if (session) {
+            session.endSession();
+        }
     }
 };
 
 // --- 3. UPDATE ADJUSTMENT (PUT) ---
 export const updateStockAdjustment = async (req, res) => {
+    let session = null;
     try {
+        session = await mongoose.startSession();
+        session.startTransaction();
+    } catch {
+        session = null;
+    }
+
+    try {
+        const sessionOptions = session ? { session } : {};
         const { id } = req.params;
         const { date, itemType, itemName, action, amount, reason } = req.body;
         
-        const log = await StockAdjustmentLog.findById(id);
-        if (!log) return res.status(404).json({ message: "Log not found" });
+        const logQuery = StockAdjustmentLog.findById(id);
+        if (session) logQuery.session(session);
+        const log = await logQuery;
+        if (!log) {
+            if (session) await session.abortTransaction();
+            return res.status(404).json({ message: "Log not found" });
+        }
 
         // Validation: Cannot change Item or Type
         if (log.itemName !== itemName || log.itemType !== itemType) {
+            if (session) await session.abortTransaction();
             return res.status(400).json({ message: "Cannot change Item/Type during edit." });
         }
 
@@ -133,8 +227,13 @@ export const updateStockAdjustment = async (req, res) => {
 
         // Update Tea Stock
         if (itemType === 'tea') {
-            const stock = await PackingStock.findOne({ productName: itemName });
-            if (!stock) return res.status(404).json({ message: "Tea product not found" });
+            const stockQuery = PackingStock.findOne({ productName: itemName });
+            if (session) stockQuery.session(session);
+            const stock = await stockQuery;
+            if (!stock) {
+                if (session) await session.abortTransaction();
+                return res.status(404).json({ message: "Tea product not found" });
+            }
 
             // 1. Reverse the old action
             if (oldAction === 'add') stock.totalBulkStockKg -= oldAmount;
@@ -145,16 +244,22 @@ export const updateStockAdjustment = async (req, res) => {
                 stock.totalBulkStockKg += newAmount;
             } else {
                 if (stock.totalBulkStockKg < newAmount) {
+                    if (session) await session.abortTransaction();
                     return res.status(400).json({ message: "Insufficient stock for this update!" });
                 }
                 stock.totalBulkStockKg -= newAmount;
             }
-            await stock.save();
+            await stock.save(sessionOptions);
 
         // Update Raw Materials OR Spicy Stock
         } else if (itemType === 'raw' || itemType === 'spicy') {
-            const rawStock = await RawMaterialStock.findOne({ materialName: itemName });
-            if (!rawStock) return res.status(404).json({ message: "Material/Spice not found" });
+            const rawStockQuery = RawMaterialStock.findOne({ materialName: itemName });
+            if (session) rawStockQuery.session(session);
+            const rawStock = await rawStockQuery;
+            if (!rawStock) {
+                if (session) await session.abortTransaction();
+                return res.status(404).json({ message: "Material/Spice not found" });
+            }
 
             // 1. Reverse the old action
             if (oldAction === 'add') {
@@ -171,12 +276,13 @@ export const updateStockAdjustment = async (req, res) => {
                 rawStock.transInAmount = (rawStock.transInAmount || 0) + newAmount;
             } else {
                 if (rawStock.totalQuantity < newAmount) {
+                    if (session) await session.abortTransaction();
                     return res.status(400).json({ message: "Insufficient stock for this update!" });
                 }
                 rawStock.totalQuantity -= newAmount;
                 rawStock.issueAmount = (rawStock.issueAmount || 0) + newAmount;
             }
-            await rawStock.save();
+            await rawStock.save(sessionOptions);
         }
 
         // 3. Update and save the Log Entry itself
@@ -186,11 +292,26 @@ export const updateStockAdjustment = async (req, res) => {
         if (date) {
             log.createdAt = new Date(date);
         }
-        await log.save();
+        await log.save(sessionOptions);
+
+        if (session) {
+            await session.commitTransaction();
+        }
 
         res.status(200).json({ message: "Updated successfully", data: log });
     } catch (error) {
+        if (session) {
+            try {
+                await session.abortTransaction();
+            } catch (abortErr) {
+                console.error("Error aborting transaction:", abortErr);
+            }
+        }
         console.error("Update Error:", error);
         res.status(500).json({ message: "Server error", error: error.message });
+    } finally {
+        if (session) {
+            session.endSession();
+        }
     }
 };

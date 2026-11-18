@@ -4,7 +4,7 @@ import {
     deleteGreenLeaf, 
     getAllGreenLeaf, 
     updateGreenLeaf 
-} from '../controller/greenLeafController.js';
+} from '../controllers/greenLeafController.js';
 
 // Import your middleware
 import { verifyToken, authorizeRoles } from '../middleware/auth.js'; 

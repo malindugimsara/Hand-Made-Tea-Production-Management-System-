@@ -2,6 +2,7 @@ import StockTransfer from '../models/StockTransfer.js';
 import {Production} from '../models/Production.js'; // <-- Changed to your Production model
 import webpush from 'web-push';
 import Subscription from '../Packing/models/SubscriptionModel.js';
+import { paginate } from '../utils/paginate.js';
 
 // @desc    Create a new stock transfer (Handmade -> Packing)
 // @route   POST /api/handmade/transfers
@@ -157,8 +158,10 @@ export const getTransOutRecords = async (req, res) => {
 
 export const getHandmadeTransfersHistory = async (req, res) => {
     try {
-        const transfers = await StockTransfer.find().sort({ dateIssued: -1 });
-        res.status(200).json(transfers);
+        await paginate(StockTransfer, req, res, { 
+            dateField: 'dateIssued',
+            sort: { dateIssued: -1 }
+        });
     } catch (error) {
         console.error('Error fetching handmade transfer history:', error);
         res.status(500).json({ message: 'Server error while fetching transfer history.' });

@@ -1,4 +1,6 @@
 import LabourOutput from '../models/LabourOutput.js'; 
+import { escapeRegex } from '../../utils/sanitize.js'; 
+import { paginate } from '../../utils/paginate.js'; 
 
 export const saveLabourOutput = async (req, res) => {
   try {
@@ -16,11 +18,13 @@ export const saveLabourOutput = async (req, res) => {
   }
 };
 
-// Example in your controller
+// Get labour outputs (supports ?page=&limit= or bounded list)
 export const getLabourOutputs = async (req, res) => {
     try {
-        const outputs = await LabourOutput.find(); // Fetches all documents
-        res.status(200).json(outputs);
+        await paginate(LabourOutput, req, res, { 
+            dateField: 'date',
+            sort: { date: -1, createdAt: -1 }
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -34,17 +38,19 @@ export const deleteLabourLogsByDate = async (req, res) => {
             return res.status(400).json({ message: "Date parameter is required." });
         }
 
+        const safeDate = escapeRegex(date);
+
         // The 'date' field is stored as a string (YYYY-MM-DD), but we also
         // support ISO timestamp strings or actual Date objects in case data
         // changes later.
         const result = await LabourOutput.deleteMany({
             $or: [
-                { date },
-                { date: { $regex: `^${date}` } },
+                { date: safeDate },
+                { date: { $regex: `^${safeDate}` } },
                 {
                     date: {
-                        $gte: new Date(`${date}T00:00:00.000Z`),
-                        $lt: new Date(`${date}T23:59:59.999Z`)
+                        $gte: new Date(`${safeDate}T00:00:00.000Z`),
+                        $lt: new Date(`${safeDate}T23:59:59.999Z`)
                     }
                 }
             ]

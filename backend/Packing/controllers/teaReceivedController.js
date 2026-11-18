@@ -1,13 +1,16 @@
 import TeaReceived from '../models/TeaReceivedModel.js'; 
 import PackingStock from '../models/PackingStock.js'; 
+import { paginate } from '../../utils/paginate.js';
 
 // ==========================================
 // 1. GET ALL TEA RECEIVED RECORDS
 // ==========================================
 export const getTeaReceivedRecords = async (req, res) => {
     try {
-        const records = await TeaReceived.find().sort({ date: -1 });
-        res.status(200).json(records);
+        await paginate(TeaReceived, req, res, { 
+            dateField: 'date',
+            sort: { date: -1 }
+        });
     } catch (error) {
         console.error('Error fetching tea received records:', error);
         res.status(500).json({ message: 'Server error failed to fetch records', error: error.message });

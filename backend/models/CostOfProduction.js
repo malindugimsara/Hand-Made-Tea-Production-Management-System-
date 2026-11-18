@@ -3,7 +3,8 @@ import mongoose from 'mongoose';
 const costOfProductionSchema = new mongoose.Schema({
     month: { 
         type: String, 
-        required: true 
+        required: true,
+        unique: true
     }, // Format: "2026-04"
     monthlyGlRate: { 
         type: Number, 

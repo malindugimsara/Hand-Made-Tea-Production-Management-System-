@@ -1,4 +1,5 @@
 import LoftLeaf from '../models/LoftLeaf.js';
+import { escapeRegex } from '../../utils/sanitize.js';
 
 // Helper function to calculate percentages
 const calculatePercentages = (best, belowBest, poor) => {
@@ -95,7 +96,7 @@ export const getDailyReport = async (req, res) => {
         if (date) {
             query.date = date;
         } else if (month) {
-            query.date = { $regex: `^${month}` }; 
+            query.date = { $regex: `^${escapeRegex(month)}` }; 
         } else {
             return res.status(400).json({ success: false, message: "Date or Month is required" });
         }

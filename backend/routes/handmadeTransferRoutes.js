@@ -1,5 +1,5 @@
 import express from 'express';
-import { createHandmadeTransfer, getHandmadeTransfersHistory, getStockSummary, getTransOutRecords } from '../controller/handmadeTransferController.js';
+import { createHandmadeTransfer, getHandmadeTransfersHistory, getStockSummary, getTransOutRecords } from '../controllers/handmadeTransferController.js';
 import { verifyToken } from '../middleware/auth.js';
 
 

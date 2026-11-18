@@ -30,5 +30,7 @@ const packingStockSchema = new mongoose.Schema({
     timestamps: true 
 });
 
+packingStockSchema.index({ updatedAt: -1 });
+
 const PackingStock = mongoose.model('PackingStock', packingStockSchema);
 export default PackingStock;

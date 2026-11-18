@@ -1,4 +1,5 @@
 import { Dehydrator } from '../models/Dehydrator.js';
+import { paginate } from '../utils/paginate.js';
 
 // Create new Dehydrator record
 export const createDehydrator = async (req, res) => {
@@ -40,11 +41,10 @@ export const createDehydrator = async (req, res) => {
     }
 };
 
-// Get all Dehydrator records
+// Get all Dehydrator records (supports ?page=&limit= or bounded list)
 export const getAllDehydrator = async (req, res) => {
     try {
-        const records = await Dehydrator.find().sort({ date: -1 });
-        res.status(200).json(records);
+        await paginate(Dehydrator, req, res, { dateField: 'date' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

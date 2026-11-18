@@ -1,10 +1,11 @@
 import PackingStock from "../models/PackingStock.js";
+import { escapeRegex } from "../../utils/sanitize.js";
 
 export const deductPackingStock = async (baseGradeName, qty) => {
     let remaining = Number(qty);
 
     const stock = await PackingStock.findOne({
-        productName: { $regex: new RegExp(`^${baseGradeName}$`, "i") }
+        productName: { $regex: new RegExp(`^${escapeRegex(baseGradeName)}$`, "i") }
     });
 
     if (!stock) return;
@@ -43,7 +44,7 @@ export const deductPackingStock = async (baseGradeName, qty) => {
 export const restorePackingStock = async (baseGradeName, qty) => {
 
     const stock = await PackingStock.findOne({
-        productName: { $regex: new RegExp(`^${baseGradeName}$`, "i") }
+        productName: { $regex: new RegExp(`^${escapeRegex(baseGradeName)}$`, "i") }
     });
 
     if (!stock) return;

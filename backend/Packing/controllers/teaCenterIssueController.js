@@ -1,11 +1,9 @@
+import mongoose from 'mongoose';
 import TeaCenterIssue from '../models/TeaCenterIssueModel.js';
 import PackingStock from '../models/PackingStock.js'; 
 import RawMaterialStock from '../models/RawMaterialStock.js'; 
-
-// 💡 NEW: Regex එක කැඩී යාම වළක්වා විශේෂ සංකේත (*, (, )) සාමාන්‍ය අකුරු ලෙස හැසිරවීම සඳහා
-const escapeRegex = (string) => {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
-};
+import { escapeRegex } from '../../utils/sanitize.js';
+import { paginate } from '../../utils/paginate.js';
 
 // --- UPDATED LOGIC: BASE TEA MAPPING (Consistent with LocalSale) ---
 const getBaseTeaGrade = (productName) => {
@@ -52,10 +50,20 @@ const getBaseTeaGrade = (productName) => {
 // @route   POST /api/tea-center-issues
 // @access  Private
 export const createTeaCenterIssue = async (req, res) => {
+    let session = null;
     try {
+        session = await mongoose.startSession();
+        session.startTransaction();
+    } catch {
+        session = null;
+    }
+
+    try {
+        const sessionOptions = session ? { session } : {};
         const { date, totalBoxes, totalQtyKg, issueItems } = req.body;
 
         if (!date || !issueItems || issueItems.length === 0) {
+            if (session) await session.abortTransaction();
             return res.status(400).json({ message: 'Date and at least one issue item are required.' });
         }
 
@@ -88,17 +96,23 @@ export const createTeaCenterIssue = async (req, res) => {
         // 2. PRE-VALIDATION: CHECK IF ENOUGH STOCK IS AVAILABLE 
         // ====================================================================
         for (const [grade, requestedQty] of Object.entries(requiredTea)) {
-            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+            const stockQuery = PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+            if (session) stockQuery.session(session);
+            const stock = await stockQuery;
             const available = stock ? stock.totalBulkStockKg || 0 : 0;
             if (requestedQty > available) {
+                if (session) await session.abortTransaction();
                 return res.status(400).json({ message: `Insufficient stock for Tea Grade: ${grade}. Available: ${available.toFixed(2)} kg, Requested: ${requestedQty.toFixed(2)} kg` });
             }
         }
 
         for (const [name, requestedQty] of Object.entries(requiredRM)) {
-            const stock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+            const rmQuery = RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+            if (session) rmQuery.session(session);
+            const stock = await rmQuery;
             const available = stock ? stock.totalQuantity || 0 : 0;
             if (requestedQty > available) {
+                if (session) await session.abortTransaction();
                 return res.status(400).json({ message: `Insufficient stock for Material: ${name}. Available: ${available.toFixed(2)}, Requested: ${requestedQty.toFixed(2)}` });
             }
         }
@@ -106,12 +120,14 @@ export const createTeaCenterIssue = async (req, res) => {
         const newIssue = new TeaCenterIssue({ date, totalBoxes, totalQtyKg, issueItems });
 
         // ====================================================================
-        // 3. DEDUCT STOCK USING AGGREGATED AMOUNTS
+        // 3. DEDUCT STOCK USING AGGREGATED AMOUNTS (ACID Transaction protected)
         // ====================================================================
         
         // Deduct Tea Stock
         for (const [grade, totalRequestedQty] of Object.entries(requiredTea)) {
-            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+            const stockQuery = PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+            if (session) stockQuery.session(session);
+            const stock = await stockQuery;
             if (stock) {
                 let remainingToDeduct = totalRequestedQty;
                 const originalDeductAmount = remainingToDeduct;
@@ -134,37 +150,54 @@ export const createTeaCenterIssue = async (req, res) => {
                 }
                 stock.totalBulkStockKg -= (originalDeductAmount - remainingToDeduct);
                 if (stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
-                await stock.save();
+                await stock.save(sessionOptions);
             }
         }
 
         // Deduct Raw/Packing Materials
         for (const [name, totalRequestedQty] of Object.entries(requiredRM)) {
-            const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+            const rmQuery = RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+            if (session) rmQuery.session(session);
+            const rmStock = await rmQuery;
             if (rmStock) {
                 rmStock.totalQuantity -= totalRequestedQty;
                 rmStock.issueAmount = (rmStock.issueAmount || 0) + totalRequestedQty;
                 if (rmStock.totalQuantity < 0) rmStock.totalQuantity = 0;
-                await rmStock.save();
+                await rmStock.save(sessionOptions);
             }
         }
 
-        const savedIssue = await newIssue.save();
+        const savedIssue = await newIssue.save(sessionOptions);
+
+        if (session) {
+            await session.commitTransaction();
+        }
+
         res.status(201).json(savedIssue);
 
     } catch (error) {
+        if (session) {
+            try {
+                await session.abortTransaction();
+            } catch (abortErr) {
+                console.error('Error aborting transaction:', abortErr);
+            }
+        }
         console.error('Error saving tea center issue:', error); 
         res.status(500).json({ message: 'Server error failed to save record', error: error.message });
+    } finally {
+        if (session) {
+            session.endSession();
+        }
     }
-}
+};
 
-// @desc    Get all tea center issues
+// @desc    Get all tea center issues (supports ?page=&limit= or bounded list)
 // @route   GET /api/tea-center-issues
 // @access  Private
 export const getTeaCenterIssues = async (req, res) => {
     try {
-        const issues = await TeaCenterIssue.find().sort({ date: -1 });
-        res.status(200).json(issues);
+        await paginate(TeaCenterIssue, req, res, { dateField: 'date' });
     } catch (error) {
         console.error('Error fetching tea center issues:', error);
         res.status(500).json({ message: 'Server error failed to fetch records', error: error.message });
@@ -175,11 +208,23 @@ export const getTeaCenterIssues = async (req, res) => {
 // @route   PUT /api/tea-center-issues/:id
 // @access  Private
 export const updateTeaCenterIssue = async (req, res) => {
+    let session = null;
     try {
+        session = await mongoose.startSession();
+        session.startTransaction();
+    } catch {
+        session = null;
+    }
+
+    try {
+        const sessionOptions = session ? { session } : {};
         const { date, totalBoxes, totalQtyKg, issueItems, updatedBy, editorName } = req.body;
-        const issueRecord = await TeaCenterIssue.findById(req.params.id);
+        const issueQuery = TeaCenterIssue.findById(req.params.id);
+        if (session) issueQuery.session(session);
+        const issueRecord = await issueQuery;
 
         if (!issueRecord) {
+            if (session) await session.abortTransaction();
             return res.status(404).json({ message: 'Record not found' });
         }
 
@@ -239,23 +284,29 @@ export const updateTeaCenterIssue = async (req, res) => {
         // 3. Pre-Validation
         // ====================================================================
         for (const [grade, requestedQty] of Object.entries(requiredTea)) {
-            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+            const stockQuery = PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+            if (session) stockQuery.session(session);
+            const stock = await stockQuery;
             const currentAvailable = stock ? stock.totalBulkStockKg || 0 : 0;
             const willBeReturned = oldTea[grade] || 0;
             const totalAvailableForUpdate = currentAvailable + willBeReturned;
 
             if (requestedQty > totalAvailableForUpdate) {
+                if (session) await session.abortTransaction();
                 return res.status(400).json({ message: `Insufficient stock for Tea Grade: ${grade}. Available to use: ${totalAvailableForUpdate.toFixed(2)} kg, Requested: ${requestedQty.toFixed(2)} kg` });
             }
         }
 
         for (const [name, requestedQty] of Object.entries(requiredRM)) {
-            const stock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+            const rmQuery = RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+            if (session) rmQuery.session(session);
+            const stock = await rmQuery;
             const currentAvailable = stock ? stock.totalQuantity || 0 : 0;
             const willBeReturned = oldRM[name] || 0;
             const totalAvailableForUpdate = currentAvailable + willBeReturned;
 
             if (requestedQty > totalAvailableForUpdate) {
+                if (session) await session.abortTransaction();
                 return res.status(400).json({ message: `Insufficient stock for Material: ${name}. Available to use: ${totalAvailableForUpdate.toFixed(2)}, Requested: ${requestedQty.toFixed(2)}` });
             }
         }
@@ -264,7 +315,9 @@ export const updateTeaCenterIssue = async (req, res) => {
         // 4. REVERSE OLD STOCK 
         // ====================================================================
         for (const [grade, amountToReturn] of Object.entries(oldTea)) {
-            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+            const stockQuery = PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+            if (session) stockQuery.session(session);
+            const stock = await stockQuery;
             if (stock) {
                 if (stock.stockBySource && stock.stockBySource.length > 0) {
                     let targetSource = stock.stockBySource.find((s) => s.sourceName === "Factory") || stock.stockBySource[0];
@@ -273,17 +326,19 @@ export const updateTeaCenterIssue = async (req, res) => {
                     if (targetSource.issueAmount < 0) targetSource.issueAmount = 0;
                 }
                 stock.totalBulkStockKg += amountToReturn;
-                await stock.save();
+                await stock.save(sessionOptions);
             }
         }
 
         for (const [name, amountToReturn] of Object.entries(oldRM)) {
-            const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+            const rmQuery = RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+            if (session) rmQuery.session(session);
+            const rmStock = await rmQuery;
             if (rmStock) {
                 rmStock.totalQuantity += amountToReturn;
                 rmStock.issueAmount -= amountToReturn;
                 if (rmStock.issueAmount < 0) rmStock.issueAmount = 0;
-                await rmStock.save();
+                await rmStock.save(sessionOptions);
             }
         }
 
@@ -291,7 +346,9 @@ export const updateTeaCenterIssue = async (req, res) => {
         // 5. DEDUCT NEW STOCK
         // ====================================================================
         for (const [grade, totalRequestedQty] of Object.entries(requiredTea)) {
-            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+            const stockQuery = PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+            if (session) stockQuery.session(session);
+            const stock = await stockQuery;
             if (stock) {
                 let remainingToDeduct = totalRequestedQty;
                 const originalDeductAmount = remainingToDeduct;
@@ -314,17 +371,19 @@ export const updateTeaCenterIssue = async (req, res) => {
                 }
                 stock.totalBulkStockKg -= (originalDeductAmount - remainingToDeduct);
                 if (stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
-                await stock.save();
+                await stock.save(sessionOptions);
             }
         }
 
         for (const [name, totalRequestedQty] of Object.entries(requiredRM)) {
-            const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+            const rmQuery = RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+            if (session) rmQuery.session(session);
+            const rmStock = await rmQuery;
             if (rmStock) {
                 rmStock.totalQuantity -= totalRequestedQty;
                 rmStock.issueAmount = (rmStock.issueAmount || 0) + totalRequestedQty;
                 if (rmStock.totalQuantity < 0) rmStock.totalQuantity = 0;
-                await rmStock.save();
+                await rmStock.save(sessionOptions);
             }
         }
 
@@ -338,22 +397,50 @@ export const updateTeaCenterIssue = async (req, res) => {
         if (updatedBy) issueRecord.updatedBy = updatedBy;
         else if (editorName) issueRecord.updatedBy = editorName;
 
-        await issueRecord.save();
+        await issueRecord.save(sessionOptions);
+
+        if (session) {
+            await session.commitTransaction();
+        }
+
         res.status(200).json({ message: "Record updated successfully.", record: issueRecord });
 
     } catch (error) {
+        if (session) {
+            try {
+                await session.abortTransaction();
+            } catch (abortErr) {
+                console.error('Error aborting transaction:', abortErr);
+            }
+        }
         console.error('Error updating tea center issue:', error);
         res.status(500).json({ message: 'Server error failed to update record', error: error.message });
+    } finally {
+        if (session) {
+            session.endSession();
+        }
     }
 };
 
 // @desc    Delete a tea center issue record
 // @route   DELETE /api/tea-center-issues/:id
 export const deleteTeaCenterIssue = async (req, res) => {
+    let session = null;
     try {
-        const issueRecord = await TeaCenterIssue.findById(req.params.id);
+        session = await mongoose.startSession();
+        session.startTransaction();
+    } catch {
+        session = null;
+    }
+
+    try {
+        const sessionOptions = session ? { session } : {};
+        const issueQuery = TeaCenterIssue.findById(req.params.id);
+        if (session) issueQuery.session(session);
+        const issueRecord = await issueQuery;
 
         if (!issueRecord) {
+            if (session) await session.abortTransaction();
             return res.status(404).json({ message: 'Record not found' });
         }
 
@@ -382,7 +469,9 @@ export const deleteTeaCenterIssue = async (req, res) => {
 
         // 2. REVERSE TEA STOCK
         for (const [grade, amountToReturn] of Object.entries(oldTea)) {
-            const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+            const stockQuery = PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+            if (session) stockQuery.session(session);
+            const stock = await stockQuery;
             if (stock) {
                 if (stock.stockBySource && stock.stockBySource.length > 0) {
                     let targetSource = stock.stockBySource.find((s) => s.sourceName === "Factory") || stock.stockBySource[0];
@@ -391,26 +480,44 @@ export const deleteTeaCenterIssue = async (req, res) => {
                     if (targetSource.issueAmount < 0) targetSource.issueAmount = 0;
                 }
                 stock.totalBulkStockKg += amountToReturn;
-                await stock.save();
+                await stock.save(sessionOptions);
             }
         }
 
         // 3. REVERSE RAW/PACKING MATERIAL STOCK
         for (const [name, amountToReturn] of Object.entries(oldRM)) {
-            const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+            const rmQuery = RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+            if (session) rmQuery.session(session);
+            const rmStock = await rmQuery;
             if (rmStock) {
                 rmStock.totalQuantity += amountToReturn;
                 rmStock.issueAmount -= amountToReturn;
                 if (rmStock.issueAmount < 0) rmStock.issueAmount = 0;
-                await rmStock.save();
+                await rmStock.save(sessionOptions);
             }
         }
 
-        await issueRecord.deleteOne();
+        await issueRecord.deleteOne(sessionOptions);
+
+        if (session) {
+            await session.commitTransaction();
+        }
+
         res.status(200).json({ message: 'Record deleted and stock reversed successfully' });
 
     } catch (error) {
+        if (session) {
+            try {
+                await session.abortTransaction();
+            } catch (abortErr) {
+                console.error('Error aborting transaction:', abortErr);
+            }
+        }
         console.error('Error deleting tea center issue:', error);
         res.status(500).json({ message: 'Server error failed to delete record', error: error.message });
+    } finally {
+        if (session) {
+            session.endSession();
+        }
     }
 };

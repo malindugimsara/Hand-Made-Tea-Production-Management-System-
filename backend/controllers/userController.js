@@ -51,17 +51,34 @@ export const updateUser = async (req, res) => {
       return res.status(404).json({ message: "User not found." });
     }
 
+    let securityChanged = false;
+
     if (username) user.username = username;
-    if (role) user.role = role;
+    if (role && role !== user.role) {
+      user.role = role;
+      securityChanged = true;
+    }
     
-    if (allowedPaths) user.allowedPaths = allowedPaths;
+    if (allowedPaths) {
+      user.allowedPaths = allowedPaths;
+      securityChanged = true;
+    }
     
     // 💡 NEW: User Update කරද්දී අලුත් allowedPages ටික සේව් කිරීම
-    if (allowedPages) user.allowedPages = allowedPages; 
+    if (allowedPages) {
+      user.allowedPages = allowedPages; 
+      securityChanged = true;
+    }
 
     // FIX: only set password if exists
     if (password && password.trim() !== '') {
       user.password = password;
+      securityChanged = true;
+    }
+
+    // Invalidate existing sessions if security-sensitive permissions/password changed
+    if (securityChanged) {
+      user.tokenVersion = (user.tokenVersion || 0) + 1;
     }
 
     await user.save();

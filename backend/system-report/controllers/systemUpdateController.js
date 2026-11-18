@@ -1,4 +1,5 @@
 import SystemUpdate from '../models/SystemUpdate.js';
+import { escapeRegex } from '../../utils/sanitize.js';
 
 // @desc    Create a new System Update record
 // @route   POST /api/system-updates
@@ -32,11 +33,12 @@ export const getSystemUpdates = async (req, res) => {
     let query = {};
 
     if (month) {
+      const safeMonth = escapeRegex(month);
       // Filter records where completeDate or assignDate starts with the given month
       query = {
         $or: [
-          { completeDate: { $regex: `^${month}` } },
-          { assignDate: { $regex: `^${month}` } }
+          { completeDate: { $regex: `^${safeMonth}` } },
+          { assignDate: { $regex: `^${safeMonth}` } }
         ]
       };
     }

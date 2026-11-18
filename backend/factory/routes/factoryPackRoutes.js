@@ -1,5 +1,5 @@
 import express from 'express';
-import { saveDailyLedger, getLedgerData, deleteLedgerRow } from '../controller/factoryPackController.js';
+import { saveDailyLedger, getLedgerData, deleteLedgerRow } from '../controllers/factoryPackController.js';
 
 // Authentication සහ Role-based Authorization Middlewares Import කිරීම
 import { verifyToken, authorizeRoles } from '../../middleware/auth.js'; 

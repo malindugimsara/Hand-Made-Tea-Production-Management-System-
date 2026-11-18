@@ -1,6 +1,9 @@
+import mongoose from "mongoose";
 import LocalSale from "../models/LocalSaleModel.js";
 import PackingStock from "../models/PackingStock.js";
 import RawMaterialStock from "../models/RawMaterialStock.js";
+import { escapeRegex } from "../../utils/sanitize.js";
+import { paginate } from "../../utils/paginate.js";
 
 // --- UPDATED LOGIC: BASE TEA MAPPING ---
 const getBaseTeaGrade = (productName) => {
@@ -78,20 +81,28 @@ const getBaseTeaGrade = (productName) => {
   return productName;
 };
 
-const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 // @desc    Create a new local sale record
 // @route   POST /api/local-sales
 export const createLocalSale = async (req, res) => {
+  let session = null;
   try {
+    session = await mongoose.startSession();
+    session.startTransaction();
+  } catch {
+    session = null;
+  }
+
+  try {
+    const sessionOptions = session ? { session } : {};
     const { date, totalBoxes, totalQtyKg, salesItems } = req.body;
 
     if (!date || !salesItems || salesItems.length === 0) {
+      if (session) await session.abortTransaction();
       return res.status(400).json({ message: "Date and at least one sale item are required." });
     }
 
     // ====================================================================
-    // 1. AGGREGATE QUANTITIES (එකම ජාතියේ ඒවා එකට එකතු කිරීම)
+    // 1. AGGREGATE QUANTITIES 
     // ====================================================================
     const requiredTea = {};
     const requiredRM = {};
@@ -119,16 +130,23 @@ export const createLocalSale = async (req, res) => {
     // 2. PRE-VALIDATION: CHECK IF ENOUGH STOCK IS AVAILABLE 
     // ====================================================================
     for (const [grade, requestedQty] of Object.entries(requiredTea)) {
-      const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+      const stockQuery = PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+      if (session) stockQuery.session(session);
+      const stock = await stockQuery;
       const available = stock ? stock.totalBulkStockKg || 0 : 0;
       if (requestedQty > available) {
+        if (session) await session.abortTransaction();
         return res.status(400).json({ message: `Insufficient stock for Tea Grade: ${grade}. Available: ${available.toFixed(2)} kg, Requested: ${requestedQty.toFixed(2)} kg` });
       }
     }
 
     for (const [name, requestedQty] of Object.entries(requiredRM)) {
-const stock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });      const available = stock ? stock.totalQuantity || 0 : 0;
+      const rmQuery = RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+      if (session) rmQuery.session(session);
+      const stock = await rmQuery;
+      const available = stock ? stock.totalQuantity || 0 : 0;
       if (requestedQty > available) {
+        if (session) await session.abortTransaction();
         return res.status(400).json({ message: `Insufficient stock for Material: ${name}. Available: ${available.toFixed(2)}, Requested: ${requestedQty.toFixed(2)}` });
       }
     }
@@ -136,12 +154,14 @@ const stock = await RawMaterialStock.findOne({ materialName: { $regex: new RegEx
     const newSale = new LocalSale({ date, totalBoxes, totalQtyKg, salesItems });
 
     // ====================================================================
-    // 3. DEDUCT STOCK USING AGGREGATED AMOUNTS (මෙතනින් තමා අවුල හැදුවේ)
+    // 3. DEDUCT STOCK USING AGGREGATED AMOUNTS (ACID Transaction protected)
     // ====================================================================
     
     // Deduct Tea Stock
     for (const [grade, totalRequestedQty] of Object.entries(requiredTea)) {
-      const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+      const stockQuery = PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+      if (session) stockQuery.session(session);
+      const stock = await stockQuery;
       if (stock) {
         let remainingToDeduct = totalRequestedQty;
         const originalDeductAmount = remainingToDeduct;
@@ -164,34 +184,55 @@ const stock = await RawMaterialStock.findOne({ materialName: { $regex: new RegEx
         }
         stock.totalBulkStockKg -= (originalDeductAmount - remainingToDeduct);
         if (stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
-        await stock.save();
+        await stock.save(sessionOptions);
       }
     }
 
     // Deduct Raw/Packing Materials
     for (const [name, totalRequestedQty] of Object.entries(requiredRM)) {
-const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });      if (rmStock) {
+      const rmQuery = RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+      if (session) rmQuery.session(session);
+      const rmStock = await rmQuery;
+      if (rmStock) {
         rmStock.totalQuantity -= totalRequestedQty;
         rmStock.issueAmount = (rmStock.issueAmount || 0) + totalRequestedQty;
         if (rmStock.totalQuantity < 0) rmStock.totalQuantity = 0;
-        await rmStock.save();
+        await rmStock.save(sessionOptions);
       }
     }
 
-    const savedSale = await newSale.save();
+    const savedSale = await newSale.save(sessionOptions);
+
+    if (session) {
+      await session.commitTransaction();
+    }
+
     res.status(201).json(savedSale);
   } catch (error) {
+    if (session) {
+      try {
+        await session.abortTransaction();
+      } catch (abortErr) {
+        console.error("Error aborting transaction:", abortErr);
+      }
+    }
     console.error("Error creating local sale:", error);
     res.status(500).json({ message: "Server error while saving local sale record." });
+  } finally {
+    if (session) {
+      session.endSession();
+    }
   }
 };
 
-// @desc    Get all local sale records
+// @desc    Get all local sale records (supports ?page=&limit= or bounded list)
 // @route   GET /api/local-sales
 export const getLocalSales = async (req, res) => {
   try {
-    const sales = await LocalSale.find().sort({ date: -1, createdAt: -1 });
-    res.status(200).json(sales);
+    await paginate(LocalSale, req, res, { 
+      dateField: 'date',
+      sort: { date: -1, createdAt: -1 }
+    });
   } catch (error) {
     console.error("Error fetching local sales:", error);
     res.status(500).json({ message: "Server error while fetching local sales." });
@@ -201,11 +242,23 @@ export const getLocalSales = async (req, res) => {
 // @desc    Update a local sale record
 // @route   PUT /api/local-sales/:id
 export const updateLocalSale = async (req, res) => {
+  let session = null;
   try {
+    session = await mongoose.startSession();
+    session.startTransaction();
+  } catch {
+    session = null;
+  }
+
+  try {
+    const sessionOptions = session ? { session } : {};
     const { date, totalBoxes, totalQtyKg, salesItems, updatedBy, editorName } = req.body;
-    const saleRecord = await LocalSale.findById(req.params.id);
+    const saleQuery = LocalSale.findById(req.params.id);
+    if (session) saleQuery.session(session);
+    const saleRecord = await saleQuery;
 
     if (!saleRecord) {
+      if (session) await session.abortTransaction();
       return res.status(404).json({ message: "Record not found." });
     }
 
@@ -259,29 +312,38 @@ export const updateLocalSale = async (req, res) => {
 
     // 3. Pre-Validation
     for (const [grade, requestedQty] of Object.entries(requiredTea)) {
-      const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+      const stockQuery = PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+      if (session) stockQuery.session(session);
+      const stock = await stockQuery;
       const currentAvailable = stock ? stock.totalBulkStockKg || 0 : 0;
       const willBeReturned = oldTea[grade] || 0;
       const totalAvailableForUpdate = currentAvailable + willBeReturned;
 
       if (requestedQty > totalAvailableForUpdate) {
+        if (session) await session.abortTransaction();
         return res.status(400).json({ message: `Insufficient stock for Tea Grade: ${grade}. Available to use: ${totalAvailableForUpdate.toFixed(2)} kg, Requested: ${requestedQty.toFixed(2)} kg` });
       }
     }
 
     for (const [name, requestedQty] of Object.entries(requiredRM)) {
-const stock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });      const currentAvailable = stock ? stock.totalQuantity || 0 : 0;
+      const rmQuery = RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+      if (session) rmQuery.session(session);
+      const stock = await rmQuery;
+      const currentAvailable = stock ? stock.totalQuantity || 0 : 0;
       const willBeReturned = oldRM[name] || 0;
       const totalAvailableForUpdate = currentAvailable + willBeReturned;
 
       if (requestedQty > totalAvailableForUpdate) {
+        if (session) await session.abortTransaction();
         return res.status(400).json({ message: `Insufficient stock for Material: ${name}. Available to use: ${totalAvailableForUpdate.toFixed(2)}, Requested: ${requestedQty.toFixed(2)}` });
       }
     }
 
     // 4. REVERSE OLD STOCK 
     for (const [grade, amountToReturn] of Object.entries(oldTea)) {
-      const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+      const stockQuery = PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+      if (session) stockQuery.session(session);
+      const stock = await stockQuery;
       if (stock) {
         if (stock.stockBySource && stock.stockBySource.length > 0) {
           let targetSource = stock.stockBySource.find((s) => s.sourceName === "Factory") || stock.stockBySource[0];
@@ -290,22 +352,27 @@ const stock = await RawMaterialStock.findOne({ materialName: { $regex: new RegEx
           if (targetSource.issueAmount < 0) targetSource.issueAmount = 0;
         }
         stock.totalBulkStockKg += amountToReturn;
-        await stock.save();
+        await stock.save(sessionOptions);
       }
     }
 
     for (const [name, amountToReturn] of Object.entries(oldRM)) {
-const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });      if (rmStock) {
+      const rmQuery = RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+      if (session) rmQuery.session(session);
+      const rmStock = await rmQuery;
+      if (rmStock) {
         rmStock.totalQuantity += amountToReturn;
         rmStock.issueAmount -= amountToReturn;
         if (rmStock.issueAmount < 0) rmStock.issueAmount = 0;
-        await rmStock.save();
+        await rmStock.save(sessionOptions);
       }
     }
 
     // 5. DEDUCT NEW STOCK
     for (const [grade, totalRequestedQty] of Object.entries(requiredTea)) {
-      const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+      const stockQuery = PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+      if (session) stockQuery.session(session);
+      const stock = await stockQuery;
       if (stock) {
         let remainingToDeduct = totalRequestedQty;
         const originalDeductAmount = remainingToDeduct;
@@ -328,16 +395,19 @@ const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new Reg
         }
         stock.totalBulkStockKg -= (originalDeductAmount - remainingToDeduct);
         if (stock.totalBulkStockKg < 0) stock.totalBulkStockKg = 0;
-        await stock.save();
+        await stock.save(sessionOptions);
       }
     }
 
     for (const [name, totalRequestedQty] of Object.entries(requiredRM)) {
-const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });      if (rmStock) {
+      const rmQuery = RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+      if (session) rmQuery.session(session);
+      const rmStock = await rmQuery;
+      if (rmStock) {
         rmStock.totalQuantity -= totalRequestedQty;
         rmStock.issueAmount = (rmStock.issueAmount || 0) + totalRequestedQty;
         if (rmStock.totalQuantity < 0) rmStock.totalQuantity = 0;
-        await rmStock.save();
+        await rmStock.save(sessionOptions);
       }
     }
 
@@ -349,21 +419,49 @@ const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new Reg
     if (updatedBy) saleRecord.updatedBy = updatedBy;
     else if (editorName) saleRecord.updatedBy = editorName;
 
-    await saleRecord.save();
+    await saleRecord.save(sessionOptions);
+
+    if (session) {
+      await session.commitTransaction();
+    }
+
     res.status(200).json({ message: "Record updated successfully.", record: saleRecord });
   } catch (error) {
+    if (session) {
+      try {
+        await session.abortTransaction();
+      } catch (abortErr) {
+        console.error("Error aborting transaction:", abortErr);
+      }
+    }
     console.error("Update local sale error:", error);
     res.status(500).json({ message: "Error updating local sale record." });
+  } finally {
+    if (session) {
+      session.endSession();
+    }
   }
 };
 
 // @desc    Delete a local sale record
 export const deleteLocalSale = async (req, res) => {
+  let session = null;
   try {
+    session = await mongoose.startSession();
+    session.startTransaction();
+  } catch {
+    session = null;
+  }
+
+  try {
+    const sessionOptions = session ? { session } : {};
     const { id } = req.params;
-    const saleRecord = await LocalSale.findById(id);
+    const saleQuery = LocalSale.findById(id);
+    if (session) saleQuery.session(session);
+    const saleRecord = await saleQuery;
 
     if (!saleRecord) {
+      if (session) await session.abortTransaction();
       return res.status(404).json({ message: "Local sale record not found." });
     }
 
@@ -392,7 +490,9 @@ export const deleteLocalSale = async (req, res) => {
 
     // 1. REVERSE TEA STOCK
     for (const [grade, amountToReturn] of Object.entries(oldTea)) {
-      const stock = await PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+      const stockQuery = PackingStock.findOne({ productName: { $regex: new RegExp(`^${escapeRegex(grade)}$`, "i") } });
+      if (session) stockQuery.session(session);
+      const stock = await stockQuery;
       if (stock) {
         if (stock.stockBySource && stock.stockBySource.length > 0) {
           let targetSource = stock.stockBySource.find((s) => s.sourceName === "Factory") || stock.stockBySource[0];
@@ -401,24 +501,43 @@ export const deleteLocalSale = async (req, res) => {
           if (targetSource.issueAmount < 0) targetSource.issueAmount = 0;
         }
         stock.totalBulkStockKg += amountToReturn;
-        await stock.save();
+        await stock.save(sessionOptions);
       }
     }
 
     // 2. REVERSE RAW/PACKING MATERIAL STOCK
     for (const [name, amountToReturn] of Object.entries(oldRM)) {
-const rmStock = await RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });      if (rmStock) {
+      const rmQuery = RawMaterialStock.findOne({ materialName: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
+      if (session) rmQuery.session(session);
+      const rmStock = await rmQuery;
+      if (rmStock) {
         rmStock.totalQuantity += amountToReturn;
         rmStock.issueAmount -= amountToReturn;
         if (rmStock.issueAmount < 0) rmStock.issueAmount = 0;
-        await rmStock.save();
+        await rmStock.save(sessionOptions);
       }
     }
 
-    await saleRecord.deleteOne();
+    await saleRecord.deleteOne(sessionOptions);
+
+    if (session) {
+      await session.commitTransaction();
+    }
+
     res.status(200).json({ message: "Local sale record deleted and stock reversed successfully." });
   } catch (error) {
+    if (session) {
+      try {
+        await session.abortTransaction();
+      } catch (abortErr) {
+        console.error("Error aborting transaction:", abortErr);
+      }
+    }
     console.error("Error deleting local sale:", error);
     res.status(500).json({ message: "Server error while deleting local sale record." });
+  } finally {
+    if (session) {
+      session.endSession();
+    }
   }
 };

@@ -1,4 +1,5 @@
 import { Production } from '../models/Production.js'; // Adjust path if needed
+import { paginate } from '../utils/paginate.js';
 
 export const createProduction = async (req, res) => {
     try {
@@ -30,10 +31,10 @@ export const createProduction = async (req, res) => {
     }
 };
 
+// Get production summary (supports ?page=&limit= or bounded list)
 export const getProductionSummary = async (req, res) => {
     try {
-        const summary = await Production.find().sort({ date: -1 });
-        res.status(200).json(summary);
+        await paginate(Production, req, res, { dateField: 'date' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

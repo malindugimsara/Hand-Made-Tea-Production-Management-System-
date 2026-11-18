@@ -4,7 +4,7 @@ import {
     deleteRawMaterialCost, 
     getAllRawMaterialCosts, 
     updateRawMaterialCost 
-} from '../controller/rawMaterialCostController.js';
+} from '../controllers/rawMaterialCostController.js';
 
 // Auth middleware එක Import කිරීම
 import { verifyToken, authorizeRoles } from '../middleware/auth.js'; 

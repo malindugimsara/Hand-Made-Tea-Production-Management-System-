@@ -22,4 +22,7 @@ const productionSchema = new mongoose.Schema({
     updatedBy: { type: String, default: '' }
 }, { timestamps: true });
 
+productionSchema.index({ date: -1 });
+productionSchema.index({ expectedDryerDate: 1 });
+
 export const Production = mongoose.model('Production', productionSchema);

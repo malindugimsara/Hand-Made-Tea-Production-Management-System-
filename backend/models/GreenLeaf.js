@@ -21,4 +21,6 @@ const greenLeafSchema = new mongoose.Schema({
     updatedBy: { type: String, default: '' }
 }, { timestamps: true });
 
+greenLeafSchema.index({ date: -1 });
+
 export const GreenLeaf = mongoose.model('GreenLeaf', greenLeafSchema);

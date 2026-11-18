@@ -1,4 +1,5 @@
 import { Labour } from '../models/Labour.js'; // Adjust the path if your model file is named differently
+import { paginate } from '../utils/paginate.js';
 
 // Create a new Labour record
 export const createLabour = async (req, res) => {
@@ -19,11 +20,10 @@ export const createLabour = async (req, res) => {
     }
 };
 
-// Get all Labour records
+// Get all Labour records (supports ?page=&limit= or bounded list)
 export const getAllLabour = async (req, res) => {
     try {
-        const records = await Labour.find().sort({ date: -1 }); // Sorts by newest date first
-        res.status(200).json(records);
+        await paginate(Labour, req, res, { dateField: 'date' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

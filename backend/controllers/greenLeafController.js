@@ -1,4 +1,5 @@
 import { GreenLeaf } from '../models/GreenLeaf.js';
+import { paginate } from '../utils/paginate.js';
 
 // Create new Green Leaf record
 export const createGreenLeaf = async (req, res) => {
@@ -21,11 +22,10 @@ export const createGreenLeaf = async (req, res) => {
     }
 };
 
-// Get all Green Leaf records
+// Get all Green Leaf records (supports ?page=&limit= or bounded list)
 export const getAllGreenLeaf = async (req, res) => {
     try {
-        const records = await GreenLeaf.find().sort({ date: -1 });
-        res.status(200).json(records);
+        await paginate(GreenLeaf, req, res, { dateField: 'date' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

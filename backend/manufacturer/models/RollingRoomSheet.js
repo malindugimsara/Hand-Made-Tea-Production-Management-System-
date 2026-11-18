@@ -97,4 +97,6 @@ const rollingRoomSheetSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+rollingRoomSheetSchema.index({ cropDate: -1 });
+
 export default mongoose.model('RollingRoomSheet', rollingRoomSheetSchema);

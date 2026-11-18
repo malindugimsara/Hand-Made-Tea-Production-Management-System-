@@ -23,7 +23,12 @@ export default function SystemBackup() {
     const loadBackups = async () => {
         try {
             setFetching(true);
-            const res = await fetch(`${API_BASE}/list`);
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_BASE}/list`, {
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                }
+            });
             const data = await res.json();
 
             if (data.success) {
@@ -52,9 +57,13 @@ export default function SystemBackup() {
         showAlert('Manual backup initiated. Exporting database...', 'info');
 
         try {
+            const token = localStorage.getItem('token');
             const res = await fetch(`${API_BASE}/trigger`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
             });
             const data = await res.json();
 
@@ -221,7 +230,7 @@ export default function SystemBackup() {
                                             </td>
                                             <td style={{ ...styles.td, textAlign: 'right' }}>
                                                 <a
-                                                    href={`${API_BASE}/download/${encodeURIComponent(displayName)}`}
+                                                    href={`${API_BASE}/download/${encodeURIComponent(displayName)}?token=${encodeURIComponent(localStorage.getItem('token') || '')}`}
                                                     download
                                                     style={styles.downloadLink}
                                                 >

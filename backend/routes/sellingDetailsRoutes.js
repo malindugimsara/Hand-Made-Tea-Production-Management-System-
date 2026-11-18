@@ -2,7 +2,7 @@ import express from 'express';
 import { 
     createSellingDetail, 
     getSellingDetailsByMonth 
-} from '../controller/sellingDetailsController.js'; // 
+} from '../controllers/sellingDetailsController.js'; // 
 
 import { verifyToken, authorizeRoles } from '../middleware/auth.js'; 
 

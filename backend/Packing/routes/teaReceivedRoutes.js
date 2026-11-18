@@ -4,7 +4,7 @@ import {
     getTeaReceivedRecords,
     deleteTeaReceivedRecord,
     updateTeaReceivedRecord
-} from '../controllers/TeaReceivedController.js'; 
+} from '../controllers/teaReceivedController.js'; 
 
 import { authorizeRoles, verifyToken } from '../../middleware/auth.js';
 

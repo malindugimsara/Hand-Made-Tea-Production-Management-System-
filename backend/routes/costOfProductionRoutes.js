@@ -1,6 +1,6 @@
 // costOfProductionRoutes.js
 import express from 'express';
-import { saveCostOfProduction, getCostOfProductionByMonth } from '../controller/costOfProductionController.js';
+import { saveCostOfProduction, getCostOfProductionByMonth } from '../controllers/costOfProductionController.js';
 import { verifyToken, authorizeRoles } from '../middleware/auth.js'; 
 
 const costOfProductionRouter = express.Router();

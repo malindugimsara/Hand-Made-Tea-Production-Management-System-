@@ -4,7 +4,7 @@ import {
     deleteTeaCenterIssue,
     getTeaCenterIssues,
     updateTeaCenterIssue
-} from '../controllers/TeaCenterIssueController.js';
+} from '../controllers/teaCenterIssueController.js';
 import { authorizeRoles, verifyToken } from '../../middleware/auth.js';
 const teaCenterIssueRouter = express.Router();
 
