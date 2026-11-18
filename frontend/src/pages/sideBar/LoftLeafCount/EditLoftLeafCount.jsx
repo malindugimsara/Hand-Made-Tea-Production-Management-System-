@@ -33,7 +33,7 @@ export default function EditLoftLeafCount() {
                 route: data.route ? data.route.toLowerCase() : '',
                 officerName: data.officerName || '',
                 
-                // Fix: 0 ආවත් නිවැරදිව පෙන්නන්න !== undefined සහ null චෙක් කර ඇත
+                // Explicit null/undefined check to ensure numeric 0 is displayed correctly
                 totalLeafQty: data.totalLeafQty !== undefined && data.totalLeafQty !== null ? data.totalLeafQty : '',
                 bestQty: data.bestQty !== undefined && data.bestQty !== null ? data.bestQty : '',
                 belowBestQty: data.belowBestQty !== undefined && data.belowBestQty !== null ? data.belowBestQty : ''
@@ -67,7 +67,7 @@ export default function EditLoftLeafCount() {
     const handleInputChange = (id, field, value) => {
         const val = Number(value) || 0;
 
-        // ඍණ සංඛ්‍යා ඇතුළත් කිරීම වැළැක්වීම
+        // Prevent negative numeric input
         if (['bestQty', 'belowBestQty', 'totalLeafQty'].includes(field) && value !== '' && val < 0) return;
 
         setRecordsList(recordsList.map(row => {
@@ -75,7 +75,7 @@ export default function EditLoftLeafCount() {
                 if (field === 'bestQty' || field === 'belowBestQty') {
                     const b = field === 'bestQty' ? val : (Number(row.bestQty) || 0);
                     const bb = field === 'belowBestQty' ? val : (Number(row.belowBestQty) || 0);
-                    if (b + bb > 100) return row; // 100g සීමාව ඉක්මවා යාම වැළැක්වීම
+                    if (b + bb > 100) return row; // Enforce maximum cap of 100g
                 }
                 return { ...row, [field]: value };
             }

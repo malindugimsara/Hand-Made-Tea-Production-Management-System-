@@ -45,7 +45,7 @@ export const loginUser = async (req, res) => {
 // Create a new user (Only Admins will be able to hit this route later)
 export const registerUser = async (req, res) => {
   try {
-    // Frontend එකෙන් එවන allowedPaths ලබාගැනීම
+    // Retrieve allowedPaths received from frontend
     const { username, password, role, allowedPaths } = req.body;
     
     const newUser = new User({ 

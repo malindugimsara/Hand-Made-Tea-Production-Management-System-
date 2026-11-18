@@ -89,7 +89,7 @@ const DATA = {
       title: 'Green Leaf',
       icon: Leaf,
       items: [
-        { title: 'G/L Record Entry', url: '/green-leaf-form', nonViewer: true }, // 👈 Viewer ගෙන් හැංගෙනවා
+        { title: 'G/L Record Entry', url: '/green-leaf-form', nonViewer: true }, // Hidden for users with Viewer role
         { title: 'G/L View Records', url: '/view-green-leaf' },
       ],
     },
@@ -97,7 +97,7 @@ const DATA = {
       title: 'Loft Leaf Count',
       icon: Calculator,
       items: [
-        { title: 'L/L Record Entry', url: '/loft-leaf-count', nonViewer: true }, // 👈 Viewer ගෙන් හැංගෙනවා
+        { title: 'L/L Record Entry', url: '/loft-leaf-count', nonViewer: true }, // Hidden for users with Viewer role
         { title: 'L/L View Records', url: '/view-loft-leaf' },
         { title: 'L/L Weighted Average', url: '/summary-loft-leaf' },
         { title: 'L/L Simple Average', url: '/simple-average' },
@@ -107,7 +107,7 @@ const DATA = {
       title: 'Dehydrator Machine',
       icon: Factory,
       items: [
-        { title: 'D/L Record Entry', url: '/dehydrator-record-form', nonViewer: true }, // 👈 Viewer ගෙන් හැංගෙනවා
+        { title: 'D/L Record Entry', url: '/dehydrator-record-form', nonViewer: true }, // Hidden for users with Viewer role
         { title: 'D/L View Records', url: '/view-dehydrator-records' },
       ],
     },
@@ -115,7 +115,7 @@ const DATA = {
       title: 'Raw Material',
       icon: Sprout,
       items: [
-        { title: 'Raw Material Cost', url: '/raw-material-cost', nonViewer: true }, // 👈 Viewer ගෙන් හැංගෙනවා
+        { title: 'Raw Material Cost', url: '/raw-material-cost', nonViewer: true }, // Hidden for users with Viewer role
         { title: 'View RM Costs', url: '/view-raw-material-cost' },
       ],
     },
@@ -132,7 +132,7 @@ const DATA = {
       title: 'Transfer Out',
       icon: ChevronRight,
       items: [
-        { title: 'Transfer Out', url: '/transfer-out', nonViewer: true }, // 👈 Viewer ගෙන් හැංගෙනවා
+        { title: 'Transfer Out', url: '/transfer-out', nonViewer: true }, // Hidden for users with Viewer role
         { title: 'Transfer Out Records', url: '/transfer-out-view' },
       ],
     },
@@ -191,7 +191,7 @@ const [searchQuery, setSearchQuery] = React.useState('');
   const currentUsername = localStorage.getItem('username') || 'Unknown User';
   const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'User'; 
 
-  // 💡 NEW: LocalStorage එකෙන් Allowed Paths ලබාගැනීම
+  // NEW: Retrieve Allowed Paths from localStorage
   let allowedPaths = [];
   try {
     allowedPaths = JSON.parse(localStorage.getItem('allowedPaths')) || [];

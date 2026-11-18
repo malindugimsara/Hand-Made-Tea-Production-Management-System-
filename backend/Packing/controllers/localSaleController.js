@@ -262,7 +262,7 @@ export const updateLocalSale = async (req, res) => {
       return res.status(404).json({ message: "Record not found." });
     }
 
-    // 1. Calculate Old Quantities (පරණ රෙකෝඩ් එකේ ගණන්)
+    // 1. Calculate previous quantities from existing record
     const oldTea = {};
     const oldRM = {};
 
@@ -285,7 +285,7 @@ export const updateLocalSale = async (req, res) => {
       }
     }
 
-    // 2. Calculate New Requested Quantities (අලුතින් යවන ගණන්)
+    // 2. Calculate newly requested quantities
     const requiredTea = {};
     const requiredRM = {};
 

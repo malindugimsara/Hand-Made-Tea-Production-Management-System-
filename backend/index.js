@@ -5,13 +5,16 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import mongoSanitize from 'express-mongo-sanitize';
-import webpush from 'web-push'; 
 import cron from 'node-cron'; 
 import { verifyToken, authorizeSection } from './middleware/auth.js'; 
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'; 
 
 // --- Import the automated BM logic ---
 import { updateBMStockLogic } from './localsale/controllers/monthlyBalanceController.js'; 
+
+// Notification Routes & Cron
+import notificationRoutes from './routes/notificationRoutes.js';
+import { startNotificationCron } from './controllers/notificationController.js'; 
 
 // Handmade Section Routes
 import greenLeafRouter from './routes/greenLeafRoutes.js';
@@ -44,7 +47,6 @@ import labourOutputRouter from './factory/routes/labourOutputRoutes.js';
 import factoryPackRoutes from './factory/routes/factoryPackRoutes.js';
 
 // Local Sale Section Routes
-import Subscription from './Packing/models/SubscriptionModel.js';
 import dailySummaryRouter from './localsale/routes/dailySummaryRoutes.js';
 import issueTypeRouter from './localsale/routes/issueTypeRoutes.js';
 import monthlyBalanceRouter from './localsale/routes/monthlyBalanceRoutes.js';
@@ -54,7 +56,6 @@ import factoryLoftLeafRouter from './manufacturer/routes/loftLeafRoutes.js';
 import WitherLeafRouter from './manufacturer/routes/witherLeafRoutes.js';
 import FiringRouter from './manufacturer/routes/firingSectionRoutes.js';
 import hydroMeterRouter from './manufacturer/routes/hydroMeterRoutes.js';
-import { Production } from './models/Production.js';
 import pdfTotalRouter from './manufacturer/routes/pdfTotalRoutes.js';
 import tc5router from './manufacturer/routes/tc5ReportRoutes.js';
 import tc5ManualReportRouter from './manufacturer/routes/tc5ManualReportRoutes.js';
@@ -72,13 +73,6 @@ const app = express();
 
 // Enable trust proxy for rate limiters behind reverse proxies (Nginx, Render, Railway, etc.)
 app.set('trust proxy', 1);
-
-// --- Web Push VAPID Setup (Aluthin) ---
-webpush.setVapidDetails(
-  process.env.EMAIL,
-  process.env.PUBLIC_VAPID_KEY,
-  process.env.PRIVATE_VAPID_KEY
-);
 
 // Security HTTP Headers & hide technology stack (X-Powered-By)
 app.use(helmet({
@@ -147,47 +141,8 @@ cron.schedule('1 0 1 * *', async () => {
     }
 });
 
-// --- DAILY NOTIFICATION CRON JOB ---
-// Runs at 07:00 AM every day
-cron.schedule('30 8 * * *', async () => {
-    try {
-        console.log('Checking for pending dryer tasks for today...');
-        
-        // Get today's date (Format: YYYY-MM-DD)
-        const todayDate = new Date().toISOString().split('T')[0];
-        
-        // Fetch all Production records that have expectedDryerDate matching today
-        const pendingTasks = await Production.find({
-            expectedDryerDate: { $regex: `^${todayDate}` }
-        });
-
-        if (pendingTasks.length > 0) {
-            console.log(`Found ${pendingTasks.length} tasks for today. Sending notifications...`);
-
-            // Fetch all subscriptions from the database
-            const subscriptions = await Subscription.find({}); 
-            
-            const payload = JSON.stringify({
-                title: 'Dryer Tasks Pending Today! 🍂',
-                body: `You have ${pendingTasks.length} handmade/production task(s) scheduled to be dried today. Please check the system.`,
-                data: { url: '/view-green-leaf' } 
-            });
-
-            const sendPromises = subscriptions.map(sub => 
-                webpush.sendNotification(sub, payload).catch(err => {
-                    console.error('Push error (maybe unsubscribed):', err.statusCode);
-                })
-            );
-
-            await Promise.all(sendPromises);
-            console.log('Daily dryer notifications sent successfully.');
-        } else {
-            console.log('No pending dryer tasks for today.');
-        }
-    } catch (error) {
-        console.error('Daily Notification Cron Job Failed:', error);
-    }
-});
+// Scheduled Notification Jobs (e.g. Daily Dryer Tasks Alert at 08:30 AM)
+startNotificationCron();
 
 // Automated Daily Database Backup at 02:00 AM (OS-independent native backup)
 cron.schedule('0 2 * * *', async () => {
@@ -200,34 +155,8 @@ cron.schedule('0 2 * * *', async () => {
     }
 });
 
-app.post('/api/notifications/subscribe', async (req, res) => {
-    try {
-        const subscription = req.body;
-
-        await Subscription.findOneAndUpdate(
-            { endpoint: subscription.endpoint }, 
-            subscription,
-            { upsert: true, new: true }
-        );
-
-        res.status(201).json({ message: "Subscription saved successfully." });
-
-        const payload = JSON.stringify({ 
-            title: 'Notifications Enabled ✅', 
-            body: 'You will now receive alerts for new transfers.' 
-        });
-
-        webpush.sendNotification(subscription, payload)
-            .catch(err => console.error('Notification sending error:', err));
-
-    } catch (error) {
-        console.error("Error saving subscription:", error);
-        res.status(500).json({ error: "Failed to save subscription" });
-    }
-});
-
-
 // Routes
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/auth', authRouter); 
 app.use('/api/users', userRouter); 
 

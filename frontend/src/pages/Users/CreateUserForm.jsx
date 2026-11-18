@@ -44,8 +44,8 @@ export default function CreateUserForm() {
             return {
                 ...prev,
                 allowedPaths: isSelected
-                    ? prev.allowedPaths.filter(id => id !== sectionId) // අයින් කිරීම
-                    : [...prev.allowedPaths, sectionId] // එකතු කිරීම
+                    ? prev.allowedPaths.filter(id => id !== sectionId) // Deselect/remove item
+                    : [...prev.allowedPaths, sectionId] // Select/add item
             };
         });
     };
@@ -77,7 +77,7 @@ export default function CreateUserForm() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}` 
                 },
-                body: JSON.stringify(formData) // role, allowedPaths ඔක්කොම යවනවා
+                body: JSON.stringify(formData) // Send complete user payload including role and allowedPaths
             });
 
             const textResponse = await response.text();

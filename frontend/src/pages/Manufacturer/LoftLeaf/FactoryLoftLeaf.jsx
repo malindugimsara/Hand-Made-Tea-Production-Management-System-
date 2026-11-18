@@ -279,7 +279,7 @@ export default function LoftLeafCount() {
   };
 
   const handlePdfUpload = async (e) => {
-    // 💡 1. Upload කරන ලද සියලුම PDF ගොනු Array එකක් ලෙස ලබා ගැනීම
+    // 1. Collect all uploaded PDF files as an array
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
@@ -295,9 +295,9 @@ export default function LoftLeafCount() {
 
     try {
         const pdfjs = await loadPdfJs();
-        const allNewPending = []; // සියලුම PDF වල දත්ත අවසානයේ එකතු කිරීමට
+        const allNewPending = []; // Accumulate parsed data across all processed PDFs
 
-        // 💡 2. සෑම PDF ගොනුවක් සඳහාම වෙන වෙනම Loop වීම
+        // 2. Iterate through each uploaded PDF file individually
         for (const file of files) {
             const arrayBuffer = await file.arrayBuffer();
             const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
@@ -400,7 +400,7 @@ export default function LoftLeafCount() {
                 }
             } // End of single PDF Page Loop
 
-            // 💡 4. ඒ ඒ PDF එකට අදාළ දත්ත, අදාළ Date එක සමග Global Array එකට (allNewPending) එකතු කිරීම
+            // 4. Append parsed data and date to cumulative pending array (allNewPending)
             Object.keys(parsedRecords).forEach(key => {
                 const rec = parsedRecords[key];
                 
@@ -443,7 +443,7 @@ export default function LoftLeafCount() {
             }
         } // End of File Loop
 
-        // 💡 5. සියල්ල අවසානයේ State එකට යැවීම
+        // 5. Update component state once all PDFs are processed
         if (allNewPending.length > 0) {
             setPendingRecords(prev => [...prev, ...allNewPending]);
             toast.success(`Successfully extracted ${allNewPending.length} records from ${files.length} PDF(s)!`, { id: toastId });

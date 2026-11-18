@@ -14,7 +14,7 @@ export const getAllUsers = async (req, res) => {
 // CREATE USER
 export const createUser = async (req, res) => {
   try {
-    // 💡 NEW: req.body එකෙන් allowedPages ලබාගැනීම
+    // NEW: Extract allowedPages from req.body
     const { username, password, role, allowedPaths, allowedPages } = req.body;
 
     const existingUser = await User.findOne({ username });
@@ -27,7 +27,7 @@ export const createUser = async (req, res) => {
         password, 
         role: role || 'User',
         allowedPaths: allowedPaths || [],
-        allowedPages: allowedPages || [] // 💡 NEW: අලුත් User ගේ allowedPages සේව් කිරීම
+        allowedPages: allowedPages || [] // NEW: Save allowedPages for new user
     });
     
     await newUser.save();
@@ -43,7 +43,7 @@ export const createUser = async (req, res) => {
 // UPDATE USER
 export const updateUser = async (req, res) => {
   try {
-    // 💡 NEW: req.body එකෙන් allowedPages ලබාගැනීම
+    // NEW: Extract allowedPages from req.body
     const { username, role, password, allowedPaths, allowedPages } = req.body;
 
     const user = await User.findById(req.params.id);
@@ -64,7 +64,7 @@ export const updateUser = async (req, res) => {
       securityChanged = true;
     }
     
-    // 💡 NEW: User Update කරද්දී අලුත් allowedPages ටික සේව් කිරීම
+    // NEW: Save updated allowedPages when updating user
     if (allowedPages) {
       user.allowedPages = allowedPages; 
       securityChanged = true;

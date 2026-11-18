@@ -201,7 +201,7 @@ export default function ManufacturerDashboardLayout() {
   const currentUsername = localStorage.getItem('username') || 'Unknown User';
   const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'User';
 
-  // 💡 NEW: LocalStorage එකෙන් Allowed Paths ලබාගැනීම
+  // NEW: Retrieve Allowed Paths from localStorage
   let allowedPaths = [];
   try {
     allowedPaths = JSON.parse(localStorage.getItem('allowedPaths')) || [];
@@ -271,7 +271,7 @@ export default function ManufacturerDashboardLayout() {
     checkTokenExpiry();
   }, [navigate]);
 
-  // 💡 NEW: URL-BASED ACCESS CONTROL (allowedPages ලබාගැනීම)
+  // NEW: URL-based access control (evaluate allowedPages)
   const allowedPages = React.useMemo(() => {
     try { return JSON.parse(localStorage.getItem('allowedPages')) || []; } 
     catch { return []; }
@@ -279,7 +279,7 @@ export default function ManufacturerDashboardLayout() {
 
   // 💡 NEW: Check if the user has access to a specific URL
   const hasAccess = React.useCallback((url) => {
-    if (currentUserRole === 'Admin' || currentUserRole === 'Developer') return true; // Admin සහ Developer ට සියල්ල පෙන්වයි
+    if (currentUserRole === 'Admin' || currentUserRole === 'Developer') return true; // Display full navigation menu for Admin and Developer roles
     if (!url) return false;
     return allowedPages.includes(url);
   }, [currentUserRole, allowedPages]);

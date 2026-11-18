@@ -24,7 +24,7 @@ export default function AdminSettings() {
         }
     }, [navigate]);
 
-    // Dropdown එකෙන් පිටත ක්ලික් කළ විට එය වැසීම
+    // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (switcherRef.current && !switcherRef.current.contains(event.target)) {
@@ -59,7 +59,7 @@ export default function AdminSettings() {
     ];
 
     const accessibleModules = systemModules.filter(mod => allowedPaths.includes(mod.id));
-    const currentModule = systemModules.find(mod => mod.id === 'admin'); // දැනට සිටින්නේ Admin පිටුවේය
+    const currentModule = systemModules.find(mod => mod.id === 'admin'); // Currently on Admin Settings page
 
     return (
         <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-screen bg-transparent transition-colors duration-300">

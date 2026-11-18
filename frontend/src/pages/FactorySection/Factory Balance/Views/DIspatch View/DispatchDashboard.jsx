@@ -61,7 +61,7 @@ export default function DispatchDashboard() {
     let totalKg = 0;
     let mainGradeKg = 0;
     let offGradeKg = 0;
-    let otherGradeKg = 0; // 💡 අලුතින් OTHER සඳහා
+    let otherGradeKg = 0; // Handling for OTHER category
     const gradeMap = {};
 
     // 1. Filter by Date Range
@@ -95,7 +95,7 @@ export default function DispatchDashboard() {
             gradeMap[exactDbName].category = 'OFF';
             offGradeKg += weight;
           } else {
-            // MAIN සහ OFF දෙකේම නැති දේවල් මෙතැනට (OTHER) එකතු වේ
+            // Items not belonging to MAIN or OFF are grouped under OTHER
             gradeMap[exactDbName].category = 'OTHER';
             otherGradeKg += weight;
           }
@@ -105,7 +105,7 @@ export default function DispatchDashboard() {
 
     // 3. Format Chart Data (Calculate Percentages & Display Name)
     const formattedChartData = Object.values(gradeMap).map(item => {
-      // 💡 OTHER category එකේ දේවල් වලට පමණක් අගට "(OTHER)" ලෙස එක් කරයි
+      // Append "(OTHER)" suffix only for items in OTHER category
       const displayName = item.category === 'OTHER' ? `${item.dbName} (OTHER)` : item.dbName;
       
       return {

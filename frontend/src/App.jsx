@@ -12,6 +12,7 @@ import AdminSettings from './pages/Admin/AdminSettings';
 import SystemUpdates from './pages/systerm update/SystemUpdates';
 import DeveloperSection from './pages/systerm update/DeveloperSection';
 import SystemBackup from './pages/systerm update/SystemBackup';
+import api from './services/api';
 
 const PUBLIC_VAPID_KEY = import.meta.env.VITE_PUBLIC_VAPID_KEY;
 
@@ -71,11 +72,7 @@ export default function App() {
           section: "Packing"        
         };
 
-        await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/notifications/subscribe`, {
-          method: 'POST',
-          body: JSON.stringify(payload), 
-          headers: { 'content-type': 'application/json' }
-        });
+        await api.post('/api/notifications/subscribe', payload);
 
         toast.success("Notifications Enabled Successfully!");
         setShowNotificationBtn(false);

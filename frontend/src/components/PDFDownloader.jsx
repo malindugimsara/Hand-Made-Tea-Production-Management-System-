@@ -50,7 +50,7 @@ export default function PDFDownloader({
                         reader.readAsDataURL(blob);
                     });
                     
-                    // Logo Image (රූපයට ගැළපෙන පරිදි ප්‍රමාණය වෙනස් කර ඇත)
+                    // Logo Image (resized to fit header layout)
                     doc.addImage(dataUrl, "PNG", 14, 10, 24, 24, "", "FAST");
                 }
             } catch (err) {
@@ -58,7 +58,7 @@ export default function PDFDownloader({
             }
 
             // ===============================================================
-            // 💡 2. Add Company Name, Title & Subtitle (රූපයේ පරිදි පෙළගස්වා ඇත)
+            // 2. Add Company Name, Title & Subtitle
             // ===============================================================
             
             // Company Name
@@ -97,11 +97,11 @@ export default function PDFDownloader({
             doc.setFontSize(8);
             doc.setTextColor(150, 150, 150);
             
-            // 💡 මකා දැමී තිබුණු pageHeight එක මෙතැනට නැවත එකතු කර ඇත
+            // Restored pageHeight parameter
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight(); 
 
-            // දකුණු පස ඉහළ කෙළවරේ Doc Ref සහ Date
+            // Top-right header: Doc Ref and Date
             doc.text(`Doc Ref: ${uniqueCode}`, pageWidth - 14, 20, { align: 'right' });
             doc.text(`Generated: ${generatedDateTime}`, pageWidth - 14, 25, { align: 'right' });
 

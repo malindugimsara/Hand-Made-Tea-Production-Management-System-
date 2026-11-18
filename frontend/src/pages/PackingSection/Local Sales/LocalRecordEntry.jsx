@@ -191,7 +191,7 @@ export default function LocalRecordEntry() {
           fetch(`${BACKEND_URL}/api/packing-stock`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch(`${BACKEND_URL}/api/raw-materials-in/stock`, { // මෙතන URL එක /api/raw-materials නම් එය වෙනස් කරගන්න
+          fetch(`${BACKEND_URL}/api/raw-materials-in/stock`, { // Adjust URL path if configured differently (e.g. /api/raw-materials)
             headers: { Authorization: `Bearer ${token}` },
           }).catch(() => ({ ok: false })),
         ]);
@@ -204,7 +204,7 @@ export default function LocalRecordEntry() {
           const overallTeaStock = [];
           
           allTeas.forEach((product) => {
-            // Source එකෙන් නොබලා, කෙලින්ම Main Stock එක (totalBulkStockKg) ලබාගැනීම
+            // Direct fetch of main stock balance (totalBulkStockKg)
             const validStock = Number(product.totalBulkStockKg) || Number(product.bulkStockKg) || 0;
             
             if (validStock > 0) {
@@ -215,7 +215,7 @@ export default function LocalRecordEntry() {
             }
           });
 
-          // (විකල්ප) නම් අනුව පිළිවෙලට හැදීම
+          // Optional: sort alphabetically by name
           overallTeaStock.sort((a, b) => a.productName.localeCompare(b.productName));
           
           setAvailableStock(overallTeaStock);
@@ -468,7 +468,7 @@ export default function LocalRecordEntry() {
       if (requestedQty > available) packingStockWarning = true;
     }
 
-    // 👇 මෙතනින් තමයි bypass කරන එක block කරලා තියෙන්නේ 👇
+    // Prevent unauthorized bypass by validating authentication state
     if (stockWarning) {
         toast.error("Cannot save! You are issuing MORE tea stock than what is available.");
         return; 
@@ -512,7 +512,7 @@ export default function LocalRecordEntry() {
           if (!res.ok) {
             const errorData = await res.json().catch(() => ({}));
             if (res.status === 403) throw new Error("Access Denied");
-            // Backend එකෙන් එවන error message එක අල්ලගැනීම
+            // Capture detailed error message returned by backend
             throw new Error(errorData.message || "Failed"); 
           }
           return res.json();
@@ -531,7 +531,7 @@ export default function LocalRecordEntry() {
       if (error.message === "Access Denied") {
         toast.error("Access Denied. You do not have permission to add records.", { id: toastId });
       } else {
-        // Backend එකෙන් එන නිවැරදි හේතුව පෙන්වීම
+        // Display exact error reason returned by backend
         toast.error(error.message !== "Failed" ? error.message : "Error saving records. Please check stock.", { id: toastId });
       }
     } finally {
@@ -550,10 +550,10 @@ export default function LocalRecordEntry() {
         setFocusedOptionIndex((prev) => (prev > 0 ? prev - 1 : 0));
     } else if (e.key === "Enter" && focusedOptionIndex >= 0) {
         e.preventDefault();
-        // field කියන එකෙන් 'product' ද 'packSizeKg' ද කියලා අඳුරගන්නවා
+        // Identify target input field: 'product' or 'packSizeKg'
         handleItemChange(rowId, field, options[focusedOptionIndex]); 
         setOpenDropdownId(null);
-        setFocusedOptionIndex(-1); // Select කරාට පස්සේ reset කරනවා
+        setFocusedOptionIndex(-1); // Reset state after selection
     } else if (e.key === "Escape") {
         setOpenDropdownId(null);
         setFocusedOptionIndex(-1);
@@ -781,7 +781,7 @@ export default function LocalRecordEntry() {
                                 "product",
                                 e.target.value,
                               );
-                              setFocusedOptionIndex(-1); // Type කරන විට focus එක reset කිරීම
+                              setFocusedOptionIndex(-1); // Reset active focus index while typing
                             }}
                             onFocus={() => {
                               setOpenDropdownId(`product-${row.id}`);
@@ -791,7 +791,7 @@ export default function LocalRecordEntry() {
                                 const filteredOptions = TEA_TYPES.filter((tea) =>
                                     tea.toLowerCase().includes(row.product.toLowerCase())
                                 );
-                                // 👇 අගට "product" කියලා යවන්න
+                                // Pass 'product' as target field identifier
                                 handleKeyDown(e, row.id, filteredOptions, "product");
                             }}          
                             required
@@ -821,7 +821,7 @@ export default function LocalRecordEntry() {
                                     }}
                                     onMouseEnter={() =>
                                       setFocusedOptionIndex(idx)
-                                    } // Mouse එක ගෙනගිය විට focus වීම
+                                    } // Highlight item on mouse hover
                                     className={`px-4 py-2 text-sm cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 flex items-center gap-2 transition-colors
                                 ${
                                   isFocused
@@ -883,20 +883,20 @@ export default function LocalRecordEntry() {
                             <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-xl z-50 overflow-hidden">
                                 {availableSizes.map((size, idx) => {
                                     
-                                    // 👇 මේ option එකද select වෙලා තියෙන්නේ කියලා බලනවා
+                                    // Verify if current option matches active selection
                                     const isFocused = focusedOptionIndex === idx; 
 
                                     return (
                                         <li
                                             key={idx}
-                                            ref={isFocused ? activeOptionRef : null} // 👇 Auto scroll වෙන්න Ref එක දෙනවා
+                                            ref={isFocused ? activeOptionRef : null} // Attach ref for auto-scrolling active option into view
                                             onMouseDown={(e) => e.preventDefault()}
                                             onClick={() => {
                                                 handleItemChange(row.id, "packSizeKg", size);
                                                 setOpenDropdownId(null);
                                                             setFocusedOptionIndex(-1);
                                             }}
-                                            onMouseEnter={() => setFocusedOptionIndex(idx)} // Mouse එක ගෙනිච්චමත් select වෙන්න
+                                            onMouseEnter={() => setFocusedOptionIndex(idx)} // Select option on mouse hover
                                             className={`px-4 py-2 text-sm cursor-pointer border-b border-gray-100 dark:border-zinc-700/50 last:border-0 transition-colors ${
                                                 isFocused
                                                     ? "bg-[#ccfbf1] dark:bg-teal-900/60 text-[#0f766e] dark:text-teal-300 font-bold"
@@ -934,11 +934,11 @@ export default function LocalRecordEntry() {
                             className="w-full p-2.5 h-[42px] border border-teal-200 dark:border-teal-800/50 text-sm rounded-md focus:ring-2 focus:ring-[#2dd4bf]/50 outline-none bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
                             onKeyDown={(e) => {
                                 if (e.key === "Enter") {
-                                    e.preventDefault(); // Form එක Submit වීම නතර කරයි
+                                    e.preventDefault(); // Prevent default form submission
                                     
-                                    // Product, PackSize සහ Box ප්‍රමාණය දීලා තියෙනවද කියලා බලනවා
+                                    // Validate that Product, PackSize, and Box count are filled
                                     if (row.product && row.packSizeKg && row.numberOfBoxes) {
-                                        handleAddItemRow(); // අලුත් Row එකක් එකතු කරයි
+                                        handleAddItemRow(); // Add new row entry
                                     } else {
                                         toast.error("Please fill current row details before adding a new one.");
                                     }

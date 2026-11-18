@@ -183,7 +183,7 @@ export default function DashboardLayoutP() {
   const currentUsername = localStorage.getItem('username') || 'Unknown User';
   const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role') || 'User'; 
 
-  // 💡 NEW: LocalStorage එකෙන් Allowed Paths ලබාගැනීම
+  // NEW: Retrieve Allowed Paths from localStorage
   let allowedPaths = [];
   try {
     allowedPaths = JSON.parse(localStorage.getItem('allowedPaths')) || [];

@@ -16,7 +16,7 @@ const systemUpdateSchema = new mongoose.Schema({
   },
   section: {
     type: String,
-    required: true // උදා: 'B/L Operations', 'Rolling Room', 'Dashboard'
+    required: true // e.g. 'B/L Operations', 'Rolling Room', 'Dashboard'
   },
   title: {
     type: String,

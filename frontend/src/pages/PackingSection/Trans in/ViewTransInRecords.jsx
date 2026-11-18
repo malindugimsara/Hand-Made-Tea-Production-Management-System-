@@ -36,8 +36,8 @@ const getTeaColor = (product) => {
     return ''; 
 };
 
-// අලුත් Function එක: මේකෙන් border සහ rounded වගේ class අයින් කරලා bg සහ text class විතරක් ගන්නවා.
-// මේක පාවිච්චි කරන්නේ පින්තූරේ විදිහට Summary Table එකේ මුළු කොටුවම (Cell) පාට කරන්නයි.
+// Extract only background and text color utility classes, stripping border/radius
+// Used to apply full background tint across entire table cells in summary report
 const getSafeBgColor = (product) => {
     const fullClass = getTeaColor(product) || '';
     return fullClass.split(' ').filter(c => c.startsWith('bg-') || c.startsWith('text-') || c.startsWith('dark:bg-') || c.startsWith('dark:text-')).join(' ');
@@ -117,29 +117,29 @@ export default function ViewTransInRecords() {
     };
 
   const filteredRecords = records.reduce((acc, record) => {
-    // Date එක අරගෙන මාසය සහ දිනය ගැලපෙනවද කියලා බලනවා
+    // Match record timestamp against selected month and day
     const rDate = new Date(record.dateReceived || record.date).toISOString().split('T')[0];
     const monthMatch = !filterMonth || rDate.startsWith(filterMonth);
     const dateMatch = (!startDate || rDate >= startDate) && (!endDate || rDate <= endDate);
     
-    // මාසය හෝ දිනය ගැලපෙන්නේ නැත්නම් මේ record එක අතහරින්න
+    // Skip record if date does not match active filter
     if (!monthMatch || !dateMatch) return acc;
 
-    // record එක ඇතුලේ තියෙන items ටික ගන්න. (undefined ආවොත් crash නොවෙන්න || [] දාලා තියෙනවා)
+    // Safe access to items array with fallback to empty array
     let matchedItems = record.items || []; 
     
     if (productFilter) {
-        // exact match (===) භාවිතා කර ෆිල්ටර් කරයි. (උදා: BOPF සෙවූ විට BOPF SP අහුවෙන්නේ නැත)
+        // Strict equality match to avoid substring false positives (e.g. BOPF vs BOPF SP)
         matchedItems = matchedItems.filter(
             item => item.product?.toLowerCase() === productFilter.toLowerCase()
         );
     }
 
-    // ගැලපෙන items එකක් හෝ තියෙනවා නම් පමණක් එය පෙන්නන්න
+    // Retain record only if at least one item matches filter criteria
     if (matchedItems.length > 0) {
         acc.push({
             ...record,
-            items: matchedItems // මුළු දවසේම දත්ත වෙනුවට, සෙවුමට ගැලපෙන items පමණක් replace කරයි
+            items: matchedItems // Replace full daily item list with matched filter subset
         });
     }
 
@@ -297,7 +297,7 @@ export default function ViewTransInRecords() {
             {/* --- MAIN GRID LAYOUT --- */}
             <div className="grid grid-cols-1 gap-6">
                 
-                {/* LEFT: MAIN TABLE (Col Span 3) - Rowspan එක පාවිච්චි කරලා "එක පෙළියට" හදලා තියෙනවා */}
+                {/* LEFT: MAIN TABLE (Col Span 3) - Formatted with rowspan alignment */}
                 <div className="xl:col-span-3 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-700 overflow-hidden self-start w-full transition-colors duration-300">
                     {loading ? (
                         <div className="p-12 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center h-64">
@@ -348,7 +348,7 @@ export default function ViewTransInRecords() {
                                                                 </td>
                                                             )}
                                                             
-                                                            {/* 2. Products Included (එක අයිටම් එකක් එක පේළියකට එනවා) */}
+                                                            {/* 2. Products Included (rendered one item per row) */}
                                                             <td className="px-4 py-3 border-r border-gray-200/50 dark:border-zinc-700/50 align-middle">
                                                                 <span className={`inline-block font-bold border px-2 py-0.5 rounded shadow-sm w-fit text-[11px] ${getTeaColor(t.product)}`}>
                                                                     {t.product}

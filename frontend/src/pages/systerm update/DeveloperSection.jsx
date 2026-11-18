@@ -17,7 +17,7 @@ export default function DeveloperSection() {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('overview');
 
-    // 💡 Role Validation: Developer කෙනෙක් පමණක් ඇතුළු කරගනී
+    // Role validation: Restrict access to Developer only
     useEffect(() => {
         const currentRole = localStorage.getItem('userRole') || localStorage.getItem('role');
         if (currentRole !== 'Developer') {

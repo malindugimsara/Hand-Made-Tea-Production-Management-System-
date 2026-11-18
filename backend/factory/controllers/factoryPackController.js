@@ -22,7 +22,7 @@ export const saveDailyLedger = async (req, res) => {
             }
         };
     } else {
-        // 💡 Factory Packing Page එකෙන් එනවා නම්, සාමාන්‍ය විදිහට Replace කරනවා (Manual Edit)
+        // If request originates from Factory Packing Page, replace row normally (Manual Edit)
         updateQuery = {
             $set: { agSuper, aGroup, sampleBags }
         };

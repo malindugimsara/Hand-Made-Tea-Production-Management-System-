@@ -23,7 +23,7 @@ const batchItemSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
-// 💡 Hydro Meter Readings සඳහා වන Schema එක (මෙය Chart දෙකටම පොදුයි)
+// Schema for Hydro Meter Readings (shared across both charts)
 const hydroReadingSchema = new mongoose.Schema({
   time: { type: String, default: '' },
   dryBulb: { type: String, default: '' },

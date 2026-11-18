@@ -5,7 +5,7 @@ import { paginate } from '../../utils/paginate.js';
 // CREATE NEW RAW MATERIAL IN RECORD
 export const createRawMaterialIn = async (req, res) => {
     try {
-        // 💡 1. req.body එකෙන් billImageUrl එක ලබා ගැනීම
+        // 1. Extract billImageUrl from req.body
         const { date, invoiceNo, supplierName, items, receivedBy, remarks, billImageUrl } = req.body;
 
         if (!items || items.length === 0) {

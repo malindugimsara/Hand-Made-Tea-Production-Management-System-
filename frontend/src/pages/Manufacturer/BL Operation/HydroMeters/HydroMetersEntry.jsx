@@ -28,7 +28,7 @@ export default function HydroMetersEntry() {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const currentUsername = localStorage.getItem("username") || "Unknown User";
 
-    // URL එකේ '?date=YYYY-MM-DD' ලෙස ආවොත් එය ගනී, නැත්නම් අද දිනය ගනී.
+    // Use '?date=YYYY-MM-DD' query param if provided, otherwise default to today
     const [selectedDate, setSelectedDate] = useState(() => {
         const queryParams = new URLSearchParams(window.location.search);
         return queryParams.get('date') || new Date().toISOString().split('T')[0];
@@ -37,7 +37,7 @@ export default function HydroMetersEntry() {
     const [activeTimeIndex, setActiveTimeIndex] = useState(null);
     const activeTime = activeTimeIndex !== null ? TIME_SLOTS[activeTimeIndex] : null;
 
-    const timeScrollRef = useRef(null); // Auto-scroll සඳහා Ref එක
+    const timeScrollRef = useRef(null); // DOM ref for auto-scroll functionality
 
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);

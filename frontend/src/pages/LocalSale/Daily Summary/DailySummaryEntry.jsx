@@ -350,7 +350,7 @@ export default function DailySummaryEntry() {
                       list="tea-name-suggestions" 
                       autoComplete="off"
                       value={customTeaName} 
-                      onChange={handleCustomNameChange} /* 💡 අලුත් Function එක මෙතනට දාලා තියෙන්නේ */
+                      onChange={handleCustomNameChange} /* Custom name change handler */
                       className="w-full p-2.5 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-blue-400/50" 
                       placeholder="e.g. Special Green" 
                     />

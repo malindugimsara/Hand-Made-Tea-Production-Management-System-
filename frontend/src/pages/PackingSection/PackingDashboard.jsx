@@ -260,7 +260,7 @@ export default function PackingDashboard() {
             });
         }
 
-        // Alert එකක්වත් නැත්නම් විතරක් "System Optimal" කියලා පෙන්නන්න
+        // Display 'System Optimal' only when there are zero pending alerts
         if (generatedAlerts.length === 0) {
              generatedAlerts.push({
                 id: 'optimal', type: 'info', icon: <Sparkles size={20}/>,

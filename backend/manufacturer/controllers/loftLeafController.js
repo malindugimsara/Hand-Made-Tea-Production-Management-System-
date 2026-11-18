@@ -16,7 +16,7 @@ const calculatePercentages = (best, belowBest, poor) => {
 // 1. Add or Update Factory Sample
 export const saveFactorySample = async (req, res) => {
     try {
-        // 💡 අලුතින් එකතු කළ factorySupervisorName ලබා ගැනීම
+        // Retrieve factorySupervisorName from request
         const { date, route, arrivalTime, totalLeafQtyKg, bestG, belowBestG, poorG, factorySupervisorName } = req.body;
 
         const { bestPct, belowBestPct, poorPct } = calculatePercentages(bestG, belowBestG, poorG);
@@ -57,7 +57,7 @@ export const saveFactorySample = async (req, res) => {
 // 2. Add or Update Collector Sample
 export const saveCollectorSample = async (req, res) => {
     try {
-        // 💡 අලුතින් එකතු කළ leafCollectorName ලබා ගැනීම
+        // Retrieve leafCollectorName from request
         const { date, route, bestG, belowBestG, poorG, leafCollectorName } = req.body;
 
         const { bestPct, belowBestPct, poorPct } = calculatePercentages(bestG, belowBestG, poorG);

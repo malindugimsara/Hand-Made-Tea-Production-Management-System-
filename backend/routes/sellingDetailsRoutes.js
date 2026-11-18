@@ -10,7 +10,7 @@ const sellingDetailsRouter = express.Router();
 
 sellingDetailsRouter.post('/', verifyToken, authorizeRoles('Admin', 'User'), createSellingDetail);
 
-// API Call එක: /api/selling-details?month=YYYY-MM
+// API Endpoint: /api/selling-details?month=YYYY-MM
 sellingDetailsRouter.get('/', verifyToken, authorizeRoles('Admin', 'User', 'Viewer'), getSellingDetailsByMonth);
 
 export default sellingDetailsRouter;

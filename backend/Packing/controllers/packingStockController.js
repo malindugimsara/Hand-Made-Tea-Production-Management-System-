@@ -1,6 +1,6 @@
 import PackingStock from "../models/PackingStock.js"; 
 
-// 👇 Historical Stock එක Calculate කරන්න මේ Models ඔක්කොම ඕනේ 👇
+// Required models to calculate historical stock balances
 import TeaReceived from "../models/TeaReceivedModel.js";
 import TeaTransactionOther from "../models/TeaTransactionOther.js";
 import StockTransfer from "../../models/StockTransfer.js"; // Handmade/Other Trans Ins
@@ -142,13 +142,13 @@ export const getHistoricalPackingStock = async (req, res) => {
         if (!date) return res.status(400).json({ message: "Date is required." });
 
         const targetDate = new Date(`${date}T23:59:59.999Z`);
-        const targetDateString = date; // RawMaterialIn එකේ Date එක String එකක් නිසා කෙලින්ම ගැලපීමට
+        const targetDateString = date; // Direct string match since RawMaterialIn stores date as a string
 
-        // 1. Live Stocks ලබාගැනීම
+        // 1. Fetch live stock balances
         const liveTeaStocks = await PackingStock.find().lean();
         const liveRmStocks = await RawMaterialStock.find().lean();
 
-        // 2. අදාළ දිනයට "පසුව (Future)" සිදු වූ ගනුදෙනු ලබාගැනීම
+        // 2. Fetch future transactions occurring after the target date
         const futureTeaReceived = await TeaReceived.find({ date: { $gt: targetDate } }).lean();
         const futureOtherTrans = await TeaTransactionOther.find({ date: { $gt: targetDate } }).lean();
         const futureStockTrans = await StockTransfer.find({ dateReceived: { $gt: targetDate }, status: 'COMPLETED' }).lean();

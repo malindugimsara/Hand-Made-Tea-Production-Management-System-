@@ -1,7 +1,7 @@
 import express from 'express';
 import { deleteFactoryLog, getFactoryLogsByMonth, saveDailyFactoryLog } from '../controllers/factoryController.js';
 
-// Authentication සහ Role-based Authorization Middlewares Import කිරීම
+// Import Authentication and Role-based Authorization Middlewares
 import { verifyToken, authorizeRoles } from '../../middleware/auth.js'; 
 
 const factoryrouter = express.Router();

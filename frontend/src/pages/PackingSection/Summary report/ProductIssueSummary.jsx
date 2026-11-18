@@ -43,7 +43,7 @@ const getTeaColor = (product) => {
   return "bg-white text-gray-800 dark:bg-zinc-900 dark:text-gray-300";
 };
 
-// PDF එක සඳහා RGB වර්ණ ලබා දෙන Function එක
+// Utility function returning RGB color tuples for PDF generation
 const getPDFTeaStyles = (product) => {
   if (!product) return { fillColor: [255, 255, 255], textColor: [50, 50, 50] };
   const p = product.toLowerCase();
@@ -78,7 +78,7 @@ const getPDFTeaStyles = (product) => {
   if (p.includes("silver"))
     return { fillColor: [241, 245, 249], textColor: [30, 41, 59] }; // Silver/Gray
 
-  // Default (පාටක් නැති ඒවට සුදු පසුබිම සහ කළු අකුරු)
+  // Default style: white background with black text
   return { fillColor: [255, 255, 255], textColor: [50, 50, 50] };
 };
 
@@ -255,12 +255,12 @@ export default function ProductIssueSummary() {
             if (sectionName === "TEA CENTER") {
               finalProductName = getBaseCategory(item.product);
             } else if (sectionName === "LOCAL SALE") {
-              // Local Sale එක සඳහා අලුත් Logic එක
+              // Calculation logic for Local Sale entries
               const pLower = item.product.trim().toLowerCase();
               if (pLower.includes("labour drinking tea")) {
-                finalProductName = "BOPF"; // Labour Drinking Tea BOPF එකට යවයි
+                finalProductName = "BOPF"; // Route Labour Drinking Tea to BOPF category
               } else if (pLower.includes("t/b")) {
-                finalProductName = "BOPF SP"; // සියලුම T/B වර්ග BOPF SP එකට යවයි
+                finalProductName = "BOPF SP"; // Route all Tea Bag (T/B) items to BOPF SP category
               }
             }
 
@@ -302,7 +302,7 @@ export default function ProductIssueSummary() {
         sec.products.forEach((prod, idx) => {
           const row = [];
 
-          // ඒ ඒ product එකට අදාළ පාට ලබා ගැනීම
+          // Retrieve distinct badge color for each product
           const pdfStyles = getPDFTeaStyles(prod.product);
 
           // 1. Section Column
@@ -312,10 +312,10 @@ export default function ProductIssueSummary() {
               styles: { valign: "top", fontStyle: "bold" },
             });
           } else {
-            row.push(""); // පසුව එන පේළි සඳහා හිස් ඉඩක්
+            row.push(""); // Blank filler cell for subsequent table rows
           }
 
-          // 2. Product Column (පාට සහ අකුරු විලාසය මෙතනින් එකතු වේ)
+          // 2. Product column styling and formatting
           row.push({
             content: prod.product,
             styles: {
@@ -325,7 +325,7 @@ export default function ProductIssueSummary() {
             },
           });
 
-          // 3. QTY Column (එම පාටම මෙතැනටත් එකතු වේ)
+          // 3. QTY column formatted with matching color accent
           row.push({
             content: prod.qty % 1 !== 0 ? prod.qty.toFixed(2) : prod.qty,
             styles: {
@@ -427,7 +427,7 @@ export default function ProductIssueSummary() {
 
   const uniqueCode = `PIS/${getMonthName(filterMonth)}`;
 
-// 💡 Dark Mode සඳහා යාවත්කාලීන කළ Component Return කොටස
+// Render layout with dark mode support
   return (
     <div className="min-h-screen bg-[#f8fafc] dark:bg-zinc-950 pb-12 transition-colors">
       <div className="p-4 md:p-8 max-w-[1200px] mx-auto font-sans relative">

@@ -98,7 +98,7 @@ const SystemUpdates = () => {
             
             const method = isEditing ? 'PUT' : 'POST';
             
-            // 💡 FIX: අලුත් වාර්තාවක් (New Record) සාදන විට හිස් _id එක ඉවත් කිරීම
+            // Strip empty _id when creating new record
             const payload = { ...formData };
             if (!isEditing) {
                 delete payload._id;
@@ -110,7 +110,7 @@ const SystemUpdates = () => {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(payload) // 💡 මෙතනට formData වෙනුවට 'payload' යොදා ඇත
+                body: JSON.stringify(payload) // Use sanitized 'payload' instead of raw formData
             });
 
             const result = await res.json();

@@ -143,7 +143,7 @@ export default function FactoryView() {
           greenLeaf: { 
               today: totalToday, 
               toDate: glToDate,
-              estate: estate, // 💡 අලුත්: View එකේ පෙන්වීම සඳහා
+              estate: estate, // Formatted for view display
               brought: brought 
           },
           madeTea: { today: totalToDate, toDate: mtToDate },

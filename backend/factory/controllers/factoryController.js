@@ -137,13 +137,13 @@ export const saveDailyFactoryLog = async (req, res) => {
                     ? Number(broughtLeafToday) 
                     : (greenLeafToday !== undefined ? Number(greenLeafToday) : (existingRecord?.greenLeaf?.broughtLeaf?.today || 0));
 
-    const totalGlToday = eLeaf + bLeaf; // 💡 අලුත්: මුළු එකතුව
+    const totalGlToday = eLeaf + bLeaf; // Total green leaf quantity
 
     const selectedMonthNumber = targetDate.getMonth() + 1; 
     const monthsWith21Percent = [4, 5, 6, 9, 10, 11, 12];
     const conversionRate = monthsWith21Percent.includes(selectedMonthNumber) ? 0.21 : 0.215;
     
-    const madeTeaToday = totalGlToday * conversionRate; // 💡 අලුත් මුළු එකතුවෙන් Made Tea සෑදීම
+    const madeTeaToday = totalGlToday * conversionRate; // Calculate Made Tea based on total green leaf
 
     const totalDispatch = finalDispatches.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
     const totalLocalSale = finalLocalSales.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);

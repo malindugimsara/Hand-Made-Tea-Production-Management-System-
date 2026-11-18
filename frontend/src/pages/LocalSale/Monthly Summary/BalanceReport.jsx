@@ -183,7 +183,7 @@ export default function BalanceReport() {
                     // Hide rows with absolutely no data
                     if (bmStock !== 0 || inQty !== 0 || outQty !== 0) {
                         
-                        // Other Grades වල "Other Grades" කෑල්ල අයින් කර Size එක (DUST, DUST 1, BOPF) පමණක් පෙන්වීම
+                        // Strip "Other Grades" prefix and display only size (DUST, DUST 1, BOPF)
                         const displayName = cat.id === 'others' ? size : `${cat.title} ${size}`;
 
                         formattedData.push({

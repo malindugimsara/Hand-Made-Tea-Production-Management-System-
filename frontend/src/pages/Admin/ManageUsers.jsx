@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { Users, Shield, UserPlus, Edit, Trash2, X, AlertCircle, User as UserIcon, CheckSquare } from "lucide-react";
+import api from '@/services/api';
 
 import {
     AlertDialog,
@@ -15,7 +16,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// 💡 සියලුම ප්‍රධාන අංශ සහ ඒවායේ ඇතුළත පිටු (URLs) 
+// System sections and nested page URLs 
 const SYSTEM_PERMISSIONS = [
     {
         id: 'handmade',
@@ -117,7 +118,6 @@ const SYSTEM_PERMISSIONS = [
 ];
 
 export default function ManageUsers() {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const navigate = useNavigate();
 
     const [users, setUsers] = useState([]);
@@ -143,10 +143,7 @@ export default function ManageUsers() {
 
     const fetchUsers = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/users`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await api.get('/api/users');
 
             if (!response.ok) throw new Error("Failed to fetch");
             const data = await response.json();
@@ -163,11 +160,7 @@ export default function ManageUsers() {
 
         const toastId = toast.loading("Deleting user...");
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/users/${userToDelete._id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await api.delete(`/api/users/${userToDelete._id}`);
 
             const data = await response.json();
 
@@ -213,7 +206,7 @@ export default function ManageUsers() {
         });
     };
 
-    // 💡 Main Section එක ටික් කිරීම (Auto-select/Deselect Sub-pages)
+    // Toggle main section (auto-select or deselect sub-pages)
     const handlePathChange = (sectionId) => {
         const section = SYSTEM_PERMISSIONS.find(s => s.id === sectionId);
         const sectionPageIds = section ? section.pages.map(p => p.id) : [];
@@ -222,14 +215,14 @@ export default function ManageUsers() {
             const isSelected = prev.allowedPaths.includes(sectionId);
             
             if (isSelected) {
-                // Uncheck කළ විට සියලුම Sub-pages ඉවත් වේ
+                // If unchecked, remove section and all its child sub-pages
                 return {
                     ...prev,
                     allowedPaths: prev.allowedPaths.filter(id => id !== sectionId),
                     allowedPages: prev.allowedPages.filter(pageId => !sectionPageIds.includes(pageId))
                 };
             } else {
-                // Check කළ විට සියලුම Sub-pages එකතු වේ
+                // If checked, include section and all child sub-pages
                 return {
                     ...prev,
                     allowedPaths: [...prev.allowedPaths, sectionId],
@@ -239,7 +232,7 @@ export default function ManageUsers() {
         });
     };
 
-    // 💡 කුඩා පිටුවක් (Sub-page) වෙනස් කිරීම
+    // Toggle individual sub-page permission
     const handlePageChange = (pageUrl) => {
         setEditFormData(prev => ({
             ...prev,
@@ -260,15 +253,7 @@ export default function ManageUsers() {
         const toastId = toast.loading("Updating user...");
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/users/${editingUser}`, {
-                method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                },
-                body: JSON.stringify(editFormData)
-            });
+            const response = await api.put(`/api/users/${editingUser}`, editFormData);
 
             const data = await response.json();
 

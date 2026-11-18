@@ -1,8 +1,7 @@
 import StockTransfer from '../models/StockTransfer.js';
 import {Production} from '../models/Production.js'; // <-- Changed to your Production model
-import webpush from 'web-push';
-import Subscription from '../Packing/models/SubscriptionModel.js';
 import { paginate } from '../utils/paginate.js';
+import { sendPushToRole } from './notificationController.js';
 
 // @desc    Create a new stock transfer (Handmade -> Packing)
 // @route   POST /api/handmade/transfers
@@ -34,33 +33,14 @@ export const createHandmadeTransfer = async (req, res) => {
         const savedTransfer = await newTransfer.save();
 
         // ========================================================
-        // 🌟 PUSH NOTIFICATION CODE 🌟
+        // Push notification to Packing Officer subscribers
         // ========================================================
-        try {
-            const subscriptions = await Subscription.find({ role: "Packing Officer" });
-            
-            const totalQty = items.reduce((sum, item) => sum + Number(item.issuedQtyKg), 0);
-
-            const payload = JSON.stringify({
-                title: '📦 New Handmade Transfer',
-                message: `A new transfer of ${totalQty}kg arrived from Handmade! (${transferId})`,
-                url: 'packing/trans-in-entry'
-            });
-
-            await Promise.all(
-                subscriptions.map(async (sub) => {
-                    try {
-                        await webpush.sendNotification(sub, payload);
-                    } catch(err) {
-                        if (err.statusCode === 410) {
-                            await Subscription.deleteOne({ endpoint: sub.endpoint });
-                        }
-                    }
-                })
-            );
-        } catch (pushErr) {
-            console.error("Notification error:", pushErr);
-        }
+        const totalQty = items.reduce((sum, item) => sum + Number(item.issuedQtyKg), 0);
+        sendPushToRole({ role: "Packing Officer" }, {
+            title: '📦 New Handmade Transfer',
+            body: `A new transfer of ${totalQty}kg arrived from Handmade! (${transferId})`,
+            data: { url: '/packing/trans-in-entry' }
+        }).catch(err => console.error("[HandmadeTransfer] Push notification error:", err));
         // ========================================================
 
         res.status(201).json(savedTransfer);

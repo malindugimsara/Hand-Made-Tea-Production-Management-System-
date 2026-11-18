@@ -80,7 +80,7 @@ export default function Home() {
             let dayGlSum = 0;
             let dayMtSum = 0;
 
-            // Index mapping (Production record එකට අදාළ Green Leaf record එක සම්බන්ධ කිරීම)
+            // Map Production records to corresponding Green Leaf index
             prodsForDay.forEach((prod, index) => {
                 if (teaTypeFilter === 'All' || prod.teaType === teaTypeFilter) {
                     dayMtSum += (Number(prod.madeTeaWeight) || 0);
@@ -92,7 +92,7 @@ export default function Home() {
                 }
             });
 
-            // 'All' තෝරලා තියෙද්දි, Production වලට වඩා GL Records වැඩියෙන් තිබ්බොත් ඒවත් එකතු කිරීම
+            // Include extra Green Leaf records when GL count exceeds Production count
             if (teaTypeFilter === 'All' && glsForDay.length > prodsForDay.length) {
                 for(let i = prodsForDay.length; i < glsForDay.length; i++) {
                     dayGlSum += (Number(glsForDay[i].selectedWeight) || 0);
@@ -145,7 +145,7 @@ export default function Home() {
             prevGlGrouped[day].push(g);
         });
 
-        // Previous Month Data වලටත් Index Mapping යෙදීම
+        // Apply index mapping for previous month dataset
         Object.keys(prevProdGrouped).forEach(day => {
             const prods = prevProdGrouped[day];
             const gls = prevGlGrouped[day] || [];

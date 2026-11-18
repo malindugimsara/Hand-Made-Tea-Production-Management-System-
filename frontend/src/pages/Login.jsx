@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Loader2, User, LockKeyhole, CheckCircle2, Eye, EyeOff, Leaf, Package, Factory, Settings, LayoutDashboard, Store, ClipboardList } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import api from '@/services/api';
 
 // ─────────────────────────────────────────────
 // THEMES  —  Four distinct visual identities
@@ -105,23 +106,23 @@ const THEMES = {
   },
 
  admin: {
-    pageBg: '#fefce8', // ඉතා ලා කහ පැහැති පසුබිමක්
+    pageBg: '#fefce8', // Soft light yellow background
     orb1: 'rgba(22, 163, 74, 0.22)', // Green
     orb2: 'rgba(234, 179, 8, 0.18)', // Yellow
     orb3: 'rgba(132, 204, 22, 0.15)', // Lime Green
     gridStroke: '#eab308', 
-    textPrimary: '#14532d', // තද කොළ පැහැය (පැහැදිලිව කියවීම සඳහා)
-    textSecondary: '#ca8a04', // තද කහ පැහැය
+    textPrimary: '#14532d', // Deep green for high-contrast legibility
+    textSecondary: '#ca8a04', // Dark yellow accent
     accent: '#16a34a', 
-    btnGradient: 'linear-gradient(135deg, #14532d 0%, #eab308 100%)', // තද කොළ සිට කහ පැහැයට යන Gradient එක
+    btnGradient: 'linear-gradient(135deg, #14532d 0%, #eab308 100%)', // Dark green to yellow gradient
     wipeGradient: 'linear-gradient(135deg, #064e3b 0%, #15803d 40%, #fde047 100%)',
     shimmer: 'rgba(234, 179, 8, 0.12)',
     ringFocus: 'focus:ring-green-500/25',
     badgeBorder: '#fef08a',
     badgeBg: '#f0fdf4',
     badgeText: '#15803d',
-    particleColor: '#eab308', // කහ පැහැති floating අංශු
-    particleType: 'gear', // Admin සඳහා Gear අයිකනය එලෙසම තබා ඇත
+    particleColor: '#eab308', // Yellow floating particle effect
+    particleType: 'gear', // Retain gear icon for Admin role
   },
 
   developer: {
@@ -263,7 +264,6 @@ function WipeOverlay({ isWiping, direction }) {
 export default function Login() {
   const location = useLocation();
   const navigate = useNavigate();
-  const BACKEND  = import.meta.env.VITE_BACKEND_URL;
 
   const [username,   setUsername]   = useState(location.state?.username || '');
   const [password,   setPassword]   = useState('');
@@ -305,10 +305,7 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const res  = await fetch(`${BACKEND}/api/auth/login`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ username, password }),
-      });
+      const res = await api.post('/api/auth/login', { username, password }, { skipAuth: true });
       const text = await res.text();
       let data = {};
       try { data = text ? JSON.parse(text) : {}; } catch {}

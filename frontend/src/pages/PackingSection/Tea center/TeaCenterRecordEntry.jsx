@@ -369,7 +369,7 @@ const getPackSizes = (product) => {
   if (!product) return null;
   const p = product.toLowerCase();
 
-  // 1. බහුලව Pack Sizes කිහිපයක් ඇති සහ විශේෂිත වූ අයිතම (Specific overrides)
+  // 1. Specific overrides for multi-size packaged items
   if (p.includes("black tea t/b")) return ["0.025", "0.05", "0.2"];
   if (p.includes("ceylon premium")) return ["0.125"];
   if (p.includes("premium")) return ["0.2", "0.4"];
@@ -384,13 +384,13 @@ const getPackSizes = (product) => {
   if (p.includes("ff ex sp box")) return ["0.1"];
   if (p.includes("ff ex sp")) return ["0.1", "0.15"];
 
-  // ව්‍යාකූලතා මඟහරවා ගැනීම සඳහා විශේෂිත පරීක්ෂාවන් (Overlapping preventions)
+  // Overlap prevention checks to resolve ambiguous product names
   if (p.includes("mix flower")) return ["0.05"];
   if (p.includes("g/t jasmin can")) return ["0.5"];
   if (p.includes("awurudu special")) return ["0.2"];
   if (p.includes("purple pack")) return ["0.1"];
 
-  // 2. 0.025 kg කාණ්ඩය
+  // 2. 0.025 kg category
   if (
     p.includes("pink tea") ||
     p.includes("white tea") ||
@@ -400,7 +400,7 @@ const getPackSizes = (product) => {
     return ["0.025"];
   }
 
-  // 3. 0.05 kg කාණ්ඩය
+  // 3. 0.05 kg category
   if (
     p.includes("cinnamon can") ||
     p.includes("silver green") ||
@@ -423,7 +423,7 @@ const getPackSizes = (product) => {
     return ["0.05"];
   }
 
-  // 4. 0.1 kg කාණ්ඩය
+  // 4. 0.1 kg category
   if (
     p.includes("lemangrass") ||
     p.includes("fbop chest") ||
@@ -439,10 +439,10 @@ const getPackSizes = (product) => {
     return ["0.1"];
   }
 
-  // 5. 0.15 kg කාණ්ඩය
+  // 5. 0.15 kg category
   if (p.includes("bop pack")) return ["0.15"];
 
-  // 6. 0.2 kg කාණ්ඩය
+  // 6. 0.2 kg category
   if (
     p.includes("green tea") ||
     p.includes("op1 pack") ||
@@ -455,12 +455,12 @@ const getPackSizes = (product) => {
     return ["0.2"];
   }
 
-  // 7. 0.125 kg කාණ්ඩය
+  // 7. 0.125 kg category
   if (p.includes("peach") || p.includes("pomegranate tea")) {
     return ["0.125"];
   }
 
-  // 8. 0.3 kg කාණ්ඩය
+  // 8. 0.3 kg category
   if (p.includes("awrudu")) return ["0.3"];
 
   return null;
@@ -567,7 +567,7 @@ export default function TeaCenterRecordEntry() {
             }, {}),
           );
 
-          // 👇 වෙනස් වුණු තැන: Stock එක 0 ට වඩා වැඩි ඒවා පමණක් ලබාගැනීම
+          // Filter: only include stock items with balance greater than zero
           const inStockTeas = aggregatedData.filter(
             (item) => item.bulkStockKg > 0,
           );
@@ -580,7 +580,7 @@ export default function TeaCenterRecordEntry() {
             ? rmData.data || rmData
             : [];
 
-          // 👇 වෙනස් වුණු තැන: Raw Materials වලත් Stock එක 0 ට වඩා වැඩි ඒවා පමණක් ලබාගැනීම
+          // Filter: only include raw materials with balance greater than zero
           const inStockRawMaterials = allRawMaterials.filter(
             (rm) => Number(rm.totalQuantity) > 0,
           );
@@ -1804,7 +1804,7 @@ export default function TeaCenterRecordEntry() {
                                 if (e.key === "Enter") {
                                   e.preventDefault();
                                   if (!needsFlavorSelection) {
-                                    // Flavour නැති එකක් නම් කෙලින්ම add කරනවා
+                                    // Add item directly if no flavour selection is needed
                                     if (
                                       row.product &&
                                       row.type &&
@@ -1818,7 +1818,7 @@ export default function TeaCenterRecordEntry() {
                                       );
                                     }
                                   } else {
-                                    // Flavour තියෙන එකක් නම් ඊළඟ Input එකට Focus කරනවා
+                                    // Focus flavour select input when product has flavour variants
                                     const nextInput =
                                       dropdownRefs.current[
                                         `rmName-${row.id}`

@@ -1,7 +1,7 @@
 import express from 'express';
 import { saveDailyLedger, getLedgerData, deleteLedgerRow } from '../controllers/factoryPackController.js';
 
-// Authentication සහ Role-based Authorization Middlewares Import කිරීම
+// Import Authentication and Role-based Authorization Middlewares
 import { verifyToken, authorizeRoles } from '../../middleware/auth.js'; 
 
 const factoryPackRouter = express.Router();
