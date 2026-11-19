@@ -16,7 +16,7 @@ authRouter.post('/logout', verifyToken, logoutUser);
 authRouter.post(
   '/register', 
   verifyToken, 
-  authorizeRoles('Admin'), 
+  authorizeRoles('Admin', 'Developer'), 
   createUser
 );
 

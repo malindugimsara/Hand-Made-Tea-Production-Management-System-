@@ -133,8 +133,8 @@ export default function ManageUsers() {
 
     useEffect(() => {
         const currentRole = localStorage.getItem('userRole') || localStorage.getItem('role');
-        if (currentRole !== 'Admin') {
-            toast.error("Access Denied. Admins only.");
+        if (currentRole !== 'Admin' && currentRole !== 'Developer') {
+            toast.error("Access Denied. Admins and Developers only.");
             navigate('/');
             return;
         }
@@ -147,7 +147,13 @@ export default function ManageUsers() {
 
             if (!response.ok) throw new Error("Failed to fetch");
             const data = await response.json();
-            setUsers(data.filter(u => u.role !== 'Developer' && u.role !== 'developer'));        } catch (error) {
+            const currentRole = localStorage.getItem('userRole') || localStorage.getItem('role');
+            if (currentRole === 'Developer') {
+                setUsers(data);
+            } else {
+                setUsers(data.filter(u => u.role !== 'Developer' && u.role !== 'developer'));
+            }
+        } catch (error) {
             toast.error("Could not load users.");
         } finally {
             setLoading(false);
@@ -185,7 +191,7 @@ export default function ManageUsers() {
         let mappedPaths = user.allowedPaths ? [...user.allowedPaths] : [];
         let mappedPages = user.allowedPages ? [...user.allowedPages] : []; 
 
-        if (mappedRole !== 'Admin' && mappedRole !== 'User' && mappedRole !== 'Viewer') {
+        if (mappedRole !== 'Admin' && mappedRole !== 'Developer' && mappedRole !== 'User' && mappedRole !== 'Viewer') {
             mappedRole = 'User'; 
             
             if (mappedPaths.length === 0) {
