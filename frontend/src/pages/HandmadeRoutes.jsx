@@ -1,28 +1,29 @@
+import React, { lazy } from "react";
 import { Route } from "react-router-dom";
 
-import DashboardHome from '../pages/sideBar/HandMadeDashbord';
-import ManageUsers from '../pages/Users/ManageUsers';
-import CreateUserForm from '../pages/Users/CreateUserForm';
-import GreenLeafForm from '../pages/sideBar/GreenLeaf/GreenLeafForm';
-import ViewGreenLeafForm from '../pages/sideBar/GreenLeaf/ViewGreenLeafForm';
-import EditRecordPage from '../pages/sideBar/GreenLeaf/EditRecordPage';
-import DehydratorRecordForm from '../pages/sideBar/Dehydrator/DehydratorRecordForm';
-import ViewDehydratorRecords from '../pages/sideBar/Dehydrator/ViewDehydratorRecords';
-import EditDehydratorRecord from '../pages/sideBar/Dehydrator/EditDehydratorRecord';
-import ProductionSummary from '../pages/sideBar/Summary/ProductionSummary';
-import SellingDetailsTable from '../pages/sideBar/Summary/SellingDetailsTable';
-import CostOfProduction from '../pages/sideBar/Summary/CostOfProduction';
-import RawMaterialCost from '../pages/sideBar/RawMaterial/RawMaterialCost';
-import ViewRawMaterialCost from '../pages/sideBar/RawMaterial/ViewRawMaterialCost';
-import EditRawMaterialCost from '../pages/sideBar/RawMaterial/EditRawMaterialCost';
-import DashboardLayout from "./sideBar/DashboardLayout";
-import TransOut from "./sideBar/TransOut/TransOut";
-import ViewTransOutRecords from "./sideBar/TransOut/ViewTransOutRecords";
-import LoftLeafCount from "./sideBar/LoftLeafCount/LoftLeafCount";
-import ViewLoftLeafCount from "./sideBar/LoftLeafCount/ViewLoftLeafCount";
-import EditLoftLeafCount from "./sideBar/LoftLeafCount/EditLoftLeafCount";
-import SummaryLoftLeafCount from "./sideBar/LoftLeafCount/WeightAverage";
-import SimpleAverage from "./sideBar/LoftLeafCount/SimpleAverage";
+const DashboardLayout = lazy(() => import("./sideBar/DashboardLayout"));
+const DashboardHome = lazy(() => import('./sideBar/HandMadeDashbord'));
+const ManageUsers = lazy(() => import('./Users/ManageUsers'));
+const CreateUserForm = lazy(() => import('./Users/CreateUserForm'));
+const GreenLeafForm = lazy(() => import('./sideBar/GreenLeaf/GreenLeafForm'));
+const ViewGreenLeafForm = lazy(() => import('./sideBar/GreenLeaf/ViewGreenLeafForm'));
+const EditRecordPage = lazy(() => import('./sideBar/GreenLeaf/EditRecordPage'));
+const DehydratorRecordForm = lazy(() => import('./sideBar/Dehydrator/DehydratorRecordForm'));
+const ViewDehydratorRecords = lazy(() => import('./sideBar/Dehydrator/ViewDehydratorRecords'));
+const EditDehydratorRecord = lazy(() => import('./sideBar/Dehydrator/EditDehydratorRecord'));
+const ProductionSummary = lazy(() => import('./sideBar/Summary/ProductionSummary'));
+const SellingDetailsTable = lazy(() => import('./sideBar/Summary/SellingDetailsTable'));
+const CostOfProduction = lazy(() => import('./sideBar/Summary/CostOfProduction'));
+const RawMaterialCost = lazy(() => import('./sideBar/RawMaterial/RawMaterialCost'));
+const ViewRawMaterialCost = lazy(() => import('./sideBar/RawMaterial/ViewRawMaterialCost'));
+const EditRawMaterialCost = lazy(() => import('./sideBar/RawMaterial/EditRawMaterialCost'));
+const TransOut = lazy(() => import("./sideBar/TransOut/TransOut"));
+const ViewTransOutRecords = lazy(() => import("./sideBar/TransOut/ViewTransOutRecords"));
+const LoftLeafCount = lazy(() => import("./sideBar/LoftLeafCount/LoftLeafCount"));
+const ViewLoftLeafCount = lazy(() => import("./sideBar/LoftLeafCount/ViewLoftLeafCount"));
+const EditLoftLeafCount = lazy(() => import("./sideBar/LoftLeafCount/EditLoftLeafCount"));
+const SummaryLoftLeafCount = lazy(() => import("./sideBar/LoftLeafCount/WeightAverage"));
+const SimpleAverage = lazy(() => import("./sideBar/LoftLeafCount/SimpleAverage"));
 
 export const HandmadeRoutes = () => (
   <Route path="/" element={<DashboardLayout />}>

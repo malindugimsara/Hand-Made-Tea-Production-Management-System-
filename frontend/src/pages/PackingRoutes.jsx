@@ -1,31 +1,31 @@
+import React, { lazy } from "react";
 import { Route } from "react-router-dom";
-import DashboardLayoutP from '../pages/PackingSection/PackingDashbordLayout';
-import PackingDashboard from '../pages/PackingSection/PackingDashboard';
-import LocalRecordEntry from "./PackingSection/Local Sales/LocalRecordEntry";
-import ViewLocalSaleRecords from "./PackingSection/Local Sales/ViewLocalSaleRecords";
-import EditLocalRecord from "./PackingSection/Local Sales/EditLocalRecord";
-import TeaCenterRecordEntry from "./PackingSection/Tea center/TeaCenterRecordEntry";
-import ViewTeaCenterRecords from "./PackingSection/Tea center/ViewTeaCenterRecord";
-import TransIn from "./PackingSection/Trans in/TransIn";
-import ViewTransInRecords from "./PackingSection/Trans in/ViewTransInRecords";
-import EditTeaCenterRecord from "./PackingSection/Tea center/EditTeaCenterRecord";
-import TeaGradesReceivedEntry from "./PackingSection/Trans In Factory/TeaGradesReceivedEntry";
-import EditTeaReceivedRecord from "./PackingSection/Trans In Factory/EditTeaReceivedRecord";
-import ViewTeaGradesReceivedRecords from "./PackingSection/Trans In Factory/ViewTeaGradesReceivedRecords";
-import ProductIssueSummary from "./PackingSection/Summary report/ProductIssueSummary";
-import ViewPackingStock from "./PackingSection/Summary Report/ViewPackingStock";
-import TeaGradesReceivedOutEntry from "./PackingSection/Trans In other/TeaGradesReceivedOutEntry";
-import ViewTeaGradesReceivedOutRecords from "./PackingSection/Trans In other/ViewTeaGradesReceivedOutRecords";
-import RawMaterialInEntry from "./PackingSection/Trans In RawMaterial/RawMaterialInEntry";
-import ViewRawMaterialInRecords from "./PackingSection/Trans In RawMaterial/ViewRawMaterialInRecords";
-import EditTeaReceivedOutRecord from "./PackingSection/Trans In other/EditTeaReceivedOutRecord";
-import EditRawMaterialIn from "./PackingSection/Trans In RawMaterial/EditRawMaterialIn";
-import StockAdjustment from "./PackingSection/Stock Adjustment/StockAdjustment";
-import StockAdjustmentHistory from "./PackingSection/Stock Adjustment/StockAdjustmentHistory";
-import EditStockAdjustment from "./PackingSection/Stock Adjustment/EditStockAdjustment";
-import HistoricalStockView from "./PackingSection/Summary Report/HistoricalStockView";
 
-
+const DashboardLayoutP = lazy(() => import('./PackingSection/PackingDashbordLayout'));
+const PackingDashboard = lazy(() => import('./PackingSection/PackingDashboard'));
+const LocalRecordEntry = lazy(() => import("./PackingSection/Local Sales/LocalRecordEntry"));
+const ViewLocalSaleRecords = lazy(() => import("./PackingSection/Local Sales/ViewLocalSaleRecords"));
+const EditLocalRecord = lazy(() => import("./PackingSection/Local Sales/EditLocalRecord"));
+const TeaCenterRecordEntry = lazy(() => import("./PackingSection/Tea center/TeaCenterRecordEntry"));
+const ViewTeaCenterRecords = lazy(() => import("./PackingSection/Tea center/ViewTeaCenterRecord"));
+const TransIn = lazy(() => import("./PackingSection/Trans in/TransIn"));
+const ViewTransInRecords = lazy(() => import("./PackingSection/Trans in/ViewTransInRecords"));
+const EditTeaCenterRecord = lazy(() => import("./PackingSection/Tea center/EditTeaCenterRecord"));
+const TeaGradesReceivedEntry = lazy(() => import("./PackingSection/Trans In Factory/TeaGradesReceivedEntry"));
+const EditTeaReceivedRecord = lazy(() => import("./PackingSection/Trans In Factory/EditTeaReceivedRecord"));
+const ViewTeaGradesReceivedRecords = lazy(() => import("./PackingSection/Trans In Factory/ViewTeaGradesReceivedRecords"));
+const ProductIssueSummary = lazy(() => import("./PackingSection/Summary report/ProductIssueSummary"));
+const ViewPackingStock = lazy(() => import("./PackingSection/Summary Report/ViewPackingStock"));
+const TeaGradesReceivedOutEntry = lazy(() => import("./PackingSection/Trans In other/TeaGradesReceivedOutEntry"));
+const ViewTeaGradesReceivedOutRecords = lazy(() => import("./PackingSection/Trans In other/ViewTeaGradesReceivedOutRecords"));
+const RawMaterialInEntry = lazy(() => import("./PackingSection/Trans In RawMaterial/RawMaterialInEntry"));
+const ViewRawMaterialInRecords = lazy(() => import("./PackingSection/Trans In RawMaterial/ViewRawMaterialInRecords"));
+const EditTeaReceivedOutRecord = lazy(() => import("./PackingSection/Trans In other/EditTeaReceivedOutRecord"));
+const EditRawMaterialIn = lazy(() => import("./PackingSection/Trans In RawMaterial/EditRawMaterialIn"));
+const StockAdjustment = lazy(() => import("./PackingSection/Stock Adjustment/StockAdjustment"));
+const StockAdjustmentHistory = lazy(() => import("./PackingSection/Stock Adjustment/StockAdjustmentHistory"));
+const EditStockAdjustment = lazy(() => import("./PackingSection/Stock Adjustment/EditStockAdjustment"));
+const HistoricalStockView = lazy(() => import("./PackingSection/Summary Report/HistoricalStockView"));
 
 export const PackingRoutes = () => (
   <Route path="/packing" element={<DashboardLayoutP />}>
@@ -45,21 +45,18 @@ export const PackingRoutes = () => (
     <Route path="summary-reports" element={<ViewPackingStock />} />
     <Route path="historical-stock" element={<HistoricalStockView />} />
 
-
-    //Trans in other
+    {/* Trans in other */}
     <Route path="trans-in-other" element={<TeaGradesReceivedOutEntry />} />
     <Route path="trans-in-view-other" element={<ViewTeaGradesReceivedOutRecords />} />
     <Route path="edit-received-out-record" element={<EditTeaReceivedOutRecord />} />
 
-    //Raw Material
+    {/* Raw Material */}
     <Route path="trans-in-raw-material" element={<RawMaterialInEntry />} />
     <Route path="trans-in-view-raw-material" element={<ViewRawMaterialInRecords />} />
     <Route path="edit-raw-material-in" element={<EditRawMaterialIn />} />
 
     <Route path="stock-adjustment-entry" element={<StockAdjustment />} />
     <Route path="stock-adjustment-view" element={<StockAdjustmentHistory />} />
-    <Route path="edit-stock-adjustment/:id" element={<EditStockAdjustment />} />
-
-
+    <Route path="stock-adjustment-edit" element={<EditStockAdjustment />} />
   </Route>
 );

@@ -42,27 +42,6 @@ export const loginUser = async (req, res) => {
   }
 };
 
-// Create a new user (Only Admins will be able to hit this route later)
-export const registerUser = async (req, res) => {
-  try {
-    // Retrieve allowedPaths received from frontend
-    const { username, password, role, allowedPaths } = req.body;
-    
-    const newUser = new User({ 
-        username, 
-        password, 
-        role: role || 'User', 
-        allowedPaths: allowedPaths || [] 
-    });
-    
-    await newUser.save();
-    res.status(201).json({ message: "User created successfully" });
-  } catch (error) {
-    console.error("Registration Error:", error);
-    res.status(500).json({ error: "Error creating user. Username might exist." });
-  }
-};
-
 // Logout User (Revoke token by incrementing tokenVersion on server)
 export const logoutUser = async (req, res) => {
   try {

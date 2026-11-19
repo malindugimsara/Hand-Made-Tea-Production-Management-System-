@@ -14,20 +14,32 @@ export const getAllUsers = async (req, res) => {
 // CREATE USER
 export const createUser = async (req, res) => {
   try {
-    // NEW: Extract allowedPages from req.body
     const { username, password, role, allowedPaths, allowedPages } = req.body;
 
-    const existingUser = await User.findOne({ username });
+    if (!username || !password) {
+      return res.status(400).json({ message: "Username and password are required." });
+    }
+
+    if (typeof username !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ message: "Invalid username or password format." });
+    }
+
+    const trimmedUsername = username.trim();
+    if (trimmedUsername.length < 3) {
+      return res.status(400).json({ message: "Username must be at least 3 characters long." });
+    }
+
+    const existingUser = await User.findOne({ username: trimmedUsername });
     if (existingUser) {
       return res.status(400).json({ message: "Username already taken." });
     }
 
     const newUser = new User({ 
-        username, 
+        username: trimmedUsername, 
         password, 
         role: role || 'User',
-        allowedPaths: allowedPaths || [],
-        allowedPages: allowedPages || [] // NEW: Save allowedPages for new user
+        allowedPaths: Array.isArray(allowedPaths) ? allowedPaths : [],
+        allowedPages: Array.isArray(allowedPages) ? allowedPages : []
     });
     
     await newUser.save();
@@ -36,6 +48,9 @@ export const createUser = async (req, res) => {
 
   } catch (error) {
     console.error("Create user error:", error);
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "Username already taken." });
+    }
     res.status(500).json({ message: "Server error while creating user." });
   }
 };

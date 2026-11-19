@@ -13,8 +13,9 @@ const router = express.Router();
 // GET ALL USERS
 router.get('/', verifyToken, authorizeRoles('Admin'), getAllUsers);
 
-// CREATE USER
+// CREATE USER (Supports both /api/users/register and standard RESTful POST /api/users)
 router.post('/register', verifyToken, authorizeRoles('Admin'), createUser);
+router.post('/', verifyToken, authorizeRoles('Admin'), createUser);
 
 // UPDATE USER
 router.put('/:id', verifyToken, authorizeRoles('Admin'), updateUser);

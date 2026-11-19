@@ -1,26 +1,27 @@
+import React, { lazy } from "react";
 import { Route } from "react-router-dom";
-import ManufacturerDashboardLayout from "./Manufacturer/ManufacturerDashbordLayout";
-import ManufacturerDashboard from "./Manufacturer/ManufacturerDashboard";
-import WitherLeafForm from "./Manufacturer/BL Operation/WitherLeafForm";
-import FactoryLoftLeaf from "./Manufacturer/LoftLeaf/FactoryLoftLeaf";
-import { View } from "lucide-react";
-import ViewLoftLeafCount from "./Manufacturer/LoftLeaf/ViewFactoryLoftLeaf";
-import SimpleAverage from "./Manufacturer/LoftLeaf/SimpleAverage";
-import WeightAverage from "./Manufacturer/LoftLeaf/WeightAverage";
-import WitherLeafSummary from "./Manufacturer/BL Operation/WitherLeafSummary";
-import DhoolRollingSection from "./Manufacturer/BL Operation/DhoolRollingSection";
-import DhoolRollingSummary from "./Manufacturer/BL Operation/DhoolRollingSummary";
-import WeeklyLoftLeafSummary from "./Manufacturer/SummaryReport/WeeklyLoftLeafSummary";
-import CollectorQualityDiffReport from "./Manufacturer/SummaryReport/CollectorQualityDiffReport";
-import FiringSectionForm from "./Manufacturer/BL Operation/FiringSectionForm";
-import FiringSectionSummary from "./Manufacturer/BL Operation/FiringSectionSummary";
-import HydroMetersEntry from "./Manufacturer/BL Operation/HydroMeters/HydroMetersEntry";
-import HydroMetersView from "./Manufacturer/BL Operation/HydroMeters/HydroMetersView";
-import GreenLeafMonthlyRanking from "./Manufacturer/SummaryReport/GreenLeafMonthlyRanking";
-import TC5Report from "./Manufacturer/TC5/TC5Report";
-import GreenLeafMonthlyReport from "./Manufacturer/SummaryReport/GreenLeafMonthlyReport";
-import TC5ManualReport from "./Manufacturer/TC5/TC5ManualReport";
-import BestLeafCountChart from "./Manufacturer/SummaryReport/BestLeafCountChart";
+
+const ManufacturerDashboardLayout = lazy(() => import("./Manufacturer/ManufacturerDashbordLayout"));
+const ManufacturerDashboard = lazy(() => import("./Manufacturer/ManufacturerDashboard"));
+const WitherLeafForm = lazy(() => import("./Manufacturer/BL Operation/WitherLeafForm"));
+const FactoryLoftLeaf = lazy(() => import("./Manufacturer/LoftLeaf/FactoryLoftLeaf"));
+const ViewLoftLeafCount = lazy(() => import("./Manufacturer/LoftLeaf/ViewFactoryLoftLeaf"));
+const SimpleAverage = lazy(() => import("./Manufacturer/LoftLeaf/SimpleAverage"));
+const WeightAverage = lazy(() => import("./Manufacturer/LoftLeaf/WeightAverage"));
+const WitherLeafSummary = lazy(() => import("./Manufacturer/BL Operation/WitherLeafSummary"));
+const DhoolRollingSection = lazy(() => import("./Manufacturer/BL Operation/DhoolRollingSection"));
+const DhoolRollingSummary = lazy(() => import("./Manufacturer/BL Operation/DhoolRollingSummary"));
+const WeeklyLoftLeafSummary = lazy(() => import("./Manufacturer/SummaryReport/WeeklyLoftLeafSummary"));
+const CollectorQualityDiffReport = lazy(() => import("./Manufacturer/SummaryReport/CollectorQualityDiffReport"));
+const FiringSectionForm = lazy(() => import("./Manufacturer/BL Operation/FiringSectionForm"));
+const FiringSectionSummary = lazy(() => import("./Manufacturer/BL Operation/FiringSectionSummary"));
+const HydroMetersEntry = lazy(() => import("./Manufacturer/BL Operation/HydroMeters/HydroMetersEntry"));
+const HydroMetersView = lazy(() => import("./Manufacturer/BL Operation/HydroMeters/HydroMetersView"));
+const GreenLeafMonthlyRanking = lazy(() => import("./Manufacturer/SummaryReport/GreenLeafMonthlyRanking"));
+const TC5Report = lazy(() => import("./Manufacturer/TC5/TC5Report"));
+const GreenLeafMonthlyReport = lazy(() => import("./Manufacturer/SummaryReport/GreenLeafMonthlyReport"));
+const TC5ManualReport = lazy(() => import("./Manufacturer/TC5/TC5ManualReport"));
+const BestLeafCountChart = lazy(() => import("./Manufacturer/SummaryReport/BestLeafCountChart"));
 
 export default function ManufacturerRouter() {
   return (
