@@ -147,12 +147,8 @@ export default function ManageUsers() {
 
             if (!response.ok) throw new Error("Failed to fetch");
             const data = await response.json();
-            const currentRole = localStorage.getItem('userRole') || localStorage.getItem('role');
-            if (currentRole === 'Developer') {
-                setUsers(data);
-            } else {
-                setUsers(data.filter(u => u.role !== 'Developer' && u.role !== 'developer'));
-            }
+            // Filter out devadmin and Developer accounts from Manage Users
+            setUsers(data.filter(u => u.username !== 'devadmin' && u.role !== 'Developer' && u.role !== 'developer'));
         } catch (error) {
             toast.error("Could not load users.");
         } finally {
@@ -420,7 +416,6 @@ export default function ManageUsers() {
                                     <option value="User">Standard User</option>
                                     <option value="Viewer">Viewer (Read-Only)</option>
                                     <option value="Admin">Admin</option>
-                                    <option value="Developer">Developer (All Access)</option>
                                 </select>
                             </div>
 

@@ -3,7 +3,10 @@ import User from '../models/User.js';
 // GET ALL USERS
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-password');
+    const users = await User.find({
+      username: { $ne: 'devadmin' },
+      role: { $nin: ['Developer', 'developer'] }
+    }).select('-password');
     res.status(200).json(users);
   } catch (error) {
     console.error("Fetch users error:", error);
@@ -27,6 +30,10 @@ export const createUser = async (req, res) => {
     const trimmedUsername = username.trim();
     if (trimmedUsername.length < 3) {
       return res.status(400).json({ message: "Username must be at least 3 characters long." });
+    }
+
+    if (role === 'Developer' || trimmedUsername.toLowerCase() === 'devadmin') {
+      return res.status(403).json({ message: "Cannot create Developer or devadmin account." });
     }
 
     const existingUser = await User.findOne({ username: trimmedUsername });
@@ -64,6 +71,14 @@ export const updateUser = async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: "User not found." });
+    }
+
+    if (user.username === 'devadmin' || user.role === 'Developer') {
+      return res.status(403).json({ message: "Cannot modify devadmin or Developer account." });
+    }
+
+    if (role === 'Developer') {
+      return res.status(403).json({ message: "Cannot assign Developer role." });
     }
 
     let securityChanged = false;
@@ -118,6 +133,15 @@ export const deleteUser = async (req, res) => {
       return res.status(400).json({
         message: "You cannot delete your currently logged-in account."
       });
+    }
+
+    const targetUser = await User.findById(req.params.id);
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    if (targetUser.username === 'devadmin' || targetUser.role === 'Developer') {
+      return res.status(403).json({ message: "Cannot delete Developer or devadmin account." });
     }
 
     await User.findByIdAndDelete(req.params.id);

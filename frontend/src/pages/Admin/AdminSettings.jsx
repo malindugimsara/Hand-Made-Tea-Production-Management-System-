@@ -56,9 +56,14 @@ export default function AdminSettings() {
         { id: 'localSale', name: 'Local Sale', icon: Store, path: '/localsale' },
         { id: 'manufacturer', name: 'Manufacturing', icon: ClipboardList, path: '/manufacturer' },
         { id: 'admin', name: 'Admin Settings', icon: Settings, path: '/admin/settings' },
+        { id: 'developer', name: 'Developer Section', icon: ShieldAlert, path: '/developer-section' },
     ];
 
-    const accessibleModules = systemModules.filter(mod => allowedPaths.includes(mod.id));
+    const currentRole = localStorage.getItem('userRole') || localStorage.getItem('role');
+    const accessibleModules = systemModules.filter(mod => {
+        if (mod.id === 'developer' && currentRole !== 'Developer') return false;
+        return allowedPaths.includes(mod.id);
+    });
     const currentModule = systemModules.find(mod => mod.id === 'admin'); // Currently on Admin Settings page
 
     return (

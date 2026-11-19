@@ -239,7 +239,6 @@ export default function CreateUserForm({ onSuccess }) {
                         <option value="User">Standard User (Specific Sections Only)</option>
                         <option value="Viewer">Viewer (Read-Only Access)</option>
                         <option value="Admin">Admin (Full System Access)</option>
-                        <option value="Developer">Developer (Full Access & Dev Section)</option>
                     </select>
                 </div>
 
