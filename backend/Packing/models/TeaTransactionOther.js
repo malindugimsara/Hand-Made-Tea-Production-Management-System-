@@ -37,6 +37,8 @@ const teaTransactionSchema = new mongoose.Schema({
     timestamps: true 
 });
 
+teaTransactionSchema.index({ date: -1 });
+
 const TeaTransactionOther = mongoose.model('TeaTransactionOther', teaTransactionSchema);
 
 export default TeaTransactionOther;

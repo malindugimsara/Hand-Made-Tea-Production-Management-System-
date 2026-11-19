@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast'; 
 import { UserPlus, Shield, User, Key, CheckSquare, Layers } from "lucide-react";
+import api from '@/services/api';
 
-// 💡 සියලුම අංශ සහ ඒවායේ ඇතුළත පිටු (URLs) මෙහි අඩංගු වේ
+// Available system sections and their corresponding page URLs
 const SYSTEM_PERMISSIONS = [
     {
         id: 'handmade',
@@ -104,7 +105,6 @@ const SYSTEM_PERMISSIONS = [
 ];
 
 export default function CreateUserForm({ onSuccess }) {
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
     const [loading, setLoading] = useState(false);
     
     const [formData, setFormData] = useState({
@@ -112,7 +112,7 @@ export default function CreateUserForm({ onSuccess }) {
         password: '',
         role: 'User',
         allowedPaths: [], 
-        allowedPages: [] // 💡 අලුතින් එක් කරන ලදී
+        allowedPages: [] // Array of allowed page routes
     });
 
     const handleInputChange = (e) => {
@@ -120,8 +120,8 @@ export default function CreateUserForm({ onSuccess }) {
         setFormData({ ...formData, [name]: value });
     };
 
-    // ප්‍රධාන අංශ සඳහා
-    // 💡 Main Section එකක් Click කළ විට
+    // For main system sections
+    // Handler when a main section checkbox is toggled
     const handlePathChange = (sectionId) => {
         const section = SYSTEM_PERMISSIONS.find(s => s.id === sectionId);
         const sectionPageIds = section ? section.pages.map(p => p.id) : [];
@@ -130,14 +130,14 @@ export default function CreateUserForm({ onSuccess }) {
             const isSelected = prev.allowedPaths.includes(sectionId);
             
             if (isSelected) {
-                // Section එක Uncheck කළොත්, ඒකෙ තියෙන Sub-pages ඔක්කොමත් අයින් වෙනවා
+                // If section is unchecked, deselect all its child sub-pages
                 return {
                     ...prev,
                     allowedPaths: prev.allowedPaths.filter(id => id !== sectionId),
                     allowedPages: prev.allowedPages.filter(pageId => !sectionPageIds.includes(pageId))
                 };
             } else {
-                // Section එක Check කළොත්, ඒකෙ තියෙන Sub-pages ඔක්කොම Auto Select වෙනවා
+                // If section is checked, auto-select all its child sub-pages
                 return {
                     ...prev,
                     allowedPaths: [...prev.allowedPaths, sectionId],
@@ -147,7 +147,7 @@ export default function CreateUserForm({ onSuccess }) {
         });
     };
 
-    // 💡 ඇතුළත Sub-Page එකක් Click කළ විට
+    // Handler when an individual sub-page checkbox is toggled
     const handlePageChange = (pageId) => {
         setFormData(prev => ({
             ...prev,
@@ -174,15 +174,7 @@ export default function CreateUserForm({ onSuccess }) {
         const toastId = toast.loading('Creating new user...');
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${BACKEND_URL}/api/users/register`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                },
-                body: JSON.stringify(formData)
-            });
+            const response = await api.post('/api/users/register', formData);
 
             const textResponse = await response.text();
             let data = {};
@@ -247,7 +239,6 @@ export default function CreateUserForm({ onSuccess }) {
                         <option value="User">Standard User (Specific Sections Only)</option>
                         <option value="Viewer">Viewer (Read-Only Access)</option>
                         <option value="Admin">Admin (Full System Access)</option>
-                        <option value="Developer">Developer (Full Access & Dev Section)</option>
                     </select>
                 </div>
 
@@ -275,7 +266,7 @@ export default function CreateUserForm({ onSuccess }) {
                                     </span>
                                 </label>
 
-                                {/* Sub-Pages Checkboxes (Main Section එක Check කළ විට පමණක් පෙන්වයි) */}
+                                {/* Sub-page checkboxes (rendered only when parent section is selected) */}
                                 {formData.allowedPaths.includes(section.id) && (
                                     <div className="mt-3 ml-6 pl-4 border-l-2 border-green-200 dark:border-green-900/50 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-2">
                                         {section.pages.map(page => (

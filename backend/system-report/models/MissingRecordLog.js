@@ -11,4 +11,6 @@ const MissingRecordLogSchema = new mongoose.Schema({
     }]
 }, { timestamps: true });
 
+MissingRecordLogSchema.index({ createdAt: -1 });
+
 export default mongoose.model('MissingRecordLog', MissingRecordLogSchema);

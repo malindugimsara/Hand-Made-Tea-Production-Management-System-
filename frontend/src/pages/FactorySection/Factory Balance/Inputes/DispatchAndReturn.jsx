@@ -630,7 +630,7 @@ export default function DispatchAndReturn() {
                 date: record.date,
                 agSuper: { received: record.agSuperReceived },
                 aGroup: { received: record.aGroupReceived },
-                // 💡 මෙහි 0 වෙනුවට, agSuper සහ aGroup වල එකතුව ලබා දී ඇත
+                // Replaced 0 with sum of agSuper and aGroup
                 sampleBags: { received: (record.agSuperReceived || 0) + (record.aGroupReceived || 0) },
                 isDispatchUpdate: true
             };

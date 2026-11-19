@@ -68,7 +68,7 @@ export default function ViewTeaReceivedOtherRecords() {
     const [filterMonth, setFilterMonth] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    // Type Filter එක අයින් කර ඇත, මොකද ඔක්කොම IN records විතරයි
+    // Type filter omitted as all records represent IN transactions
     
     const [gradeFilter, setGradeFilter] = useState('');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -111,7 +111,7 @@ export default function ViewTeaReceivedOtherRecords() {
                 const lastUpdatedDate = isEdited ? new Date(rec.updatedAt).toISOString().split('T')[0] : '';
                 
                 const itemsArray = rec.items || [];
-                // Search string එකට partyName එකත් එකතු කර ඇත
+                // Include partyName in search query evaluation
                 const searchString = itemsArray.map(item => item.grade).join(' ') + ' ' + (rec.transactionNo || '') + ' ' + (rec.partyName || '');
 
                 return {
@@ -136,25 +136,25 @@ export default function ViewTeaReceivedOtherRecords() {
     };
 
     const filteredRecords = records.reduce((acc, record) => {
-        // Date සහ Month filters චෙක් කිරීම
+        // Validate against date and month filters
         const rDate = record.date ? new Date(record.date).toISOString().split('T')[0] : '';
         const monthMatch = !filterMonth || rDate.startsWith(filterMonth);
         const dateMatch = (!startDate || rDate >= startDate) && (!endDate || rDate <= endDate);
         
-        // මාසය හෝ දිනය ගැලපෙන්නේ නැත්නම් මේ record එක අතහරින්න
+        // Skip record if date does not match active filter
         if (!monthMatch || !dateMatch) return acc;
 
-        // record එක ඇතුලේ තියෙන items ටික ගන්න. (undefined ආවොත් crash නොවෙන්න || [] දාලා තියෙනවා)
+        // Safe access to items array with fallback to empty array
         let matchedItems = record.itemsArray || []; 
         
         if (gradeFilter) {
             const searchVal = gradeFilter.toLowerCase();
             
-            // 1. Transaction No හෝ Party Name එකට සමානද කියලා බලනවා (Partial Match)
+            // 1. Partial match check on Transaction No or Party Name
             const isTransMatch = record.transactionNo?.toLowerCase().includes(searchVal);
             const isPartyMatch = record.partyName?.toLowerCase().includes(searchVal);
             
-            // 2. ඒ දෙකටම ගැලපුනේ නැත්නම්, හරියටම Grade එකට සමාන (Exact Match) items විතරක් ගන්නවා
+            // 2. Fallback to exact grade match if no transaction number or party matches
             if (!isTransMatch && !isPartyMatch) {
                 matchedItems = matchedItems.filter(
                     item => item.grade?.toLowerCase() === searchVal
@@ -162,15 +162,15 @@ export default function ViewTeaReceivedOtherRecords() {
             }
         }
 
-        // ගැලපෙන items එකක් හෝ තියෙනවා නම් පමණක් එය පෙන්නන්න
+        // Retain record only if at least one item matches filter criteria
         if (matchedItems.length > 0) {
-            // Filter වුන items වල එකතුව (Daily Total) අලුතෙන් හදනවා
+            // Recalculate daily total for filtered items
             const filteredTotalQty = matchedItems.reduce((sum, item) => sum + (Number(item.qtyKg) || 0), 0);
 
             acc.push({
                 ...record,
                 itemsArray: matchedItems,
-                totalQtyKg: filteredTotalQty // අලුත් එකතුව replace කරනවා (එතකොට Grand Total එකත් හරියටම හැදෙනවා)
+                totalQtyKg: filteredTotalQty // Update cumulative totals with recalculated filter sums
             });
         }
 
@@ -243,13 +243,13 @@ export default function ViewTeaReceivedOtherRecords() {
             const baseDate = new Date(record.date).toISOString().split('T')[0];
             const pdfDateCell = record.isEdited ? `${baseDate}\n(Edited by ${record.editedBy})` : baseDate;
             
-            // මේ record එකේ items කීයක් තියෙනවද කියලා ගණන් කිරීම (RowSpan එක සඳහා)
+            // Count items in record to dynamically compute table rowSpan
             const itemsCount = record.itemsArray.length;
 
             record.itemsArray.forEach((item, index) => {
                 const isFirst = index === 0;
 
-                // දශම 3ක් දක්වා රවුම් කර, අගට ඇති බිංදු ඉවත් කිරීම
+                // Round quantity to 3 decimal places and strip trailing zeros
                 const qtyStr = parseFloat(Number(item.qtyKg).toFixed(3)).toString();
                 const totalQtyStr = parseFloat(Number(record.totalQtyKg).toFixed(3)).toString();
 
@@ -264,7 +264,7 @@ export default function ViewTeaReceivedOtherRecords() {
                 };
 
                 if (isFirst) {
-                    // පළමු අයිතමයේදී අවශ්‍ය තීරුවලට rowSpan ලබා දීම සහ ඉහළින් පෙළගැස්වීම (valign: 'top')
+                    // Apply rowSpan and top vertical alignment on the first item in row group
                     tableRows.push([
                         { content: pdfDateCell, rowSpan: itemsCount, styles: { valign: 'top', halign: 'center' } },
                         { content: record.transactionNo || "-", rowSpan: itemsCount, styles: { valign: 'top', halign: 'center' } },
@@ -274,7 +274,7 @@ export default function ViewTeaReceivedOtherRecords() {
                         { content: `${totalQtyStr}`, rowSpan: itemsCount, styles: { valign: 'top', halign: 'right', fontStyle: 'bold', textColor: [15, 118, 110] } }
                     ]);
                 } else {
-                    // ඉතිරි අයිතම සඳහා Grade සහ Qty පමණක් ලබා දීම
+                    // Render only Grade and Qty columns for subsequent items in row group
                     tableRows.push([
                         gradeCell,
                         qtyCell
@@ -283,7 +283,7 @@ export default function ViewTeaReceivedOtherRecords() {
             });
         });
 
-        // Grand Total එකත් දශම 3කට රවුම් කර බිංදු ඉවත් කිරීම
+        // Format Grand Total rounded to 3 decimal places with trailing zeros stripped
         const grandTotalStr = parseFloat(Number(grandTotal).toFixed(3)).toString();
 
         tableRows.push([

@@ -3,7 +3,7 @@ import React from 'react';
 export default function AdminOnly({ children }) {
     const currentUserRole = localStorage.getItem('userRole') || localStorage.getItem('role');
 
-    // Role එක Admin හෝ Developer නම් විතරක් ඇතුළේ තියෙන දේවල් පෙන්වනවා
+    // Only render children if user role is Admin or Developer
     if (currentUserRole === 'Admin' || currentUserRole === 'Developer') {
         return <>{children}</>;
     }

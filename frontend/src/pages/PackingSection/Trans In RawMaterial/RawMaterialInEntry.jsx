@@ -249,11 +249,11 @@ export default function RawMaterialInEntry() {
 
         setShowSpinner(true);
         
-        // 💡 Progress Bar එක සඳහා අවශ්‍ය Variables
+        // State variables for batch upload progress bar
         const total = pendingRecords.length;
         let completed = 0;
 
-        // 💡 1. ආරම්භක Toast එක (0% Progress)
+        // 1. Initial progress toast notification (0%)
         const toastId = toast.loading(
             <div className="flex flex-col gap-1.5 min-w-[200px]">
                 <div className="text-sm font-bold text-gray-700">
@@ -304,7 +304,7 @@ export default function RawMaterialInEntry() {
                     throw new Error('Failed');
                 }
 
-                // 💡 2. Record එකක් Save වූ වහාම Progress එක Update කිරීම
+                // 2. Increment progress bar upon each saved record
                 completed += 1;
                 const percentage = Math.round((completed / total) * 100);
                 
@@ -317,16 +317,16 @@ export default function RawMaterialInEntry() {
                             <div className="bg-[#0f766e] h-2 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(15,118,110,0.6)]" style={{ width: `${percentage}%` }}></div>
                         </div>
                     </div>,
-                    { id: toastId } // එකම Toast ID එකට Update කිරීම
+                    { id: toastId } // Update the active toast notification instance
                 );
 
                 return res.json();
             });
 
-            // සියලුම Records Save වන තුරු රැඳී සිටීම
+            // Await batch persistence of all queued records
             await Promise.all(promises);
 
-            // 💡 3. අවසානයේ Success Toast එක පෙන්වීම
+            // 3. Display completion toast once all records have been persisted
             toast.success("All records saved successfully!", { id: toastId });
             setPendingRecords([]);
             

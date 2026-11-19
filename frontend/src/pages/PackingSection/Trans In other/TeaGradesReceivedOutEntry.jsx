@@ -62,7 +62,7 @@ export default function TeaGradesReceivedOutEntry() {
     const [pendingRecords, setPendingRecords] = useState([]);
     const navigate = useNavigate();
 
-    // Transaction Type ඉවත් කර ඇත, Party Name එකතු කර ඇත
+    // Replaced Transaction Type with Party Name
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
         transactionNo: '',
@@ -143,7 +143,7 @@ export default function TeaGradesReceivedOutEntry() {
             return;
         }
 
-        // නව වාර්තාව නිර්මාණය කිරීම (No transactionType)
+        // Create new record (without transactionType)
         const newRecord = { 
             date: formData.date,
             transactionNo: formData.transactionNo,
@@ -176,10 +176,10 @@ export default function TeaGradesReceivedOutEntry() {
         try {
             const token = localStorage.getItem('token');
             const promises = pendingRecords.map(record => {
-                // අලුත් Backend Model එකට (TeaTransactionOther) ගැලපෙන Payload එක
+                // Payload conforming to TeaTransactionOther backend schema
                 const payload = {
                     date: record.date,
-                    transactionNo: `REC/${record.transactionNo}`, // HO/TO වෙනුවට වෙනත් එකක් අවශ්‍ය නම් වෙනස් කරන්න
+                    transactionNo: `REC/${record.transactionNo}`, // Adjust default code if custom prefix is required
                     partyName: record.partyName || "N/A",
                     totalQtyKg: record.totalQtyKg,
                     items: record.items.map(item => ({

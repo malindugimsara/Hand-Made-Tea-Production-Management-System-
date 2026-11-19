@@ -32,4 +32,8 @@ const witherLeafSchema = new mongoose.Schema({
   timestamps: true 
 });
 
+witherLeafSchema.index({ createdAt: -1 });
+witherLeafSchema.index({ dateOfCrop: -1 });
+witherLeafSchema.index({ dateOfManufacture: -1 });
+
 export default mongoose.model('WitherLeaf', witherLeafSchema);

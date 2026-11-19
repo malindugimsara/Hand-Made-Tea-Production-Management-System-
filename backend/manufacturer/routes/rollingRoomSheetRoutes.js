@@ -8,18 +8,18 @@ import {
 } from '../controllers/rollingRoomSheetController.js';
 import { authorizeRoles, verifyToken } from '../../middleware/auth.js';
 
-const router = express.Router();
+const rollingRoomSheetRouter = express.Router();
 
 // Base endpoint: /api/rolling-room-sheet
-router
+rollingRoomSheetRouter
   .route('/')
   .get(getRollingRoomSheets)
   .post(verifyToken, authorizeRoles('admin', 'manager', 'user', 'Admin', 'User'), saveRollingRoomSheet);
 
-router
+rollingRoomSheetRouter
   .route('/:id')
   .get(getRollingRoomSheetById)
   .put(verifyToken, authorizeRoles('admin', 'manager', 'user', 'Admin', 'User'), updateRollingRoomSheetById)
   .delete(verifyToken, authorizeRoles('admin', 'manager', 'Admin'), deleteRollingRoomSheet);
 
-export default router;
+export default rollingRoomSheetRouter;

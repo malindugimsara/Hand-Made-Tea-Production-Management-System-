@@ -3,80 +3,118 @@ import bodyParser from 'body-parser';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import webpush from 'web-push'; 
+import helmet from 'helmet';
+import mongoSanitize from 'express-mongo-sanitize';
 import cron from 'node-cron'; 
+import { verifyToken, authorizeSection } from './middleware/auth.js'; 
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'; 
 
 // --- Import the automated BM logic ---
 import { updateBMStockLogic } from './localsale/controllers/monthlyBalanceController.js'; 
 
-import greenLeafRouter from './router/greenLeafRouter.js';
-import productionRouter from './router/productionRouter.js';
-import dehydratorRouter from './router/dehydratorRouter.js';
-import costOfProductionRouter from './router/costOfProductionRoutes.js';
-import authRouter from './router/authRoute.js';
-import rawMaterialCostRoutes from './router/rawMaterialCostRoutes.js';
-import userRouter from './router/userRouter.js';
-import sellingDetailsRouter from './router/sellingDetailsRoutes.js';
-import productionSummaryRouter from './router/productionSummaryRoute.js';
-import loftLeafCountRoutes from './router/loftLeafCountRoutes.js';
-import labourRouter from './router/labourRoutes.js';
+// Notification Routes & Cron
+import notificationRoutes from './routes/notificationRoutes.js';
+import { startNotificationCron } from './controllers/notificationController.js'; 
+
+// Handmade Section Routes
+import greenLeafRouter from './routes/greenLeafRoutes.js';
+import productionRouter from './routes/productionRoutes.js';
+import dehydratorRouter from './routes/dehydratorRoutes.js';
+import costOfProductionRouter from './routes/costOfProductionRoutes.js';
+import authRouter from './routes/authRoutes.js';
+import rawMaterialCostRoutes from './routes/rawMaterialCostRoutes.js';
+import userRouter from './routes/userRoutes.js';
+import sellingDetailsRouter from './routes/sellingDetailsRoutes.js';
+import productionSummaryRouter from './routes/productionSummaryRoutes.js';
+import loftLeafCountRoutes from './routes/loftLeafCountRoutes.js';
+import labourRouter from './routes/labourRoutes.js';
+import handmadeTransferRouter from './routes/handmadeTransferRoutes.js';
 
 // Packing Section Routes
-import localSaleRouter from './Packing/Routes/localSaleRoutes.js';
-
-import packingTransferRouter from './Packing/Routes/packingTransferRouter.js';
-import handmadeTransferRouter from './router/handmadeTransferRouter.js';
-import teaReceivedRouter from './Packing/Routes/TeaReceivedRouter.js';
-import packingStockRouter from './Packing/Routes/packingStockRoutes.js';
-import teaTransactionOtherRouter from './Packing/Routes/teaTransactionOtherRouter.js';
-import rawMaterialInRouter from './Packing/Routes/rawMaterialInRouter.js';
-import restoreTeaStockRouter from './Packing/Routes/restoreTeaStockrouter.js';
+import localSaleRouter from './Packing/routes/localSaleRoutes.js';
+import packingTransferRouter from './Packing/routes/packingTransferRoutes.js';
+import teaReceivedRouter from './Packing/routes/teaReceivedRoutes.js';
+import packingStockRouter from './Packing/routes/packingStockRoutes.js';
+import teaTransactionOtherRouter from './Packing/routes/teaTransactionOtherRoutes.js';
+import rawMaterialInRouter from './Packing/routes/rawMaterialInRoutes.js';
+import restoreTeaStockRouter from './Packing/routes/restoreTeaStockRoutes.js';
+import StockAdjustmentRouter from './Packing/routes/stockAdjustmentRoutes.js';
+import teaCenterIssueRouter from './Packing/routes/teaCenterIssueRoutes.js';
 
 // Factory Section Routes
-import factoryrouter from './factory/router/factoryRoutes.js';
-import StockAdjustmentRouter from './Packing/Routes/stockAdjustmentRoutes.js';
-import labourOutputRouter from './factory/router/labourOutputRoutes.js';
-import factoryPackRoutes from './factory/router/factoryPackRoutes.js';
+import factoryrouter from './factory/routes/factoryRoutes.js';
+import labourOutputRouter from './factory/routes/labourOutputRoutes.js';
+import factoryPackRoutes from './factory/routes/factoryPackRoutes.js';
 
 // Local Sale Section Routes
-import Subscription from './Packing/models/SubscriptionModel.js';
 import dailySummaryRouter from './localsale/routes/dailySummaryRoutes.js';
 import issueTypeRouter from './localsale/routes/issueTypeRoutes.js';
 import monthlyBalanceRouter from './localsale/routes/monthlyBalanceRoutes.js';
 
-
 // Manufacturer Section Routes
 import factoryLoftLeafRouter from './manufacturer/routes/loftLeafRoutes.js';
-import WitherLeafRouter from './manufacturer/routes/witherLeafRouter.js';
-import rollingRouter from './manufacturer/routes/rollingRoomSheetRoutes.js';
+import WitherLeafRouter from './manufacturer/routes/witherLeafRoutes.js';
 import FiringRouter from './manufacturer/routes/firingSectionRoutes.js';
 import hydroMeterRouter from './manufacturer/routes/hydroMeterRoutes.js';
-import { Production } from './models/Production.js';
 import pdfTotalRouter from './manufacturer/routes/pdfTotalRoutes.js';
 import tc5router from './manufacturer/routes/tc5ReportRoutes.js';
-import teaCenterIssueRouter from './Packing/Routes/teaCenterIssueRouter.js';
 import tc5ManualReportRouter from './manufacturer/routes/tc5ManualReportRoutes.js';
+import rollingRoomSheetRouter from './manufacturer/routes/rollingRoomSheetRoutes.js';
 
+// System Report Section Routes
 import systemReportRouter from './system-report/routes/systemUpdateRoutes.js';
 import systemInvoiceRoute from './system-report/routes/systemInvoiceRoutes.js';
 import auditRoutes from './system-report/routes/auditRoutes.js';
-import systemBackupRouter from './system-report/routes/backup.routes.js';
+import backupRouter from './system-report/routes/backupRoutes.js';
+import { performNativeBackup } from './system-report/controllers/backupController.js';
 
 dotenv.config();
 const app = express();
 
-// --- Web Push VAPID Setup (Aluthin) ---
-webpush.setVapidDetails(
-  process.env.EMAIL,
-  process.env.PUBLIC_VAPID_KEY,
-  process.env.PRIVATE_VAPID_KEY
-);
+// Enable trust proxy for rate limiters behind reverse proxies (Nginx, Render, Railway, etc.)
+app.set('trust proxy', 1);
 
-// Enable CORS for all routes
-app.use(cors());
+// Security HTTP Headers & hide technology stack (X-Powered-By)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+app.disable('x-powered-by');
+
+// CORS configuration: Whitelist specific origins instead of wildcard (*)
+const envOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : [];
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  process.env.CLIENT_URL,
+  process.env.FRONTEND_URL,
+  ...envOrigins
+].filter(Boolean);
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, or Postman) or matching whitelist
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS policy: Access denied from this origin.'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
 
 // Middleware 
 app.use(bodyParser.json());
+
+// Sanitize user-supplied data to prevent MongoDB Operator Injection
+app.use(mongoSanitize());
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URL).then(() => {
@@ -103,126 +141,89 @@ cron.schedule('1 0 1 * *', async () => {
     }
 });
 
-// --- DAILY NOTIFICATION CRON JOB ---
-// Runs at 07:00 AM every day
-cron.schedule('30 8 * * *', async () => {
+// Scheduled Notification Jobs (e.g. Daily Dryer Tasks Alert at 08:30 AM)
+startNotificationCron();
+
+// Automated Daily Database Backup at 02:00 AM (OS-independent native backup)
+cron.schedule('0 2 * * *', async () => {
     try {
-        console.log('Checking for pending dryer tasks for today...');
-        
-        // Get today's date (Format: YYYY-MM-DD)
-        const todayDate = new Date().toISOString().split('T')[0];
-        
-        // Fetch all Production records that have expectedDryerDate matching today
-        const pendingTasks = await Production.find({
-            expectedDryerDate: { $regex: `^${todayDate}` }
-        });
-
-        if (pendingTasks.length > 0) {
-            console.log(`Found ${pendingTasks.length} tasks for today. Sending notifications...`);
-
-            // Fetch all subscriptions from the database
-            const subscriptions = await Subscription.find({}); 
-            
-            const payload = JSON.stringify({
-                title: 'Dryer Tasks Pending Today! 🍂',
-                body: `You have ${pendingTasks.length} handmade/production task(s) scheduled to be dried today. Please check the system.`,
-                data: { url: '/view-green-leaf' } 
-            });
-
-            const sendPromises = subscriptions.map(sub => 
-                webpush.sendNotification(sub, payload).catch(err => {
-                    console.error('Push error (maybe unsubscribed):', err.statusCode);
-                })
-            );
-
-            await Promise.all(sendPromises);
-            console.log('Daily dryer notifications sent successfully.');
-        } else {
-            console.log('No pending dryer tasks for today.');
-        }
+        console.log('[Automated Backup] Starting scheduled database backup...');
+        const result = await performNativeBackup('auto');
+        console.log(`[Automated Backup] Successfully created: ${result.filename} (${result.sizeFormatted})`);
     } catch (error) {
-        console.error('Daily Notification Cron Job Failed:', error);
+        console.error('[Automated Backup] Failed to create scheduled backup:', error.message);
     }
 });
-
-app.post('/api/notifications/subscribe', async (req, res) => {
-    try {
-        const subscription = req.body;
-
-        await Subscription.findOneAndUpdate(
-            { endpoint: subscription.endpoint }, 
-            subscription,
-            { upsert: true, new: true }
-        );
-
-        res.status(201).json({ message: "Subscription saved successfully." });
-
-        const payload = JSON.stringify({ 
-            title: 'Notifications Enabled ✅', 
-            body: 'You will now receive alerts for new transfers.' 
-        });
-
-        webpush.sendNotification(subscription, payload)
-            .catch(err => console.error('Notification sending error:', err));
-
-    } catch (error) {
-        console.error("Error saving subscription:", error);
-        res.status(500).json({ error: "Failed to save subscription" });
-    }
-});
-
 
 // Routes
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/auth', authRouter); 
-app.use('/api/green-leaf', greenLeafRouter);
-app.use('/api/production', productionRouter);
-app.use('/api/labour', labourRouter);
-app.use('/api/dehydrator', dehydratorRouter);
-app.use('/api/cost-of-production', costOfProductionRouter);
-app.use('/api/raw-material-cost', rawMaterialCostRoutes);
 app.use('/api/users', userRouter); 
-app.use('/api/selling-details', sellingDetailsRouter);
-app.use('/api/production-summary', productionSummaryRouter); 
-app.use('/api/handmade/transfers', handmadeTransferRouter);
-app.use('/api/loft-leaf', loftLeafCountRoutes);
+
+// Handmade Section Routes
+app.use('/api/green-leaf', verifyToken, authorizeSection('handmade'), greenLeafRouter);
+app.use('/api/production', verifyToken, authorizeSection('handmade'), productionRouter);
+app.use('/api/labour', verifyToken, authorizeSection('handmade'), labourRouter);
+app.use('/api/dehydrator', verifyToken, authorizeSection('handmade'), dehydratorRouter);
+app.use('/api/cost-of-production', verifyToken, authorizeSection('handmade'), costOfProductionRouter);
+app.use('/api/raw-material-cost', verifyToken, authorizeSection('handmade'), rawMaterialCostRoutes);
+app.use('/api/selling-details', verifyToken, authorizeSection('handmade'), sellingDetailsRouter);
+app.use('/api/production-summary', verifyToken, authorizeSection('handmade'), productionSummaryRouter); 
+app.use('/api/handmade/transfers', verifyToken, authorizeSection('handmade'), handmadeTransferRouter);
+app.use('/api/loft-leaf', verifyToken, authorizeSection('handmade'), loftLeafCountRoutes);
 
 // Packing Section Routes
-app.use('/api/local-sales', localSaleRouter);
-app.use('/api/tea-center-issues', teaCenterIssueRouter);
-app.use('/api/packing/transfers', packingTransferRouter);
-app.use('/api/tea-received', teaReceivedRouter);
-app.use('/api/packing-stock', packingStockRouter);
-app.use('/api/tea-receivedother', teaTransactionOtherRouter);
-app.use('/api/raw-materials-in', rawMaterialInRouter);
-app.use('/api/restore-tea-stock', restoreTeaStockRouter);
+app.use('/api/local-sales', verifyToken, authorizeSection('packing'), localSaleRouter);
+app.use('/api/tea-center-issues', verifyToken, authorizeSection('packing'), teaCenterIssueRouter);
+app.use('/api/packing/transfers', verifyToken, authorizeSection({ read: ['packing', 'handmade'], write: ['packing'] }), packingTransferRouter);
+app.use('/api/tea-received', verifyToken, authorizeSection('packing'), teaReceivedRouter);
+app.use('/api/packing-stock', verifyToken, authorizeSection('packing'), packingStockRouter);
+app.use('/api/tea-receivedother', verifyToken, authorizeSection('packing'), teaTransactionOtherRouter);
+app.use('/api/raw-materials-in', verifyToken, authorizeSection('packing'), rawMaterialInRouter);
+app.use('/api/restore-tea-stock', verifyToken, authorizeSection('packing'), restoreTeaStockRouter);
 
 // Factory Section Routes
-app.use('/api/factory-balance', factoryrouter);
-app.use('/api/factory-logs', factoryrouter);
-app.use('/api/labour-output', labourOutputRouter);
-app.use('/api/stock-adjustment', StockAdjustmentRouter);
-app.use('/api/factory-packs', factoryPackRoutes);
+app.use('/api/factory-balance', verifyToken, authorizeSection('factory'), factoryrouter);
+app.use('/api/factory-logs', verifyToken, authorizeSection({ read: ['factory', 'manufacturer'], write: ['factory'] }), factoryrouter);
+app.use('/api/labour-output', verifyToken, authorizeSection('factory'), labourOutputRouter);
+app.use('/api/stock-adjustment', verifyToken, authorizeSection('packing', 'factory'), StockAdjustmentRouter);
+app.use('/api/factory-packs', verifyToken, authorizeSection('factory'), factoryPackRoutes);
 
 // Local Sale Section Routes
-app.use('/api/summary', dailySummaryRouter); 
-app.use('/api/issue-summary', issueTypeRouter);
-app.use('/api/monthly-balance', monthlyBalanceRouter); 
+app.use('/api/summary', verifyToken, authorizeSection({ read: ['localsale', 'manufacturer'], write: ['localsale'] }), dailySummaryRouter); 
+app.use('/api/issue-summary', verifyToken, authorizeSection('localsale'), issueTypeRouter);
+app.use('/api/monthly-balance', verifyToken, authorizeSection('localsale'), monthlyBalanceRouter); 
 
 // Manufacturer Section Routes
-app.use('/api/factory-loft-leaf', factoryLoftLeafRouter);
-app.use('/api/wither-leaf', WitherLeafRouter);
-app.use('/api/rolling-room-sheet', rollingRouter); 
-app.use('/api/firing-section', FiringRouter); 
-app.use('/api/hydro-meters', hydroMeterRouter);
-app.use('/api/pdf-totals', pdfTotalRouter);
-app.use('/api/tc5report', tc5router); 
-app.use('/api/tc5manualreport', tc5ManualReportRouter); 
+app.use('/api/factory-loft-leaf', verifyToken, authorizeSection('manufacturer'), factoryLoftLeafRouter);
+app.use('/api/wither-leaf', verifyToken, authorizeSection('manufacturer'), WitherLeafRouter);
+app.use('/api/rolling-room-sheet', verifyToken, authorizeSection('manufacturer'), rollingRoomSheetRouter); 
+app.use('/api/firing-section', verifyToken, authorizeSection('manufacturer'), FiringRouter); 
+app.use('/api/hydro-meters', verifyToken, authorizeSection('manufacturer'), hydroMeterRouter);
+app.use('/api/pdf-totals', verifyToken, authorizeSection('manufacturer'), pdfTotalRouter);
+app.use('/api/tc5report', verifyToken, authorizeSection('manufacturer'), tc5router); 
+app.use('/api/tc5manualreport', verifyToken, authorizeSection('manufacturer'), tc5ManualReportRouter); 
 
 //system Report
 app.use('/api/system-updates', systemReportRouter);
 app.use('/api/system-invoices', systemInvoiceRoute);
 app.use('/api/system-audit', auditRoutes);
-app.use('/api/backup', systemBackupRouter);
+app.use('/api/backup', backupRouter);
+
+// 404 handler for undefined routes
+app.use(notFoundHandler);
+
+// Global Error Handling Middleware (must be after all route declarations)
+app.use(errorHandler);
+
+// Process-level unhandled rejection & uncaught exception handlers
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Promise Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception thrown:', err);
+});
 
 app.listen(3000, () => {
   console.log('Server is running on port 3000');

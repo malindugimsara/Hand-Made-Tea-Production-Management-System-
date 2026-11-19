@@ -62,4 +62,6 @@ const dehydratorSchema = new mongoose.Schema({
     timestamps: true // createdAt and updatedAt fields automatically add wenawa
 });
 
+dehydratorSchema.index({ date: -1 });
+
 export const Dehydrator = mongoose.model('Dehydrator', dehydratorSchema);

@@ -40,8 +40,8 @@ export default function ManageUsers() {
     useEffect(() => {
         const currentRole = localStorage.getItem('userRole') || localStorage.getItem('role');
 
-        if (currentRole !== 'Admin') {
-            toast.error("Access Denied. Admins only.");
+        if (currentRole !== 'Admin' && currentRole !== 'Developer') {
+            toast.error("Access Denied. Admins and Developers only.");
             navigate('/');
             return;
         }
@@ -58,7 +58,8 @@ export default function ManageUsers() {
 
             if (!response.ok) throw new Error("Failed to fetch");
             const data = await response.json();
-            setUsers(data);
+            // Filter out devadmin and Developer accounts from Manage Users
+            setUsers(data.filter(u => u.username !== 'devadmin' && u.role !== 'Developer' && u.role !== 'developer'));
         } catch (error) {
             toast.error("Could not load users.");
         } finally {
@@ -100,7 +101,7 @@ export default function ManageUsers() {
         let mappedRole = user.role;
         let mappedPaths = user.allowedPaths ? [...user.allowedPaths] : [];
 
-        if (mappedRole !== 'Admin' && mappedRole !== 'User') {
+        if (mappedRole !== 'Admin' && mappedRole !== 'Developer' && mappedRole !== 'User') {
             mappedRole = 'User'; 
             
             if (mappedPaths.length === 0) {
@@ -326,7 +327,6 @@ export default function ManageUsers() {
                                     <option value="User">Standard User</option>
                                     <option value="Viewer">Viewer (Read-Only)</option>
                                     <option value="Admin">Admin</option>
-                                    <option value="Developer">Developer (All Access)</option>
                                 </select>
                             </div>
 

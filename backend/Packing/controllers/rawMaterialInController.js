@@ -1,10 +1,11 @@
 import RawMaterialIn from '../models/RawMaterialIn.js';
 import RawMaterialStock from '../models/RawMaterialStock.js';
+import { paginate } from '../../utils/paginate.js';
 
 // CREATE NEW RAW MATERIAL IN RECORD
 export const createRawMaterialIn = async (req, res) => {
     try {
-        // 💡 1. req.body එකෙන් billImageUrl එක ලබා ගැනීම
+        // 1. Extract billImageUrl from req.body
         const { date, invoiceNo, supplierName, items, receivedBy, remarks, billImageUrl } = req.body;
 
         if (!items || items.length === 0) {
@@ -137,8 +138,11 @@ export const getRawMaterialStock = async (req, res) => {
 
 export const getAllRawMaterialInRecords = async (req, res) => {
     try {
-        const records = await RawMaterialIn.find().sort({ date: -1, createdAt: -1 });
-        res.status(200).json({ success: true, data: records });
+        await paginate(RawMaterialIn, req, res, { 
+            dateField: 'date',
+            sort: { date: -1, createdAt: -1 },
+            wrapSuccessData: true
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: "Server Error", error: error.message });
     }

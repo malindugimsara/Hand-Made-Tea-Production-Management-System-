@@ -31,5 +31,7 @@ const rawMaterialStockSchema = new mongoose.Schema({
     timestamps: true 
 });
 
+rawMaterialStockSchema.index({ category: 1 });
+
 const RawMaterialStock = mongoose.model('RawMaterialStock', rawMaterialStockSchema);
 export default RawMaterialStock;

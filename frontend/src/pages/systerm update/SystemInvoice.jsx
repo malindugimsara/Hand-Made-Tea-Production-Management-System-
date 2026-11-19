@@ -81,7 +81,7 @@ const SystemInvoice = () => {
         setIsInvoiceModalOpen(true);
     };
 
-    // 💡 Confirm Delete Function (Modal එකේ 'Yes, Delete' එබූ විට ක්‍රියාත්මක වේ)
+    // Confirmation handler executed upon clicking 'Yes, Delete' in modal
     const confirmDeleteInvoice = async () => {
         if (!invoiceToDelete) return;
         const toastId = toast.loading("Deleting invoice...");
@@ -100,7 +100,7 @@ const SystemInvoice = () => {
         } catch (error) {
             toast.error("Error communicating with server.", { id: toastId });
         } finally {
-            setInvoiceToDelete(null); // Modal එක වසා දමයි
+            setInvoiceToDelete(null); // Close modal dialog
         }
     };
 
@@ -261,12 +261,12 @@ const SystemInvoice = () => {
         doc.setTextColor(22, 101, 52); 
         doc.text(`Rs. ${grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`, pageWidth - 14, currentY, { align: 'right' });
 
-        // 💡 2. වෙනස: පිටුවේ පහළින් බැංකු විස්තර (Bank Details) එකතු කිරීම
-        let footerY = doc.internal.pageSize.getHeight() - 45; // පහළින් පටන් ගන්නා තැන
+        // 2. Append Bank Account details to page footer
+        let footerY = doc.internal.pageSize.getHeight() - 45; // Footer starting Y-coordinate offset
 
         doc.setDrawColor(226, 232, 240);
         doc.setLineWidth(0.5);
-        doc.line(14, footerY, pageWidth - 14, footerY); // ඉරි කෑල්ලක් උඩින් ගහනවා
+        doc.line(14, footerY, pageWidth - 14, footerY); // Render horizontal dividing rule above footer
         footerY += 8;
 
         doc.setFontSize(10);
@@ -278,7 +278,7 @@ const SystemInvoice = () => {
         doc.setFont(undefined, 'normal');
         doc.setTextColor(71, 85, 105);
 
-        // බැංකු විස්තර
+        // Bank details section
         doc.text("Bank Name:", 14, footerY + 6);
         doc.setFont(undefined, 'bold');
         doc.text("COMMERCIAL BANK", 40, footerY + 6);
@@ -375,7 +375,7 @@ const SystemInvoice = () => {
                                             <Edit3 size={16} />
                                         </button>
                                         
-                                        {/* 💡 Delete Button එක වෙනස් කර ඇත (Click කළ විට State එක Update වේ) */}
+                                        {/* Delete action button updates modal target state */}
                                         <button onClick={() => setInvoiceToDelete(inv._id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Delete">
                                             <Trash2 size={16} />
                                         </button>

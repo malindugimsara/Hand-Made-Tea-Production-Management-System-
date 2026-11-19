@@ -40,5 +40,7 @@ const rawMaterialInSchema = new mongoose.Schema({
     timestamps: true 
 });
 
+rawMaterialInSchema.index({ date: -1, createdAt: -1 });
+
 const RawMaterialIn = mongoose.model('RawMaterialIn', rawMaterialInSchema);
 export default RawMaterialIn;

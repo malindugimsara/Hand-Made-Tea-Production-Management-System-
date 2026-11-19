@@ -15,7 +15,7 @@ export default function EditRawMaterialCost() {
     const isViewer = userRole.toLowerCase() === 'viewer' || userRole.toLowerCase() === 'view';
     const currentUsername = localStorage.getItem('username') || 'Unknown'; // <-- Get Current Username
 
-    // View page එකෙන් එවන දත්ත ලබා ගැනීම
+    // Retrieve record data passed from View page
     const recordData = location.state?.record;
 
     // Form State
@@ -31,7 +31,7 @@ export default function EditRawMaterialCost() {
 
     const materialOptions = ["Heenbowitiya", "Moringa", "Gotukola", "Karapincha", "Iramusu", "Polpala"];
 
-    // පිටුව ලෝඩ් වෙද්දී කලින් තිබුණ දත්ත Form එකට පිරවීම
+    // Populate form with existing record data on initial mount
     useEffect(() => {
         // Security check: Bounce Viewers out immediately
         if (isViewer) {
@@ -52,7 +52,7 @@ export default function EditRawMaterialCost() {
             });
         } else {
             toast.error("No record data found!");
-            navigate('/view-raw-material-cost'); // Data නැත්නම් ආපහු View එකට යවනවා
+            navigate('/view-raw-material-cost'); // Redirect back to view page if record data is missing
         }
     }, [recordData, navigate, isViewer]);
 
@@ -61,7 +61,7 @@ export default function EditRawMaterialCost() {
         setFormData({ ...formData, [name]: value });
     };
 
-    // ඍණ අගයන් ටයිප් කිරීම වැළැක්වීම
+    // Prevent entry of negative numerical values
     const blockMinus = (e) => {
         if (e.key === '-') {
             e.preventDefault();
@@ -92,7 +92,7 @@ export default function EditRawMaterialCost() {
             rawMaterialCost: Number(formData.rawMaterialCost),
             electricityCost: Number(formData.electricityCost),
             totalCost: totalCost,
-            updatedBy: currentUsername // <-- අලුතින් Edit කරන කෙනාගේ නම යැවීම
+            updatedBy: currentUsername // Send current username as updatedBy identifier
         };
 
         try {
@@ -139,7 +139,7 @@ export default function EditRawMaterialCost() {
                         <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">Record Date:</span>
                         <span className="text-sm font-black text-gray-800 dark:text-gray-200">{formData.date}</span>
                     </div>
-                    {/* කලින් කවුරුහරි Edit කරලා තියෙනවා නම් නම පෙන්වීම */}
+                    {/* Display previous editor username if record was modified */}
                     {recordData && (recordData.updatedBy || recordData.editedBy || recordData.username) && (
                         <div className="inline-flex items-center px-3 py-1 bg-blue-50 dark:bg-blue-900/30 rounded-full border border-blue-100 dark:border-blue-800/50 transition-colors">
                             <span className="text-xs font-bold text-blue-600 dark:text-blue-400">

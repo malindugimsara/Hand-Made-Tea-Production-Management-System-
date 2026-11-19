@@ -70,6 +70,8 @@ const TeaCenterIssueSchema = new mongoose.Schema({
     timestamps: true 
 });
 
+TeaCenterIssueSchema.index({ date: -1 });
+
 const TeaCenterIssue = mongoose.model('TeaCenterIssue', TeaCenterIssueSchema);
 
 export default TeaCenterIssue;

@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import StockTransfer from "../../models/StockTransfer.js";
 import PackingStock from "../models/PackingStock.js";
 import TeaReceived from "../models/TeaReceivedModel.js";
@@ -6,10 +7,22 @@ import TeaTransactionOther from "../models/TeaTransactionOther.js";
 // @desc    Restore Tea Stock from all Trans In records (Factory, Other & Handmade Transfers)
 // @route   POST /api/packing-stock/restore
 export const restoreTeaStock = async (req, res) => {
+    let session = null;
     try {
-        const factoryRecords = await TeaReceived.find({});
-        const otherRecords = await TeaTransactionOther.find({});
-        const transferRecords = await StockTransfer.find({ status: 'COMPLETED' }); 
+        session = await mongoose.startSession();
+        session.startTransaction();
+    } catch {
+        // Fallback for standalone MongoDB environments without replica sets
+        session = null;
+    }
+
+    try {
+        const sessionOption = session ? { session } : {};
+
+        // 1. Fetch records
+        const factoryRecords = await TeaReceived.find({}, null, sessionOption);
+        const otherRecords = await TeaTransactionOther.find({}, null, sessionOption);
+        const transferRecords = await StockTransfer.find({ status: 'COMPLETED' }, null, sessionOption); 
 
         const stockMap = {};
 
@@ -71,9 +84,9 @@ export const restoreTeaStock = async (req, res) => {
                 });
             }
         });
-        let restoredCount = 0;
-        await PackingStock.deleteMany({});
 
+        // 2. Prepare all new stock documents in memory BEFORE touching the database
+        const newStockDocs = [];
         for (const [productName, sources] of Object.entries(stockMap)) {
             let stockBySourceArray = [];
             let totalBulkStockKg = 0;
@@ -88,24 +101,44 @@ export const restoreTeaStock = async (req, res) => {
                 totalBulkStockKg += transInAmount;
             }
 
-            const newStock = new PackingStock({
+            newStockDocs.push({
                 productName: productName,
                 stockBySource: stockBySourceArray,
                 totalBulkStockKg: totalBulkStockKg,
                 packedItems: []
             });
-            await newStock.save();
-            
-            restoredCount++;
+        }
+
+        // 3. Atomically wipe old stock and insert new batch inside transaction
+        await PackingStock.deleteMany({}, sessionOption);
+
+        if (newStockDocs.length > 0) {
+            await PackingStock.insertMany(newStockDocs, sessionOption);
+        }
+
+        // 4. Commit transaction
+        if (session) {
+            await session.commitTransaction();
         }
 
         res.status(200).json({ 
             message: "Tea Stock successfully restored from Factory, Other, and Handmade Transfer sources!", 
-            restoredProductsCount: restoredCount 
+            restoredProductsCount: newStockDocs.length 
         });
 
     } catch (error) {
+        if (session) {
+            try {
+                await session.abortTransaction();
+            } catch (abortErr) {
+                console.error("Error aborting transaction:", abortErr);
+            }
+        }
         console.error("Error restoring tea stock:", error);
         res.status(500).json({ error: "Server Error", details: error.message });
+    } finally {
+        if (session) {
+            session.endSession();
+        }
     }
 };

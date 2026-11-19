@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
-// Use Vite environment variable with a safe fallback
-const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000').replace(/\/+$/, '');
-const API_BASE = `${BACKEND_BASE}/api/backup`;
+import api from '@/services/api';
 
 export default function SystemBackup() {
     const [backups, setBackups] = useState([]);
@@ -23,7 +20,7 @@ export default function SystemBackup() {
     const loadBackups = async () => {
         try {
             setFetching(true);
-            const res = await fetch(`${API_BASE}/list`);
+            const res = await api.get('/api/backup/list');
             const data = await res.json();
 
             if (data.success) {
@@ -34,7 +31,7 @@ export default function SystemBackup() {
                 showAlert(data.message || 'Failed to read local backup directory.', 'error');
             }
         } catch (err) {
-            showAlert(`Unable to reach backend at ${API_BASE}. Check if server is running.`, 'error');
+            showAlert('Unable to reach backend. Check if server is running.', 'error');
         } finally {
             setFetching(false);
         }
@@ -52,10 +49,7 @@ export default function SystemBackup() {
         showAlert('Manual backup initiated. Exporting database...', 'info');
 
         try {
-            const res = await fetch(`${API_BASE}/trigger`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-            });
+            const res = await api.post('/api/backup/trigger');
             const data = await res.json();
 
             if (data.success) {
@@ -221,7 +215,7 @@ export default function SystemBackup() {
                                             </td>
                                             <td style={{ ...styles.td, textAlign: 'right' }}>
                                                 <a
-                                                    href={`${API_BASE}/download/${encodeURIComponent(displayName)}`}
+                                                    href={`${api.BASE_URL}/api/backup/download/${encodeURIComponent(displayName)}?token=${encodeURIComponent(api.getToken() || '')}`}
                                                     download
                                                     style={styles.downloadLink}
                                                 >

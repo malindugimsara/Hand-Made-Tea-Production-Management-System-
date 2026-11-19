@@ -1,4 +1,4 @@
-import HydroMeter from '../models/HydroMeter.js'; // අගට .js තිබිය යුතුය
+import HydroMeter from '../models/HydroMeter.js'; // Ensure .js file extension is included
 
 // Save or Update Hydro Meter Data
 export const saveHydroMeterData = async (req, res) => {

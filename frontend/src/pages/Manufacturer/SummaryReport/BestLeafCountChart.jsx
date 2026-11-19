@@ -20,7 +20,7 @@ const ROUTE_LIST = [
 ];
 
 
-// 💡 1. එක් එක් Route එක සඳහා වෙනස් වර්ණ (Dynamic Colors)
+// 1. Dynamic color schemes mapped per route
 const ROUTE_COLORS = {
     "C1": "#3b82f6", // Blue
     "C2": "#10b981", // Emerald
@@ -33,7 +33,7 @@ const ROUTE_COLORS = {
     "E":  "#d946ef"  // Fuchsia
 };
 
-// 💡 2. Dynamic Color අදාළ වන පරිදි හැදූ Custom Label
+// 2. Custom label styled with dynamic color theme
 const CustomLabel = (props) => {
     const { x, y, value, strokeColor } = props;
     if (value == null) return null;
@@ -143,12 +143,12 @@ export default function BestLeafCountChart() {
 
             ROUTE_LIST.forEach(route => {
                 
-                // 💡 UPDATE: E අකුර වෙනත් නම් වල (PELAWATHTHA, GANEGODA) තිබීම නිසා වන ගැටළුව විසඳීමට Exact Match කිරීම
+                // Exact prefix match to avoid partial collisions (e.g. 'E' in 'PELAWATHTHA' or 'GANEGODA')
                 const record = rawData.find(r => {
                     if (r._recordDate !== date || !r.route) return false;
                     
                     const dbRoute = r.route.toUpperCase();
-                    // උදා: "E - ESTATE TEA" හෝ "C3 - PELAWATHTHA" වලින් ඉරට කලින් ඇති "E" හෝ "C3" පමණක් වෙන්කර ගනී
+                    // e.g. isolate prefix prior to hyphen like 'E' from 'E - ESTATE TEA' or 'C3' from 'C3 - PELAWATHTHA'
                     const prefix = dbRoute.split('-')[0].trim(); 
                     
                     return prefix === route.id.toUpperCase() || dbRoute.includes(route.fullName.toUpperCase());
@@ -279,7 +279,7 @@ export default function BestLeafCountChart() {
         }
     };
 
-    // 💡 3. PDF කැපීම වැලැක්වීම සඳහා දැන් 2 ගානේ වෙනුවට 1 බැගින් (Row-by-row) Chunk කිරීම
+    // 3. Chunk rows individually (1 row per chunk) to prevent PDF page overflow cuts
     const activeRoutes = ROUTE_LIST.filter(route => routeTrendData[route.id]?.count > 0);
     const chunkedRoutes = [];
     for (let i = 0; i < activeRoutes.length; i += 1) { // 1 Per Block for Full Width

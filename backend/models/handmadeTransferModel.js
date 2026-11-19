@@ -48,6 +48,9 @@ const handmadeTransferSchema = new mongoose.Schema({
     timestamps: true // Automatically adds createdAt and updatedAt
 });
 
+handmadeTransferSchema.index({ dateIssued: -1 });
+handmadeTransferSchema.index({ status: 1 });
+
 const HandmadeTransfer = mongoose.model('HandmadeTransfer', handmadeTransferSchema);
 
 export default HandmadeTransfer;

@@ -93,6 +93,9 @@ const loftLeafCountSchema = new mongoose.Schema(
   },
 );
 
+loftLeafCountSchema.index({ date: -1 });
+loftLeafCountSchema.index({ route: 1, date: -1 });
+
 const LoftLeafCount = mongoose.model("LoftLeafCount", loftLeafCountSchema);
 
 export default LoftLeafCount;

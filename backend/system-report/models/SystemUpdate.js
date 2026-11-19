@@ -16,7 +16,7 @@ const systemUpdateSchema = new mongoose.Schema({
   },
   section: {
     type: String,
-    required: true // උදා: 'B/L Operations', 'Rolling Room', 'Dashboard'
+    required: true // e.g. 'B/L Operations', 'Rolling Room', 'Dashboard'
   },
   title: {
     type: String,
@@ -36,5 +36,7 @@ const systemUpdateSchema = new mongoose.Schema({
     default: 'System Admin'
   }
 }, { timestamps: true });
+
+systemUpdateSchema.index({ assignDate: -1 });
 
 export default mongoose.model('SystemUpdate', systemUpdateSchema);

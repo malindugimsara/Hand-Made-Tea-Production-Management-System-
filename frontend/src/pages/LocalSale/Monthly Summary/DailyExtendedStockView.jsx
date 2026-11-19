@@ -170,14 +170,14 @@ export default function DailyExtendedStockView() {
 
         // 💡 4. Initialize Function for Dynamic Database Items
         const initItem = (categoryId, categoryTitle, size, displaySize = null) => {
-            // Key එක හැමවිටම Database එකේ එන මුල් Size එකෙන් (cat.size) නිර්මාණය වේ
+            // Map key is always constructed from original size in database (cat.size)
             const key = generateKey(categoryId, categoryTitle, size);
 
             if (!dataMap[key]) {
                 dataMap[key] = {
                     categoryId: categoryId || 'Unknown',
                     displayTitle: formatTitle(categoryTitle || categoryId),
-                    // UI එකට පෙන්වීමට displaySize එකක් ඇත්නම් එය යොදාගනී
+                    // Use displaySize for UI rendering if available
                     size: displaySize || size || '-',
                     group: 'Other',
                     sortOrder: 100,
@@ -198,7 +198,7 @@ export default function DailyExtendedStockView() {
 
         // Pre-fill Map with Standard Categories
         productCategories.forEach(cat => {
-            // 💡 මෙහිදී Key එක සෑදීමට 'cat.size' ද, UI එකට පෙන්වීමට 'cat.displaySize' ද වෙන වෙනම යවනු ලැබේ
+            // Pass 'cat.size' for key generation and 'cat.displaySize' for UI presentation
             const key = initItem(cat.categoryId, cat.name, cat.size, cat.displaySize);
             dataMap[key].group = cat.group;
             dataMap[key].sortOrder = cat.sortOrder;

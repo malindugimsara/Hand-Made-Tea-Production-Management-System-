@@ -15,4 +15,6 @@ const SellingDetailsSchema = new mongoose.Schema({
   records: [SellingRecordSchema], // Array of the tea items sold
 });
 
+SellingDetailsSchema.index({ date: -1 });
+
 export default mongoose.model('SellingDetails', SellingDetailsSchema);

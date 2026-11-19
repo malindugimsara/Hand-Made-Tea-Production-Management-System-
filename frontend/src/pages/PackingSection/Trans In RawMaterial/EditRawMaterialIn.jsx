@@ -262,7 +262,7 @@ export default function EditRawMaterialIn() {
             if (billFile) {
                 uploadedUrl = await uploadImageToSupabase(billFile);
 
-                // 💡 අලුත් රූපය සාර්ථකව Upload වූ පසු, පරණ රූපය Supabase එකෙන් මකා දැමීම
+                // Delete old image from Supabase storage after new image uploads successfully
                 if (existingImageUrl) {
                     const oldFilePath = existingImageUrl.split('/raw-material-bills/')[1];
                     if (oldFilePath) {

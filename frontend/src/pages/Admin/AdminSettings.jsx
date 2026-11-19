@@ -24,7 +24,7 @@ export default function AdminSettings() {
         }
     }, [navigate]);
 
-    // Dropdown එකෙන් පිටත ක්ලික් කළ විට එය වැසීම
+    // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (switcherRef.current && !switcherRef.current.contains(event.target)) {
@@ -56,10 +56,15 @@ export default function AdminSettings() {
         { id: 'localSale', name: 'Local Sale', icon: Store, path: '/localsale' },
         { id: 'manufacturer', name: 'Manufacturing', icon: ClipboardList, path: '/manufacturer' },
         { id: 'admin', name: 'Admin Settings', icon: Settings, path: '/admin/settings' },
+        { id: 'developer', name: 'Developer Section', icon: ShieldAlert, path: '/developer-section' },
     ];
 
-    const accessibleModules = systemModules.filter(mod => allowedPaths.includes(mod.id));
-    const currentModule = systemModules.find(mod => mod.id === 'admin'); // දැනට සිටින්නේ Admin පිටුවේය
+    const currentRole = localStorage.getItem('userRole') || localStorage.getItem('role');
+    const accessibleModules = systemModules.filter(mod => {
+        if (mod.id === 'developer' && currentRole !== 'Developer') return false;
+        return allowedPaths.includes(mod.id);
+    });
+    const currentModule = systemModules.find(mod => mod.id === 'admin'); // Currently on Admin Settings page
 
     return (
         <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-screen bg-transparent transition-colors duration-300">

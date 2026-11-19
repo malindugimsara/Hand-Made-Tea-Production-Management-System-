@@ -65,6 +65,10 @@ const stockTransferSchema = new mongoose.Schema({
     timestamps: true 
 });
 
+stockTransferSchema.index({ status: 1, dateIssued: 1 });
+stockTransferSchema.index({ status: 1, dateReceived: -1 });
+stockTransferSchema.index({ dateIssued: -1 });
+
 const StockTransfer = mongoose.model('StockTransfer', stockTransferSchema);
 
 export default StockTransfer;

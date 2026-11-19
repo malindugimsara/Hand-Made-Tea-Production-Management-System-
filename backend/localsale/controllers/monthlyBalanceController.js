@@ -1,6 +1,7 @@
 import MonthlyBalance from '../models/MonthlyBalance.js';
 import DailySummary from '../models/DailySummary.js';
 import IssueSummary from '../models/IssueTypeSummary.js'; 
+import { escapeRegex } from '../../utils/sanitize.js'; 
 
 const productCategories = [
     { id: 'athukorala_400g', categoryId: 'athukorala', size: '400g', name: 'Athukorala BOPF 400g' },
@@ -51,20 +52,20 @@ export const getBalance = async (req, res) => {
         const { month } = req.query; // e.g., '2026-10'
         if (!month) return res.status(400).json({ success: false, message: 'Month required' });
 
-        // 💡 කෙලින්ම Database එකෙන් B/M Stock එක කියවීම
+        // Read B/M stock directly from database
         const monthlyRecord = await MonthlyBalance.findOne({ month: month });
         
         const bmMap = {};
         const allCategoriesMap = {};
 
-        // 1. Base Categories ඇතුලත් කිරීම
+        // 1. Initialize base categories
         productCategories.forEach(cat => {
             const key = generateNormalizedKey(cat.categoryId, cat.name, cat.size);
             allCategoriesMap[key] = { categoryId: cat.categoryId, categoryTitle: cat.name, size: cat.size };
             bmMap[key] = 0;
         });
 
-        // 2. Database එකේ Save වී ඇති B/M Stock අගයන් කෙලින්ම ලබා ගැනීම
+        // 2. Fetch saved B/M stock values directly from database
         if (monthlyRecord && monthlyRecord.items) {
             monthlyRecord.items.forEach(item => {
                 const key = generateNormalizedKey(item.categoryId, item.categoryTitle, item.size);
@@ -79,8 +80,9 @@ export const getBalance = async (req, res) => {
             });
         }
 
-        // 3. මේ මාසයට අදාල IN සහ OUT පමණක් ලබා ගැනීම (Total සහ Balance හැදීම සඳහා)
-        const currentSummaries = await DailySummary.find({ date: { $regex: `^${month}` } });
+        // 3. Fetch IN and OUT records for the month to calculate totals and balances
+        const safeMonth = escapeRegex(month);
+        const currentSummaries = await DailySummary.find({ date: { $regex: `^${safeMonth}` } });
         const dynamicMap = {};
 
         currentSummaries.forEach(day => {
@@ -96,7 +98,7 @@ export const getBalance = async (req, res) => {
         });
 
 
-        // 4. UI එකට දත්ත යැවීම
+        // 4. Send response data to client
         const items = Object.keys(allCategoriesMap).map(key => {
             const catInfo = allCategoriesMap[key];
             const bmStock = bmMap[key] || 0; 
@@ -148,7 +150,8 @@ export const updateBMStockLogic = async (currentMonthStr) => {
         });
     }
 
-    const summaries = await DailySummary.find({ date: { $regex: `^${currentMonthStr}` } });
+    const safeMonthStr = escapeRegex(currentMonthStr);
+    const summaries = await DailySummary.find({ date: { $regex: `^${safeMonthStr}` } });
 
     summaries.forEach(day => {
         day.items?.forEach(item => {

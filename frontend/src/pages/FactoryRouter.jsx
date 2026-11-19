@@ -1,21 +1,23 @@
+import React, { lazy } from "react";
 import { Route } from "react-router-dom";
-import FactoryDashboard from "./FactorySection/FactoryDashboard";
-import FactoryDashboardLayout from "./FactorySection/FactoryDashbordLayout";
-import FactoryView from "./FactorySection/Factory Balance/Views/Factory Log/FactoryView";
-import EditRecords from "./FactorySection/Factory Balance/Views/Factory Log/EditRecords";
-import DailyProduction from "./FactorySection/Factory Balance/Inputes/DailyProduction";
-import DispatchAndReturn from "./FactorySection/Factory Balance/Inputes/DispatchAndReturn";
-import LabourOutput from "./FactorySection/Factory Balance/Inputes/LabourOutput";
-import LabourOutputList from "./FactorySection/Factory Balance/Views/Labour Output/LabourOutputList";
-import LabourOutputEdit from "./FactorySection/Factory Balance/Views/Labour Output/LabourOutputEdit";
-import FactoryPacking from "./FactorySection/Factory Balance/Inputes/FactoryPacking";
-import DispatchRecordsView from "./FactorySection/Factory Balance/Views/DIspatch View/DispatchRecordsView";
-import EditDispatchLog from "./FactorySection/Factory Balance/Views/DIspatch View/EditDispatchLog";
-import PackingStockSummary from "./FactorySection/Factory Balance/Views/Packing/PackingStockSummary";
-import PackingStockEdit from "./FactorySection/Factory Balance/Views/Packing/PackingStockEdit";
-import DispatchDashboard from "./FactorySection/Factory Balance/Views/DIspatch View/DispatchDashboard";
 
-export default function   FactoryRouter() {
+const FactoryDashboard = lazy(() => import("./FactorySection/FactoryDashboard"));
+const FactoryDashboardLayout = lazy(() => import("./FactorySection/FactoryDashbordLayout"));
+const FactoryView = lazy(() => import("./FactorySection/Factory Balance/Views/Factory Log/FactoryView"));
+const EditRecords = lazy(() => import("./FactorySection/Factory Balance/Views/Factory Log/EditRecords"));
+const DailyProduction = lazy(() => import("./FactorySection/Factory Balance/Inputes/DailyProduction"));
+const DispatchAndReturn = lazy(() => import("./FactorySection/Factory Balance/Inputes/DispatchAndReturn"));
+const LabourOutput = lazy(() => import("./FactorySection/Factory Balance/Inputes/LabourOutput"));
+const LabourOutputList = lazy(() => import("./FactorySection/Factory Balance/Views/Labour Output/LabourOutputList"));
+const LabourOutputEdit = lazy(() => import("./FactorySection/Factory Balance/Views/Labour Output/LabourOutputEdit"));
+const FactoryPacking = lazy(() => import("./FactorySection/Factory Balance/Inputes/FactoryPacking"));
+const DispatchRecordsView = lazy(() => import("./FactorySection/Factory Balance/Views/DIspatch View/DispatchRecordsView"));
+const EditDispatchLog = lazy(() => import("./FactorySection/Factory Balance/Views/DIspatch View/EditDispatchLog"));
+const PackingStockSummary = lazy(() => import("./FactorySection/Factory Balance/Views/Packing/PackingStockSummary"));
+const PackingStockEdit = lazy(() => import("./FactorySection/Factory Balance/Views/Packing/PackingStockEdit"));
+const DispatchDashboard = lazy(() => import("./FactorySection/Factory Balance/Views/DIspatch View/DispatchDashboard"));
+
+export default function FactoryRouter() {
   return (
     <Route path="/factory" element={<FactoryDashboardLayout />}>
       <Route index element={<FactoryDashboard />} />

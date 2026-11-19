@@ -18,6 +18,7 @@ const issueTypeSummarySchema = new mongoose.Schema({
 });
 
 issueTypeSummarySchema.index({ date: 1, issueType: 1 }, { unique: true });
+issueTypeSummarySchema.index({ date: -1 });
 
 const IssueTypeSummary = mongoose.model('IssueTypeSummary', issueTypeSummarySchema);
 export default IssueTypeSummary;

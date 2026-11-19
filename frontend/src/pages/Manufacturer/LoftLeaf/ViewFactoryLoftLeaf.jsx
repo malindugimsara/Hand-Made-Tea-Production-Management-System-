@@ -122,7 +122,7 @@ export default function ViewLoftLeafCount() {
 
   // --- EDIT LOGIC ---
   const openEditModal = (record) => {
-      // 💡 අදාළ Route එක හරියටම මැච් කරගැනීම
+      // Exact match for target route
       const recordRoutePrefix = (record.route || "").split(" - ")[0].trim().toUpperCase();
       const matchedRoute = routeOptions.find(r => r.startsWith(recordRoutePrefix)) || record.route || '';
 
@@ -383,7 +383,7 @@ export default function ViewLoftLeafCount() {
           const originalElement = document.getElementById('pdf-print-area');
           
           const cloneWrapper = document.createElement('div');
-          const targetWidth = 2000; // 💡 මෙතැන පළල 2000px දක්වා වැඩි කර ඇත (තීරු 15ම එකවර පෙන්වීමට)
+          const targetWidth = 2000; // Expanded container width to 2000px to accommodate all 15 columns
           
           cloneWrapper.style.position = 'absolute';
           cloneWrapper.style.top = '-9999px';
@@ -394,7 +394,7 @@ export default function ViewLoftLeafCount() {
           
           const clone = originalElement.cloneNode(true);
           clone.style.display = 'block';
-          clone.style.width = `${targetWidth}px`; // Clone එකේ පළලත් බලෙන්ම 1600px කරනවා
+          clone.style.width = `${targetWidth}px`; // Enforce 1600px width on printable clone element
           
           cloneWrapper.appendChild(clone);
           document.body.appendChild(cloneWrapper);
@@ -463,7 +463,7 @@ export default function ViewLoftLeafCount() {
           const originalElement = document.getElementById('pdf-print-area');
           
           const cloneWrapper = document.createElement('div');
-          const targetWidth = 2000; // 💡 මෙතැන පළල 1600px දක්වා වැඩි කර ඇත
+          const targetWidth = 2000; // Increased table width to 1600px
           
           cloneWrapper.style.position = 'absolute';
           cloneWrapper.style.top = '-9999px';

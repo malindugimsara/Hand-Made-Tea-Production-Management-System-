@@ -1,17 +1,18 @@
+import React, { lazy } from "react";
 import { Route } from "react-router-dom";
-import LocalSaleDashboard from "./LocalSale/LocalSaleDashboard";
-import LocalSaleDashboardLayout from "./LocalSale/LocalSaleDashbordLayout";
-import DailySummaryEntry from "./LocalSale/Daily Summary/DailySummaryEntry";
-import ViewDailySummary from "./LocalSale/Daily Summary/ViewdailySummary";
-import IssueTypeSummaryEntry from "./LocalSale/Issue/IssueTypeSummaryEntry";
-import IssueTypeSummaryView from "./LocalSale/Issue/IssueTypeSummaryView";
-import MonthEndSummary from "./LocalSale/Monthly Summary/MonthEndSummary";
-import FreeIssueSummary from "./LocalSale/Monthly Summary/FreeIssueSummary";
-import BalanceReport from "./LocalSale/Monthly Summary/BalanceReport";
-import DailyExtendedStockView from "./LocalSale/Monthly Summary/DailyExtendedStockView";
 
+const LocalSaleDashboard = lazy(() => import("./LocalSale/LocalSaleDashboard"));
+const LocalSaleDashboardLayout = lazy(() => import("./LocalSale/LocalSaleDashbordLayout"));
+const DailySummaryEntry = lazy(() => import("./LocalSale/Daily Summary/DailySummaryEntry"));
+const ViewDailySummary = lazy(() => import("./LocalSale/Daily Summary/ViewdailySummary"));
+const IssueTypeSummaryEntry = lazy(() => import("./LocalSale/Issue/IssueTypeSummaryEntry"));
+const IssueTypeSummaryView = lazy(() => import("./LocalSale/Issue/IssueTypeSummaryView"));
+const MonthEndSummary = lazy(() => import("./LocalSale/Monthly Summary/MonthEndSummary"));
+const FreeIssueSummary = lazy(() => import("./LocalSale/Monthly Summary/FreeIssueSummary"));
+const BalanceReport = lazy(() => import("./LocalSale/Monthly Summary/BalanceReport"));
+const DailyExtendedStockView = lazy(() => import("./LocalSale/Monthly Summary/DailyExtendedStockView"));
 
-export default function   LocalSaleRouter() {
+export default function LocalSaleRouter() {
   return (
     <Route path="/localsale" element={<LocalSaleDashboardLayout />}>
       <Route index element={<LocalSaleDashboard />} />
@@ -23,7 +24,6 @@ export default function   LocalSaleRouter() {
       <Route path="freeissuesummary" element={<FreeIssueSummary />} />
       <Route path="balancereport" element={<BalanceReport />} />
       <Route path="dailyextendedstock" element={<DailyExtendedStockView />} />
-
     </Route>
   );
 }

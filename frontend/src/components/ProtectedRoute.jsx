@@ -2,15 +2,15 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 
 const ProtectedRoute = () => {
-    // 💡 Local Storage එකේ Token එකක් තියෙනවද කියලා බලනවා
+    // Check if authentication token exists in localStorage
     const token = localStorage.getItem('token');
 
-    // Token එකක් නැත්නම් කෙලින්ම Login page ("/") එකට හරවලා යවනවා
+    // If token is missing, redirect to login page ("/")
     if (!token) {
         return <Navigate to="/" replace />;
     }
 
-    // Token එක තියෙනවා නම් විතරක් අදාළ පිටුවට (Outlet) යන්න දෙනවා
+    // If token exists, render nested outlet routes
     return <Outlet />;
 };
 

@@ -1,17 +1,21 @@
-import React, { useState, useEffect } from 'react'; 
+import React, { useState, useEffect, Suspense, lazy } from 'react'; 
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
-import Login from './pages/Login';
 import { Analytics } from "@vercel/analytics/react";
+import LoadingSpinner from './components/LoadingSpinner';
 import { HandmadeRoutes } from './pages/HandmadeRoutes';
 import { PackingRoutes } from './pages/PackingRoutes';
 import FactoryRouter from './pages/FactoryRouter';
 import LocalSaleRouter from './pages/LocalSaleRouter';
 import ManufacturerRouter from './pages/ManufacturerRouter';
-import AdminSettings from './pages/Admin/AdminSettings';
-import SystemUpdates from './pages/systerm update/SystemUpdates';
-import DeveloperSection from './pages/systerm update/DeveloperSection';
-import SystemBackup from './pages/systerm update/SystemBackup';
+import api from './services/api';
+
+// Route-based Code Splitting (Lazy-loaded chunks)
+const Login = lazy(() => import('./pages/Login'));
+const AdminSettings = lazy(() => import('./pages/Admin/AdminSettings'));
+const DeveloperSection = lazy(() => import('./pages/systerm update/DeveloperSection'));
+const SystemUpdates = lazy(() => import('./pages/systerm update/SystemUpdates'));
+const SystemBackup = lazy(() => import('./pages/systerm update/SystemBackup'));
 
 const PUBLIC_VAPID_KEY = import.meta.env.VITE_PUBLIC_VAPID_KEY;
 
@@ -71,11 +75,7 @@ export default function App() {
           section: "Packing"        
         };
 
-        await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/notifications/subscribe`, {
-          method: 'POST',
-          body: JSON.stringify(payload), 
-          headers: { 'content-type': 'application/json' }
-        });
+        await api.post('/api/notifications/subscribe', payload);
 
         toast.success("Notifications Enabled Successfully!");
         setShowNotificationBtn(false);
@@ -108,28 +108,31 @@ export default function App() {
         </button>
       )}
 
-      <Routes>
-        {/* Public */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/" element={<Login />} />
-        {/* Protected */}
-        <Route element={<ProtectedRoute />}>
-          <Route path="/admin/settings" element={<AdminSettings />} />
-          
-          {/* Developer Only Routes */}
-          <Route element={<DeveloperRoute />}>
-            <Route path="/developer-section" element={<DeveloperSection />} />
-            <Route path="/system-updates" element={<SystemUpdates />} />
-            <Route path="/system-backup" element={<SystemBackup />} />
+      <Suspense fallback={<LoadingSpinner />}>
+        <Routes>
+          {/* Public */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<Login />} />
+
+          {/* Protected */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/admin/settings" element={<AdminSettings />} />
+            
+            {/* Developer Only Routes */}
+            <Route element={<DeveloperRoute />}>
+              <Route path="/developer-section" element={<DeveloperSection />} />
+              <Route path="/system-updates" element={<SystemUpdates />} />
+              <Route path="/system-backup" element={<SystemBackup />} />
+            </Route>
+            
+            {HandmadeRoutes()}
+            {PackingRoutes()}
+            {FactoryRouter()}
+            {LocalSaleRouter()}
+            {ManufacturerRouter()}
           </Route>
-          
-          {HandmadeRoutes()}
-          {PackingRoutes()}
-          {FactoryRouter()}
-          {LocalSaleRouter()}
-          {ManufacturerRouter()}
-        </Route>
-      </Routes>
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

@@ -90,7 +90,7 @@ export default function MonthEndSummary() {
              finalId = cleanTitle.replace(/[^a-z0-9]/g, ''); 
         }
 
-        // Base Sizes Standardize කිරීම
+        // Standardize base sizes
         if (finalSize.toLowerCase() === 'bopf (kg)' || finalSize.toLowerCase() === 'kg' || finalSize.toLowerCase() === 'bopf') finalSize = 'BOPF';
         if (finalSize.toLowerCase() === 'dust (kg)' || finalSize.toLowerCase() === 'dust') finalSize = 'DUST';
         if (finalSize.toLowerCase() === 'dust 1 (kg)' || finalSize.toLowerCase() === 'dust 1') finalSize = 'DUST 1';
@@ -110,7 +110,7 @@ export default function MonthEndSummary() {
         const issueMap = { free: {}, labour: {}, staff: {} };
 
         const dynamicCategoriesMap = {};
-        const dynamicBaseSizesMap = {}; // 💡 ප්‍රධාන කාණ්ඩ වලට එන අලුත් Sizes (උදා: 5kg) තබා ගැනීමට
+        const dynamicBaseSizesMap = {}; // Preserve additional sizes (e.g. 5kg) under main categories
         const baseCategoryIds = baseTeaCategories.map(c => c.id);
 
         const scanForDynamicCategories = (items) => {
@@ -118,13 +118,13 @@ export default function MonthEndSummary() {
                  const { id, title, size } = generateKey(item.categoryId, item.categoryTitle, item.size);
                  
                  if (!baseCategoryIds.includes(id)) {
-                     // 💡 අලුත්ම කාණ්ඩයක් නම් (උදා: Welfare Pack)
+                     // If category is newly introduced (e.g. Welfare Pack)
                      if (!dynamicCategoriesMap[id]) {
                          dynamicCategoriesMap[id] = { id: id, title: title, sizes: new Set() };
                      }
                      dynamicCategoriesMap[id].sizes.add(size);
                  } else {
-                     // 💡 දැනටමත් තියෙන කාණ්ඩයකට අලුත් Size එකක් ඇවිත් නම් (උදා: BOPF Premium එකට 5kg)
+                     // If a new pack size is added to an existing category (e.g. 5kg for BOPF Premium)
                      const baseCat = baseTeaCategories.find(c => c.id === id);
                      const sizeExists = baseCat.sizes.some(s => s.toLowerCase() === size.toLowerCase());
                      if (!sizeExists) {
@@ -177,7 +177,7 @@ export default function MonthEndSummary() {
             }
         });
 
-        // 💡 3. ප්‍රධාන කාණ්ඩ වලට අලුත් Sizes (5kg) එකතු කිරීම
+        // 3. Append new sizes (e.g. 5kg) to main categories
         const updatedBaseCats = baseTeaCategories.map(cat => {
              if (dynamicBaseSizesMap[cat.id]) {
                  return { ...cat, sizes: [...cat.sizes, ...Array.from(dynamicBaseSizesMap[cat.id])] };

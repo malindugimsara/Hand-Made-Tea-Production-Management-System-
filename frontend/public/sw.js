@@ -7,11 +7,11 @@ self.addEventListener('push', function(event) {
     
     const options = {
       body: data.message,
-      icon: '/favicon.ico', // ඔයාගේ app icon එක දෙන්න
+      icon: '/favicon.ico', // Application icon for notification
       badge: '/favicon.ico',
       vibrate: [200, 100, 200],
       data: {
-        url: data.url || 'https://unifiedmanagementsystemathukoralagroup.vercel.app/' // Notification එක click කරාම යන්න ඕනේ URL එක
+        url: data.url || 'https://unifiedmanagementsystemathukoralagroup.vercel.app/' // Target URL to open on notification click
       }
     };
 

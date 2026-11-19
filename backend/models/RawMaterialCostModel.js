@@ -41,4 +41,6 @@ const rawMaterialCostSchema = new mongoose.Schema({
     updatedBy: { type: String, default: '' }
 }, { timestamps: true });
 
+rawMaterialCostSchema.index({ date: -1 });
+
 export const RawMaterialCost = mongoose.model('RawMaterialCost', rawMaterialCostSchema);

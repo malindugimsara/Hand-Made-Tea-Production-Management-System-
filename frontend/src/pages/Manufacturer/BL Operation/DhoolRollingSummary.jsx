@@ -110,7 +110,7 @@ const format12Hour = (timeStr) => {
   let [hours, minutes] = timeStr.split(':').map(Number);
   const ampm = hours >= 12 ? 'PM' : 'AM';
   hours = hours % 12;
-  hours = hours ? hours : 12; // 0 පැය 12 ලෙස දැක්වීමට
+  hours = hours ? hours : 12; // Format hour 0 as 12
   const strHours = hours.toString().padStart(2, '0');
   const strMins = minutes.toString().padStart(2, '0');
   return `${strHours}:${strMins} ${ampm}`;

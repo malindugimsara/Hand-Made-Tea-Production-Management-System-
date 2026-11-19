@@ -230,7 +230,7 @@ export default function ViewRawMaterialInRecords() {
   };
 
   const filteredRecords = records.reduce((acc, record) => {
-    // Date සහ Month filters චෙක් කිරීම
+    // Validate against date and month filters
     const rDate = record.date
       ? new Date(record.date).toISOString().split("T")[0]
       : "";
@@ -238,24 +238,24 @@ export default function ViewRawMaterialInRecords() {
     const dateMatch =
       (!startDate || rDate >= startDate) && (!endDate || rDate <= endDate);
 
-    // මාසය හෝ දිනය ගැලපෙන්නේ නැත්නම් මේ record එක අතහරින්න
+    // Skip record if date does not match active filter
     if (!monthMatch || !dateMatch) return acc;
 
-    // record එක ඇතුලේ තියෙන items ටික ගන්න. (undefined ආවොත් crash නොවෙන්න || [] දාලා තියෙනවා)
+    // Safe access to items array with fallback to empty array
     let matchedItems = record.itemsArray || [];
 
-    // 1. Category Filter එක මෙතනදීම Apply කරනවා
+    // 1. Apply category filter
     if (filterCategory !== "all") {
       matchedItems = matchedItems.filter(
         (item) => (item.category || "other") === filterCategory,
       );
     }
 
-    // 2. Search Box Filter එක Apply කරනවා
+    // 2. Apply search box keyword filter
     if (searchFilter) {
       const searchVal = searchFilter.toLowerCase();
 
-      // Invoice No හෝ Supplier Name එකට සමානද කියලා බලනවා (Partial Match)
+      // Check for partial match against Invoice No or Supplier Name
       const isInvoiceMatch = record.invoiceNo
         ?.toLowerCase()
         .includes(searchVal);
@@ -263,7 +263,7 @@ export default function ViewRawMaterialInRecords() {
         ?.toLowerCase()
         .includes(searchVal);
 
-      // ඒ දෙකටම ගැලපුනේ නැත්නම්, හරියටම Material Name එකට සමාන (Exact Match) items විතරක් ගන්නවා
+      // Fallback to exact match on Material Name
       if (!isInvoiceMatch && !isSupplierMatch) {
         matchedItems = matchedItems.filter(
           (item) => item.materialName?.toLowerCase() === searchVal,
@@ -271,11 +271,11 @@ export default function ViewRawMaterialInRecords() {
       }
     }
 
-    // ගැලපෙන items එකක් හෝ තියෙනවා නම් පමණක් එය පෙන්නන්න
+    // Retain record only if at least one item matches filter criteria
     if (matchedItems.length > 0) {
       acc.push({
         ...record,
-        itemsArray: matchedItems, // ෆිල්ටර් වුන items පමණක් replace කරයි
+        itemsArray: matchedItems, // Replace item collection with filtered results
       });
     }
 
@@ -339,7 +339,7 @@ export default function ViewRawMaterialInRecords() {
       }
 
       const token = localStorage.getItem("token");
-      // 💡 2. ඉන්පසු Backend එකෙන් Record එක මකා දැමීම
+      // 2. Delete record from backend database
       const response = await fetch(
         `${BACKEND_URL}/api/raw-materials-in/${recordToDelete._id}`,
         {

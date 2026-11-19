@@ -33,5 +33,7 @@ const stockAdjustmentLogSchema = new mongoose.Schema({
     timestamps: true 
 });
 
+stockAdjustmentLogSchema.index({ createdAt: -1 });
+
 const StockAdjustmentLog = mongoose.model('StockAdjustmentLog', stockAdjustmentLogSchema);
 export default StockAdjustmentLog;

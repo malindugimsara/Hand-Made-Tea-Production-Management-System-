@@ -38,6 +38,8 @@ const teaReceivedSchema = new mongoose.Schema({
     timestamps: true 
 });
 
+teaReceivedSchema.index({ date: -1 });
+
 const TeaReceived = mongoose.model('TeaReceived', teaReceivedSchema);
 
 export default TeaReceived;

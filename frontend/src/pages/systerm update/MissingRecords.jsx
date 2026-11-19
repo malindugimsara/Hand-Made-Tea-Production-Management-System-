@@ -166,7 +166,7 @@ const MissingRecords = () => {
     };
 
 // =====================================================================
-    // 💡 PDF Generate කරන ප්‍රධාන Function එක (වෙන වෙනම Tables සෑදීම)
+    // Core PDF generation function with partitioned tables
     // =====================================================================
     const handleDownloadPDF = async (isCombined, singleTableData = null) => {
         const toastId = toast.loading("Generating PDF...");
@@ -175,7 +175,7 @@ const MissingRecords = () => {
         const pageHeight = doc.internal.pageSize.getHeight();
 
         try {
-            // 1. Logo එක Load කිරීම
+            // 1. Load brand logo image
             try {
                 const res = await fetch("/logo.png");
                 if (res.ok) {
@@ -191,7 +191,7 @@ const MissingRecords = () => {
                 console.warn("Logo not found");
             }
 
-            // 2. Company Name සහ මාතෘකා
+            // 2. Render Company Name and Header Titles
             doc.setFontSize(18);
             doc.setTextColor(27, 106, 49); // Theme Green
             doc.setFont(undefined, 'bold');
@@ -210,7 +210,7 @@ const MissingRecords = () => {
             doc.setFont(undefined, 'normal');
             doc.text(docSubtitle, 42, 33);
 
-            // 3. Date & Time සහ Ref Number
+            // 3. Render Generation Timestamp and Reference Number
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -232,32 +232,32 @@ const MissingRecords = () => {
             const finalHeaders = [["Date Range", "Module / Subject", "Missing Details"]];
 
             // =========================================================
-            // 💡 4. Tables Generate කිරීමේ ප්‍රධාන තර්කය (වෙන වෙනම)
+            // 4. Generate section tables individually
             // =========================================================
             if (isCombined) {
-                let currentY = 45; // පළමු Table එක පටන් ගන්නා තැන
+                let currentY = 45; // Initial vertical Y-coordinate for the first table
 
                 generatedTables.forEach((table) => {
-                    // 💡 අලුත් තර්කය: Table එකේ මාතෘකාව සහ පේළි කිහිපයක් සඳහා ප්‍රමාණවත් ඉඩක් (Space) නැත්නම් අලුත් පිටුවක් ගන්න.
-                    // කලින් තිබුණේ 30යි. දැන් එය 50ක් කර ඇත, එවිට Header එක පමණක් පහළින් ඉතිරි නොවේ.
+                    // Page break check: Add new page if vertical space is insufficient for header and rows
+                    // Adjusted bottom threshold from 30 to 50 to prevent orphan section headers
                     if (currentY > pageHeight - 50) { 
                         doc.addPage();
-                        currentY = 20; // අලුත් පිටුවේ පටන් ගන්නා උස
+                        currentY = 20; // Starting Y-coordinate on newly added page
                     }
 
-                    // 💡 Table එකට උඩින් අදාළ Section එකේ නම (මාතෘකාව) මුද්‍රණය කිරීම
+                    // Print section title header above the table
                     doc.setFontSize(11);
                     doc.setTextColor(40, 40, 40);
                     doc.setFont(undefined, 'bold');
                     const sectionTitle = `--- ${table.section.toUpperCase()} (${formatSafeDate(table.startDate)} to ${formatSafeDate(table.endDate)}) ---`;
                     doc.text(sectionTitle, 14, currentY);
 
-                    currentY += 5; // මාතෘකාව සහ Table එක අතර පරතරය
+                    currentY += 5; // Margin spacing between section title and table
 
-                    // Table එකේ Data ටික සකස් කිරීම
+                    // Prepare structured table row data
                     const tableBody = table.records.map(r => [formatSafeDate(r.date), r.moduleName, r.details]);
 
-                    // 💡 වෙනම Table එකක් ලෙස Generate කිරීම
+                    // Render standalone autoTable instance for section
                     autoTable(doc, {
                         startY: currentY,
                         head: finalHeaders,
@@ -275,11 +275,11 @@ const MissingRecords = () => {
                         margin: { bottom: 20 }
                     });
 
-                    // ඊළඟ Table එක පටන් ගන්නා තැන (අවසන් වූ Table එකට පහළින්)
+                    // Y-coordinate offset for next table below completed table
                     currentY = doc.lastAutoTable.finalY + 15; 
                 });
             } else {
-                // තනි Section එකක් පමණක් Download කරන විට (Single Table)
+                // Render single section table when filtered export is requested
                 const tableBody = singleTableData.records.map(r => [formatSafeDate(r.date), r.moduleName, r.details]);
                 autoTable(doc, {
                     startY: 45,
@@ -299,7 +299,7 @@ const MissingRecords = () => {
                 });
             }
 
-            // 5. පිටු අංක (Page Numbers)
+            // 5. Render dynamic page numbers on all generated pages
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
@@ -308,7 +308,7 @@ const MissingRecords = () => {
                 doc.text(`Page ${i} of ${pageCount} - Generated by Unified Management System`, pageWidth / 2, pageHeight - 10, { align: 'center' });
             }
 
-            // 6. PDF එක ඩවුන්ලෝඩ් කිරීම
+            // 6. Trigger PDF download in client browser
             const outFileName = isCombined 
                 ? `Combined_Audit_Report.pdf` 
                 : `Audit_Report_${singleTableData.section.replace(/\s+/g, '_')}.pdf`;
@@ -388,7 +388,7 @@ const MissingRecords = () => {
                         </div>
                         <div className="flex flex-wrap gap-2">
                             
-                            {/* 💡 තනි Table එකක් පමණක් Download කිරීමේ Button එක */}
+                            {/* Action button to download individual section table */}
                             <button onClick={() => handleDownloadPDF(false, table)} className="px-3 py-2 bg-indigo-50 text-indigo-600 font-bold text-sm rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-2 border border-indigo-200">
                                 <Download size={16} /> PDF
                             </button>
