@@ -71,7 +71,7 @@ export default function PackingStockView() {
       const token = localStorage.getItem("token");
       const response = await fetch(`${BACKEND_URL}/api/factory-packs`, {
         headers: {
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${token}`
         }
       });
       if (!response.ok) throw new Error("Failed to fetch data from database");
@@ -88,11 +88,11 @@ export default function PackingStockView() {
   const handleDeleteConfirm = async () => {
     if (!recordToDelete) return;
     try {
-      const token = localStorage.getItem("token"); 
-      const response = await fetch(`${BACKEND_URL}/api/factory-packs/${recordToDelete}`, { 
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${BACKEND_URL}/api/factory-packs/${recordToDelete}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${token}`
         }
       });
       if (!response.ok) {
@@ -114,16 +114,23 @@ export default function PackingStockView() {
   // --- Calculations (Running Balances & Filters) ---
   const { filteredData, totals } = useMemo(() => {
     const sortedRows = [...records].sort((a, b) => new Date(a.date) - new Date(b.date));
-    let agSuperBal = 0, aGroupBal = 0, sampleBagsBal = 0;
+    let agSuperBal = 0, aGroupBal = 0, sampleBagsBal = 0, unmarkedBal = 0;
 
     const processedRows = sortedRows.map(row => {
-      agSuperBal += (row.agSuper?.received || 0) - (row.agSuper?.used || 0);
-      aGroupBal += (row.aGroup?.received || 0) - (row.aGroup?.used || 0);
-      sampleBagsBal += (row.sampleBags?.received || 0) - (row.sampleBags?.used || 0);
+      // Subtract both used and damaged quantities from running balance
+      agSuperBal += (row.agSuper?.received || 0) - ((row.agSuper?.used || 0) + (row.agSuper?.damaged || 0));
+      aGroupBal += (row.aGroup?.received || 0) - ((row.aGroup?.used || 0) + (row.aGroup?.damaged || 0));
+      sampleBagsBal += (row.sampleBags?.received || 0) - ((row.sampleBags?.used || 0) + (row.sampleBags?.damaged || 0));
+      unmarkedBal += (row.unmarked?.received || 0) - ((row.unmarked?.used || 0) + (row.unmarked?.damaged || 0));
 
       return {
         ...row,
-        calculatedBalances: { agSuper: agSuperBal, aGroup: aGroupBal, sampleBags: sampleBagsBal }
+        calculatedBalances: {
+          agSuper: agSuperBal,
+          aGroup: aGroupBal,
+          sampleBags: sampleBagsBal,
+          unmarked: unmarkedBal
+        }
       };
     });
 
@@ -136,14 +143,29 @@ export default function PackingStockView() {
 
     finalData.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    const periodTotals = { agSuperRec: 0, agSuperUsed: 0, aGroupRec: 0, aGroupUsed: 0, sampleRec: 0, sampleUsed: 0 };
+    const periodTotals = {
+      agSuperRec: 0, agSuperUsed: 0, agSuperDmg: 0,
+      aGroupRec: 0, aGroupUsed: 0, aGroupDmg: 0,
+      sampleRec: 0, sampleUsed: 0, sampleDmg: 0,
+      unmarkedRec: 0, unmarkedUsed: 0, unmarkedDmg: 0
+    };
+
     finalData.forEach(r => {
       periodTotals.agSuperRec += (r.agSuper?.received || 0);
       periodTotals.agSuperUsed += (r.agSuper?.used || 0);
+      periodTotals.agSuperDmg += (r.agSuper?.damaged || 0);
+
       periodTotals.aGroupRec += (r.aGroup?.received || 0);
       periodTotals.aGroupUsed += (r.aGroup?.used || 0);
+      periodTotals.aGroupDmg += (r.aGroup?.damaged || 0);
+
       periodTotals.sampleRec += (r.sampleBags?.received || 0);
       periodTotals.sampleUsed += (r.sampleBags?.used || 0);
+      periodTotals.sampleDmg += (r.sampleBags?.damaged || 0);
+
+      periodTotals.unmarkedRec += (r.unmarked?.received || 0);
+      periodTotals.unmarkedUsed += (r.unmarked?.used || 0);
+      periodTotals.unmarkedDmg += (r.unmarked?.damaged || 0);
     });
 
     return { filteredData: finalData, totals: periodTotals };
@@ -153,17 +175,19 @@ export default function PackingStockView() {
   const getCleanTableData = () => {
     const tableRows = filteredData.map((r) => [
       r.date,
-      r.agSuper?.received || "-", r.agSuper?.used || "-", String(r.calculatedBalances.agSuper),
-      r.aGroup?.received || "-", r.aGroup?.used || "-", String(r.calculatedBalances.aGroup),
-      r.sampleBags?.received || "-", r.sampleBags?.used || "-", String(r.calculatedBalances.sampleBags),
+      r.agSuper?.received || "-", r.agSuper?.used || "-", r.agSuper?.damaged || "-", String(r.calculatedBalances.agSuper),
+      r.aGroup?.received || "-", r.aGroup?.used || "-", r.aGroup?.damaged || "-", String(r.calculatedBalances.aGroup),
+      r.sampleBags?.received || "-", r.sampleBags?.used || "-", r.sampleBags?.damaged || "-", String(r.calculatedBalances.sampleBags),
+      r.unmarked?.received || "-", r.unmarked?.used || "-", r.unmarked?.damaged || "-", String(r.calculatedBalances.unmarked),
     ]);
 
     if (filteredData.length > 0) {
       tableRows.push([
-        "TOTAL PERIOD", 
-        String(totals.agSuperRec), String(totals.agSuperUsed), "-",
-        String(totals.aGroupRec), String(totals.aGroupUsed), "-",
-        String(totals.sampleRec), String(totals.sampleUsed), "-"
+        "TOTAL PERIOD",
+        String(totals.agSuperRec), String(totals.agSuperUsed), String(totals.agSuperDmg), "-",
+        String(totals.aGroupRec), String(totals.aGroupUsed), String(totals.aGroupDmg), "-",
+        String(totals.sampleRec), String(totals.sampleUsed), String(totals.sampleDmg), "-",
+        String(totals.unmarkedRec), String(totals.unmarkedUsed), String(totals.unmarkedDmg), "-"
       ]);
     }
     return tableRows;
@@ -172,35 +196,45 @@ export default function PackingStockView() {
   // --- EXPORT TO EXCEL (With Clean Border and Color Formatting) ---
   const exportToExcel = () => {
     const periodText = getPeriodText();
-    
+    const totalCols = 17;
+
     const dataRows = filteredData.map((r) => [
       r.date,
-      r.agSuper?.received || 0, r.agSuper?.used || 0, r.calculatedBalances.agSuper,
-      r.aGroup?.received || 0, r.aGroup?.used || 0, r.calculatedBalances.aGroup,
-      r.sampleBags?.received || 0, r.sampleBags?.used || 0, r.calculatedBalances.sampleBags,
+      r.agSuper?.received || 0, r.agSuper?.used || 0, r.agSuper?.damaged || 0, r.calculatedBalances.agSuper,
+      r.aGroup?.received || 0, r.aGroup?.used || 0, r.aGroup?.damaged || 0, r.calculatedBalances.aGroup,
+      r.sampleBags?.received || 0, r.sampleBags?.used || 0, r.sampleBags?.damaged || 0, r.calculatedBalances.sampleBags,
+      r.unmarked?.received || 0, r.unmarked?.used || 0, r.unmarked?.damaged || 0, r.calculatedBalances.unmarked,
     ]);
 
     if (filteredData.length > 0) {
       dataRows.push([
-        "TOTAL PERIOD", 
-        totals.agSuperRec, totals.agSuperUsed, "-",
-        totals.aGroupRec, totals.aGroupUsed, "-",
-        totals.sampleRec, totals.sampleUsed, "-"
+        "TOTAL PERIOD",
+        totals.agSuperRec, totals.agSuperUsed, totals.agSuperDmg, "-",
+        totals.aGroupRec, totals.aGroupUsed, totals.aGroupDmg, "-",
+        totals.sampleRec, totals.sampleUsed, totals.sampleDmg, "-",
+        totals.unmarkedRec, totals.unmarkedUsed, totals.unmarkedDmg, "-"
       ]);
     }
 
+    const emptyRow = Array(totalCols).fill("");
     const tableData = [
-      [`FACTORY PACKING LEDGER: ${periodText}`, "", "", "", "", "", "", "", "", ""],
-      [`Generated on ${new Date().toLocaleString()}`, "", "", "", "", "", "", "", "", ""],
-      ["", "", "", "", "", "", "", "", "", ""],
-      ["DATE", "A/G/SUPER REC", "A/G/SUPER USED", "A/G/SUPER BALA", "A/GROUP REC", "A/GROUP USED", "A/GROUP BALA", "SAMPLES REC", "SAMPLES USED", "SAMPLES BALA"],
+      [`FACTORY PACKING LEDGER: ${periodText}`, ...Array(totalCols - 1).fill("")],
+      [`Generated on ${new Date().toLocaleString()}`, ...Array(totalCols - 1).fill("")],
+      emptyRow,
+      [
+        "DATE",
+        "A/G/SUPER REC", "A/G/SUPER USED", "A/G/SUPER DMG", "A/G/SUPER BALA",
+        "A/GROUP REC", "A/GROUP USED", "A/GROUP DMG", "A/GROUP BALA",
+        "SAMPLES REC", "SAMPLES USED", "SAMPLES DMG", "SAMPLES BALA",
+        "UNMARKED REC", "UNMARKED USED", "UNMARKED DMG", "UNMARKED BALA"
+      ],
       ...dataRows,
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet(tableData);
     worksheet["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } },
+      { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: totalCols - 1 } },
     ];
 
     const borderAll = {
@@ -210,7 +244,7 @@ export default function PackingStockView() {
       right: { style: "thin", color: { rgb: "D1D5DB" } },
     };
     const stdAlign = { horizontal: "center", vertical: "center" };
-    
+
     const range = XLSX.utils.decode_range(worksheet["!ref"]);
     for (let R = range.s.r; R <= range.e.r; ++R) {
       for (let C = range.s.c; C <= range.e.c; ++C) {
@@ -231,7 +265,7 @@ export default function PackingStockView() {
       }
     }
 
-    worksheet["!cols"] = Array(10).fill({ wch: 15 });
+    worksheet["!cols"] = Array(totalCols).fill({ wch: 15 });
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Packing Ledger");
@@ -239,8 +273,8 @@ export default function PackingStockView() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-[1500px] mx-auto font-sans flex flex-col min-h-screen dark:bg-gray-950 transition-colors duration-300">
-      
+    <div className="p-6 md:p-8 max-w-[1650px] mx-auto font-sans flex flex-col min-h-screen dark:bg-gray-950 transition-colors duration-300">
+
       {/* TOP HEADER & BUTTONS */}
       <div className="mb-5 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
@@ -248,7 +282,7 @@ export default function PackingStockView() {
             Factory Packing Ledger
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Running stock balances for factory packs and sample bags
+            Running stock balances for factory packs, sample bags, and unmarked packs
           </p>
         </div>
 
@@ -258,7 +292,7 @@ export default function PackingStockView() {
             disabled={loading}
             className="px-4 py-2 h-[42px] bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md text-sm font-semibold flex items-center gap-2 shadow-sm transition-all"
           >
-            <RefreshCcw size={18} className={loading ? "animate-spin" : ""} /> 
+            <RefreshCcw size={18} className={loading ? "animate-spin" : ""} />
           </button>
 
           <button
@@ -274,7 +308,13 @@ export default function PackingStockView() {
             subtitle={`Period: ${getPeriodText()}`}
             data={getCleanTableData()}
             headers={[
-              ["DATE", "A/G/SUPER\nREC", "A/G/SUPER\nUSED", "A/G/SUPER\nBALA", "A/GROUP\nREC", "A/GROUP\nUSED", "A/GROUP\nBALA", "SAMPLES\nREC", "SAMPLES\nUSED", "SAMPLES\nBALA"]
+              [
+                "DATE",
+                "A/G/S\nREC", "A/G/S\nUSED", "A/G/S\nDMG", "A/G/S\nBALA",
+                "A/GRP\nREC", "A/GRP\nUSED", "A/GRP\nDMG", "A/GRP\nBALA",
+                "SMPL\nREC", "SMPL\nUSED", "SMPL\nDMG", "SMPL\nBALA",
+                "UNMK\nREC", "UNMK\nUSED", "UNMK\nDMG", "UNMK\nBALA"
+              ]
             ]}
             uniqueCode={`PCK-${getPeriodText().replace(/ /g, "")}`}
             fileName={`Packing_Ledger_${getPeriodText().replace(/ /g, "_")}.pdf`}
@@ -282,11 +322,13 @@ export default function PackingStockView() {
             disabled={loading || filteredData.length === 0}
             autoTableOptions={{
               theme: "grid",
+              styles: { fontSize: 7.5, cellPadding: 2 },
               headStyles: { fillColor: [27, 106, 49], textColor: [255, 255, 255], fontStyle: "bold", halign: "center" },
               columnStyles: {
-                1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' },
-                4: { halign: 'center' }, 5: { halign: 'center' }, 6: { halign: 'center' },
-                7: { halign: 'center' }, 8: { halign: 'center' }, 9: { halign: 'center' },
+                1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' },
+                5: { halign: 'center' }, 6: { halign: 'center' }, 7: { halign: 'center' }, 8: { halign: 'center' },
+                9: { halign: 'center' }, 10: { halign: 'center' }, 11: { halign: 'center' }, 12: { halign: 'center' },
+                13: { halign: 'center' }, 14: { halign: 'center' }, 15: { halign: 'center' }, 16: { halign: 'center' },
               }
             }}
           />
@@ -354,39 +396,67 @@ export default function PackingStockView() {
       </div>
 
       {/* SUMMARY CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm flex items-center gap-4">
           <div className="p-3 bg-teal-50 dark:bg-teal-900/30 rounded-lg text-teal-600 dark:text-teal-400">
-            <Package size={28} />
+            <Package size={26} />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">A / G / Super</h3>
-            <div className="text-xl font-black text-teal-700 dark:text-teal-400">
-              Received : {totals.agSuperRec} <span className="text-gray-300 dark:text-gray-600 mx-1">|</span> Used : {totals.agSuperUsed}
+            <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">A / G / Super</h3>
+            <div className="text-sm font-black text-teal-700 dark:text-teal-400 flex flex-wrap gap-x-2">
+              <span>Rec: {totals.agSuperRec}</span>
+              <span className="text-gray-300 dark:text-gray-600">|</span>
+              <span>Used: {totals.agSuperUsed}</span>
+              <span className="text-gray-300 dark:text-gray-600">|</span>
+              <span className="text-rose-600 dark:text-rose-400">Dmg: {totals.agSuperDmg}</span>
             </div>
           </div>
         </div>
 
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm flex items-center gap-4">
           <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400">
-            <Package size={28} />
+            <Package size={26} />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">A / Group</h3>
-            <div className="text-xl font-black text-blue-700 dark:text-blue-400">
-              Received : {totals.aGroupRec} <span className="text-gray-300 dark:text-gray-600 mx-1">|</span> Used : {totals.aGroupUsed}
+            <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">A / Group</h3>
+            <div className="text-sm font-black text-blue-700 dark:text-blue-400 flex flex-wrap gap-x-2">
+              <span>Rec: {totals.aGroupRec}</span>
+              <span className="text-gray-300 dark:text-gray-600">|</span>
+              <span>Used: {totals.aGroupUsed}</span>
+              <span className="text-gray-300 dark:text-gray-600">|</span>
+              <span className="text-rose-600 dark:text-rose-400">Dmg: {totals.aGroupDmg}</span>
             </div>
           </div>
         </div>
 
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm flex items-center gap-4">
           <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-indigo-600 dark:text-indigo-400">
-            <TrendingUp size={28} />
+            <TrendingUp size={26} />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Sample Bags</h3>
-            <div className="text-xl font-black text-indigo-700 dark:text-indigo-400">
-              Received : {totals.sampleRec} <span className="text-gray-300 dark:text-gray-600 mx-1">|</span> Used : {totals.sampleUsed}
+            <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Sample Bags</h3>
+            <div className="text-sm font-black text-indigo-700 dark:text-indigo-400 flex flex-wrap gap-x-2">
+              <span>Rec: {totals.sampleRec}</span>
+              <span className="text-gray-300 dark:text-gray-600">|</span>
+              <span>Used: {totals.sampleUsed}</span>
+              <span className="text-gray-300 dark:text-gray-600">|</span>
+              <span className="text-rose-600 dark:text-rose-400">Dmg: {totals.sampleDmg}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-amber-50 dark:bg-amber-900/30 rounded-lg text-amber-600 dark:text-amber-400">
+            <Package size={26} />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Unmarked</h3>
+            <div className="text-sm font-black text-amber-700 dark:text-amber-400 flex flex-wrap gap-x-2">
+              <span>Rec: {totals.unmarkedRec}</span>
+              <span className="text-gray-300 dark:text-gray-600">|</span>
+              <span>Used: {totals.unmarkedUsed}</span>
+              <span className="text-gray-300 dark:text-gray-600">|</span>
+              <span className="text-rose-600 dark:text-rose-400">Dmg: {totals.unmarkedDmg}</span>
             </div>
           </div>
         </div>
@@ -405,21 +475,36 @@ export default function PackingStockView() {
               <thead>
                 <tr className="bg-gray-200 dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-bold uppercase text-[11px] tracking-wider border-b border-gray-300 dark:border-gray-700">
                   <th rowSpan="2" className="px-4 py-4 border-r border-gray-300 dark:border-gray-700 align-middle min-w-[110px]">Date</th>
-                  <th colSpan="3" className="px-4 py-3 border-r border-gray-300 dark:border-gray-700 align-middle text-teal-800 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20">A / G / Super</th>
-                  <th colSpan="3" className="px-4 py-3 border-r border-gray-300 dark:border-gray-700 align-middle text-blue-800 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20">A / Group</th>
-                  <th colSpan="3" className="px-4 py-3 border-r border-gray-300 dark:border-gray-700 align-middle text-indigo-800 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20">Sample Bags</th>
+                  <th colSpan="4" className="px-4 py-3 border-r border-gray-300 dark:border-gray-700 align-middle text-teal-800 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20">A / G / Super</th>
+                  <th colSpan="4" className="px-4 py-3 border-r border-gray-300 dark:border-gray-700 align-middle text-blue-800 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20">A / Group</th>
+                  <th colSpan="4" className="px-4 py-3 border-r border-gray-300 dark:border-gray-700 align-middle text-indigo-800 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20">Sample Bags</th>
+                  <th colSpan="4" className="px-4 py-3 border-r border-gray-300 dark:border-gray-700 align-middle text-amber-800 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20">Unmarked</th>
                   {/* Action Column Hidden if Viewer */}
                   {!isViewer && <th rowSpan="2" className="px-4 py-4 align-middle text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800/80 w-24 print:hidden">Action</th>}
                 </tr>
                 <tr className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-bold uppercase text-[10px] tracking-wider border-b border-gray-300 dark:border-gray-700">
-                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Received </th>
+                  {/* A / G / Super Sub-headers */}
+                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Rec</th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Used</th>
+                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 text-rose-600 dark:text-rose-400">Dmg</th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 bg-gray-200/50 dark:bg-gray-900/40 font-black">Balance</th>
-                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Received </th>
+
+                  {/* A / Group Sub-headers */}
+                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Rec</th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Used</th>
+                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 text-rose-600 dark:text-rose-400">Dmg</th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 bg-gray-200/50 dark:bg-gray-900/40 font-black">Balance</th>
-                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Received </th>
+
+                  {/* Sample Bags Sub-headers */}
+                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Rec</th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Used</th>
+                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 text-rose-600 dark:text-rose-400">Dmg</th>
+                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 bg-gray-200/50 dark:bg-gray-900/40 font-black">Balance</th>
+
+                  {/* Unmarked Sub-headers */}
+                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Rec</th>
+                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700">Used</th>
+                  <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 text-rose-600 dark:text-rose-400">Dmg</th>
                   <th className="py-2.5 px-2 border-r border-gray-300 dark:border-gray-700 bg-gray-200/50 dark:bg-gray-900/40 font-black">Balance</th>
                 </tr>
               </thead>
@@ -432,18 +517,30 @@ export default function PackingStockView() {
                         <td className="px-4 py-3 border-r border-gray-300 dark:border-gray-700 font-semibold bg-gray-50 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300">
                           {row.date}
                         </td>
-                        
+
+                        {/* A / G / Super */}
                         <td className="py-3 px-2 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">{row.agSuper?.received || "-"}</td>
                         <td className="py-3 px-2 border-r border-gray-200 dark:border-gray-700 text-red-600 dark:text-red-400 font-semibold">{row.agSuper?.used || "-"}</td>
+                        <td className="py-3 px-2 border-r border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 font-semibold">{row.agSuper?.damaged || "-"}</td>
                         <td className="py-3 px-2 border-r border-gray-300 dark:border-gray-700 font-bold text-teal-800 dark:text-teal-300 bg-teal-50/30 dark:bg-teal-900/10">{row.calculatedBalances.agSuper}</td>
 
+                        {/* A / Group */}
                         <td className="py-3 px-2 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">{row.aGroup?.received || "-"}</td>
                         <td className="py-3 px-2 border-r border-gray-200 dark:border-gray-700 text-red-600 dark:text-red-400 font-semibold">{row.aGroup?.used || "-"}</td>
+                        <td className="py-3 px-2 border-r border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 font-semibold">{row.aGroup?.damaged || "-"}</td>
                         <td className="py-3 px-2 border-r border-gray-300 dark:border-gray-700 font-bold text-blue-800 dark:text-blue-300 bg-blue-50/30 dark:bg-blue-900/10">{row.calculatedBalances.aGroup}</td>
 
+                        {/* Sample Bags */}
                         <td className="py-3 px-2 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">{row.sampleBags?.received || "-"}</td>
                         <td className="py-3 px-2 border-r border-gray-200 dark:border-gray-700 text-red-600 dark:text-red-400 font-semibold">{row.sampleBags?.used || "-"}</td>
+                        <td className="py-3 px-2 border-r border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 font-semibold">{row.sampleBags?.damaged || "-"}</td>
                         <td className="py-3 px-2 border-r border-gray-300 dark:border-gray-700 font-bold text-indigo-800 dark:text-indigo-300 bg-indigo-50/30 dark:bg-indigo-900/10">{row.calculatedBalances.sampleBags}</td>
+
+                        {/* Unmarked */}
+                        <td className="py-3 px-2 border-r border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">{row.unmarked?.received || "-"}</td>
+                        <td className="py-3 px-2 border-r border-gray-200 dark:border-gray-700 text-red-600 dark:text-red-400 font-semibold">{row.unmarked?.used || "-"}</td>
+                        <td className="py-3 px-2 border-r border-gray-200 dark:border-gray-700 text-rose-600 dark:text-rose-400 font-semibold">{row.unmarked?.damaged || "-"}</td>
+                        <td className="py-3 px-2 border-r border-gray-300 dark:border-gray-700 font-bold text-amber-800 dark:text-amber-300 bg-amber-50/30 dark:bg-amber-900/10">{row.calculatedBalances.unmarked}</td>
 
                         {/* Hide Actions cell if Viewer */}
                         {!isViewer && (
@@ -456,7 +553,7 @@ export default function PackingStockView() {
                               >
                                 <MdOutlineEdit size={20} />
                               </button>
-                              
+
                               {/* Show Delete Button ONLY for Admin */}
                               {isAdmin && (
                                 <AlertDialog>
@@ -493,25 +590,37 @@ export default function PackingStockView() {
                       <td className="px-4 py-4 border-r border-gray-300 dark:border-gray-600 text-right text-gray-700 dark:text-gray-300 uppercase text-[11px]">
                         Period Totals:
                       </td>
+                      {/* A / G / Super Totals */}
                       <td className="py-4 px-2 border-r border-gray-300 dark:border-gray-600 text-teal-800 dark:text-teal-300">{totals.agSuperRec || "-"}</td>
                       <td className="py-4 px-2 border-r border-gray-300 dark:border-gray-600 text-red-700 dark:text-red-400">{totals.agSuperUsed || "-"}</td>
+                      <td className="py-4 px-2 border-r border-gray-300 dark:border-gray-600 text-rose-700 dark:text-rose-400">{totals.agSuperDmg || "-"}</td>
                       <td className="border-r border-gray-300 dark:border-gray-600 bg-gray-300/50 dark:bg-gray-800/50"></td>
-                      
+
+                      {/* A / Group Totals */}
                       <td className="py-4 px-2 border-r border-gray-300 dark:border-gray-600 text-blue-800 dark:text-blue-300">{totals.aGroupRec || "-"}</td>
                       <td className="py-4 px-2 border-r border-gray-300 dark:border-gray-600 text-red-700 dark:text-red-400">{totals.aGroupUsed || "-"}</td>
+                      <td className="py-4 px-2 border-r border-gray-300 dark:border-gray-600 text-rose-700 dark:text-rose-400">{totals.aGroupDmg || "-"}</td>
                       <td className="border-r border-gray-300 dark:border-gray-600 bg-gray-300/50 dark:bg-gray-800/50"></td>
-                      
+
+                      {/* Sample Bags Totals */}
                       <td className="py-4 px-2 border-r border-gray-300 dark:border-gray-600 text-indigo-800 dark:text-indigo-300">{totals.sampleRec || "-"}</td>
                       <td className="py-4 px-2 border-r border-gray-300 dark:border-gray-600 text-red-700 dark:text-red-400">{totals.sampleUsed || "-"}</td>
+                      <td className="py-4 px-2 border-r border-gray-300 dark:border-gray-600 text-rose-700 dark:text-rose-400">{totals.sampleDmg || "-"}</td>
                       <td className="border-r border-gray-300 dark:border-gray-600 bg-gray-300/50 dark:bg-gray-800/50"></td>
-                      
+
+                      {/* Unmarked Totals */}
+                      <td className="py-4 px-2 border-r border-gray-300 dark:border-gray-600 text-amber-800 dark:text-amber-300">{totals.unmarkedRec || "-"}</td>
+                      <td className="py-4 px-2 border-r border-gray-300 dark:border-gray-600 text-red-700 dark:text-red-400">{totals.unmarkedUsed || "-"}</td>
+                      <td className="py-4 px-2 border-r border-gray-300 dark:border-gray-600 text-rose-700 dark:text-rose-400">{totals.unmarkedDmg || "-"}</td>
+                      <td className="border-r border-gray-300 dark:border-gray-600 bg-gray-300/50 dark:bg-gray-800/50"></td>
+
                       {/* Hide empty action cell for Viewer */}
                       {!isViewer && <td className="bg-gray-200 dark:bg-gray-700"></td>}
                     </tr>
                   </>
                 ) : (
                   <tr>
-                    <td colSpan={!isViewer ? "11" : "10"} className="p-16 text-center">
+                    <td colSpan={!isViewer ? "18" : "17"} className="p-16 text-center">
                       <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
                         <AlertCircle size={40} className="mb-3 opacity-20" />
                         <p className="text-lg font-medium">No ledger records found for {getPeriodText()}</p>

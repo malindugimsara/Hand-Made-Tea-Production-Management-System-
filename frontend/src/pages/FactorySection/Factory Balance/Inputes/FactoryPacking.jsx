@@ -5,21 +5,21 @@ import { Package, ListPlus, Send, Trash2, AlertCircle } from "lucide-react";
 // 1. Reusable input styles
 const inputStyle = "w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-200 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-all";
 
-// 2. Helper component for the bag categories
+// 2. Helper component for the bag categories (Updated with Damaged Quantity)
 const BagSection = ({ title, stateData, categoryStr, themeClass, onChange }) => (
     <div className="p-5 rounded-2xl border bg-gray-50/50 dark:bg-gray-800/50 border-gray-100 dark:border-gray-700">
         <h3 className={`text-sm font-black uppercase tracking-wider mb-4 ${themeClass}`}>{title}</h3>
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">
                     Received (Packs)
                 </label>
-                <input 
-                    type="number" 
+                <input
+                    type="number"
                     min="0"
-                    value={stateData.received} 
-                    onChange={(e) => onChange(categoryStr, 'received', e.target.value)} 
-                    className={inputStyle} 
+                    value={stateData.received}
+                    onChange={(e) => onChange(categoryStr, 'received', e.target.value)}
+                    className={inputStyle}
                     placeholder="0"
                 />
             </div>
@@ -27,12 +27,25 @@ const BagSection = ({ title, stateData, categoryStr, themeClass, onChange }) => 
                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">
                     Used (Packs)
                 </label>
-                <input 
-                    type="number" 
+                <input
+                    type="number"
                     min="0"
-                    value={stateData.used} 
-                    onChange={(e) => onChange(categoryStr, 'used', e.target.value)} 
-                    className={inputStyle} 
+                    value={stateData.used}
+                    onChange={(e) => onChange(categoryStr, 'used', e.target.value)}
+                    className={inputStyle}
+                    placeholder="0"
+                />
+            </div>
+            <div>
+                <label className="block text-xs font-bold text-rose-500 dark:text-rose-400 mb-1.5 uppercase tracking-wide">
+                    Damaged Qty
+                </label>
+                <input
+                    type="number"
+                    min="0"
+                    value={stateData.damaged}
+                    onChange={(e) => onChange(categoryStr, 'damaged', e.target.value)}
+                    className={`${inputStyle} focus:border-rose-500 focus:ring-rose-500/20`}
                     placeholder="0"
                 />
             </div>
@@ -40,14 +53,17 @@ const BagSection = ({ title, stateData, categoryStr, themeClass, onChange }) => 
     </div>
 );
 
+const initialBagState = { received: "", used: "", damaged: "" };
+
 const FactoryPacking = () => {
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
     // --- Form State ---
     const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0]);
-    const [agSuper, setAgSuper] = useState({ received: "", used: "" });
-    const [aGroup, setAGroup] = useState({ received: "", used: "" });
-    const [sampleBags, setSampleBags] = useState({ received: "", used: "" });
+    const [agSuper, setAgSuper] = useState(initialBagState);
+    const [aGroup, setAGroup] = useState(initialBagState);
+    const [sampleBags, setSampleBags] = useState(initialBagState);
+    const [unmarked, setUnmarked] = useState(initialBagState);
 
     // --- Queue & Processing State ---
     const [queue, setQueue] = useState([]);
@@ -64,9 +80,17 @@ const FactoryPacking = () => {
     // --- Change Handler ---
     const handleChange = (category, field, value) => {
         const numValue = value === "" ? "" : Number(value);
-        if (category === 'agSuper') setAgSuper({ ...agSuper, [field]: numValue });
-        if (category === 'aGroup') setAGroup({ ...aGroup, [field]: numValue });
-        if (category === 'sampleBags') setSampleBags({ ...sampleBags, [field]: numValue });
+        if (category === 'agSuper') setAgSuper((prev) => ({ ...prev, [field]: numValue }));
+        if (category === 'aGroup') setAGroup((prev) => ({ ...prev, [field]: numValue }));
+        if (category === 'sampleBags') setSampleBags((prev) => ({ ...prev, [field]: numValue }));
+        if (category === 'unmarked') setUnmarked((prev) => ({ ...prev, [field]: numValue }));
+    };
+
+    const clearForm = () => {
+        setAgSuper(initialBagState);
+        setAGroup(initialBagState);
+        setSampleBags(initialBagState);
+        setUnmarked(initialBagState);
     };
 
     // --- Action: Add to Local Queue ---
@@ -74,39 +98,41 @@ const FactoryPacking = () => {
         e.preventDefault();
 
         if (!recordDate) return toast.error("Please select a record date.");
-        
+
         // Prevent duplicate dates in the queue
         if (queue.some(item => item.date === recordDate)) {
             return toast.error(`An entry for ${recordDate} is already in the queue.`);
         }
 
-        // Format payload to perfectly match the backend Ledger schema
+        // Format payload to match the backend Ledger schema
+        const formatMetrics = (bagState) => {
+            const received = Number(bagState.received) || 0;
+            const used = Number(bagState.used) || 0;
+            const damaged = Number(bagState.damaged) || 0;
+            return {
+                received,
+                used,
+                damaged,
+                balance: received - (used + damaged) // Daily net stock change
+            };
+        };
+
         const payload = {
-            id: Date.now().toString(), // temporary unique ID for the queue
+            id: Date.now().toString(),
             date: recordDate,
-            agSuper: {
-                received: Number(agSuper.received) || 0,
-                used: Number(agSuper.used) || 0
-            },
-            aGroup: {
-                received: Number(aGroup.received) || 0,
-                used: Number(aGroup.used) || 0
-            },
-            sampleBags: {
-                received: Number(sampleBags.received) || 0,
-                used: Number(sampleBags.used) || 0
-            }
+            agSuper: formatMetrics(agSuper),
+            aGroup: formatMetrics(aGroup),
+            sampleBags: formatMetrics(sampleBags),
+            unmarked: formatMetrics(unmarked)
         };
 
         setQueue([...queue, payload]);
         toast.success("Added to temporary queue");
 
         // Clear form inputs after adding
-        setAgSuper({ received: "", used: "" });
-        setAGroup({ received: "", used: "" });
-        setSampleBags({ received: "", used: "" });
-        
-        // Optionally auto-increment the date for the next entry
+        clearForm();
+
+        // Auto-increment the date for the next entry
         const nextDate = new Date(recordDate);
         nextDate.setDate(nextDate.getDate() + 1);
         setRecordDate(nextDate.toISOString().split('T')[0]);
@@ -124,20 +150,18 @@ const FactoryPacking = () => {
         setIsSaving(true);
         const toastId = toast.loading(`Saving ${queue.length} entries to database...`);
 
-        // GET TOKEN FROM LOCAL STORAGE
         const token = localStorage.getItem('token');
 
         try {
-            // Process all queued items concurrently using Promise.all
-            const promises = queue.map(async (item) => {
-                // Remove the temporary 'id' before sending to backend
+            // Process items sequentially so running balances calculate in order
+            for (const item of queue) {
                 const { id, ...dataToSend } = item;
-                
+
                 const response = await fetch(`${BACKEND_URL}/api/factory-packs`, {
                     method: 'POST',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}` // ADDED TOKEN HEADER HERE
+                        'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify(dataToSend),
                 });
@@ -146,13 +170,10 @@ const FactoryPacking = () => {
                     const errorData = await response.json();
                     throw new Error(`Failed to save ${item.date}: ${errorData.message || 'Access Denied'}`);
                 }
-                return response.json();
-            });
-
-            await Promise.all(promises);
+            }
 
             toast.success("All queue entries saved successfully!", { id: toastId });
-            setQueue([]); // Clear queue upon success
+            setQueue([]);
             window.dispatchEvent(new CustomEvent("factoryPackingUpdated"));
 
         } catch (error) {
@@ -180,11 +201,11 @@ const FactoryPacking = () => {
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-                
+
                 {/* LEFT COLUMN: Input Form */}
                 <div className="xl:col-span-7 bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 md:p-8 transition-colors h-fit">
                     <form onSubmit={handleAddToQueue} className="space-y-6">
-                        
+
                         <div className="flex flex-col gap-2 mb-4 w-full md:w-1/2">
                             <label className="text-xs font-bold text-gray-500 dark:text-gray-400 tracking-wide uppercase">
                                 Ledger Date
@@ -200,15 +221,12 @@ const FactoryPacking = () => {
                         <BagSection title="A / G / Super" stateData={agSuper} categoryStr="agSuper" themeClass="text-teal-600 dark:text-teal-400" onChange={handleChange} />
                         <BagSection title="A / Group" stateData={aGroup} categoryStr="aGroup" themeClass="text-blue-600 dark:text-blue-400" onChange={handleChange} />
                         <BagSection title="Sample Bags" stateData={sampleBags} categoryStr="sampleBags" themeClass="text-indigo-600 dark:text-indigo-400" onChange={handleChange} />
+                        <BagSection title="Unmarked" stateData={unmarked} categoryStr="unmarked" themeClass="text-amber-600 dark:text-amber-400" onChange={handleChange} />
 
                         <div className="flex flex-col-reverse sm:flex-row justify-end pt-6 border-t border-gray-100 dark:border-gray-700 gap-3">
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setAgSuper({ received: "", used: "" });
-                                    setAGroup({ received: "", used: "" });
-                                    setSampleBags({ received: "", used: "" });
-                                }}
+                                onClick={clearForm}
                                 className="px-6 py-3.5 text-gray-500 dark:text-gray-400 font-bold text-sm tracking-wide hover:text-gray-700 dark:hover:text-gray-200 transition-colors bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-2xl"
                             >
                                 CLEAR
@@ -228,7 +246,7 @@ const FactoryPacking = () => {
                 {/* RIGHT COLUMN: Temporary Queue */}
                 <div className="xl:col-span-5 flex flex-col gap-4">
                     <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col h-full overflow-hidden transition-colors">
-                        
+
                         {/* Queue Header */}
                         <div className="p-5 md:p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 flex items-center justify-between">
                             <div>
@@ -237,10 +255,13 @@ const FactoryPacking = () => {
                                     {queue.length} {queue.length === 1 ? 'Entry' : 'Entries'} Ready
                                 </p>
                             </div>
+                            <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">
+                                Rec / Used / Dmg
+                            </span>
                         </div>
 
                         {/* Queue List */}
-                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar min-h-[300px] max-h-[500px]">
+                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar min-h-[300px] max-h-[550px]">
                             {queue.length === 0 ? (
                                 <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 opacity-70">
                                     <AlertCircle size={48} className="mb-3" />
@@ -251,12 +272,12 @@ const FactoryPacking = () => {
                                 <div className="space-y-3">
                                     {queue.map((item) => (
                                         <div key={item.id} className="relative group p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-teal-300 dark:hover:border-teal-700 transition-colors shadow-sm">
-                                            
+
                                             <div className="flex justify-between items-center mb-3">
                                                 <span className="inline-flex px-2.5 py-1 rounded-md text-xs font-black bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 border border-teal-100 dark:border-teal-800/50">
                                                     {item.date}
                                                 </span>
-                                                <button 
+                                                <button
                                                     onClick={() => handleRemoveFromQueue(item.id)}
                                                     className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 p-1 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                                                     title="Remove from queue"
@@ -265,18 +286,30 @@ const FactoryPacking = () => {
                                                 </button>
                                             </div>
 
-                                            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
                                                 <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border border-gray-100 dark:border-gray-700">
                                                     <p className="text-teal-600 dark:text-teal-500 font-bold mb-1">A/G/S</p>
-                                                    <p className="text-gray-700 dark:text-gray-300 font-semibold">{item.agSuper.received} / {item.agSuper.used}</p>
+                                                    <p className="text-gray-700 dark:text-gray-300 font-semibold">
+                                                        {item.agSuper.received} / {item.agSuper.used} / <span className="text-rose-500">{item.agSuper.damaged}</span>
+                                                    </p>
                                                 </div>
                                                 <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border border-gray-100 dark:border-gray-700">
                                                     <p className="text-blue-600 dark:text-blue-500 font-bold mb-1">A/Grp</p>
-                                                    <p className="text-gray-700 dark:text-gray-300 font-semibold">{item.aGroup.received} / {item.aGroup.used}</p>
+                                                    <p className="text-gray-700 dark:text-gray-300 font-semibold">
+                                                        {item.aGroup.received} / {item.aGroup.used} / <span className="text-rose-500">{item.aGroup.damaged}</span>
+                                                    </p>
                                                 </div>
                                                 <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border border-gray-100 dark:border-gray-700">
                                                     <p className="text-indigo-600 dark:text-indigo-500 font-bold mb-1">Spl</p>
-                                                    <p className="text-gray-700 dark:text-gray-300 font-semibold">{item.sampleBags.received} / {item.sampleBags.used}</p>
+                                                    <p className="text-gray-700 dark:text-gray-300 font-semibold">
+                                                        {item.sampleBags.received} / {item.sampleBags.used} / <span className="text-rose-500">{item.sampleBags.damaged}</span>
+                                                    </p>
+                                                </div>
+                                                <div className="bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border border-gray-100 dark:border-gray-700">
+                                                    <p className="text-amber-600 dark:text-amber-500 font-bold mb-1">Unmk</p>
+                                                    <p className="text-gray-700 dark:text-gray-300 font-semibold">
+                                                        {item.unmarked.received} / {item.unmarked.used} / <span className="text-rose-500">{item.unmarked.damaged}</span>
+                                                    </p>
                                                 </div>
                                             </div>
                                         </div>

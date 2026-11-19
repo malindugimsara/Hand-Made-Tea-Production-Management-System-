@@ -1,9 +1,10 @@
 import mongoose from 'mongoose';
 
-// A sub-schema to hold the Rec, Used, Bala numbers cleanly
+// Sub-schema to hold Received, Used, Damaged, and Balance numbers
 const stockMetricsSchema = new mongoose.Schema({
   received: { type: Number, default: 0 },
   used: { type: Number, default: 0 },
+  damaged: { type: Number, default: 0 },
   balance: { type: Number, default: 0 }
 }, { _id: false });
 
@@ -15,7 +16,8 @@ const factoryPackSchema = new mongoose.Schema({
   },
   agSuper: { type: stockMetricsSchema, default: () => ({}) },
   aGroup: { type: stockMetricsSchema, default: () => ({}) },
-  sampleBags: { type: stockMetricsSchema, default: () => ({}) }
+  sampleBags: { type: stockMetricsSchema, default: () => ({}) },
+  unmarked: { type: stockMetricsSchema, default: () => ({}) } // Added Unmarked category
 }, { timestamps: true });
 
 const FactoryPack = mongoose.models.FactoryPack || mongoose.model('FactoryPack', factoryPackSchema);
