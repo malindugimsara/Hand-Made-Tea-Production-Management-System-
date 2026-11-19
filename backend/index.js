@@ -81,34 +81,40 @@ app.use(helmet({
 app.disable('x-powered-by');
 
 // CORS configuration: Whitelist specific origins instead of wildcard (*)
+const cleanOrigin = (url) => url ? url.trim().replace(/\/+$/, '') : '';
+
 const envOrigins = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  ? process.env.ALLOWED_ORIGINS.split(',').map(cleanOrigin)
   : [];
 
 const allowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:3000',
-  process.env.CLIENT_URL,
-  process.env.FRONTEND_URL,
+  'https://unifiedmanagementsystemathukoralagroup.vercel.app',
+  cleanOrigin(process.env.CLIENT_URL),
+  cleanOrigin(process.env.FRONTEND_URL),
   ...envOrigins
 ].filter(Boolean);
 
 const corsOptions = {
   origin: (origin, callback) => {
+    const normOrigin = origin ? origin.replace(/\/+$/, '') : origin;
     // Allow requests with no origin (like mobile apps, curl, or Postman) or matching whitelist
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!normOrigin || allowedOrigins.includes(normOrigin)) {
       callback(null, true);
     } else {
+      console.warn(`[CORS] Blocked request from unauthorized origin: ${normOrigin}`);
       callback(new Error('CORS policy: Access denied from this origin.'));
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With']
 };
 
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Middleware 
 app.use(bodyParser.json());
